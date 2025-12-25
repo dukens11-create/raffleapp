@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raffle App Login</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      background: linear-gradient(135deg, #0a174e 0%, #133b88 100%);
+      color: #b3cfff;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      background: #133b88;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(10,23,78,0.15);
+      padding: 2.5em 2em;
+      border: 2px solid #0a174e;
+      max-width: 350px;
+      width: 100%;
+      margin: 32px auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h2 {
+      color: #b3cfff;
+      text-shadow: 2px 2px 8px #09103a;
+      margin-bottom: 1em;
+      font-size: 2em;
+    }
+    h3 {
+      color: #fff;
+      margin-bottom: 1em;
+      font-size: 1.3em;
+    }
+    input {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1.5px solid #1976d2;
+      background: #102a5c;
+      color: #b3cfff;
+      font-size: 1.05em;
+      margin-bottom: 10px;
+      width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 4px rgba(25,118,210,0.10);
+    }
+    input:focus {
+      border-color: #42a5f5;
+      box-shadow: 0 2px 8px rgba(66,165,245,0.15);
+      outline: none;
+    }
+    button {
+      background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 1.08em;
+      box-shadow: 0 2px 8px rgba(25,118,210,0.15);
+      transition: background 0.2s, box-shadow 0.2s;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+    button:hover {
+      background: linear-gradient(90deg, #133b88 0%, #1976d2 100%);
+      box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+    }
+    .msg-success {
+      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+      color: #0a174e;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(67,233,123,0.15);
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 1.08em;
+      border: 1.5px solid #38f9d7;
+    }
+    .msg-error {
+      background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
+      color: #fff;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(255,88,88,0.15);
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 1.08em;
+      border: 1.5px solid #f09819;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 12px !important;
+      }
+      .login-card {
+        padding: 1.2em 0.5em;
+        border-radius: 0 !important;
+        max-width: 98vw !important;
+      }
+      h2 {
+        font-size: 1.32em !important;
+      }
+      button, input {
+        font-size: 1.12em !important;
+        padding: 14px !important;
+        min-width: 44px;
+        min-height: 44px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <img src="logo.png" alt="Logo" style="display:block;margin:0 auto 18px auto;max-width:120px;">
+    <h2>🎟️ Raffle Ticket System</h2>
+    <h3>Login</h3>
+    <input id="phone" placeholder="Phone" aria-label="Phone"/>
+    <input id="password" type="password" placeholder="Password" aria-label="Password"/>
+    <!-- CAPTCHA removed -->
+    <button onclick="login()">Login</button>
+    <p id="msg"></p>
+  </div>
+  <script>
+    function login() {
+      fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: phone.value,
+          password: password.value
+        })
+      })
+      .then(r => r.json())
+      .then(d => {
+        if (d.role === 'admin') location.href = '/admin';
+        else if (d.role === 'seller') location.href = '/seller?name=' + d.name;
+        else if (d.twofa) document.getElementById('msg').textContent = d.msg;
+        else document.getElementById('msg').textContent = d.error || 'Login failed';
+      });
+    }
+  </script>
+</body>
+</html>

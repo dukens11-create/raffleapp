@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: raffle-app
+    env: node
+    rootDir: raffle-app
+    buildCommand: npm install
+    startCommand: node server.js
+    plan: free
+    autoDeploy: true

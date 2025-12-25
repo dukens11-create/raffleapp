@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seller - Ticket Sales</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a174e 0%, #133b88 100%);
+      color: #b3cfff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      width: 100vw;
+      background: linear-gradient(90deg, #1976d2 0%, #38f9d7 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      padding: 18px 0 18px 0;
+      box-shadow: 0 2px 8px rgba(25,118,210,0.10);
+      margin-bottom: 18px;
+      justify-content: center;
+    }
+    header img {
+      height: 48px;
+      margin-right: 18px;
+    }
+    header h1 {
+      font-size: 2em;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      margin: 0;
+      text-shadow: 2px 2px 8px #09103a;
+    }
+    footer {
+      width: 100vw;
+      background: #102a5c;
+      color: #b3cfff;
+      text-align: center;
+      padding: 18px 0;
+      font-size: 1em;
+      margin-top: 32px;
+      box-shadow: 0 -2px 8px rgba(25,118,210,0.10);
+    }
+    h2, h3 {
+      color: #43e97b;
+      font-weight: 700;
+      margin-top: 1.2em;
+      margin-bottom: 0.5em;
+      letter-spacing: 1px;
+    }
+    a, button, input, select, textarea {
+      outline: none;
+    }
+    a:focus, button:focus, input:focus, select:focus, textarea:focus {
+      outline: 2px solid #ffeb3b;
+      outline-offset: 2px;
+    }
+    .msg-success {
+      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+      color: #0a174e;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(67,233,123,0.15);
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 1.08em;
+      border: 1.5px solid #38f9d7;
+    }
+    .msg-error {
+      background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
+      color: #fff;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(255,88,88,0.15);
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 1.08em;
+      border: 1.5px solid #f09819;
+    }
+    @media (max-width: 600px) {
+      body {
+        padding: 12px !important;
+        margin: 0 !important;
+        max-width: 100vw !important;
+      }
+      .section, form, .history, #reader {
+        max-width: 98vw !important;
+        padding: 12px !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        border-width: 1px !important;
+      }
+      h1, h2 {
+        font-size: 1.32em !important;
+      }
+      button, input, select {
+        font-size: 1.12em !important;
+        padding: 14px !important;
+        min-width: 44px;
+        min-height: 44px;
+      }
+      .msg-success, .msg-error {
+        font-size: 1em !important;
+        padding: 10px 12px !important;
+      }
+      footer, header {
+        padding: 10px 0 !important;
+        font-size: 0.95em !important;
+      }
+      header img {
+        max-width: 80px !important;
+        height: auto !important;
+      }
+    }
+    #reader {
+      width: 90vw;
+      max-width: 350px;
+      margin-bottom: 1em;
+      background: #102a5c;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    #result {
+      font-size: 1.2em;
+      color: #00e676;
+      margin-bottom: 1em;
+    }
+    form {
+      background: #133b88;
+      padding: 1em;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      width: 90vw;
+      max-width: 350px;
+      margin-bottom: 1em;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+    }
+    input, button {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1.5px solid #1976d2;
+      background: #102a5c;
+      color: #b3cfff;
+      font-size: 1.05em;
+      margin-bottom: 10px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 4px rgba(25,118,210,0.10);
+      border-color: #42a5f5;
+      box-shadow: 0 2px 8px rgba(66,165,245,0.15);
+      outline: none;
+    }
+    button {
+      background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 1.08em;
+      box-shadow: 0 2px 8px rgba(25,118,210,0.15);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      background: linear-gradient(90deg, #133b88 0%, #1976d2 100%);
+      box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+    }
+    .history {
+      background: #133b88;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      width: 90vw;
+      max-width: 350px;
+      padding: 1em;
+      margin-bottom: 1em;
+    }
+    .history h2 {
+      font-size: 1.1em;
+      margin-bottom: 0.5em;
+      color: #b3cfff;
+    }
+    .history ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .history li {
+      margin-bottom: 0.5em;
+      color: #e3e9ff;
+    }
+    @media (max-width: 500px) {
+      h1 { font-size: 1.2em; }
+      form, .history, #reader { max-width: 98vw; }
+    }
+  </style>
+</head>
+<body>
+  <a href="/logout" style="position:fixed;top:20px;left:20px;background:#d32f2f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;z-index:1000;" data-i18n="Logout" aria-label="Logout">Logout</a>
+  <h1 data-i18n="Seller - Scan Ticket Barcode">Seller - Scan Ticket Barcode</h1>
+  <div id="notify" style="display:none;background:linear-gradient(90deg, #1976d2 0%, #133b88 100%);color:#fff;padding:18px 28px;border-radius:12px;box-shadow:0 4px 16px rgba(25,118,210,0.25);margin-bottom:10px;text-align:center;font-family:'Roboto',Arial,sans-serif;font-size:1.12em;min-width:220px;"></div>
+  <div id="reader"></div>
+  <div id="result"></div>
+  <form id="sell-form">
+    <input type="hidden" id="ticket-number" name="ticket-number">
+    <input type="hidden" id="seller-name" name="seller-name">
+    <label for="buyer-name" style="margin-bottom:4px;display:block;">Buyer Name</label>
+    <input type="text" id="buyer-name" name="buyer-name" required>
+    <label for="country-code" style="margin-top:10px;margin-bottom:4px;display:block;">Country Code</label>
+    <select id="country-code" name="country-code" required>
+      <option value="+1">USA (+1)</option>
+      <option value="+509">Haiti (+509)</option>
+    </select>
+    <button type="submit" style="margin-top:10px;">Sell Ticket</button>
+    <div id="sell-success" class="msg-success" style="display:none;"></div>
+    <div id="sell-error" class="msg-error" style="display:none;"></div>
+  </form>
+  <div class="history">
+    <h2>Your Sales History</h2>
+    <ul id="sales-history"></ul>
+  </div>
+  <script>
+        // Notification helper
+        function showNotify(msg, timeout = 2500) {
+          const notify = document.getElementById('notify');
+          notify.textContent = msg;
+          notify.style.display = 'block';
+          setTimeout(() => { notify.style.display = 'none'; }, timeout);
+        }
+
+        // Poll for notifications
+        async function pollNotifications() {
+          if (!sellerName) return;
+          const res = await fetch(`/seller-notifications?seller=${encodeURIComponent(sellerName)}`);
+          const data = await res.json();
+          if (data.length > 0) {
+            showNotify(data[data.length-1].message);
+          }
+          setTimeout(pollNotifications, 5000);
+        }
+        pollNotifications();
+    function onScanSuccess(decodedText, decodedResult) {
+      document.getElementById('result').textContent = `Scanned: ${decodedText}`;
+      document.getElementById('ticket-number').value = decodedText;
+    }
+    const html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start({ facingMode: "environment" }, {
+      fps: 10,
+      qrbox: 250
+    }, onScanSuccess);
+
+    // Set seller name from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const sellerName = urlParams.get('name') || '';
+    document.getElementById('seller-name').value = sellerName;
+
+    document.getElementById('sell-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const ticketNumber = document.getElementById('ticket-number').value;
+      const buyerName = document.getElementById('buyer-name').value;
+      const sellerName = document.getElementById('seller-name').value;
+      const successDiv = document.getElementById('sell-success');
+      const errorDiv = document.getElementById('sell-error');
+      successDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+      if (!ticketNumber) {
+        errorDiv.textContent = 'Please scan a ticket barcode first.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      try {
+        const res = await fetch('/sell', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketNumber, buyerName, sellerName })
+        });
+        const data = await res.json();
+        if (data.success) {
+          successDiv.textContent = data.msg;
+          successDiv.style.display = 'block';
+          document.getElementById('ticket-number').value = '';
+          document.getElementById('buyer-name').value = '';
+          loadSalesHistory();
+        } else {
+          errorDiv.textContent = data.error || 'Failed to sell ticket';
+          errorDiv.style.display = 'block';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Network error.';
+        errorDiv.style.display = 'block';
+      }
+    });
+
+    async function loadSalesHistory() {
+      if (!sellerName) return;
+      const res = await fetch(`/seller-sales?seller=${encodeURIComponent(sellerName)}`);
+      const data = await res.json();
+      const ul = document.getElementById('sales-history');
+      ul.innerHTML = '';
+      if (data.length === 0) {
+        ul.innerHTML = '<li>No sales yet.</li>';
+        return;
+      }
+      data.forEach(t => {
+        const li = document.createElement('li');
+        li.textContent = `Ticket ${t.number} sold at ${t.sold_at}`;
+        ul.appendChild(li);
+      });
+    }
+    loadSalesHistory();
+  </script>
+    <body>
+      <header>
+        <img src="logo.png" alt="Raffle App Logo">
+        <h1>Raffle Seller Dashboard</h1>
+      </header>
+
+      <footer>
+        &copy; 2025 RaffleApp &mdash; All rights reserved.
+      </footer>
+

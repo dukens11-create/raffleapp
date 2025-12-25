@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Raffle App</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0a174e 0%, #133b88 100%);
+      color: #b3cfff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      width: 100vw;
+      background: linear-gradient(90deg, #1976d2 0%, #38f9d7 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      padding: 18px 0 18px 0;
+      box-shadow: 0 2px 8px rgba(25,118,210,0.10);
+      margin-bottom: 18px;
+      justify-content: center;
+    }
+    header img {
+      height: 48px;
+      margin-right: 18px;
+    }
+    header h1 {
+      font-size: 2em;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      margin: 0;
+      text-shadow: 2px 2px 8px #09103a;
+    }
+    footer {
+      width: 100vw;
+      background: #102a5c;
+      color: #b3cfff;
+      text-align: center;
+      padding: 18px 0;
+      font-size: 1em;
+      margin-top: 32px;
+      box-shadow: 0 -2px 8px rgba(25,118,210,0.10);
+    }
+    h2, h3 {
+      color: #43e97b;
+      font-weight: 700;
+      margin-top: 1.2em;
+      margin-bottom: 0.5em;
+      letter-spacing: 1px;
+    }
+    a, button, input, select, textarea {
+      outline: none;
+    }
+    a:focus, button:focus, input:focus, select:focus, textarea:focus {
+      outline: 2px solid #ffeb3b;
+      outline-offset: 2px;
+    }
+    th, td {
+      color: #e3f2fd;
+    }
+    .msg-success {
+      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+      color: #0a174e;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(67,233,123,0.15);
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 1.08em;
+      border: 1.5px solid #38f9d7;
+    }
+    .msg-error {
+      background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
+      color: #fff;
+      padding: 14px 22px;
+      border-radius: 10px;
+      font-weight: bold;
+      box-shadow: 0 2px 8px rgba(255,88,88,0.15);
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 1.08em;
+      border: 1.5px solid #f09819;
+    }
+    input, select, textarea {
+      padding: 12px;
+      border-radius: 8px;
+      border: 1.5px solid #1976d2;
+      background: #102a5c;
+      color: #b3cfff;
+      font-size: 1.05em;
+      margin-bottom: 10px;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 1px 4px rgba(25,118,210,0.10);
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #42a5f5;
+      box-shadow: 0 2px 8px rgba(66,165,245,0.15);
+      outline: none;
+    }
+    button {
+      background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 1.08em;
+      box-shadow: 0 2px 8px rgba(25,118,210,0.15);
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    button:hover {
+      background: linear-gradient(90deg, #133b88 0%, #1976d2 100%);
+      box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+    }
+    @media (max-width: 600px) {
+      body, .section {
+        padding: 12px !important;
+        margin: 0 !important;
+        max-width: 100vw !important;
+        border-radius: 0 !important;
+      }
+      table, th, td {
+        font-size: 1.08em !important;
+        padding: 12px !important;
+      }
+      h1, h2 {
+        font-size: 1.32em !important;
+      }
+      button, input, select {
+        font-size: 1.12em !important;
+        padding: 14px !important;
+        min-width: 44px;
+        min-height: 44px;
+      }
+      #admin-reader {
+        max-width: 98vw !important;
+      }
+      .section {
+        box-shadow: none !important;
+        border-width: 1px !important;
+      }
+      .msg-success, .msg-error {
+        font-size: 1em !important;
+        padding: 10px 12px !important;
+      }
+      footer, header {
+        padding: 10px 0 !important;
+        font-size: 0.95em !important;
+      }
+      img[alt="Logo"], header img {
+        max-width: 80px !important;
+        height: auto !important;
+      }
+    }
+        #notify {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
+          color: #fff;
+          padding: 18px 28px;
+          border-radius: 12px;
+          box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+          font-size: 1.12em;
+          z-index: 1000;
+          display: none;
+          min-width: 220px;
+          text-align: center;
+          font-family: 'Roboto', Arial, sans-serif;
+        }
+    body {
+      font-family: 'Roboto', Arial, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      background: url('Haitian soccers.png') center center/cover no-repeat, linear-gradient(135deg, #0a174e 0%, #133b88 100%);
+      color: #b3cfff;
+    }
+    h1, h2 {
+      color: #b3cfff;
+      text-shadow: 2px 2px 8px #09103a;
+    }
+    .section {
+      margin: 2em auto;
+      max-width: 800px;
+      background: #133b88;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(10,23,78,0.15);
+      padding: 2.5em 2em;
+      border: 2px solid #0a174e;
+      transition: box-shadow 0.2s;
+    }
+    .section:hover {
+      box-shadow: 0 12px 40px rgba(10,23,78,0.25);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 1em;
+      background: #0a174e;
+      color: #b3cfff;
+      box-shadow: 0 4px 16px rgba(10,23,78,0.10);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    th, td {
+      border: 1px solid #133b88;
+      padding: 16px 12px;
+      text-align: left;
+      font-size: 1.05em;
+    }
+    th {
+      background: #133b88;
+      color: #b3cfff;
+      font-weight: bold;
+      letter-spacing: 1px;
+      font-size: 1.08em;
+    }
+    tr:nth-child(even) {
+      background: #102a5c;
+    }
+  </style>
+</head>
+<body>
+    <a href="/logout" style="position:fixed;top:20px;left:20px;background:#d32f2f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;z-index:1000;" data-i18n="Logout" aria-label="Logout">Logout</a>
+    <select id="lang-select" style="position:fixed;top:20px;right:20px;padding:8px;border-radius:8px;z-index:1000;" aria-label="Language selector">
+      <option value="en">English</option>
+      <option value="fr">Français</option>
+      <option value="ht">Kreyòl Ayisyen</option>
+      <option value="es">Español</option>
+    </select>
+    <div class="section" style="background:#133b88;max-width:800px;margin:32px auto;">
+      <h2>Sales Trends (Last 30 Days)</h2>
+      <canvas id="salesChart" height="120"></canvas>
+      <h2>Tickets by Category</h2>
+      <canvas id="categoryChart" height="120"></canvas>
+    </div>
+    <div class="section" style="max-width:400px;margin:32px auto 16px auto;background:#133b88;">
+      <h2 data-i18n="Scan Ticket Barcode">Scan Ticket Barcode</h2>
+      <div id="admin-reader"></div>
+      <div id="scan-result" style="color:#00e676;font-size:1.2em;margin-top:8px;"></div>
+    </div>
+  <div class="section" style="background:#1976d2;border:3px solid #fff;box-shadow:0 6px 24px rgba(10,23,78,0.7);margin-top:32px;">
+    <h1 style="color:#fff;text-shadow:2px 2px 8px #09103a;" data-i18n="Audit Logs">Audit Logs</h1>
+    <table id="audit-table" style="background:#fff;color:#222;">
+      <thead>
+        <tr style="background:#133b88;color:#fff;"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+    <div id="notify"></div>
+  <img src="logo.png" alt="Logo" style="display:block;margin:32px auto 8px auto;max-width:160px;">
+  <h1>Admin Dashboard</h1>
+  <div class="section">
+    <h2>Ticket Inventory</h2>
+    <table id="inventory-table">
+      <thead>
+        <tr><th>Category</th><th>Total</th><th>Sold</th><th>Available</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Create Ticket</h2>
+    <form id="create-ticket-form">
+      <label for="ticket-number" style="margin-bottom:4px;display:block;">Ticket Number</label>
+      <input id="ticket-number" placeholder="Ticket Number" required />
+      <label for="ticket-category" style="margin-top:10px;margin-bottom:4px;display:block;">Category</label>
+      <select id="ticket-category" required>
+        <option value="">Select Category</option>
+        <option value="ABC">ABC</option>
+        <option value="EFG">EFG</option>
+        <option value="JKL">JKL</option>
+        <option value="XYZ">XYZ</option>
+      </select>
+      <button type="submit" style="margin-top:10px;">Create Ticket</button>
+      <div id="ticket-success" class="msg-success" style="display:none;"></div>
+      <div id="ticket-error" class="msg-error" style="display:none;"></div>
+    </form>
+    <h2>All Tickets</h2>
+    <table id="tickets-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="select-all-tickets"></th>
+          <th>Number</th>
+          <th>Category</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#d32f2f;color:#fff;">Delete Selected Tickets</button>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Sales Report</h2>
+    <table id="sales-table">
+      <thead>
+        <tr><th>Seller</th><th>Tickets Sold</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Users</h2>
+    <table id="users-table">
+      <thead>
+        <tr><th><input type="checkbox" id="select-all-users"></th><th>Name</th><th>Role</th><th>Phone</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <button id="bulk-delete-users-btn" style="margin-top:10px;background:#d32f2f;color:#fff;">Delete Selected Users</button>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Database Backups</h2>
+    <button id="refresh-backups-btn">Refresh List</button>
+    <ul id="backup-list"></ul>
+  </div>
+  <div class="section">
+    <h2>Seller Leaderboard</h2>
+    <table id="leaderboard-table">
+      <thead><tr><th>Seller</th><th>Tickets Sold</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="section">
+    <h2>Seller Performance</h2>
+    <form id="performance-form">
+      <input id="perf-seller" placeholder="Seller Name" required />
+      <button type="submit">View Performance</button>
+    </form>
+    <div id="performance-result"></div>
+  </div>
+  <div class="section">
+    <h2>Custom Branding & Theme</h2>
+    <form id="branding-form">
+      <label>Logo URL:</label>
+      <input id="logo-url" placeholder="Paste logo image URL" />
+      <label>Primary Color:</label>
+      <input id="primary-color" type="color" value="#1976d2" />
+      <label>Background Image URL:</label>
+      <input id="bg-url" placeholder="Paste background image URL" />
+      <button type="submit">Apply Branding</button>
+    </form>
+  </div>
+  <div class="section">
+    <h2>Online Ticket Purchase</h2>
+    <form id="online-buy-form">
+      <input id="online-number" placeholder="Ticket Number" required />
+      <select id="online-category" required>
+        <option value="">Select Category</option>
+        <option value="ABC">ABC</option>
+        <option value="EFG">EFG</option>
+        <option value="JKL">JKL</option>
+        <option value="XYZ">XYZ</option>
+      </select>
+      <input id="online-buyer" placeholder="Buyer Name" required />
+      <input id="online-email" type="email" placeholder="Buyer Email" required />
+      <button type="submit">Buy Online</button>
+    </form>
+  </div>
+  <script>
+                            // Simple translations
+                            const translations = {
+                              en: {
+                                'Logout': 'Logout',
+                                'Scan Ticket Barcode': 'Scan Ticket Barcode',
+                                'Audit Logs': 'Audit Logs',
+                                'Ticket Inventory': 'Ticket Inventory',
+                                'Create Ticket': 'Create Ticket',
+                                'All Tickets': 'All Tickets',
+                                'Sales Report': 'Sales Report',
+                                'Users': 'Users',
+                                'Delete Selected Tickets': 'Delete Selected Tickets',
+                                'Delete Selected Users': 'Delete Selected Users',
+                                'Sales Trends (Last 30 Days)': 'Sales Trends (Last 30 Days)',
+                                'Tickets by Category': 'Tickets by Category'
+                              },
+                              fr: {
+                                'Logout': 'Déconnexion',
+                                'Scan Ticket Barcode': 'Scanner le code du billet',
+                                'Audit Logs': 'Journaux d’audit',
+                                'Ticket Inventory': 'Inventaire des billets',
+                                'Create Ticket': 'Créer un billet',
+                                'All Tickets': 'Tous les billets',
+                                'Sales Report': 'Rapport des ventes',
+                                'Users': 'Utilisateurs',
+                                'Delete Selected Tickets': 'Supprimer les billets sélectionnés',
+                                'Delete Selected Users': 'Supprimer les utilisateurs sélectionnés',
+                                'Sales Trends (Last 30 Days)': 'Tendances des ventes (30 derniers jours)',
+                                'Tickets by Category': 'Billets par catégorie'
+                              },
+                              ht: {
+                                'Logout': 'Dekonekte',
+                                'Scan Ticket Barcode': 'Eskane Kòd Tikè',
+                                'Audit Logs': 'Jounal Odit',
+                                'Ticket Inventory': 'Envantè Tikè',
+                                'Create Ticket': 'Kreye Tikè',
+                                'All Tickets': 'Tout Tikè',
+                                'Sales Report': 'Rapò Vant',
+                                'Users': 'Itilizatè',
+                                'Delete Selected Tickets': 'Efase Tikè Chwazi yo',
+                                'Delete Selected Users': 'Efase Itilizatè Chwazi yo',
+                                'Sales Trends (Last 30 Days)': 'Tandans Vant (30 Dènye Jou yo)',
+                                'Tickets by Category': 'Tikè pa Kategori'
+                              },
+                              es: {
+                                'Logout': 'Cerrar sesión',
+                                'Scan Ticket Barcode': 'Escanear código de boleto',
+                                'Audit Logs': 'Registros de auditoría',
+                                'Ticket Inventory': 'Inventario de boletos',
+                                'Create Ticket': 'Crear boleto',
+                                'All Tickets': 'Todos los boletos',
+                                'Sales Report': 'Informe de ventas',
+                                'Users': 'Usuarios',
+                                'Delete Selected Tickets': 'Eliminar boletos seleccionados',
+                                'Delete Selected Users': 'Eliminar usuarios seleccionados',
+                                'Sales Trends (Last 30 Days)': 'Tendencias de ventas (últimos 30 días)',
+                                'Tickets by Category': 'Boletos por categoría'
+                              }
+                            };
+
+                            function setLanguage(lang) {
+                              document.querySelectorAll('[data-i18n]').forEach(el => {
+                                const key = el.getAttribute('data-i18n');
+                                el.textContent = translations[lang][key] || key;
+                              });
+                            }
+                            document.getElementById('lang-select').addEventListener('change', function() {
+                              setLanguage(this.value);
+                            });
+                            document.addEventListener('DOMContentLoaded', function() {
+                              setLanguage(document.getElementById('lang-select').value);
+                            });
+                            // Chart.js analytics
+                            document.addEventListener('DOMContentLoaded', function() {
+                              // Sales by day
+                              fetch('/analytics/sales-by-day').then(res => res.json()).then(data => {
+                                const ctx = document.getElementById('salesChart').getContext('2d');
+                                new Chart(ctx, {
+                                  type: 'line',
+                                  data: {
+                                    labels: data.map(row => row.day),
+                                    datasets: [{
+                                      label: 'Tickets Sold',
+                                      data: data.map(row => row.count),
+                                      backgroundColor: 'rgba(33,150,243,0.2)',
+                                      borderColor: '#1976d2',
+                                      borderWidth: 2,
+                                      fill: true
+                                    }]
+                                  },
+                                  options: {
+                                    scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Tickets Sold' }, beginAtZero: true } },
+                                    plugins: { legend: { display: false } }
+                                  }
+                                });
+                              });
+                              // Tickets by category
+                              fetch('/analytics/tickets-by-category').then(res => res.json()).then(data => {
+                                const ctx = document.getElementById('categoryChart').getContext('2d');
+                                new Chart(ctx, {
+                                  type: 'bar',
+                                  data: {
+                                    labels: data.map(row => row.category),
+                                    datasets: [{
+                                      label: 'Tickets',
+                                      data: data.map(row => row.count),
+                                      backgroundColor: ['#1976d2','#388e3c','#fbc02d','#d32f2f'],
+                                    }]
+                                  },
+                                  options: {
+                                    scales: { x: { title: { display: true, text: 'Category' } }, y: { title: { display: true, text: 'Tickets' }, beginAtZero: true } },
+                                    plugins: { legend: { display: false } }
+                                  }
+                                });
+                              });
+                            });
+                            // Bulk delete tickets and users
+                            document.addEventListener('DOMContentLoaded', function() {
+                              if (document.getElementById('select-all-tickets')) {
+                                document.getElementById('select-all-tickets').addEventListener('change', function() {
+                                  const checked = this.checked;
+                                  document.querySelectorAll('#tickets-table tbody input[type="checkbox"]').forEach(cb => cb.checked = checked);
+                                });
+                              }
+                              if (document.getElementById('select-all-users')) {
+                                document.getElementById('select-all-users').addEventListener('change', function() {
+                                  const checked = this.checked;
+                                  document.querySelectorAll('#users-table tbody input[type="checkbox"]').forEach(cb => cb.checked = checked);
+                                });
+                              }
+                              if (document.getElementById('bulk-delete-tickets-btn')) {
+                                document.getElementById('bulk-delete-tickets-btn').addEventListener('click', async function() {
+                                  const selected = Array.from(document.querySelectorAll('#tickets-table tbody input[type="checkbox"]:checked')).map(cb => cb.value);
+                                  if (selected.length === 0) return alert('No tickets selected');
+                                  const res = await fetch('/bulk-delete-tickets', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ numbers: selected })
+                                  });
+                                  const data = await res.json();
+                                  alert(data.msg || data.error);
+                                  location.reload();
+                                });
+                              }
+                              if (document.getElementById('bulk-delete-users-btn')) {
+                                document.getElementById('bulk-delete-users-btn').addEventListener('click', async function() {
+                                  const selected = Array.from(document.querySelectorAll('#users-table tbody input[type="checkbox"]:checked')).map(cb => cb.value);
+                                  if (selected.length === 0) return alert('No users selected');
+                                  const res = await fetch('/bulk-delete-users', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ phones: selected })
+                                  });
+                                  const data = await res.json();
+                                  alert(data.msg || data.error);
+                                  location.reload();
+                                });
+                              }
+                            });
+                            // Camera barcode scanner for admin
+                            function onAdminScanSuccess(decodedText, decodedResult) {
+                              document.getElementById('scan-result').textContent = `Scanned: ${decodedText}`;
+                              document.getElementById('ticket-number').value = decodedText;
+                            }
+                            if (document.getElementById('admin-reader')) {
+                              const html5QrCode = new Html5Qrcode("admin-reader");
+                              html5QrCode.start({ facingMode: "environment" }, {
+                                fps: 10,
+                                qrbox: 250
+                              }, onAdminScanSuccess);
+                            }
+                        // Make table rows clickable and show details
+                        function makeRowsClickable(tableId, getDetails) {
+                          const table = document.getElementById(tableId);
+                          if (!table) return;
+                          table.addEventListener('click', function(e) {
+                            let tr = e.target.closest('tr');
+                            if (!tr || tr.parentNode.tagName !== 'TBODY') return;
+                            const tds = Array.from(tr.children).map(td => td.textContent);
+                            showNotify(getDetails(tds));
+                          });
+                        }
+
+                        // Audit logs clickable
+                        makeRowsClickable('audit-table', tds => `User: ${tds[1]}\nAction: ${tds[2]}\nDetails: ${tds[3]}\nTime: ${tds[0]}`);
+                        // Tickets clickable
+                        makeRowsClickable('tickets-table', tds => `Ticket: ${tds[0]}\nCategory: ${tds[1]}\nStatus: ${tds[2]}`);
+                        // Inventory clickable
+                        makeRowsClickable('inventory-table', tds => `Category: ${tds[0]}\nTotal: ${tds[1]}\nSold: ${tds[2]}\nAvailable: ${tds[3]}`);
+                        // Sales clickable
+                        makeRowsClickable('sales-table', tds => `Seller: ${tds[0]}\nTickets Sold: ${tds[1]}`);
+                        // Users clickable
+                        makeRowsClickable('users-table', tds => `Name: ${tds[0]}\nRole: ${tds[1]}\nPhone: ${tds[2]}`);
+                    // Load audit logs
+                    async function loadAuditLogs() {
+                      const res = await fetch('/audit-logs');
+                      const data = await res.json();
+                      const tbody = document.querySelector('#audit-table tbody');
+                      tbody.innerHTML = '';
+                      data.forEach(log => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${log.created_at}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td>`;
+                        tbody.appendChild(tr);
+                      });
+                    }
+                    loadAuditLogs();
+            // Notification helper
+            function showNotify(msg, color = '#1976d2', timeout = 2500) {
+              const notify = document.getElementById('notify');
+              notify.textContent = msg;
+              notify.style.background = color;
+              notify.style.display = 'block';
+              setTimeout(() => { notify.style.display = 'none'; }, timeout);
+            }
+        // Load inventory
+        async function loadInventory() {
+          const res = await fetch('/tickets');
+          const data = await res.json();
+          const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+          const summary = {};
+          categories.forEach(cat => summary[cat] = { total: 0, sold: 0, available: 0 });
+          data.forEach(ticket => {
+            if (categories.includes(ticket.category)) {
+              summary[ticket.category].total++;
+              if (ticket.status === 'sold') summary[ticket.category].sold++;
+              else summary[ticket.category].available++;
+            }
+          });
+          const tbody = document.querySelector('#inventory-table tbody');
+          tbody.innerHTML = '';
+          categories.forEach(cat => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${cat}</td><td>${summary[cat].total}</td><td>${summary[cat].sold}</td><td>${summary[cat].available}</td>`;
+            tbody.appendChild(tr);
+          });
+        }
+        loadInventory();
+    // Create ticket
+    document.getElementById('create-ticket-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const number = document.getElementById('ticket-number').value;
+      const category = document.getElementById('ticket-category').value;
+      const successDiv = document.getElementById('ticket-success');
+      const errorDiv = document.getElementById('ticket-error');
+      successDiv.style.display = 'none';
+      errorDiv.style.display = 'none';
+      if (!number || !category) {
+        errorDiv.textContent = 'Number and category required.';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      const res = await fetch('/create-ticket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number, category })
+      });
+      if (res.ok) {
+        successDiv.textContent = 'Ticket created!';
+        successDiv.style.display = 'block';
+      } else {
+        errorDiv.textContent = 'Failed to create ticket.';
+        errorDiv.style.display = 'block';
+      }
+      loadTickets();
+    });
+
+    // Load all tickets
+    async function loadTickets() {
+      const res = await fetch('/tickets');
+      const data = await res.json();
+      const tbody = document.querySelector('#tickets-table tbody');
+      tbody.innerHTML = '';
+      data.forEach(ticket => {
+        const tr = document.createElement('tr');
+        let actions = '';
+        if (ticket.status === 'sold') {
+          actions += `<button class='refund-btn' data-number='${ticket.number}'>Refund</button>`;
+        }
+        if (ticket.status !== 'cancelled') {
+          actions += `<button class='cancel-btn' data-number='${ticket.number}'>Cancel</button>`;
+        }
+        tr.innerHTML = `<td><input type="checkbox" value="${ticket.number}"></td><td>${ticket.number}</td><td>${ticket.category || ''}</td><td>${ticket.status}</td><td>${actions}</td>`;
+        tbody.appendChild(tr);
+      });
+      // Add refund/cancel handlers
+      document.querySelectorAll('.refund-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+          const ticketNumber = this.getAttribute('data-number');
+          const reason = prompt('Refund reason (optional):');
+          const res = await fetch('/refund-ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketNumber, reason })
+          });
+          const data = await res.json();
+          showNotify(data.msg || data.error, data.success ? '#388e3c' : '#d32f2f');
+          loadTickets();
+        });
+      });
+      document.querySelectorAll('.cancel-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+          const ticketNumber = this.getAttribute('data-number');
+          const reason = prompt('Cancel reason (optional):');
+          const res = await fetch('/cancel-ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketNumber, reason })
+          });
+          const data = await res.json();
+          showNotify(data.msg || data.error, data.success ? '#388e3c' : '#d32f2f');
+          loadTickets();
+        });
+      });
+      // Also update inventory after ticket changes
+      loadInventory();
+    }
+    loadTickets();
+
+    // Fetch sales report
+    fetch('/sales-report').then(res => res.json()).then(data => {
+      const tbody = document.querySelector('#sales-table tbody');
+      tbody.innerHTML = '';
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.sold_by}</td><td>${row.count}</td>`;
+        tbody.appendChild(tr);
+      });
+    });
+    // Fetch users
+    fetch('/users').then(res => res.json()).then(data => {
+      const tbody = document.querySelector('#users-table tbody');
+      tbody.innerHTML = '';
+      data.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><input type="checkbox" value="${user.phone}"></td><td>${user.name}</td><td>${user.role}</td><td>${user.phone}</td>`;
+        tbody.appendChild(tr);
+      });
+    });
+    async function loadBackups() {
+      const res = await fetch('/list-backups');
+      const files = await res.json();
+      const ul = document.getElementById('backup-list');
+      ul.innerHTML = '';
+      if (files.length === 0) {
+        ul.innerHTML = '<li>No backups found.</li>';
+        return;
+      }
+      files.forEach(file => {
+        const li = document.createElement('li');
+        li.innerHTML = `${file} <a href="/download-backup/${file}" target="_blank">Download</a>`;
+        ul.appendChild(li);
+      });
+    }
+    document.getElementById('refresh-backups-btn').addEventListener('click', loadBackups);
+    document.addEventListener('DOMContentLoaded', loadBackups);
+    async function loadLeaderboard() {
+      const res = await fetch('/seller-leaderboard');
+      const data = await res.json();
+      const tbody = document.getElementById('leaderboard-table').querySelector('tbody');
+      tbody.innerHTML = '';
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.sold_by}</td><td>${row.tickets_sold}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    document.addEventListener('DOMContentLoaded', loadLeaderboard);
+    document.getElementById('performance-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const seller = document.getElementById('perf-seller').value;
+      const res = await fetch(`/seller-performance?seller=${encodeURIComponent(seller)}`);
+      const data = await res.json();
+      document.getElementById('performance-result').innerHTML =
+        `Sold: ${data.sold || 0}, Refunded: ${data.refunded || 0}, Cancelled: ${data.cancelled || 0}`;
+    });
+    document.getElementById('branding-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const logo = document.getElementById('logo-url').value;
+      const color = document.getElementById('primary-color').value;
+      const bg = document.getElementById('bg-url').value;
+      if (logo) {
+        document.querySelector('img[alt="Logo"]').src = logo;
+      }
+      document.body.style.background = bg ? `url('${bg}') center center/cover no-repeat, linear-gradient(135deg, ${color} 0%, #133b88 100%)` : `linear-gradient(135deg, ${color} 0%, #133b88 100%)`;
+      document.querySelectorAll('.section').forEach(s => s.style.background = color);
+      document.querySelectorAll('h1, h2').forEach(h => h.style.color = color);
+    });
+    document.getElementById('online-buy-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const number = document.getElementById('online-number').value;
+      const category = document.getElementById('online-category').value;
+      const buyerName = document.getElementById('online-buyer').value;
+      const email = document.getElementById('online-email').value;
+      const res = await fetch('/buy-ticket-online', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number, category, buyerName, email })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, '_blank');
+      } else {
+        showNotify(data.error || 'Payment error', '#d32f2f');
+      }
+    });
+  </script>
+    <body>
+      <header>
+        <img src="logo.png" alt="Raffle App Logo">
+        <h1>Raffle Admin Dashboard</h1>
+      </header>
+</html>
+      <footer>
+        &copy; 2025 RaffleApp &mdash; All rights reserved.
+      </footer>
