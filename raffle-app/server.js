@@ -101,7 +101,7 @@ app.use(session({
   }
 }));
 app.use(express.static('public'));
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 // SSL certificate paths (update to your actual certificate locations)
 const SSL_KEY_PATH = '/etc/letsencrypt/live/yourdomain.com/privkey.pem';
 const SSL_CERT_PATH = '/etc/letsencrypt/live/yourdomain.com/fullchain.pem';
