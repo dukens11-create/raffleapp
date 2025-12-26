@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - Raffle App</title>
@@ -13,20 +14,22 @@
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      background: linear-gradient(135deg, #0a174e 0%, #133b88 100%);
-      color: #b3cfff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      color: #2d3748;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
     header {
       width: 100vw;
-      background: linear-gradient(90deg, #1976d2 0%, #38f9d7 100%);
-      color: #fff;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      color: #2d3748;
       display: flex;
       align-items: center;
       padding: 18px 0 18px 0;
-      box-shadow: 0 2px 8px rgba(25,118,210,0.10);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
       margin-bottom: 18px;
       justify-content: center;
     }
@@ -39,20 +42,21 @@
       font-weight: 700;
       letter-spacing: 1.5px;
       margin: 0;
-      text-shadow: 2px 2px 8px #09103a;
+      color: #2d3748;
+      text-shadow: none;
     }
     footer {
       width: 100vw;
-      background: #102a5c;
-      color: #b3cfff;
+      background: rgba(255, 255, 255, 0.95);
+      color: #2d3748;
       text-align: center;
       padding: 18px 0;
       font-size: 1em;
       margin-top: 32px;
-      box-shadow: 0 -2px 8px rgba(25,118,210,0.10);
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
     }
     h2, h3 {
-      color: #43e97b;
+      color: #2d3748;
       font-weight: 700;
       margin-top: 1.2em;
       margin-bottom: 0.5em;
@@ -62,67 +66,67 @@
       outline: none;
     }
     a:focus, button:focus, input:focus, select:focus, textarea:focus {
-      outline: 2px solid #ffeb3b;
+      outline: 2px solid #667eea;
       outline-offset: 2px;
     }
     th, td {
-      color: #e3f2fd;
+      color: #2d3748;
     }
     .msg-success {
-      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-      color: #0a174e;
+      background: rgba(255, 255, 255, 0.95);
+      color: #2d3748;
       padding: 14px 22px;
       border-radius: 10px;
       font-weight: bold;
-      box-shadow: 0 2px 8px rgba(67,233,123,0.15);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       margin-bottom: 16px;
       text-align: center;
       font-size: 1.08em;
-      border: 1.5px solid #38f9d7;
+      border: 2px solid #10b981;
     }
     .msg-error {
-      background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
-      color: #fff;
+      background: rgba(255, 255, 255, 0.95);
+      color: #2d3748;
       padding: 14px 22px;
       border-radius: 10px;
       font-weight: bold;
-      box-shadow: 0 2px 8px rgba(255,88,88,0.15);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       margin-bottom: 16px;
       text-align: center;
       font-size: 1.08em;
-      border: 1.5px solid #f09819;
+      border: 2px solid #ef4444;
     }
     input, select, textarea {
       padding: 12px;
       border-radius: 8px;
-      border: 1.5px solid #1976d2;
-      background: #102a5c;
-      color: #b3cfff;
+      border: 2px solid #ddd;
+      background: white;
+      color: #2d3748;
       font-size: 1.05em;
       margin-bottom: 10px;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 4px rgba(25,118,210,0.10);
+      transition: border-color 0.3s, box-shadow 0.3s;
+      box-shadow: none;
     }
     input:focus, select:focus, textarea:focus {
-      border-color: #42a5f5;
-      box-shadow: 0 2px 8px rgba(66,165,245,0.15);
+      border-color: #667eea;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
       outline: none;
     }
     button {
-      background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
-      color: #fff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
       font-weight: bold;
       cursor: pointer;
       border: none;
       border-radius: 8px;
       padding: 12px 24px;
       font-size: 1.08em;
-      box-shadow: 0 2px 8px rgba(25,118,210,0.15);
-      transition: background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      transition: all 0.3s ease;
     }
     button:hover {
-      background: linear-gradient(90deg, #133b88 0%, #1976d2 100%);
-      box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
     }
     @media (max-width: 600px) {
       body, .section {
@@ -168,11 +172,11 @@
           position: fixed;
           top: 24px;
           right: 24px;
-          background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
-          color: #fff;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
           padding: 18px 28px;
           border-radius: 12px;
-          box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+          box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
           font-size: 1.12em;
           z-index: 1000;
           display: none;
@@ -180,55 +184,44 @@
           text-align: center;
           font-family: 'Roboto', Arial, sans-serif;
         }
-    body {
-      font-family: 'Roboto', Arial, sans-serif;
-      margin: 0;
-      min-height: 100vh;
-      background: url('Haitian soccers.png') center center/cover no-repeat, linear-gradient(135deg, #0a174e 0%, #133b88 100%);
-      color: #b3cfff;
-    }
-    h1, h2 {
-      color: #b3cfff;
-      text-shadow: 2px 2px 8px #09103a;
-    }
     .section {
       margin: 2em auto;
       max-width: 800px;
-      background: #133b88;
-      border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(10,23,78,0.15);
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
       padding: 2.5em 2em;
-      border: 2px solid #0a174e;
-      transition: box-shadow 0.2s;
+      border: none;
+      transition: box-shadow 0.3s;
     }
     .section:hover {
-      box-shadow: 0 12px 40px rgba(10,23,78,0.25);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
     }
     table {
       border-collapse: collapse;
       width: 100%;
       margin-top: 1em;
-      background: #0a174e;
-      color: #b3cfff;
-      box-shadow: 0 4px 16px rgba(10,23,78,0.10);
+      background: white;
+      color: #2d3748;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       border-radius: 12px;
       overflow: hidden;
     }
     th, td {
-      border: 1px solid #133b88;
+      border: 1px solid #e5e7eb;
       padding: 16px 12px;
       text-align: left;
       font-size: 1.05em;
     }
     th {
-      background: #133b88;
-      color: #b3cfff;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
       font-weight: bold;
       letter-spacing: 1px;
       font-size: 1.08em;
     }
     tr:nth-child(even) {
-      background: #102a5c;
+      background: #f9fafb;
     }
     /* Scanner Modal Styles */
     .scanner-modal {
@@ -240,7 +233,7 @@
       width: 100%;
       height: 100%;
       overflow: auto;
-      background-color: rgba(10, 23, 78, 0.95);
+      background-color: rgba(102, 126, 234, 0.95);
       animation: fadeIn 0.3s ease;
     }
     @keyframes fadeIn {
@@ -248,14 +241,14 @@
       to { opacity: 1; }
     }
     .scanner-content {
-      background: linear-gradient(135deg, #133b88 0%, #1976d2 100%);
+      background: rgba(255, 255, 255, 0.95);
       margin: 5% auto;
       padding: 30px;
-      border: 2px solid #38f9d7;
+      border: 2px solid #667eea;
       border-radius: 20px;
       width: 90%;
       max-width: 500px;
-      box-shadow: 0 8px 32px rgba(56, 249, 215, 0.25);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
       position: relative;
       animation: slideDown 0.3s ease;
     }
@@ -264,7 +257,7 @@
       to { transform: translateY(0); opacity: 1; }
     }
     .close-scanner {
-      color: #fff;
+      color: #667eea;
       float: right;
       font-size: 36px;
       font-weight: bold;
@@ -274,31 +267,30 @@
     }
     .close-scanner:hover,
     .close-scanner:focus {
-      color: #ff5858;
+      color: #764ba2;
     }
     .scan-btn {
-      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-      color: #0a174e;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
       font-weight: bold;
       cursor: pointer;
       border: none;
       border-radius: 12px;
       padding: 14px 28px;
       font-size: 1.15em;
-      box-shadow: 0 4px 16px rgba(67, 233, 123, 0.25);
-      transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+      transition: all 0.3s;
       margin-bottom: 16px;
       display: inline-flex;
       align-items: center;
       gap: 8px;
     }
     .scan-btn:hover {
-      background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
-      box-shadow: 0 6px 24px rgba(67, 233, 123, 0.35);
       transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(102, 126, 234, 0.4);
     }
     .scanner-modal h2 {
-      color: #fff;
+      color: #2d3748;
       margin-top: 0;
       margin-bottom: 20px;
       text-align: center;
@@ -313,17 +305,17 @@
       margin-top: 20px;
       font-size: 1.2em;
       font-weight: bold;
-      color: #43e97b;
+      color: #667eea;
       min-height: 30px;
     }
     .ticket-highlight {
-      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%) !important;
-      color: #0a174e !important;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      color: white !important;
       font-weight: bold;
       animation: pulse 1s ease-in-out;
     }
     .ticket-highlight td {
-      color: #0a174e !important;
+      color: white !important;
     }
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
@@ -332,14 +324,14 @@
   </style>
 </head>
 <body>
-    <a href="/logout" style="position:fixed;top:20px;left:20px;background:#d32f2f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;z-index:1000;" data-i18n="Logout" aria-label="Logout">Logout</a>
-    <select id="lang-select" style="position:fixed;top:20px;right:20px;padding:8px;border-radius:8px;z-index:1000;" aria-label="Language selector">
+    <a href="/logout" style="position:fixed;top:20px;left:20px;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;z-index:1000;box-shadow:0 2px 8px rgba(102, 126, 234, 0.3);" data-i18n="Logout" aria-label="Logout">Logout</a>
+    <select id="lang-select" style="position:fixed;top:20px;right:20px;padding:8px;border-radius:8px;z-index:1000;background:white;border:2px solid #667eea;color:#2d3748;" aria-label="Language selector">
       <option value="en">English</option>
       <option value="fr">Français</option>
       <option value="ht">Kreyòl Ayisyen</option>
       <option value="es">Español</option>
     </select>
-    <div class="section" style="background:#133b88;max-width:800px;margin:32px auto;">
+    <div class="section">
       <h2>Sales Trends (Last 30 Days)</h2>
       <canvas id="salesChart" height="120"></canvas>
       <h2>Tickets by Category</h2>
@@ -356,11 +348,11 @@
       </div>
     </div>
     
-    <div class="section" style="background:#1976d2;border:3px solid #fff;box-shadow:0 6px 24px rgba(10,23,78,0.7);margin-top:32px;">
-    <h1 style="color:#fff;text-shadow:2px 2px 8px #09103a;" data-i18n="Audit Logs">Audit Logs</h1>
-    <table id="audit-table" style="background:#fff;color:#222;">
+    <div class="section">
+    <h1 style="color:#2d3748;" data-i18n="Audit Logs">Audit Logs</h1>
+    <table id="audit-table">
       <thead>
-        <tr style="background:#133b88;color:#fff;"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+        <tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -410,7 +402,7 @@
       </thead>
       <tbody></tbody>
     </table>
-    <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#d32f2f;color:#fff;">Delete Selected Tickets</button>
+    <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#dc2626;color:#fff;">Delete Selected Tickets</button>
     </table>
   </div>
   <div class="section">
@@ -430,7 +422,7 @@
       </thead>
       <tbody></tbody>
     </table>
-    <button id="bulk-delete-users-btn" style="margin-top:10px;background:#d32f2f;color:#fff;">Delete Selected Users</button>
+    <button id="bulk-delete-users-btn" style="margin-top:10px;background:#dc2626;color:#fff;">Delete Selected Users</button>
     </table>
   </div>
   <div class="section">
@@ -459,7 +451,7 @@
       <label>Logo URL:</label>
       <input id="logo-url" placeholder="Paste logo image URL" />
       <label>Primary Color:</label>
-      <input id="primary-color" type="color" value="#1976d2" />
+      <input id="primary-color" type="color" value="#667eea" />
       <label>Background Image URL:</label>
       <input id="bg-url" placeholder="Paste background image URL" />
       <button type="submit">Apply Branding</button>
@@ -566,8 +558,8 @@
                                     datasets: [{
                                       label: 'Tickets Sold',
                                       data: data.map(row => row.count),
-                                      backgroundColor: 'rgba(33,150,243,0.2)',
-                                      borderColor: '#1976d2',
+                                      backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                                      borderColor: '#667eea',
                                       borderWidth: 2,
                                       fill: true
                                     }]
@@ -588,7 +580,7 @@
                                     datasets: [{
                                       label: 'Tickets',
                                       data: data.map(row => row.count),
-                                      backgroundColor: ['#1976d2','#388e3c','#fbc02d','#d32f2f'],
+                                      backgroundColor: ['#667eea','#764ba2','#8b5cf6','#a855f7'],
                                     }]
                                   },
                                   options: {
@@ -671,14 +663,14 @@
                                     const category = row.children[2]?.textContent || 'N/A';
                                     const status = row.children[3]?.textContent || 'N/A';
                                     
-                                    showNotify(`✅ Ticket #${decodedText} Found! | Category: ${category} | Status: ${status}`, '#43e97b', 4000);
+                                    showNotify(`✅ Ticket #${decodedText} Found! | Category: ${category} | Status: ${status}`, 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 4000);
                                   }
                                 });
                               }
                               
                               if (!ticketFound) {
                                 document.getElementById('scanResult').innerHTML = `⚠️ Ticket #${decodedText} not found in system`;
-                                showNotify(`⚠️ Ticket #${decodedText} not found in the system`, '#ff5858', 3000);
+                                showNotify(`⚠️ Ticket #${decodedText} not found in the system`, '#dc2626', 3000);
                               } else {
                                 // Populate the create ticket form for quick reference
                                 document.getElementById('ticket-number').value = decodedText;
@@ -708,7 +700,7 @@
                                 isAdminScannerRunning = true;
                               }).catch((err) => {
                                 document.getElementById('scanResult').innerHTML = `❌ Camera Error: ${err}`;
-                                showNotify('Camera access denied or unavailable', '#ff5858', 3000);
+                                showNotify('Camera access denied or unavailable', '#dc2626', 3000);
                               });
                             }
                             
@@ -784,7 +776,7 @@
                     }
                     loadAuditLogs();
             // Notification helper
-            function showNotify(msg, color = '#1976d2', timeout = 2500) {
+            function showNotify(msg, color = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', timeout = 2500) {
               const notify = document.getElementById('notify');
               notify.textContent = msg;
               notify.style.background = color;
@@ -872,7 +864,7 @@
             body: JSON.stringify({ ticketNumber, reason })
           });
           const data = await res.json();
-          showNotify(data.msg || data.error, data.success ? '#388e3c' : '#d32f2f');
+          showNotify(data.msg || data.error, data.success ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#dc2626');
           loadTickets();
         });
       });
@@ -886,7 +878,7 @@
             body: JSON.stringify({ ticketNumber, reason })
           });
           const data = await res.json();
-          showNotify(data.msg || data.error, data.success ? '#388e3c' : '#d32f2f');
+          showNotify(data.msg || data.error, data.success ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#dc2626');
           loadTickets();
         });
       });
@@ -960,7 +952,7 @@
       if (logo) {
         document.querySelector('img[alt="Logo"]').src = logo;
       }
-      document.body.style.background = bg ? `url('${bg}') center center/cover no-repeat, linear-gradient(135deg, ${color} 0%, #133b88 100%)` : `linear-gradient(135deg, ${color} 0%, #133b88 100%)`;
+      document.body.style.background = bg ? `url('${bg}') center center/cover no-repeat, linear-gradient(135deg, ${color} 0%, #764ba2 100%)` : `linear-gradient(135deg, ${color} 0%, #764ba2 100%)`;
       document.querySelectorAll('.section').forEach(s => s.style.background = color);
       document.querySelectorAll('h1, h2').forEach(h => h.style.color = color);
     });
@@ -979,7 +971,7 @@
       if (data.url) {
         window.open(data.url, '_blank');
       } else {
-        showNotify(data.error || 'Payment error', '#d32f2f');
+        showNotify(data.error || 'Payment error', '#dc2626');
       }
     });
   </script>
