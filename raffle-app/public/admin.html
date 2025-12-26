@@ -9,120 +9,129 @@
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Roboto', Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
       padding: 0;
       min-height: 100vh;
-      background: linear-gradient(135deg, #0a174e 0%, #133b88 100%);
-      color: #b3cfff;
+      background-image: none !important;
+      background-color: #f8fafc;
+      color: #1e293b;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
     header {
       width: 100vw;
-      background: linear-gradient(90deg, #1976d2 0%, #38f9d7 100%);
-      color: #fff;
+      background: #ffffff;
+      color: #1e293b;
       display: flex;
       align-items: center;
-      padding: 18px 0 18px 0;
-      box-shadow: 0 2px 8px rgba(25,118,210,0.10);
-      margin-bottom: 18px;
+      padding: 24px 32px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      margin-bottom: 32px;
       justify-content: center;
     }
     header img {
       height: 48px;
-      margin-right: 18px;
+      margin-right: 16px;
     }
     header h1 {
-      font-size: 2em;
+      font-size: 32px;
       font-weight: 700;
-      letter-spacing: 1.5px;
       margin: 0;
-      text-shadow: 2px 2px 8px #09103a;
+      color: #1e293b;
+      text-shadow: none;
     }
     footer {
       width: 100vw;
-      background: #102a5c;
-      color: #b3cfff;
+      background: #ffffff;
+      color: #64748b;
       text-align: center;
-      padding: 18px 0;
-      font-size: 1em;
+      padding: 24px 0;
+      font-size: 14px;
       margin-top: 32px;
-      box-shadow: 0 -2px 8px rgba(25,118,210,0.10);
+      box-shadow: 0 -1px 3px 0 rgba(0, 0, 0, 0.1);
+      border-top: 1px solid #e2e8f0;
     }
     h2, h3 {
-      color: #43e97b;
-      font-weight: 700;
+      color: #1e293b;
+      font-weight: 600;
       margin-top: 1.2em;
       margin-bottom: 0.5em;
-      letter-spacing: 1px;
+      text-shadow: none;
+    }
+    h2 {
+      font-size: 24px;
+    }
+    h3 {
+      font-size: 20px;
     }
     a, button, input, select, textarea {
       outline: none;
     }
     a:focus, button:focus, input:focus, select:focus, textarea:focus {
-      outline: 2px solid #ffeb3b;
+      outline: 2px solid #2563eb;
       outline-offset: 2px;
     }
     th, td {
-      color: #e3f2fd;
+      color: #1e293b;
     }
     .msg-success {
-      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-      color: #0a174e;
-      padding: 14px 22px;
-      border-radius: 10px;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(67,233,123,0.15);
+      background: #10b981;
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: 600;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
       margin-bottom: 16px;
       text-align: center;
-      font-size: 1.08em;
-      border: 1.5px solid #38f9d7;
+      font-size: 16px;
+      border: none;
     }
     .msg-error {
-      background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
-      color: #fff;
-      padding: 14px 22px;
-      border-radius: 10px;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(255,88,88,0.15);
+      background: #ef4444;
+      color: #ffffff;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: 600;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
       margin-bottom: 16px;
       text-align: center;
-      font-size: 1.08em;
-      border: 1.5px solid #f09819;
+      font-size: 16px;
+      border: none;
     }
     input, select, textarea {
       padding: 12px;
-      border-radius: 8px;
-      border: 1.5px solid #1976d2;
-      background: #102a5c;
-      color: #b3cfff;
-      font-size: 1.05em;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      color: #1e293b;
+      font-size: 16px;
       margin-bottom: 10px;
       transition: border-color 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 4px rgba(25,118,210,0.10);
+      box-shadow: none;
     }
     input:focus, select:focus, textarea:focus {
-      border-color: #42a5f5;
-      box-shadow: 0 2px 8px rgba(66,165,245,0.15);
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
       outline: none;
     }
     button {
-      background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
-      color: #fff;
-      font-weight: bold;
+      background: #2563eb;
+      color: #ffffff;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 12px 24px;
-      font-size: 1.08em;
-      box-shadow: 0 2px 8px rgba(25,118,210,0.15);
-      transition: background 0.2s, box-shadow 0.2s;
+      font-size: 16px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      transition: all 0.2s;
     }
     button:hover {
-      background: linear-gradient(90deg, #133b88 0%, #1976d2 100%);
-      box-shadow: 0 4px 16px rgba(25,118,210,0.25);
+      background: #1d4ed8;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transform: translateY(-1px);
     }
     @media (max-width: 600px) {
       body, .section {
@@ -168,67 +177,59 @@
           position: fixed;
           top: 24px;
           right: 24px;
-          background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
-          color: #fff;
-          padding: 18px 28px;
-          border-radius: 12px;
-          box-shadow: 0 4px 16px rgba(25,118,210,0.25);
-          font-size: 1.12em;
+          background: #2563eb;
+          color: #ffffff;
+          padding: 16px 24px;
+          border-radius: 6px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          font-size: 16px;
           z-index: 1000;
           display: none;
           min-width: 220px;
           text-align: center;
-          font-family: 'Roboto', Arial, sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
-    body {
-      font-family: 'Roboto', Arial, sans-serif;
-      margin: 0;
-      min-height: 100vh;
-      background: url('Haitian soccers.png') center center/cover no-repeat, linear-gradient(135deg, #0a174e 0%, #133b88 100%);
-      color: #b3cfff;
-    }
-    h1, h2 {
-      color: #b3cfff;
-      text-shadow: 2px 2px 8px #09103a;
-    }
     .section {
-      margin: 2em auto;
+      margin: 24px auto;
       max-width: 800px;
-      background: #133b88;
-      border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(10,23,78,0.15);
-      padding: 2.5em 2em;
-      border: 2px solid #0a174e;
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+      padding: 24px;
+      border: 1px solid #e2e8f0;
       transition: box-shadow 0.2s;
     }
     .section:hover {
-      box-shadow: 0 12px 40px rgba(10,23,78,0.25);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
     table {
       border-collapse: collapse;
       width: 100%;
       margin-top: 1em;
-      background: #0a174e;
-      color: #b3cfff;
-      box-shadow: 0 4px 16px rgba(10,23,78,0.10);
-      border-radius: 12px;
+      background: #ffffff;
+      color: #1e293b;
+      box-shadow: none;
+      border-radius: 8px;
       overflow: hidden;
+      border: 1px solid #e2e8f0;
     }
     th, td {
-      border: 1px solid #133b88;
-      padding: 16px 12px;
+      border: 1px solid #e2e8f0;
+      padding: 12px;
       text-align: left;
-      font-size: 1.05em;
+      font-size: 16px;
     }
     th {
-      background: #133b88;
-      color: #b3cfff;
-      font-weight: bold;
-      letter-spacing: 1px;
-      font-size: 1.08em;
+      background: #f8fafc;
+      color: #1e293b;
+      font-weight: 600;
+      border-bottom: 2px solid #e2e8f0;
     }
     tr:nth-child(even) {
-      background: #102a5c;
+      background: #f8fafc;
+    }
+    tr:hover {
+      background: #f8fafc;
     }
     /* Scanner Modal Styles */
     .scanner-modal {
@@ -240,7 +241,7 @@
       width: 100%;
       height: 100%;
       overflow: auto;
-      background-color: rgba(10, 23, 78, 0.95);
+      background-color: rgba(0, 0, 0, 0.5);
       animation: fadeIn 0.3s ease;
     }
     @keyframes fadeIn {
@@ -248,14 +249,14 @@
       to { opacity: 1; }
     }
     .scanner-content {
-      background: linear-gradient(135deg, #133b88 0%, #1976d2 100%);
+      background: #ffffff;
       margin: 5% auto;
       padding: 30px;
-      border: 2px solid #38f9d7;
-      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
       width: 90%;
       max-width: 500px;
-      box-shadow: 0 8px 32px rgba(56, 249, 215, 0.25);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
       position: relative;
       animation: slideDown 0.3s ease;
     }
@@ -264,7 +265,7 @@
       to { transform: translateY(0); opacity: 1; }
     }
     .close-scanner {
-      color: #fff;
+      color: #64748b;
       float: right;
       font-size: 36px;
       font-weight: bold;
@@ -274,18 +275,18 @@
     }
     .close-scanner:hover,
     .close-scanner:focus {
-      color: #ff5858;
+      color: #ef4444;
     }
     .scan-btn {
-      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-      color: #0a174e;
-      font-weight: bold;
+      background: #2563eb;
+      color: #ffffff;
+      font-weight: 600;
       cursor: pointer;
       border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
-      font-size: 1.15em;
-      box-shadow: 0 4px 16px rgba(67, 233, 123, 0.25);
+      border-radius: 6px;
+      padding: 12px 24px;
+      font-size: 16px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
       transition: all 0.2s;
       margin-bottom: 16px;
       display: inline-flex;
@@ -293,37 +294,39 @@
       gap: 8px;
     }
     .scan-btn:hover {
-      background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
-      box-shadow: 0 6px 24px rgba(67, 233, 123, 0.35);
-      transform: translateY(-2px);
+      background: #1d4ed8;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transform: translateY(-1px);
     }
     .scanner-modal h2 {
-      color: #fff;
+      color: #1e293b;
       margin-top: 0;
       margin-bottom: 20px;
       text-align: center;
     }
     #scanner-reader {
       margin: 20px auto;
-      border-radius: 12px;
+      border-radius: 8px;
       overflow: hidden;
+      border: 1px solid #e2e8f0;
     }
     #scanResult {
       text-align: center;
       margin-top: 20px;
-      font-size: 1.2em;
-      font-weight: bold;
-      color: #43e97b;
+      font-size: 16px;
+      font-weight: 600;
+      color: #10b981;
       min-height: 30px;
     }
     .ticket-highlight {
-      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%) !important;
-      color: #0a174e !important;
+      background: #dbeafe !important;
+      color: #1e293b !important;
       font-weight: bold;
       animation: pulse 1s ease-in-out;
+      border-left: 4px solid #2563eb !important;
     }
     .ticket-highlight td {
-      color: #0a174e !important;
+      color: #1e293b !important;
     }
     @keyframes pulse {
       0%, 100% { transform: scale(1); }
@@ -332,14 +335,14 @@
   </style>
 </head>
 <body>
-    <a href="/logout" style="position:fixed;top:20px;left:20px;background:#d32f2f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;z-index:1000;" data-i18n="Logout" aria-label="Logout">Logout</a>
-    <select id="lang-select" style="position:fixed;top:20px;right:20px;padding:8px;border-radius:8px;z-index:1000;" aria-label="Language selector">
+    <a href="/logout" style="position:fixed;top:20px;left:20px;background:#ef4444;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;z-index:1000;box-shadow:0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);" data-i18n="Logout" aria-label="Logout">Logout</a>
+    <select id="lang-select" style="position:fixed;top:20px;right:20px;padding:10px 12px;border-radius:6px;z-index:1000;border:1px solid #e2e8f0;background:#ffffff;color:#1e293b;font-size:14px;" aria-label="Language selector">
       <option value="en">English</option>
       <option value="fr">Français</option>
       <option value="ht">Kreyòl Ayisyen</option>
       <option value="es">Español</option>
     </select>
-    <div class="section" style="background:#133b88;max-width:800px;margin:32px auto;">
+    <div class="section" style="background:#ffffff;max-width:800px;margin:32px auto;border:1px solid #e2e8f0;">
       <h2>Sales Trends (Last 30 Days)</h2>
       <canvas id="salesChart" height="120"></canvas>
       <h2>Tickets by Category</h2>
@@ -356,11 +359,11 @@
       </div>
     </div>
     
-    <div class="section" style="background:#1976d2;border:3px solid #fff;box-shadow:0 6px 24px rgba(10,23,78,0.7);margin-top:32px;">
-    <h1 style="color:#fff;text-shadow:2px 2px 8px #09103a;" data-i18n="Audit Logs">Audit Logs</h1>
-    <table id="audit-table" style="background:#fff;color:#222;">
+    <div class="section" style="background:#ffffff;border:1px solid #e2e8f0;margin-top:32px;">
+    <h1 style="color:#1e293b;text-shadow:none;font-size:24px;font-weight:600;" data-i18n="Audit Logs">Audit Logs</h1>
+    <table id="audit-table" style="background:#ffffff;color:#1e293b;">
       <thead>
-        <tr style="background:#133b88;color:#fff;"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+        <tr style="background:#f8fafc;color:#1e293b;"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -410,8 +413,7 @@
       </thead>
       <tbody></tbody>
     </table>
-    <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#d32f2f;color:#fff;">Delete Selected Tickets</button>
-    </table>
+    <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#ef4444;color:#fff;">Delete Selected Tickets</button>
   </div>
   <div class="section">
     <h2>Sales Report</h2>
@@ -430,8 +432,7 @@
       </thead>
       <tbody></tbody>
     </table>
-    <button id="bulk-delete-users-btn" style="margin-top:10px;background:#d32f2f;color:#fff;">Delete Selected Users</button>
-    </table>
+    <button id="bulk-delete-users-btn" style="margin-top:10px;background:#ef4444;color:#fff;">Delete Selected Users</button>
   </div>
   <div class="section">
     <h2>Database Backups</h2>
@@ -459,7 +460,7 @@
       <label>Logo URL:</label>
       <input id="logo-url" placeholder="Paste logo image URL" />
       <label>Primary Color:</label>
-      <input id="primary-color" type="color" value="#1976d2" />
+      <input id="primary-color" type="color" value="#2563eb" />
       <label>Background Image URL:</label>
       <input id="bg-url" placeholder="Paste background image URL" />
       <button type="submit">Apply Branding</button>
@@ -566,8 +567,8 @@
                                     datasets: [{
                                       label: 'Tickets Sold',
                                       data: data.map(row => row.count),
-                                      backgroundColor: 'rgba(33,150,243,0.2)',
-                                      borderColor: '#1976d2',
+                                      backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                                      borderColor: '#2563eb',
                                       borderWidth: 2,
                                       fill: true
                                     }]
@@ -588,7 +589,7 @@
                                     datasets: [{
                                       label: 'Tickets',
                                       data: data.map(row => row.count),
-                                      backgroundColor: ['#1976d2','#388e3c','#fbc02d','#d32f2f'],
+                                      backgroundColor: ['#2563eb','#10b981','#f59e0b','#ef4444'],
                                     }]
                                   },
                                   options: {
@@ -646,7 +647,7 @@
                             let isAdminScannerRunning = false;
                             
                             function onAdminScanSuccess(decodedText, decodedResult) {
-                              // Display scanned result
+                               // Display scanned result
                               document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
                               
                               // Search for ticket in the table
@@ -671,14 +672,14 @@
                                     const category = row.children[2]?.textContent || 'N/A';
                                     const status = row.children[3]?.textContent || 'N/A';
                                     
-                                    showNotify(`✅ Ticket #${decodedText} Found! | Category: ${category} | Status: ${status}`, '#43e97b', 4000);
+                                    showNotify(`✅ Ticket #${decodedText} Found! | Category: ${category} | Status: ${status}`, '#10b981', 4000);
                                   }
                                 });
                               }
                               
                               if (!ticketFound) {
                                 document.getElementById('scanResult').innerHTML = `⚠️ Ticket #${decodedText} not found in system`;
-                                showNotify(`⚠️ Ticket #${decodedText} not found in the system`, '#ff5858', 3000);
+                                showNotify(`⚠️ Ticket #${decodedText} not found in the system`, '#ef4444', 3000);
                               } else {
                                 // Populate the create ticket form for quick reference
                                 document.getElementById('ticket-number').value = decodedText;
@@ -708,7 +709,7 @@
                                 isAdminScannerRunning = true;
                               }).catch((err) => {
                                 document.getElementById('scanResult').innerHTML = `❌ Camera Error: ${err}`;
-                                showNotify('Camera access denied or unavailable', '#ff5858', 3000);
+                                showNotify('Camera access denied or unavailable', '#ef4444', 3000);
                               });
                             }
                             
@@ -784,7 +785,7 @@
                     }
                     loadAuditLogs();
             // Notification helper
-            function showNotify(msg, color = '#1976d2', timeout = 2500) {
+            function showNotify(msg, color = '#2563eb', timeout = 2500) {
               const notify = document.getElementById('notify');
               notify.textContent = msg;
               notify.style.background = color;
@@ -872,7 +873,7 @@
             body: JSON.stringify({ ticketNumber, reason })
           });
           const data = await res.json();
-          showNotify(data.msg || data.error, data.success ? '#388e3c' : '#d32f2f');
+          showNotify(data.msg || data.error, data.success ? '#10b981' : '#ef4444');
           loadTickets();
         });
       });
@@ -886,7 +887,7 @@
             body: JSON.stringify({ ticketNumber, reason })
           });
           const data = await res.json();
-          showNotify(data.msg || data.error, data.success ? '#388e3c' : '#d32f2f');
+          showNotify(data.msg || data.error, data.success ? '#10b981' : '#ef4444');
           loadTickets();
         });
       });
@@ -960,8 +961,8 @@
       if (logo) {
         document.querySelector('img[alt="Logo"]').src = logo;
       }
-      document.body.style.background = bg ? `url('${bg}') center center/cover no-repeat, linear-gradient(135deg, ${color} 0%, #133b88 100%)` : `linear-gradient(135deg, ${color} 0%, #133b88 100%)`;
-      document.querySelectorAll('.section').forEach(s => s.style.background = color);
+      document.body.style.background = bg ? `url('${bg}') center center/cover no-repeat` : '#f8fafc';
+      document.querySelectorAll('.section').forEach(s => s.style.background = '#ffffff');
       document.querySelectorAll('h1, h2').forEach(h => h.style.color = color);
     });
     document.getElementById('online-buy-form').addEventListener('submit', async function(e) {
@@ -979,7 +980,7 @@
       if (data.url) {
         window.open(data.url, '_blank');
       } else {
-        showNotify(data.error || 'Payment error', '#d32f2f');
+        showNotify(data.error || 'Payment error', '#ef4444');
       }
     });
   </script>
