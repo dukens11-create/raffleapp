@@ -12,7 +12,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
@@ -52,11 +52,12 @@
         .login-header h1 {
             font-size: 28px;
             margin-bottom: 10px;
+            font-weight: 600;
         }
 
         .login-header p {
-            opacity: 0.9;
             font-size: 14px;
+            opacity: 0.9;
         }
 
         .login-form {
@@ -80,17 +81,75 @@
             padding: 12px 15px;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
-            font-size: 14px;
+            font-size: 15px;
             transition: all 0.3s ease;
+            background: #f8f9fa;
         }
 
         .form-group input:focus {
             outline: none;
             border-color: #667eea;
+            background: white;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-        .login-btn {
+        .form-group input::placeholder {
+            color: #999;
+        }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 5px;
+            transition: opacity 0.3s ease;
+        }
+
+        .toggle-password:hover {
+            opacity: 0.7;
+        }
+
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .remember-me input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .forgot-password {
+            color: #667eea;
+            text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .forgot-password:hover {
+            opacity: 0.7;
+        }
+
+        .login-button {
             width: 100%;
             padding: 14px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -103,13 +162,54 @@
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .login-btn:hover {
+        .login-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
 
-        .login-btn:active {
+        .login-button:active {
             transform: translateY(0);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 30px 0;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e0e0e0;
+        }
+
+        .divider::before {
+            margin-right: 15px;
+        }
+
+        .divider::after {
+            margin-left: 15px;
+        }
+
+        .signup-link {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .signup-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: opacity 0.3s ease;
+        }
+
+        .signup-link a:hover {
+            opacity: 0.7;
         }
 
         .error-message {
@@ -118,13 +218,8 @@
             padding: 12px;
             border-radius: 8px;
             margin-bottom: 20px;
-            display: none;
             font-size: 14px;
-            border: 1px solid #fcc;
-        }
-
-        .error-message.show {
-            display: block;
+            display: none;
             animation: shake 0.5s ease;
         }
 
@@ -134,96 +229,117 @@
             75% { transform: translateX(10px); }
         }
 
-        .register-link {
-            text-align: center;
-            margin-top: 20px;
-            color: #666;
-            font-size: 14px;
-        }
-
-        .register-link a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        .register-link a:hover {
-            text-decoration: underline;
+        .error-message.show {
+            display: block;
         }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="login-header">
-            <h1>🎟️ Raffle App</h1>
-            <p>Welcome back! Please login to continue</p>
+            <h1>Welcome Back!</h1>
+            <p>Login to access your raffle account</p>
         </div>
-        <div class="login-form">
+        
+        <form class="login-form" id="loginForm">
             <div class="error-message" id="errorMessage"></div>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" name="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                <button type="submit" class="login-btn">Login</button>
-            </form>
-            <div class="register-link">
-                Don't have an account? <a href="register.html">Register here</a>
+            
+            <div class="form-group">
+                <label for="username">Phone Number</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    placeholder="Enter your phone number" 
+                    required
+                    autocomplete="username"
+                >
             </div>
-        </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <div class="password-wrapper">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password" 
+                        placeholder="Enter your password" 
+                        required
+                        autocomplete="current-password"
+                    >
+                    <button type="button" class="toggle-password" onclick="togglePassword()">Show</button>
+                </div>
+            </div>
+
+            <div class="remember-forgot">
+                <label class="remember-me">
+                    <input type="checkbox" name="remember">
+                    <span>Remember me</span>
+                </label>
+                <a href="#" class="forgot-password">Forgot Password?</a>
+            </div>
+
+            <button type="submit" class="login-button">Login</button>
+
+            <div class="divider">or</div>
+
+            <div class="signup-link">
+                Don't have an account? <a href="/signup.html">Sign up</a>
+            </div>
+        </form>
     </div>
 
     <script>
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleButton = document.querySelector('.toggle-password');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleButton.textContent = 'Hide';
+            } else {
+                passwordInput.type = 'password';
+                toggleButton.textContent = 'Show';
+            }
+        }
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.classList.remove('show');
-
-            const username = document.getElementById('username').value;
+            
+            const phone = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-
+            const errorMessage = document.getElementById('errorMessage');
+            
             try {
-                const response = await fetch('/api/login', {
+                const response = await fetch('/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone, password })
                 });
 
-                const d = await response.json();
-                
-                // Check for errors first
-                if (d.error) {
-                    errorDiv.textContent = d.error;
-                    errorDiv.classList.add('show');
-                    return;
-                }
-                
-                // Then check for redirect from server
-                if (d.redirect) {
-                    window.location.href = d.redirect;
-                    return;
-                }
-                
-                // Fall back to role-based routing with proper error catching
-                try {
-                    if (d.role === 'admin') {
-                        window.location.href = 'admin.html';
-                    } else if (d.role === 'player') {
-                        window.location.href = 'player.html';
-                    } else {
-                        throw new Error('Invalid role received from server');
-                    }
-                } catch (roleError) {
-                    errorDiv.textContent = 'Login successful but navigation failed. Please try again.';
-                    errorDiv.classList.add('show');
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store token in localStorage
+                    localStorage.setItem('token', data.token);
+                    // Redirect to dashboard or home page
+                    window.location.href = '/dashboard.html';
+                } else {
+                    errorMessage.textContent = data.message || 'Login failed. Please try again.';
+                    errorMessage.classList.add('show');
+                    setTimeout(() => {
+                        errorMessage.classList.remove('show');
+                    }, 5000);
                 }
             } catch (error) {
-                errorDiv.textContent = 'Connection error. Please try again.';
-                errorDiv.classList.add('show');
+                console.error('Login error:', error);
+                errorMessage.textContent = 'An error occurred. Please try again later.';
+                errorMessage.classList.add('show');
+                setTimeout(() => {
+                    errorMessage.classList.remove('show');
+                }, 5000);
             }
         });
     </script>
