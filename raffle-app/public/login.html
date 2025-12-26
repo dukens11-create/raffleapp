@@ -4,24 +4,125 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Raffle App</title>
-    <link rel="stylesheet" href="styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #message {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #555;
+        }
+        
+        .register-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>Login</h1>
         <form id="loginForm">
             <div class="form-group">
-                <label for="phone">Phone Number:</label>
-                <input type="text" id="phone" name="phone" placeholder="1234567890" required>
+                <label for="phone">Phone Number</label>
+                <input type="tel" id="phone" required placeholder="Enter your phone number">
             </div>
             <div class="form-group">
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
+                <label for="password">Password</label>
+                <input type="password" id="password" required placeholder="Enter your password">
             </div>
             <button type="submit">Login</button>
+            <div id="message"></div>
         </form>
-        <p>Don't have an account? <a href="register.html">Register here</a></p>
-        <div id="message"></div>
+        <div class="register-link">
+            Don't have an account? <a href="/register.html">Register here</a>
+        </div>
     </div>
 
     <script>
@@ -30,6 +131,7 @@
             
             const phone = document.getElementById('phone').value;
             const password = document.getElementById('password').value;
+            const messageDiv = document.getElementById('message');
             
             try {
                 const response = await fetch('/login', {
@@ -40,18 +142,26 @@
                 
                 const data = await response.json();
                 
-                if (response.ok) {
-                    document.getElementById('message').textContent = 'Login successful!';
-                    document.getElementById('message').style.color = 'green';
-                    // Redirect to dashboard or home page
-                    setTimeout(() => window.location.href = data.redirect, 1000);
+                // Check if there's an error
+                if (data.error) {
+                    messageDiv.textContent = data.error;
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+                
+                // Check if there's a redirect URL
+                if (data.redirect) {
+                    messageDiv.textContent = 'Login successful! Redirecting...';
+                    messageDiv.style.color = 'green';
+                    // Redirect to the URL provided by the server
+                    window.location.href = data.redirect;
                 } else {
-                    document.getElementById('message').textContent = data.message || 'Login failed';
-                    document.getElementById('message').style.color = 'red';
+                    messageDiv.textContent = 'Login response invalid';
+                    messageDiv.style.color = 'red';
                 }
             } catch (error) {
-                document.getElementById('message').textContent = 'An error occurred';
-                document.getElementById('message').style.color = 'red';
+                messageDiv.textContent = 'Connection error. Please try again.';
+                messageDiv.style.color = 'red';
             }
         });
     </script>
