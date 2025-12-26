@@ -162,8 +162,8 @@
             <div class="error-message" id="errorMessage"></div>
             <form id="loginForm">
                 <div class="form-group">
-                    <label for="username">Phone Number</label>
-                    <input type="text" id="username" name="username" required>
+                    <label for="phone">Phone Number</label>
+                    <input type="text" id="phone" name="phone" required>
                 </div>
                 <div class="form-group">
                     <label for="password">Password</label>
@@ -183,7 +183,7 @@
             const errorDiv = document.getElementById('errorMessage');
             errorDiv.classList.remove('show');
 
-            const phone = document.getElementById('username').value;
+            const phone = document.getElementById('phone').value;
             const password = document.getElementById('password').value;
 
             try {
