@@ -55,8 +55,23 @@ function initializeDatabase() {
       seller_phone TEXT NOT NULL,
       amount REAL NOT NULL,
       status TEXT DEFAULT 'active',
+      barcode TEXT,
+      category TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    // Add barcode and category columns if they don't exist (migration)
+    db.run(`ALTER TABLE tickets ADD COLUMN barcode TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding barcode column:', err);
+      }
+    });
+    
+    db.run(`ALTER TABLE tickets ADD COLUMN category TEXT`, (err) => {
+      if (err && !err.message.includes('duplicate column')) {
+        console.error('Error adding category column:', err);
+      }
+    });
 
     // Draws table
     db.run(`CREATE TABLE IF NOT EXISTS draws (
@@ -510,6 +525,59 @@ app.get('/api/seller-stats', requireAuth, requireAdmin, (req, res) => {
     }
     res.json(rows);
   });
+});
+
+// API: Bulk import ticket
+app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber, buyerName, buyerPhone, amount, category, seller, status, barcode } = req.body;
+    
+    // Validate required fields
+    if (!ticketNumber || !buyerName || !buyerPhone || !amount) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Check if ticket number already exists
+    db.get('SELECT id FROM tickets WHERE ticket_number = ?', [ticketNumber], (err, existing) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (existing) {
+        return res.status(400).json({ error: 'Ticket number already exists' });
+      }
+      
+      // Insert ticket with barcode
+      db.run(`
+        INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount, category, status, barcode, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `, [
+        ticketNumber, 
+        buyerName, 
+        buyerPhone, 
+        seller || 'Admin', 
+        req.session.user.phone, 
+        amount, 
+        category || 'Standard', 
+        status || 'sold', 
+        barcode
+      ], function(err) {
+        if (err) {
+          console.error('Bulk import error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        res.json({ 
+          success: true, 
+          ticketId: this.lastID,
+          ticketNumber 
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Bulk import error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Start server

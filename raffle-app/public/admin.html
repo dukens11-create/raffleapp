@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - Raffle App</title>
@@ -331,6 +334,118 @@
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.02); }
     }
+    
+    /* Import Section Styles */
+    .import-section {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+    
+    .import-actions {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+    
+    .upload-area {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex: 1;
+    }
+    
+    #selectedFileName {
+      color: #64748b;
+      font-size: 14px;
+      font-style: italic;
+    }
+    
+    #importProgress {
+      margin-top: 16px;
+    }
+    
+    #progressBar {
+      width: 100%;
+      height: 8px;
+      border-radius: 4px;
+    }
+    
+    #progressText {
+      display: block;
+      margin-top: 8px;
+      color: #64748b;
+      font-size: 14px;
+    }
+    
+    .import-results {
+      margin-top: 16px;
+      padding: 16px;
+      border-radius: 6px;
+    }
+    
+    .import-success {
+      background: #d1fae5;
+      border: 1px solid #10b981;
+      color: #065f46;
+    }
+    
+    .import-error {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+    
+    .btn-secondary {
+      background: #64748b;
+      color: #ffffff;
+    }
+    
+    .btn-secondary:hover {
+      background: #475569;
+    }
+    
+    .btn-success {
+      background: #10b981;
+      color: #ffffff;
+    }
+    
+    .btn-success:hover {
+      background: #059669;
+    }
+    
+    .btn-success:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .barcode-img {
+      max-width: 120px;
+      height: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 4px;
+    }
+    
+    .print-barcode-btn {
+      background: #6366f1;
+      color: #ffffff;
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .print-barcode-btn:hover {
+      background: #4f46e5;
+    }
   </style>
 </head>
 <body>
@@ -399,6 +514,37 @@
       <div id="ticket-success" class="msg-success" style="display:none;"></div>
       <div id="ticket-error" class="msg-error" style="display:none;"></div>
     </form>
+    
+    <!-- Bulk Import Section -->
+    <div class="import-section" style="margin-top: 32px;">
+      <h3>📊 Bulk Import Tickets</h3>
+      
+      <div class="import-actions">
+        <button id="downloadTemplateBtn" class="btn-secondary">
+          📥 Download Excel Template
+        </button>
+        
+        <div class="upload-area">
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
+          <button id="selectFileBtn" style="background:#2563eb;">
+            📁 Select Excel File
+          </button>
+          <span id="selectedFileName"></span>
+        </div>
+        
+        <button id="importBtn" class="btn-success" disabled>
+          ⬆️ Import Tickets
+        </button>
+      </div>
+      
+      <div id="importProgress" style="display: none;">
+        <progress id="progressBar" max="100" value="0"></progress>
+        <span id="progressText">0%</span>
+      </div>
+      
+      <div id="importResults" style="display: none;"></div>
+    </div>
+    
     <h2>All Tickets</h2>
     <table id="tickets-table">
       <thead>
@@ -407,6 +553,7 @@
           <th>Number</th>
           <th>Category</th>
           <th>Status</th>
+          <th>Barcode</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -858,7 +1005,17 @@
         if (ticket.status !== 'cancelled') {
           actions += `<button class='cancel-btn' data-number='${ticket.number}'>Cancel</button>`;
         }
-        tr.innerHTML = `<td><input type="checkbox" value="${ticket.number}"></td><td>${ticket.number}</td><td>${ticket.category || ''}</td><td>${ticket.status}</td><td>${actions}</td>`;
+        
+        // Barcode display
+        let barcodeHtml = '';
+        if (ticket.barcode) {
+          barcodeHtml = `<img src="${ticket.barcode}" alt="Barcode" class="barcode-img">
+                        <button class="print-barcode-btn" onclick="printBarcode('${ticket.barcode}', '${ticket.number}')">🖨️</button>`;
+        } else {
+          barcodeHtml = '<span style="color:#94a3b8;">No barcode</span>';
+        }
+        
+        tr.innerHTML = `<td><input type="checkbox" value="${ticket.number}"></td><td>${ticket.number}</td><td>${ticket.category || ''}</td><td>${ticket.status}</td><td>${barcodeHtml}</td><td>${actions}</td>`;
         tbody.appendChild(tr);
       });
       // Add refund/cancel handlers
@@ -894,6 +1051,53 @@
       loadInventory();
     }
     loadTickets();
+    
+    // Print barcode function
+    function printBarcode(barcodeData, ticketNumber) {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Barcode - Ticket ${ticketNumber}</title>
+            <style>
+              body { 
+                display: flex; 
+                justify-content: center; 
+                align-items: center; 
+                height: 100vh;
+                margin: 0;
+                font-family: Arial, sans-serif;
+              }
+              .barcode-container {
+                text-align: center;
+              }
+              img {
+                max-width: 100%;
+                height: auto;
+              }
+              h2 {
+                margin-top: 10px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="barcode-container">
+              <h2>Ticket #${ticketNumber}</h2>
+              <img src="${barcodeData}" alt="Barcode">
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                window.onafterprint = function() {
+                  window.close();
+                };
+              };
+            <\/script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
 
     // Fetch sales report
     fetch('/sales-report').then(res => res.json()).then(data => {
@@ -982,13 +1186,327 @@
         showNotify(data.error || 'Payment error', '#ef4444');
       }
     });
+    
+    // ============================================
+    // BULK IMPORT FUNCTIONALITY
+    // ============================================
+    
+    let selectedFile = null;
+    
+    // Download Excel template
+    document.getElementById('downloadTemplateBtn').addEventListener('click', function() {
+      const templateData = [
+        {
+          'Ticket Number': 'T001',
+          'Buyer Name': 'John Doe',
+          'Buyer Phone': '1234567890',
+          'Amount': 25.00,
+          'Category': 'Early Bird',
+          'Seller': 'Seller1',
+          'Status': 'Sold'
+        },
+        {
+          'Ticket Number': 'T002',
+          'Buyer Name': 'Jane Smith',
+          'Buyer Phone': '0987654321',
+          'Amount': 30.00,
+          'Category': 'Standard',
+          'Seller': 'Seller2',
+          'Status': 'Sold'
+        },
+        {
+          'Ticket Number': 'T003',
+          'Buyer Name': 'Bob Johnson',
+          'Buyer Phone': '5551234567',
+          'Amount': 50.00,
+          'Category': 'VIP',
+          'Seller': 'Admin',
+          'Status': 'Sold'
+        }
+      ];
+      
+      const ws = XLSX.utils.json_to_sheet(templateData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Tickets Template');
+      XLSX.writeFile(wb, 'raffle_tickets_template.xlsx');
+      
+      showNotify('✅ Template downloaded successfully!', '#10b981');
+    });
+    
+    // Select file button
+    document.getElementById('selectFileBtn').addEventListener('click', function() {
+      document.getElementById('excelFileInput').click();
+    });
+    
+    // File selection handler
+    document.getElementById('excelFileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        selectedFile = file;
+        document.getElementById('selectedFileName').textContent = file.name;
+        document.getElementById('importBtn').disabled = false;
+      } else {
+        selectedFile = null;
+        document.getElementById('selectedFileName').textContent = '';
+        document.getElementById('importBtn').disabled = true;
+      }
+    });
+    
+    // Generate barcode function
+    function generateBarcode(ticketNumber) {
+      try {
+        const canvas = document.createElement('canvas');
+        JsBarcode(canvas, ticketNumber, {
+          format: "CODE128",
+          width: 2,
+          height: 50,
+          displayValue: true,
+          fontSize: 14,
+          margin: 5
+        });
+        return canvas.toDataURL('image/png');
+      } catch (error) {
+        console.error('Error generating barcode:', error);
+        return null;
+      }
+    }
+    
+    // Read Excel file
+    async function readExcelFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+            resolve(jsonData);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        reader.onerror = function(error) {
+          reject(error);
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+    
+    // Validate row data
+    function validateRow(row, index) {
+      const errors = [];
+      
+      // Check required fields
+      if (!row['Ticket Number']) {
+        errors.push(`Row ${index + 2}: Missing Ticket Number`);
+      }
+      if (!row['Buyer Name']) {
+        errors.push(`Row ${index + 2}: Missing Buyer Name`);
+      }
+      if (!row['Buyer Phone']) {
+        errors.push(`Row ${index + 2}: Missing Buyer Phone`);
+      }
+      if (!row['Amount']) {
+        errors.push(`Row ${index + 2}: Missing Amount`);
+      }
+      
+      // Validate amount is a number
+      if (row['Amount'] && isNaN(parseFloat(row['Amount']))) {
+        errors.push(`Row ${index + 2}: Amount must be a number`);
+      }
+      
+      // Validate phone number format (basic validation)
+      if (row['Buyer Phone'] && !/^\d{10,15}$/.test(String(row['Buyer Phone']).replace(/[\s\-\(\)]/g, ''))) {
+        errors.push(`Row ${index + 2}: Invalid phone number format`);
+      }
+      
+      return errors;
+    }
+    
+    // Update progress
+    function updateProgress(current, total) {
+      const percent = Math.round((current / total) * 100);
+      document.getElementById('progressBar').value = percent;
+      document.getElementById('progressText').textContent = `${percent}% (${current}/${total})`;
+    }
+    
+    // Import tickets
+    async function importTickets(excelData) {
+      const results = {
+        success: [],
+        failed: []
+      };
+      
+      // Show progress
+      document.getElementById('importProgress').style.display = 'block';
+      document.getElementById('importResults').style.display = 'none';
+      updateProgress(0, excelData.length);
+      
+      for (let i = 0; i < excelData.length; i++) {
+        const row = excelData[i];
+        
+        try {
+          // Validate row
+          const validationErrors = validateRow(row, i);
+          if (validationErrors.length > 0) {
+            results.failed.push({ 
+              row: row['Ticket Number'] || `Row ${i + 2}`, 
+              error: validationErrors.join(', ') 
+            });
+            updateProgress(i + 1, excelData.length);
+            continue;
+          }
+          
+          // Generate barcode
+          const barcodeImage = generateBarcode(String(row['Ticket Number']));
+          
+          if (!barcodeImage) {
+            results.failed.push({ 
+              row: row['Ticket Number'], 
+              error: 'Failed to generate barcode' 
+            });
+            updateProgress(i + 1, excelData.length);
+            continue;
+          }
+          
+          // Send to backend
+          const response = await fetch('/api/tickets/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ticketNumber: String(row['Ticket Number']),
+              buyerName: String(row['Buyer Name']),
+              buyerPhone: String(row['Buyer Phone']).replace(/[\s\-\(\)]/g, ''),
+              amount: parseFloat(row['Amount']),
+              category: row['Category'] || 'Standard',
+              seller: row['Seller'] || 'Admin',
+              status: row['Status'] || 'sold',
+              barcode: barcodeImage
+            })
+          });
+          
+          const responseData = await response.json();
+          
+          if (response.ok && responseData.success) {
+            results.success.push(row['Ticket Number']);
+          } else {
+            results.failed.push({ 
+              row: row['Ticket Number'], 
+              error: responseData.error || 'Unknown error' 
+            });
+          }
+          
+        } catch (error) {
+          results.failed.push({ 
+            row: row['Ticket Number'] || `Row ${i + 2}`, 
+            error: error.message 
+          });
+        }
+        
+        // Update progress
+        updateProgress(i + 1, excelData.length);
+      }
+      
+      return results;
+    }
+    
+    // Import button click handler
+    document.getElementById('importBtn').addEventListener('click', async function() {
+      if (!selectedFile) {
+        showNotify('⚠️ Please select a file first', '#ef4444');
+        return;
+      }
+      
+      try {
+        // Disable import button during processing
+        document.getElementById('importBtn').disabled = true;
+        document.getElementById('importBtn').textContent = '⏳ Importing...';
+        
+        // Read Excel file
+        const excelData = await readExcelFile(selectedFile);
+        
+        if (excelData.length === 0) {
+          showNotify('⚠️ Excel file is empty', '#ef4444');
+          document.getElementById('importBtn').disabled = false;
+          document.getElementById('importBtn').textContent = '⬆️ Import Tickets';
+          return;
+        }
+        
+        // Check for duplicate ticket numbers in the file
+        const ticketNumbers = excelData.map(row => String(row['Ticket Number']));
+        const duplicates = ticketNumbers.filter((item, index) => ticketNumbers.indexOf(item) !== index);
+        
+        if (duplicates.length > 0) {
+          showNotify(`⚠️ Duplicate ticket numbers found in file: ${duplicates.join(', ')}`, '#ef4444', 5000);
+          document.getElementById('importBtn').disabled = false;
+          document.getElementById('importBtn').textContent = '⬆️ Import Tickets';
+          return;
+        }
+        
+        // Import tickets
+        const results = await importTickets(excelData);
+        
+        // Display results
+        const resultsDiv = document.getElementById('importResults');
+        resultsDiv.style.display = 'block';
+        
+        let resultsHtml = '';
+        
+        if (results.success.length > 0) {
+          resultsHtml += `<div class="import-success">
+            ✅ Successfully imported ${results.success.length} ticket(s)
+          </div>`;
+        }
+        
+        if (results.failed.length > 0) {
+          resultsHtml += `<div class="import-error" style="margin-top: 10px;">
+            ❌ Failed to import ${results.failed.length} ticket(s):<br>
+            <ul style="margin: 8px 0; padding-left: 20px;">
+              ${results.failed.map(f => `<li><strong>${f.row}</strong>: ${f.error}</li>`).join('')}
+            </ul>
+          </div>`;
+        }
+        
+        resultsDiv.innerHTML = resultsHtml;
+        
+        // Show notification
+        if (results.failed.length === 0) {
+          showNotify(`✅ All ${results.success.length} tickets imported successfully!`, '#10b981', 4000);
+        } else {
+          showNotify(`⚠️ Import completed with ${results.failed.length} error(s)`, '#f59e0b', 4000);
+        }
+        
+        // Reload tickets table
+        loadTickets();
+        
+        // Reset file selection
+        selectedFile = null;
+        document.getElementById('selectedFileName').textContent = '';
+        document.getElementById('excelFileInput').value = '';
+        
+      } catch (error) {
+        console.error('Import error:', error);
+        showNotify(`❌ Import error: ${error.message}`, '#ef4444', 4000);
+        
+        const resultsDiv = document.getElementById('importResults');
+        resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = `<div class="import-error">❌ Error: ${error.message}</div>`;
+      } finally {
+        // Re-enable import button
+        document.getElementById('importBtn').disabled = false;
+        document.getElementById('importBtn').textContent = '⬆️ Import Tickets';
+        
+        // Hide progress after 2 seconds
+        setTimeout(() => {
+          document.getElementById('importProgress').style.display = 'none';
+        }, 2000);
+      }
+    });
+    
   </script>
-    <body>
-      <header>
-        <img src="logo.png" alt="Raffle App Logo">
-        <h1>Raffle Admin Dashboard</h1>
-      </header>
+  <footer>
+    &copy; 2025 RaffleApp &mdash; All rights reserved.
+  </footer>
+</body>
 </html>
-      <footer>
-        &copy; 2025 RaffleApp &mdash; All rights reserved.
-      </footer>
