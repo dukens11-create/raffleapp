@@ -230,6 +230,105 @@
     tr:nth-child(even) {
       background: #102a5c;
     }
+    /* Scanner Modal Styles */
+    .scanner-modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(10, 23, 78, 0.95);
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .scanner-content {
+      background: linear-gradient(135deg, #133b88 0%, #1976d2 100%);
+      margin: 5% auto;
+      padding: 30px;
+      border: 2px solid #38f9d7;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 8px 32px rgba(56, 249, 215, 0.25);
+      position: relative;
+      animation: slideDown 0.3s ease;
+    }
+    @keyframes slideDown {
+      from { transform: translateY(-50px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .close-scanner {
+      color: #fff;
+      float: right;
+      font-size: 36px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .close-scanner:hover,
+    .close-scanner:focus {
+      color: #ff5858;
+    }
+    .scan-btn {
+      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
+      color: #0a174e;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 28px;
+      font-size: 1.15em;
+      box-shadow: 0 4px 16px rgba(67, 233, 123, 0.25);
+      transition: all 0.2s;
+      margin-bottom: 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .scan-btn:hover {
+      background: linear-gradient(90deg, #38f9d7 0%, #43e97b 100%);
+      box-shadow: 0 6px 24px rgba(67, 233, 123, 0.35);
+      transform: translateY(-2px);
+    }
+    .scanner-modal h2 {
+      color: #fff;
+      margin-top: 0;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    #scanner-reader {
+      margin: 20px auto;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    #scanResult {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #43e97b;
+      min-height: 30px;
+    }
+    .ticket-highlight {
+      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%) !important;
+      color: #0a174e !important;
+      font-weight: bold;
+      animation: pulse 1s ease-in-out;
+    }
+    .ticket-highlight td {
+      color: #0a174e !important;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
   </style>
 </head>
 <body>
@@ -246,12 +345,18 @@
       <h2>Tickets by Category</h2>
       <canvas id="categoryChart" height="120"></canvas>
     </div>
-    <div class="section" style="max-width:400px;margin:32px auto 16px auto;background:#133b88;">
-      <h2 data-i18n="Scan Ticket Barcode">Scan Ticket Barcode</h2>
-      <div id="admin-reader"></div>
-      <div id="scan-result" style="color:#00e676;font-size:1.2em;margin-top:8px;"></div>
+    
+    <!-- Scanner Modal -->
+    <div id="scannerModal" class="scanner-modal">
+      <div class="scanner-content">
+        <span class="close-scanner" id="closeScannerBtn">&times;</span>
+        <h2>📷 Scan Ticket Barcode</h2>
+        <div id="scanner-reader"></div>
+        <div id="scanResult"></div>
+      </div>
     </div>
-  <div class="section" style="background:#1976d2;border:3px solid #fff;box-shadow:0 6px 24px rgba(10,23,78,0.7);margin-top:32px;">
+    
+    <div class="section" style="background:#1976d2;border:3px solid #fff;box-shadow:0 6px 24px rgba(10,23,78,0.7);margin-top:32px;">
     <h1 style="color:#fff;text-shadow:2px 2px 8px #09103a;" data-i18n="Audit Logs">Audit Logs</h1>
     <table id="audit-table" style="background:#fff;color:#222;">
       <thead>
@@ -274,6 +379,9 @@
   </div>
   <div class="section">
     <h2>Create Ticket</h2>
+    <button id="scanTicketBtn" class="scan-btn">
+      📷 Scan Ticket
+    </button>
     <form id="create-ticket-form">
       <label for="ticket-number" style="margin-bottom:4px;display:block;">Ticket Number</label>
       <input id="ticket-number" placeholder="Ticket Number" required />
@@ -534,17 +642,112 @@
                               }
                             });
                             // Camera barcode scanner for admin
+                            let adminScanner = null;
+                            let isAdminScannerRunning = false;
+                            
                             function onAdminScanSuccess(decodedText, decodedResult) {
-                              document.getElementById('scan-result').textContent = `Scanned: ${decodedText}`;
-                              document.getElementById('ticket-number').value = decodedText;
+                              // Display scanned result
+                              document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
+                              
+                              // Search for ticket in the table
+                              const ticketsTable = document.querySelector('#tickets-table tbody');
+                              let ticketFound = false;
+                              
+                              if (ticketsTable) {
+                                // Remove previous highlights
+                                ticketsTable.querySelectorAll('tr').forEach(row => {
+                                  row.classList.remove('ticket-highlight');
+                                });
+                                
+                                // Search for matching ticket
+                                ticketsTable.querySelectorAll('tr').forEach(row => {
+                                  const ticketNumber = row.children[1]?.textContent;
+                                  if (ticketNumber === decodedText) {
+                                    ticketFound = true;
+                                    row.classList.add('ticket-highlight');
+                                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    
+                                    // Get ticket details
+                                    const category = row.children[2]?.textContent || 'N/A';
+                                    const status = row.children[3]?.textContent || 'N/A';
+                                    
+                                    showNotify(`✅ Ticket #${decodedText} Found! | Category: ${category} | Status: ${status}`, '#43e97b', 4000);
+                                  }
+                                });
+                              }
+                              
+                              if (!ticketFound) {
+                                document.getElementById('scanResult').innerHTML = `⚠️ Ticket #${decodedText} not found in system`;
+                                showNotify(`⚠️ Ticket #${decodedText} not found in the system`, '#ff5858', 3000);
+                              } else {
+                                // Populate the create ticket form for quick reference
+                                document.getElementById('ticket-number').value = decodedText;
+                              }
+                              
+                              // Stop scanner and close modal after 2 seconds
+                              setTimeout(() => {
+                                stopAdminScanner();
+                                document.getElementById('scannerModal').style.display = 'none';
+                              }, 2000);
                             }
-                            if (document.getElementById('admin-reader')) {
-                              const html5QrCode = new Html5Qrcode("admin-reader");
-                              html5QrCode.start({ facingMode: "environment" }, {
-                                fps: 10,
-                                qrbox: 250
-                              }, onAdminScanSuccess);
+                            
+                            function startAdminScanner() {
+                              if (isAdminScannerRunning) return;
+                              
+                              adminScanner = new Html5Qrcode("scanner-reader");
+                              document.getElementById('scanResult').textContent = '🔍 Scanning...';
+                              
+                              adminScanner.start(
+                                { facingMode: "environment" },
+                                { fps: 10, qrbox: { width: 250, height: 250 } },
+                                onAdminScanSuccess,
+                                (errorMessage) => {
+                                  // Silent error handling - scanning errors are normal
+                                }
+                              ).then(() => {
+                                isAdminScannerRunning = true;
+                              }).catch((err) => {
+                                document.getElementById('scanResult').innerHTML = `❌ Camera Error: ${err}`;
+                                showNotify('Camera access denied or unavailable', '#ff5858', 3000);
+                              });
                             }
+                            
+                            function stopAdminScanner() {
+                              if (adminScanner && isAdminScannerRunning) {
+                                adminScanner.stop().then(() => {
+                                  isAdminScannerRunning = false;
+                                  adminScanner = null;
+                                }).catch((err) => {
+                                  console.error('Error stopping scanner:', err);
+                                  isAdminScannerRunning = false;
+                                });
+                              }
+                            }
+                            
+                            // Scanner button click handler
+                            if (document.getElementById('scanTicketBtn')) {
+                              document.getElementById('scanTicketBtn').addEventListener('click', function() {
+                                document.getElementById('scannerModal').style.display = 'block';
+                                startAdminScanner();
+                              });
+                            }
+                            
+                            // Close scanner button
+                            if (document.getElementById('closeScannerBtn')) {
+                              document.getElementById('closeScannerBtn').addEventListener('click', function() {
+                                stopAdminScanner();
+                                document.getElementById('scannerModal').style.display = 'none';
+                              });
+                            }
+                            
+                            // Close modal when clicking outside
+                            window.addEventListener('click', function(event) {
+                              const modal = document.getElementById('scannerModal');
+                              if (event.target === modal) {
+                                stopAdminScanner();
+                                modal.style.display = 'none';
+                              }
+                            });
                         // Make table rows clickable and show details
                         function makeRowsClickable(tableId, getDetails) {
                           const table = document.getElementById(tableId);
