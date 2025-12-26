@@ -1,12 +1,9 @@
 {
   "main": "api/server.js",
   "scripts": {
-    "start": "vercel dev"
+    "start": "node raffle-app/server.js"
   },
   "dependencies": {
-    "scripts": {
-      "start": "node raffle-app/server.js"
-    },
     "connect-sqlite3": "^0.9.0",
     "dotenv": "^16.3.1",
     "express": "^5.2.1",
