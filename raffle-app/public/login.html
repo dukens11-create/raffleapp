@@ -1,156 +1,231 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Raffle App Login</title>
-  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
-  <link rel="icon" type="image/png" href="logo.png">
-  <style>
-    body {
-      font-family: 'Roboto', Arial, sans-serif;
-      background: linear-gradient(135deg, #0a174e 0%, #133b88 100%);
-      color: #b3cfff;
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-    }
-    .login-card {
-      background: #133b88;
-      border-radius: 20px;
-      box-shadow: 0 8px 32px rgba(10,23,78,0.15);
-      padding: 2.5em 2em;
-      border: 2px solid #0a174e;
-      max-width: 350px;
-      width: 100%;
-      margin: 32px auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    h2 {
-      color: #b3cfff;
-      text-shadow: 2px 2px 8px #09103a;
-      margin-bottom: 1em;
-      font-size: 2em;
-    }
-    h3 {
-      color: #fff;
-      margin-bottom: 1em;
-      font-size: 1.3em;
-    }
-    input {
-      padding: 12px;
-      border-radius: 8px;
-      border: 1.5px solid #1976d2;
-      background: #102a5c;
-      color: #b3cfff;
-      font-size: 1.05em;
-      margin-bottom: 10px;
-      width: 100%;
-      transition: border-color 0.2s, box-shadow 0.2s;
-      box-shadow: 0 1px 4px rgba(25,118,210,0.10);
-    }
-    input:focus {
-      border-color: #42a5f5;
-      box-shadow: 0 2px 8px rgba(66,165,245,0.15);
-      outline: none;
-    }
-    button {
-      background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
-      color: #fff;
-      font-weight: bold;
-      cursor: pointer;
-      border: none;
-      border-radius: 8px;
-      padding: 12px 24px;
-      font-size: 1.08em;
-      box-shadow: 0 2px 8px rgba(25,118,210,0.15);
-      transition: background 0.2s, box-shadow 0.2s;
-      margin-bottom: 10px;
-      width: 100%;
-    }
-    button:hover {
-      background: linear-gradient(90deg, #133b88 0%, #1976d2 100%);
-      box-shadow: 0 4px 16px rgba(25,118,210,0.25);
-    }
-    .msg-success {
-      background: linear-gradient(90deg, #43e97b 0%, #38f9d7 100%);
-      color: #0a174e;
-      padding: 14px 22px;
-      border-radius: 10px;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(67,233,123,0.15);
-      margin-bottom: 16px;
-      text-align: center;
-      font-size: 1.08em;
-      border: 1.5px solid #38f9d7;
-    }
-    .msg-error {
-      background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
-      color: #fff;
-      padding: 14px 22px;
-      border-radius: 10px;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(255,88,88,0.15);
-      margin-bottom: 16px;
-      text-align: center;
-      font-size: 1.08em;
-      border: 1.5px solid #f09819;
-    }
-    @media (max-width: 600px) {
-      body {
-        padding: 12px !important;
-      }
-      .login-card {
-        padding: 1.2em 0.5em;
-        border-radius: 0 !important;
-        max-width: 98vw !important;
-      }
-      h2 {
-        font-size: 1.32em !important;
-      }
-      button, input {
-        font-size: 1.12em !important;
-        padding: 14px !important;
-        min-width: 44px;
-        min-height: 44px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Raffle App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            max-width: 400px;
+            width: 100%;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .login-form {
+            padding: 40px 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+            border: 1px solid #fcc;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .register-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-  <div class="login-card">
-    <img src="logo.png" alt="Logo" style="display:block;margin:0 auto 18px auto;max-width:120px;">
-    <h2>🎟️ Raffle Ticket System</h2>
-    <h3>Login</h3>
-    <input id="phone" placeholder="Phone" aria-label="Phone"/>
-    <input id="password" type="password" placeholder="Password" aria-label="Password"/>
-    <!-- CAPTCHA removed -->
-    <button onclick="login()">Login</button>
-    <p id="msg"></p>
-  </div>
-  <script>
-    function login() {
-      fetch('/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone: phone.value,
-          password: password.value
-        })
-      })
-      .then(r => r.json())
-      .then(d => {
-        if (d.role === 'admin') location.href = '/admin';
-        else if (d.role === 'seller') location.href = '/seller?name=' + d.name;
-        else if (d.twofa) document.getElementById('msg').textContent = d.msg;
-        else document.getElementById('msg').textContent = d.error || 'Login failed';
-      });
-    }
-  </script>
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🎟️ Raffle App</h1>
+            <p>Welcome back! Please login to continue</p>
+        </div>
+        <div class="login-form">
+            <div class="error-message" id="errorMessage"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+            </form>
+            <div class="register-link">
+                Don't have an account? <a href="register.html">Register here</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.classList.remove('show');
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const d = await response.json();
+                
+                // Check for errors first
+                if (d.error) {
+                    errorDiv.textContent = d.error;
+                    errorDiv.classList.add('show');
+                    return;
+                }
+                
+                // Then check for redirect from server
+                if (d.redirect) {
+                    window.location.href = d.redirect;
+                    return;
+                }
+                
+                // Fall back to role-based routing with proper error catching
+                try {
+                    if (d.role === 'admin') {
+                        window.location.href = 'admin.html';
+                    } else if (d.role === 'player') {
+                        window.location.href = 'player.html';
+                    } else {
+                        throw new Error('Invalid role received from server');
+                    }
+                } catch (roleError) {
+                    errorDiv.textContent = 'Login successful but navigation failed. Please try again.';
+                    errorDiv.classList.add('show');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Connection error. Please try again.';
+                errorDiv.classList.add('show');
+            }
+        });
+    </script>
 </body>
 </html>
