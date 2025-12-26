@@ -23,7 +23,7 @@ const db = new sqlite3.Database('./raffle.db', (err) => {
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(session({
-  secret: 'raffle-secret-key-2024',
+  secret: process.env.SESSION_SECRET || 'raffle-secret-key-2024',
   resave: false,
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
