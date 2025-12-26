@@ -1,15 +1,19 @@
 const express = require('express');
-const bodyParser = require('body-parser');
-const session = require('express-session');
-const bcrypt = require('bcrypt');
 const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
-// Database setup
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Initialize database
 const db = new sqlite3.Database('./raffle.db', (err) => {
   if (err) {
     console.error('Error opening database:', err);
@@ -19,513 +23,311 @@ const db = new sqlite3.Database('./raffle.db', (err) => {
   }
 });
 
-// Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.use(session({
-  secret: 'raffle-secret-key-2024',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
-}));
-
-// Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Initialize database tables
 function initializeDatabase() {
   db.serialize(() => {
     // Users table
     db.run(`CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
       phone TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      role TEXT NOT NULL,
+      role TEXT DEFAULT 'user',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
     // Tickets table
     db.run(`CREATE TABLE IF NOT EXISTS tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ticket_number INTEGER UNIQUE NOT NULL,
-      buyer_name TEXT NOT NULL,
-      buyer_phone TEXT NOT NULL,
-      seller_name TEXT NOT NULL,
-      seller_phone TEXT NOT NULL,
-      amount REAL NOT NULL,
-      status TEXT DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      user_id INTEGER NOT NULL,
+      ticket_number TEXT UNIQUE NOT NULL,
+      purchased_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id)
     )`);
 
-    // Draws table
-    db.run(`CREATE TABLE IF NOT EXISTS draws (
+    // Winners table
+    db.run(`CREATE TABLE IF NOT EXISTS winners (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      draw_number INTEGER NOT NULL,
-      ticket_number INTEGER NOT NULL,
-      prize_name TEXT NOT NULL,
-      winner_name TEXT NOT NULL,
-      winner_phone TEXT NOT NULL,
-      drawn_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      ticket_id INTEGER NOT NULL,
+      drawn_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (ticket_id) REFERENCES tickets (id)
     )`);
-
-    // Check if admin exists, if not create default admin
-    db.get("SELECT * FROM users WHERE role = 'admin'", (err, row) => {
-      if (!row) {
-        bcrypt.hash('admin123', 10, (err, hash) => {
-          if (err) {
-            console.error('Error hashing password:', err);
-            return;
-          }
-          db.run(
-            "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
-            ['Admin', '1234567890', hash, 'admin'],
-            (err) => {
-              if (err) {
-                console.error('Error creating admin:', err);
-              } else {
-                console.log('Default admin created - Phone: 1234567890, Password: admin123');
-              }
-            }
-          );
-        });
-      }
-    });
   });
 }
 
-// Authentication middleware
-function requireAuth(req, res, next) {
-  if (req.session.user) {
-    next();
-  } else {
-    res.redirect('/');
-  }
-}
-
-function requireAdmin(req, res, next) {
-  if (req.session.user && req.session.user.role === 'admin') {
-    next();
-  } else {
-    res.status(403).send('Access denied');
-  }
-}
-
-// Routes
-
-// Home page - login
-app.get('/', (req, res) => {
-  if (req.session.user) {
-    if (req.session.user.role === 'admin') {
-      res.redirect('/admin');
-    } else {
-      res.redirect('/seller?name=' + encodeURIComponent(req.session.user.name));
-    }
-  } else {
-    res.sendFile(path.join(__dirname, 'public', 'login.html'));
-  }
-});
-
-// Login
-app.post('/login', (req, res) => {
-  const { phone, password } = req.body;
-  
-  db.get("SELECT * FROM users WHERE phone = ?", [phone], (err, user) => {
-    if (err) {
-      return res.json({ error: 'Database error' });
-    }
-    
-    if (!user) {
-      return res.json({ error: 'Invalid phone number or password' });
-    }
-    
-    bcrypt.compare(password, user.password, (err, result) => {
+// POST endpoint to setup default admin user
+app.post('/api/setup-admin', async (req, res) => {
+  try {
+    // Check if admin already exists
+    db.get('SELECT * FROM users WHERE phone = ?', ['1234567890'], async (err, existingAdmin) => {
       if (err) {
-        return res.json({ error: 'Authentication error' });
+        console.error('Error checking for existing admin:', err);
+        return res.status(500).json({ error: 'Database error' });
       }
-      
-      if (result) {
-        req.session.user = {
-          id: user.id,
-          name: user.name,
-          phone: user.phone,
-          role: user.role
-        };
-        
-        if (user.role === 'admin') {
-          res.json({ redirect: '/admin', role: 'admin' });
-        } else {
-          res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
-        }
-      } else {
-        res.json({ error: 'Invalid phone number or password' });
+
+      if (existingAdmin) {
+        return res.status(400).json({ error: 'Admin user already exists' });
       }
-    });
-  });
-});
 
-// Logout
-app.get('/logout', (req, res) => {
-  req.session.destroy();
-  res.redirect('/');
-});
+      // Hash the password
+      const hashedPassword = await bcrypt.hash('admin123', 10);
 
-// Admin dashboard
-app.get('/admin', requireAuth, requireAdmin, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-// Seller page
-app.get('/seller', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'seller.html'));
-});
-
-// API: Get all sellers
-app.get('/api/sellers', requireAuth, requireAdmin, (req, res) => {
-  db.all("SELECT id, name, phone, created_at FROM users WHERE role = 'seller'", (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json(rows);
-  });
-});
-
-// API: Add seller
-app.post('/api/sellers', requireAuth, requireAdmin, (req, res) => {
-  const { name, phone, password } = req.body;
-  
-  if (!name || !phone || !password) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-  
-  bcrypt.hash(password, 10, (err, hash) => {
-    if (err) {
-      return res.status(500).json({ error: 'Error hashing password' });
-    }
-    
-    db.run(
-      "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, 'seller')",
-      [name, phone, hash],
-      function(err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Phone number already exists' });
-          }
-          return res.status(500).json({ error: 'Database error' });
-        }
-        res.json({ success: true, id: this.lastID });
-      }
-    );
-  });
-});
-
-// API: Update seller
-app.put('/api/sellers/:id', requireAuth, requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const { name, phone, password } = req.body;
-  
-  if (!name || !phone) {
-    return res.status(400).json({ error: 'Name and phone are required' });
-  }
-  
-  if (password) {
-    bcrypt.hash(password, 10, (err, hash) => {
-      if (err) {
-        return res.status(500).json({ error: 'Error hashing password' });
-      }
-      
+      // Create the admin user
       db.run(
-        "UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ? AND role = 'seller'",
-        [name, phone, hash, id],
+        'INSERT INTO users (phone, password, role) VALUES (?, ?, ?)',
+        ['1234567890', hashedPassword, 'admin'],
         function(err) {
           if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-              return res.status(400).json({ error: 'Phone number already exists' });
-            }
-            return res.status(500).json({ error: 'Database error' });
+            console.error('Error creating admin user:', err);
+            return res.status(500).json({ error: 'Failed to create admin user' });
           }
-          res.json({ success: true });
+
+          res.json({ 
+            success: true, 
+            message: 'Admin user created successfully',
+            admin: {
+              id: this.lastID,
+              phone: '1234567890',
+              role: 'admin'
+            }
+          });
         }
       );
     });
-  } else {
+  } catch (error) {
+    console.error('Error in setup-admin:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Middleware to verify JWT token
+const requireAuth = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+};
+
+// Middleware to check admin role
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+// Register endpoint
+app.post('/api/register', async (req, res) => {
+  const { phone, password } = req.body;
+
+  if (!phone || !password) {
+    return res.status(400).json({ error: 'Phone and password are required' });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
     db.run(
-      "UPDATE users SET name = ?, phone = ? WHERE id = ? AND role = 'seller'",
-      [name, phone, id],
+      'INSERT INTO users (phone, password) VALUES (?, ?)',
+      [phone, hashedPassword],
       function(err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Phone number already exists' });
+            return res.status(400).json({ error: 'Phone number already registered' });
           }
-          return res.status(500).json({ error: 'Database error' });
+          return res.status(500).json({ error: 'Error creating user' });
         }
-        res.json({ success: true });
+
+        const token = jwt.sign(
+          { id: this.lastID, phone, role: 'user' },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        res.json({ token, user: { id: this.lastID, phone, role: 'user' } });
       }
     );
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-// API: Delete seller
-app.delete('/api/sellers/:id', requireAuth, requireAdmin, (req, res) => {
-  const { id } = req.params;
-  
-  db.run("DELETE FROM users WHERE id = ? AND role = 'seller'", [id], function(err) {
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+  const { phone, password } = req.body;
+
+  if (!phone || !password) {
+    return res.status(400).json({ error: 'Phone and password are required' });
+  }
+
+  db.get('SELECT * FROM users WHERE phone = ?', [phone], async (err, user) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
     }
-    res.json({ success: true });
-  });
-});
 
-// API: Get all tickets
-app.get('/api/tickets', requireAuth, (req, res) => {
-  let query = "SELECT * FROM tickets ORDER BY ticket_number";
-  let params = [];
-  
-  if (req.session.user.role === 'seller') {
-    query = "SELECT * FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
-    params = [req.session.user.phone];
-  }
-  
-  db.all(query, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
-    res.json(rows);
+
+    try {
+      const match = await bcrypt.compare(password, user.password);
+      
+      if (!match) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const token = jwt.sign(
+        { id: user.id, phone: user.phone, role: user.role },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      res.json({ token, user: { id: user.id, phone: user.phone, role: user.role } });
+    } catch (error) {
+      res.status(500).json({ error: 'Server error' });
+    }
   });
 });
 
-// API: Add ticket
-app.post('/api/tickets', requireAuth, (req, res) => {
-  const { ticket_number, buyer_name, buyer_phone, amount } = req.body;
-  
-  if (!ticket_number || !buyer_name || !buyer_phone || !amount) {
-    return res.status(400).json({ error: 'All fields are required' });
+// Purchase tickets
+app.post('/api/tickets/purchase', requireAuth, (req, res) => {
+  const { quantity } = req.body;
+  const userId = req.user.id;
+
+  if (!quantity || quantity < 1 || quantity > 10) {
+    return res.status(400).json({ error: 'Quantity must be between 1 and 10' });
   }
-  
-  const seller_name = req.session.user.name;
-  const seller_phone = req.session.user.phone;
-  
-  db.run(
-    "INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount) VALUES (?, ?, ?, ?, ?, ?)",
-    [ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount],
-    function(err) {
-      if (err) {
-        if (err.message.includes('UNIQUE constraint failed')) {
-          return res.status(400).json({ error: 'Ticket number already exists' });
+
+  const tickets = [];
+  const generateTicketNumber = () => {
+    return 'TKT' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  };
+
+  db.serialize(() => {
+    const stmt = db.prepare('INSERT INTO tickets (user_id, ticket_number) VALUES (?, ?)');
+    
+    for (let i = 0; i < quantity; i++) {
+      const ticketNumber = generateTicketNumber();
+      stmt.run(userId, ticketNumber, function(err) {
+        if (err) {
+          console.error('Error inserting ticket:', err);
+        } else {
+          tickets.push({ id: this.lastID, ticketNumber });
         }
+      });
+    }
+
+    stmt.finalize((err) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error purchasing tickets' });
+      }
+      res.json({ tickets });
+    });
+  });
+});
+
+// Get user's tickets
+app.get('/api/tickets/my-tickets', requireAuth, (req, res) => {
+  const userId = req.user.id;
+
+  db.all(
+    'SELECT * FROM tickets WHERE user_id = ? ORDER BY purchased_at DESC',
+    [userId],
+    (err, tickets) => {
+      if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
-      res.json({ success: true, id: this.lastID });
+      res.json({ tickets });
     }
   );
 });
 
-// API: Update ticket
-app.put('/api/tickets/:id', requireAuth, (req, res) => {
-  const { id } = req.params;
-  const { buyer_name, buyer_phone, amount } = req.body;
-  
-  if (!buyer_name || !buyer_phone || !amount) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-  
-  let query, params;
-  
-  if (req.session.user.role === 'admin') {
-    query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ?";
-    params = [buyer_name, buyer_phone, amount, id];
-  } else {
-    query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ? AND seller_phone = ?";
-    params = [buyer_name, buyer_phone, amount, id, req.session.user.phone];
-  }
-  
-  db.run(query, params, function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    if (this.changes === 0) {
-      return res.status(403).json({ error: 'Not authorized to update this ticket' });
-    }
-    res.json({ success: true });
-  });
-});
-
-// API: Delete ticket
-app.delete('/api/tickets/:id', requireAuth, (req, res) => {
-  const { id } = req.params;
-  
-  let query, params;
-  
-  if (req.session.user.role === 'admin') {
-    query = "DELETE FROM tickets WHERE id = ?";
-    params = [id];
-  } else {
-    query = "DELETE FROM tickets WHERE id = ? AND seller_phone = ?";
-    params = [id, req.session.user.phone];
-  }
-  
-  db.run(query, params, function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    if (this.changes === 0) {
-      return res.status(403).json({ error: 'Not authorized to delete this ticket' });
-    }
-    res.json({ success: true });
-  });
-});
-
-// API: Get ticket statistics
-app.get('/api/stats', requireAuth, (req, res) => {
-  let ticketQuery, revenueQuery;
-  let params = [];
-  
-  if (req.session.user.role === 'admin') {
-    ticketQuery = "SELECT COUNT(*) as total FROM tickets";
-    revenueQuery = "SELECT SUM(amount) as total FROM tickets";
-  } else {
-    ticketQuery = "SELECT COUNT(*) as total FROM tickets WHERE seller_phone = ?";
-    revenueQuery = "SELECT SUM(amount) as total FROM tickets WHERE seller_phone = ?";
-    params = [req.session.user.phone];
-  }
-  
-  db.get(ticketQuery, params, (err, ticketRow) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    db.get(revenueQuery, params, (err, revenueRow) => {
+// Draw winner (admin only)
+app.post('/api/admin/draw-winner', requireAuth, requireAdmin, (req, res) => {
+  db.get(
+    `SELECT t.* FROM tickets t
+     LEFT JOIN winners w ON t.id = w.ticket_id
+     WHERE w.id IS NULL
+     ORDER BY RANDOM()
+     LIMIT 1`,
+    (err, ticket) => {
       if (err) {
         return res.status(500).json({ error: 'Database error' });
       }
-      
-      res.json({
-        totalTickets: ticketRow.total || 0,
-        totalRevenue: revenueRow.total || 0
-      });
-    });
-  });
-});
 
-// API: Get all draws
-app.get('/api/draws', requireAuth, requireAdmin, (req, res) => {
-  db.all("SELECT * FROM draws ORDER BY drawn_at DESC", (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json(rows);
-  });
-});
-
-// API: Conduct draw
-app.post('/api/draw', requireAuth, requireAdmin, (req, res) => {
-  const { prize_name } = req.body;
-  
-  if (!prize_name) {
-    return res.status(400).json({ error: 'Prize name is required' });
-  }
-  
-  // Get all active tickets
-  db.all("SELECT * FROM tickets WHERE status = 'active'", (err, tickets) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    
-    if (tickets.length === 0) {
-      return res.status(400).json({ error: 'No active tickets available' });
-    }
-    
-    // Random selection
-    const winner = tickets[Math.floor(Math.random() * tickets.length)];
-    
-    // Get next draw number
-    db.get("SELECT MAX(draw_number) as max_draw FROM draws", (err, row) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
+      if (!ticket) {
+        return res.status(404).json({ error: 'No available tickets for drawing' });
       }
-      
-      const draw_number = (row.max_draw || 0) + 1;
-      
-      // Insert draw result
+
       db.run(
-        "INSERT INTO draws (draw_number, ticket_number, prize_name, winner_name, winner_phone) VALUES (?, ?, ?, ?, ?)",
-        [draw_number, winner.ticket_number, prize_name, winner.buyer_name, winner.buyer_phone],
+        'INSERT INTO winners (ticket_id) VALUES (?)',
+        [ticket.id],
         function(err) {
           if (err) {
-            return res.status(500).json({ error: 'Database error' });
+            return res.status(500).json({ error: 'Error recording winner' });
           }
-          
-          // Mark ticket as won
-          db.run(
-            "UPDATE tickets SET status = 'won' WHERE id = ?",
-            [winner.id],
-            (err) => {
+
+          db.get(
+            `SELECT w.*, t.ticket_number, u.phone 
+             FROM winners w
+             JOIN tickets t ON w.ticket_id = t.id
+             JOIN users u ON t.user_id = u.id
+             WHERE w.id = ?`,
+            [this.lastID],
+            (err, winner) => {
               if (err) {
-                return res.status(500).json({ error: 'Error updating ticket status' });
+                return res.status(500).json({ error: 'Error fetching winner details' });
               }
-              
-              res.json({
-                success: true,
-                draw: {
-                  draw_number,
-                  ticket_number: winner.ticket_number,
-                  prize_name,
-                  winner_name: winner.buyer_name,
-                  winner_phone: winner.buyer_phone
-                }
-              });
+              res.json({ winner });
             }
           );
         }
       );
-    });
-  });
-});
-
-// API: Get available tickets for draw
-app.get('/api/available-tickets', requireAuth, requireAdmin, (req, res) => {
-  db.all("SELECT ticket_number FROM tickets WHERE status = 'active' ORDER BY ticket_number", (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
     }
-    res.json(rows.map(row => row.ticket_number));
-  });
+  );
 });
 
-// API: Get seller statistics
-app.get('/api/seller-stats', requireAuth, requireAdmin, (req, res) => {
-  db.all(`
-    SELECT 
-      seller_name,
-      seller_phone,
-      COUNT(*) as ticket_count,
-      SUM(amount) as total_revenue
-    FROM tickets
-    GROUP BY seller_phone
-    ORDER BY total_revenue DESC
-  `, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+// Get all winners
+app.get('/api/winners', (req, res) => {
+  db.all(
+    `SELECT w.*, t.ticket_number, u.phone 
+     FROM winners w
+     JOIN tickets t ON w.ticket_id = t.id
+     JOIN users u ON t.user_id = u.id
+     ORDER BY w.drawn_at DESC`,
+    (err, winners) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json({ winners });
     }
-    res.json(rows);
-  });
+  );
 });
 
-// Start server
+// Get statistics (admin only)
+app.get('/api/admin/stats', requireAuth, requireAdmin, (req, res) => {
+  db.get(
+    `SELECT 
+      (SELECT COUNT(*) FROM users) as total_users,
+      (SELECT COUNT(*) FROM tickets) as total_tickets,
+      (SELECT COUNT(*) FROM winners) as total_winners
+    `,
+    (err, stats) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(stats);
+    }
+  );
+});
+
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Access the application at http://localhost:${PORT}`);
-});
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) {
-      console.error('Error closing database:', err);
-    } else {
-      console.log('Database connection closed');
-    }
-    process.exit(0);
-  });
+  console.log(`Server running on port ${PORT}`);
 });
