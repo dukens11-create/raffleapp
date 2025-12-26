@@ -14,15 +14,16 @@
       padding: 0;
       min-height: 100vh;
       background: linear-gradient(135deg, #0a174e 0%, #133b88 100%);
-      color: #b3cfff;
+      color: #ffffff;
       display: flex;
       flex-direction: column;
       align-items: center;
+      font-weight: 500;
     }
     header {
       width: 100vw;
       background: linear-gradient(90deg, #1976d2 0%, #38f9d7 100%);
-      color: #fff;
+      color: #ffffff;
       display: flex;
       align-items: center;
       padding: 18px 0 18px 0;
@@ -36,27 +37,31 @@
     }
     header h1 {
       font-size: 2em;
-      font-weight: 700;
+      font-weight: 800;
       letter-spacing: 1.5px;
       margin: 0;
-      text-shadow: 2px 2px 8px #09103a;
+      color: #ffffff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
     }
     footer {
       width: 100vw;
       background: #102a5c;
-      color: #b3cfff;
+      color: #ffffff;
       text-align: center;
       padding: 18px 0;
       font-size: 1em;
       margin-top: 32px;
       box-shadow: 0 -2px 8px rgba(25,118,210,0.10);
+      font-weight: 500;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
     h2, h3 {
-      color: #43e97b;
+      color: #ffffff;
       font-weight: 700;
       margin-top: 1.2em;
       margin-bottom: 0.5em;
       letter-spacing: 1px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
     }
     a, button, input, select, textarea {
       outline: none;
@@ -79,15 +84,16 @@
     }
     .msg-error {
       background: linear-gradient(90deg, #ff5858 0%, #f09819 100%);
-      color: #fff;
+      color: #ffffff;
       padding: 14px 22px;
       border-radius: 10px;
-      font-weight: bold;
+      font-weight: 700;
       box-shadow: 0 2px 8px rgba(255,88,88,0.15);
       margin-bottom: 16px;
       text-align: center;
       font-size: 1.08em;
       border: 1.5px solid #f09819;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
     @media (max-width: 600px) {
       body {
@@ -134,8 +140,10 @@
     }
     #result {
       font-size: 1.2em;
-      color: #00e676;
+      color: #ffffff;
+      font-weight: 600;
       margin-bottom: 1em;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
     form {
       background: #133b88;
@@ -154,7 +162,7 @@
       border-radius: 8px;
       border: 1.5px solid #1976d2;
       background: #102a5c;
-      color: #b3cfff;
+      color: #ffffff;
       font-size: 1.05em;
       margin-bottom: 10px;
       transition: border-color 0.2s, box-shadow 0.2s;
@@ -162,11 +170,12 @@
       border-color: #42a5f5;
       box-shadow: 0 2px 8px rgba(66,165,245,0.15);
       outline: none;
+      font-weight: 500;
     }
     button {
       background: linear-gradient(90deg, #1976d2 0%, #133b88 100%);
-      color: #fff;
-      font-weight: bold;
+      color: #ffffff;
+      font-weight: 700;
       cursor: pointer;
       border: none;
       border-radius: 8px;
@@ -174,6 +183,7 @@
       font-size: 1.08em;
       box-shadow: 0 2px 8px rgba(25,118,210,0.15);
       transition: background 0.2s, box-shadow 0.2s;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
     button:hover {
       background: linear-gradient(90deg, #133b88 0%, #1976d2 100%);
@@ -191,7 +201,9 @@
     .history h2 {
       font-size: 1.1em;
       margin-bottom: 0.5em;
-      color: #b3cfff;
+      color: #ffffff;
+      font-weight: 700;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
     .history ul {
       list-style: none;
@@ -200,7 +212,8 @@
     }
     .history li {
       margin-bottom: 0.5em;
-      color: #e3e9ff;
+      color: #ffffff;
+      font-weight: 500;
     }
     @media (max-width: 500px) {
       h1 { font-size: 1.2em; }
@@ -209,22 +222,22 @@
   </style>
 </head>
 <body>
-  <a href="/logout" style="position:fixed;top:20px;left:20px;background:#d32f2f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold;z-index:1000;" data-i18n="Logout" aria-label="Logout">Logout</a>
-  <h1 data-i18n="Seller - Scan Ticket Barcode">Seller - Scan Ticket Barcode</h1>
-  <div id="notify" style="display:none;background:linear-gradient(90deg, #1976d2 0%, #133b88 100%);color:#fff;padding:18px 28px;border-radius:12px;box-shadow:0 4px 16px rgba(25,118,210,0.25);margin-bottom:10px;text-align:center;font-family:'Roboto',Arial,sans-serif;font-size:1.12em;min-width:220px;"></div>
+  <a href="/logout" style="position:fixed;top:20px;left:20px;background:#d32f2f;color:#ffffff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:700;z-index:1000;text-shadow:0 1px 2px rgba(0, 0, 0, 0.3);" data-i18n="Logout" aria-label="Logout">Logout</a>
+  <h1 data-i18n="Seller - Scan Ticket Barcode" style="color:#ffffff;font-weight:700;text-shadow:0 2px 4px rgba(0, 0, 0, 0.4);">Seller - Scan Ticket Barcode</h1>
+  <div id="notify" style="display:none;background:linear-gradient(90deg, #1976d2 0%, #133b88 100%);color:#ffffff;padding:18px 28px;border-radius:12px;box-shadow:0 4px 16px rgba(25,118,210,0.25);margin-bottom:10px;text-align:center;font-family:'Roboto',Arial,sans-serif;font-size:1.12em;min-width:220px;font-weight:600;text-shadow:0 1px 2px rgba(0, 0, 0, 0.3);"></div>
   <div id="reader"></div>
   <div id="result"></div>
   <form id="sell-form">
     <input type="hidden" id="ticket-number" name="ticket-number">
     <input type="hidden" id="seller-name" name="seller-name">
-    <label for="buyer-name" style="margin-bottom:4px;display:block;">Buyer Name</label>
+    <label for="buyer-name" style="margin-bottom:4px;display:block;color:#ffffff;font-weight:600;">Buyer Name</label>
     <input type="text" id="buyer-name" name="buyer-name" required>
-    <label for="country-code" style="margin-top:10px;margin-bottom:4px;display:block;">Country Code</label>
+    <label for="country-code" style="margin-top:10px;margin-bottom:4px;display:block;color:#ffffff;font-weight:600;">Country Code</label>
     <select id="country-code" name="country-code" required>
       <option value="+1">USA (+1)</option>
       <option value="+509">Haiti (+509)</option>
     </select>
-    <button type="submit" style="margin-top:10px;">Sell Ticket</button>
+    <button type="submit" style="margin-top:10px;font-weight:700;text-shadow:0 1px 2px rgba(0, 0, 0, 0.3);">Sell Ticket</button>
     <div id="sell-success" class="msg-success" style="display:none;"></div>
     <div id="sell-error" class="msg-error" style="display:none;"></div>
   </form>
