@@ -580,6 +580,101 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// Legacy endpoints (for backward compatibility with frontend)
+app.get('/tickets', requireAuth, (req, res) => {
+  let query = "SELECT ticket_number as number, category, status, barcode FROM tickets ORDER BY ticket_number";
+  let params = [];
+  
+  if (req.session.user.role === 'seller') {
+    query = "SELECT ticket_number as number, category, status, barcode FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+    params = [req.session.user.phone];
+  }
+  
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/users', requireAuth, requireAdmin, (req, res) => {
+  db.all("SELECT name, phone, role FROM users ORDER BY name", (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
+  // Return empty array for now - audit logs table doesn't exist yet
+  res.json([]);
+});
+
+app.get('/sales-report', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT seller_name as sold_by, COUNT(*) as count
+    FROM tickets
+    GROUP BY seller_name
+    ORDER BY count DESC
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/seller-leaderboard', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT seller_name as sold_by, COUNT(*) as tickets_sold
+    FROM tickets
+    GROUP BY seller_name
+    ORDER BY tickets_sold DESC
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
+  // Return empty array for now - backup functionality not implemented
+  res.json([]);
+});
+
+app.get('/analytics/sales-by-day', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT DATE(created_at) as day, COUNT(*) as count
+    FROM tickets
+    WHERE created_at >= DATE('now', '-30 days')
+    GROUP BY DATE(created_at)
+    ORDER BY day
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT category, COUNT(*) as count
+    FROM tickets
+    WHERE category IS NOT NULL
+    GROUP BY category
+    ORDER BY count DESC
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
