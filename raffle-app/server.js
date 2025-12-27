@@ -166,6 +166,14 @@ app.use((req, res, next) => {
 
 // Request validation middleware - Bot detection and payload size check
 function validateRequest(req, res, next) {
+  // Skip validation for public endpoints
+  if (req.path === '/api/setup-admin' || 
+      req.path === '/api/clear-login-attempts' ||
+      req.path.startsWith('/api/login-status/') ||
+      req.path === '/health') {
+    return next();
+  }
+  
   // Check for suspicious patterns
   const userAgent = req.headers['user-agent'] || '';
   
@@ -270,6 +278,165 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// ===== PUBLIC ENDPOINTS (NO RATE LIMITING) =====
+
+// Admin Setup Endpoint - Must be BEFORE rate limiting
+app.post('/api/setup-admin', async (req, res) => {
+  console.log('=== SETUP ADMIN ENDPOINT CALLED ===');
+  console.log('IP:', req.ip);
+  console.log('User-Agent:', req.headers['user-agent']);
+  
+  try {
+    console.log('Setup admin endpoint called');
+    
+    // Delete existing admin
+    await new Promise((resolve, reject) => {
+      db.run("DELETE FROM users WHERE role = 'admin'", (err) => {
+        if (err) {
+          console.error('Error deleting admin:', err);
+          reject(err);
+        }
+        else resolve();
+      });
+    });
+    
+    // Create new admin
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    
+    await new Promise((resolve, reject) => {
+      db.run(
+        "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
+        ['Admin', '1234567890', hashedPassword, 'admin'],
+        function(err) {
+          if (err) {
+            console.error('Error creating admin:', err);
+            reject(err);
+          }
+          else resolve(this.lastID);
+        }
+      );
+    });
+    
+    console.log('Admin account created/reset - Phone: 1234567890, Password: admin123');
+    
+    res.json({ 
+      success: true, 
+      message: 'Admin account created successfully',
+      credentials: {
+        phone: '1234567890',
+        password: 'admin123'
+      }
+    });
+    
+  } catch (error) {
+    console.error('=== SETUP ADMIN ERROR ===');
+    console.error('Setup admin error:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup admin account',
+      details: error.message 
+    });
+  }
+});
+
+// Clear Login Attempts Endpoint - Public for recovery
+app.post('/api/clear-login-attempts', async (req, res) => {
+  console.log('=== CLEAR LOGIN ATTEMPTS ENDPOINT CALLED ===');
+  console.log('IP:', req.ip);
+  console.log('User-Agent:', req.headers['user-agent']);
+  
+  try {
+    const { phone } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number required' });
+    }
+    
+    clearFailedAttempts(phone);
+    
+    console.log('Login attempts cleared for:', phone);
+    
+    res.json({ 
+      success: true, 
+      message: 'Login attempts cleared for ' + phone 
+    });
+    
+  } catch (error) {
+    console.error('Clear attempts error:', error);
+    res.status(500).json({ error: 'Failed to clear attempts' });
+  }
+});
+
+// Login Status Diagnostic Endpoint - Public for diagnostics
+app.get('/api/login-status/:phone', async (req, res) => {
+  console.log('=== LOGIN STATUS ENDPOINT CALLED ===');
+  console.log('IP:', req.ip);
+  console.log('User-Agent:', req.headers['user-agent']);
+  console.log('Phone:', req.params.phone);
+  
+  try {
+    const { phone } = req.params;
+    
+    // Check if user exists
+    const user = await new Promise((resolve, reject) => {
+      db.get("SELECT id, name, role FROM users WHERE phone = ?", [phone], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    // Check brute force status
+    const attempts = loginAttempts.get(phone) || { count: 0, firstAttempt: Date.now() };
+    const isBlocked = checkBruteForce(phone);
+    const timeUntilReset = isBlocked 
+      ? Math.max(0, 60 * 60 * 1000 - (Date.now() - attempts.firstAttempt))
+      : 0;
+    
+    res.json({
+      userExists: !!user,
+      userName: user ? user.name : null,
+      userRole: user ? user.role : null,
+      failedAttempts: attempts.count,
+      isBlocked: isBlocked,
+      timeUntilResetMs: timeUntilReset,
+      timeUntilResetMin: Math.ceil(timeUntilReset / 60000)
+    });
+    
+  } catch (error) {
+    console.error('Login status check error:', error);
+    res.status(500).json({ error: 'Failed to check status' });
+  }
+});
+
+// Health check endpoint - Public
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    await new Promise((resolve, reject) => {
+      db.get('SELECT 1', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      environment: process.env.NODE_ENV || 'development',
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      error: 'Database connection failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// ===== NOW APPLY RATE LIMITING =====
 
 // Apply validation middleware to all routes
 app.use(validateRequest);
@@ -597,115 +764,6 @@ app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
 });
-
-// Admin Setup Endpoint - Public endpoint to create/reset admin
-app.post('/api/setup-admin', async (req, res) => {
-  try {
-    const { secretKey } = req.body;
-    
-    // Optional: Add a secret key for security
-    // if (secretKey !== process.env.ADMIN_SETUP_KEY) {
-    //   return res.status(403).json({ error: 'Invalid secret key' });
-    // }
-    
-    // Delete existing admin
-    await new Promise((resolve, reject) => {
-      db.run("DELETE FROM users WHERE role = 'admin'", (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
-    // Create new admin
-    const hashedPassword = await bcrypt.hash('admin123', 10);
-    
-    await new Promise((resolve, reject) => {
-      db.run(
-        "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
-        ['Admin', '1234567890', hashedPassword, 'admin'],
-        function(err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
-      );
-    });
-    
-    console.log('Admin account created/reset - Phone: 1234567890, Password: admin123');
-    
-    res.json({ 
-      success: true, 
-      message: 'Admin account created successfully',
-      credentials: {
-        phone: '1234567890',
-        password: 'admin123'
-      }
-    });
-    
-  } catch (error) {
-    console.error('Setup admin error:', error);
-    res.status(500).json({ 
-      error: 'Failed to setup admin account',
-      details: error.message 
-    });
-  }
-});
-
-// Clear Login Attempts Endpoint - Clear brute force protection
-app.post('/api/clear-login-attempts', async (req, res) => {
-  try {
-    const { phone } = req.body;
-    
-    if (!phone) {
-      return res.status(400).json({ error: 'Phone number required' });
-    }
-    
-    clearFailedAttempts(phone);
-    
-    res.json({ 
-      success: true, 
-      message: 'Login attempts cleared for ' + phone 
-    });
-    
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to clear attempts' });
-  }
-});
-
-// Login Status Diagnostic Endpoint - Check login/rate limit status
-app.get('/api/login-status/:phone', async (req, res) => {
-  try {
-    const { phone } = req.params;
-    
-    // Check if user exists
-    const user = await new Promise((resolve, reject) => {
-      db.get("SELECT id, name, role FROM users WHERE phone = ?", [phone], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-    
-    // Check brute force status
-    const attempts = loginAttempts.get(phone) || { count: 0, firstAttempt: Date.now() };
-    const isBlocked = checkBruteForce(phone);
-    const timeUntilReset = isBlocked 
-      ? Math.max(0, 60 * 60 * 1000 - (Date.now() - attempts.firstAttempt))
-      : 0;
-    
-    res.json({
-      userExists: !!user,
-      userName: user ? user.name : null,
-      userRole: user ? user.role : null,
-      failedAttempts: attempts.count,
-      isBlocked: isBlocked,
-      timeUntilResetMs: timeUntilReset,
-      timeUntilResetMin: Math.ceil(timeUntilReset / 60000)
-    });
-    
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to check status' });
-  }
-});
-
 
 // Seller Registration APIs
 // Submit registration request with validation
@@ -1596,34 +1654,6 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, (req, res) 
     }
     res.json(rows);
   });
-});
-
-// Health check endpoint
-app.get('/health', async (req, res) => {
-  try {
-    // Check database connection
-    await new Promise((resolve, reject) => {
-      db.get('SELECT 1', (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-    
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development',
-    });
-  } catch (error) {
-    console.error('Health check failed:', error);
-    res.status(503).json({
-      status: 'unhealthy',
-      error: 'Database connection failed',
-      timestamp: new Date().toISOString(),
-    });
-  }
 });
 
 // 404 handler - must be after all other routes
