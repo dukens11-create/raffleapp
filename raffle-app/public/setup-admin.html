@@ -68,6 +68,9 @@
             border-radius: 5px;
             text-align: center;
             font-weight: 500;
+        }
+        
+        #message:empty {
             display: none;
         }
         
@@ -75,14 +78,12 @@
             background: #d1fae5;
             color: #065f46;
             border: 1px solid #10b981;
-            display: block;
         }
         
         .error {
             background: #fee2e2;
             color: #991b1b;
             border: 1px solid #ef4444;
-            display: block;
         }
         
         .credentials {
@@ -122,7 +123,7 @@
             <p>Use this if you cannot login or need to reset the admin password.</p>
         </div>
         
-        <button id="setupBtn" onclick="setupAdmin()">Reset Admin Account</button>
+        <button id="setupBtn">Reset Admin Account</button>
         
         <div id="message"></div>
         
@@ -132,7 +133,7 @@
     </div>
 
     <script>
-        async function setupAdmin() {
+        document.getElementById('setupBtn').addEventListener('click', async function() {
             const messageDiv = document.getElementById('message');
             const button = document.getElementById('setupBtn');
             
@@ -170,7 +171,7 @@
                 button.disabled = false;
                 button.textContent = 'Reset Admin Account';
             }
-        }
+        });
     </script>
 </body>
 </html>
