@@ -231,6 +231,39 @@
                 max-height: 64px;
             }
         }
+        
+        /* PWA Install Button Styles */
+        .install-prompt {
+            margin-top: 24px;
+            text-align: center;
+        }
+        
+        .install-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .install-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
+        }
+        
+        .install-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 <body>
@@ -293,23 +326,13 @@
             </p>
         </div>
         
-        <!-- PWA Install Prompt -->
-        <div id="installPrompt" style="display: none; margin-top: 20px; text-align: center;">
-            <button id="installButton" style="
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                padding: 12px 24px;
-                border: none;
-                border-radius: 8px;
-                font-size: 16px;
-                font-weight: 600;
-                cursor: pointer;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            ">
-                📱 Install RaffleApp
+        <!-- PWA Install Button -->
+        <div id="installPrompt" class="install-prompt" style="display: none;">
+            <button id="installButton" class="install-btn">
+                📱 Install App
             </button>
-            <p style="font-size: 12px; color: #666; margin-top: 8px;">
-                Add to your home screen for quick access
+            <p style="font-size: 14px; color: rgba(255,255,255,0.8); text-align: center; margin-top: 8px;">
+                Install for quick access from your home screen
             </p>
         </div>
     </div>
@@ -530,36 +553,61 @@
     
     <!-- PWA Install Prompt -->
     <script>
-        let deferredPrompt;
+        // PWA Install Prompt
+        let deferredPrompt = null;
 
+        // Listen for the beforeinstallprompt event (desktop/Android Chrome)
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent the mini-infobar from appearing on mobile
+            console.log('📱 PWA install prompt available');
             e.preventDefault();
-            // Stash the event so it can be triggered later
             deferredPrompt = e;
             // Show install button
             document.getElementById('installPrompt').style.display = 'block';
         });
 
-        document.getElementById('installButton')?.addEventListener('click', async () => {
-            if (!deferredPrompt) {
-                return;
-            }
-            // Show the install prompt
-            deferredPrompt.prompt();
-            // Wait for the user to respond to the prompt
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User response to install prompt: ${outcome}`);
-            // Clear the deferredPrompt
-            deferredPrompt = null;
-            // Hide the install button
-            document.getElementById('installPrompt').style.display = 'none';
-        });
+        // Install button click handler
+        if (document.getElementById('installButton')) {
+            document.getElementById('installButton').addEventListener('click', async () => {
+                console.log('📱 Install button clicked');
+                
+                // Check if we're on iOS Safari (no beforeinstallprompt support)
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+                
+                if (isIOS && isSafari) {
+                    // Show iOS install instructions
+                    alert('To install on iOS:\n\n1. Tap the Share button (⎘)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to install');
+                    return;
+                }
+                
+                // For Android Chrome and desktop
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} the install prompt`);
+                    deferredPrompt = null;
+                    // Hide button after prompt
+                    document.getElementById('installPrompt').style.display = 'none';
+                } else {
+                    // Fallback instructions for other browsers
+                    alert('To install:\n\nChrome: Look for the install icon (⊕) in the address bar\n\niOS Safari: Tap Share (⎘) → "Add to Home Screen"\n\nFirefox/Edge: Check browser menu for "Install" option');
+                }
+            });
+        }
 
-        window.addEventListener('appinstalled', () => {
-            console.log('✅ RaffleApp installed successfully!');
-            deferredPrompt = null;
-        });
+        // Hide install button if app is already installed
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            console.log('✅ App is already installed');
+            document.getElementById('installPrompt').style.display = 'none';
+        } else {
+            // Show install button for iOS and other browsers that don't fire beforeinstallprompt
+            setTimeout(() => {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIOS || !deferredPrompt) {
+                    document.getElementById('installPrompt').style.display = 'block';
+                }
+            }, 1000);
+        }
     </script>
 </body>
 </html>
