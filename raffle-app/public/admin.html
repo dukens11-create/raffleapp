@@ -927,7 +927,7 @@
                               }, 2000);
                             }
                             
-                            function startAdminScanner() {
+                            async function startAdminScanner() {
                               const scanResult = document.getElementById('scanResult');
                               if (!scanResult) {
                                 alert('Scanner UI error. Refresh page.');
@@ -942,9 +942,8 @@
                                 adminScanner = null;
                                 isAdminScannerRunning = false;
                                 try {
-                                  oldScanner.stop().catch(() => {}).then(() => {
-                                    return oldScanner.clear().catch(() => {});
-                                  });
+                                  await oldScanner.stop().catch(() => {});
+                                  await oldScanner.clear().catch(() => {});
                                 } catch (e) {}
                               }
                               

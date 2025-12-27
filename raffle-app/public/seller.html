@@ -394,7 +394,7 @@
       }, 2000);
     }
     
-    function startSellerScanner() {
+    async function startSellerScanner() {
       const scanResult = document.getElementById('scanResult');
       if (!scanResult) {
         alert('Scanner UI error. Refresh page.');
@@ -409,9 +409,8 @@
         sellerScanner = null;
         isSellerScannerRunning = false;
         try {
-          oldScanner.stop().catch(() => {}).then(() => {
-            return oldScanner.clear().catch(() => {});
-          });
+          await oldScanner.stop().catch(() => {});
+          await oldScanner.clear().catch(() => {});
         } catch (e) {}
       }
       
