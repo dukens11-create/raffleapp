@@ -15,6 +15,10 @@ const csrf = require('csurf');
 require('dotenv').config();
 
 const app = express();
+
+// Trust proxy - required for Render deployment
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 3000;
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
@@ -248,9 +252,9 @@ app.use(session({
   name: 'sessionId', // Rename session cookie to prevent fingerprinting
   cookie: { 
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    secure: true, // Always use secure on Render (HTTPS)
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'strict',
+    sameSite: 'lax', // Changed from 'strict' for mobile compatibility
   },
   rolling: true, // Reset expiry on activity
 }));
@@ -436,6 +440,22 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Session debug endpoint - check if session is working
+app.get('/api/session-check', (req, res) => {
+  res.json({
+    hasSession: !!req.session,
+    hasUser: !!req.session?.user,
+    user: req.session?.user ? {
+      id: req.session.user.id,
+      name: req.session.user.name,
+      role: req.session.user.role
+    } : null,
+    sessionID: req.sessionID,
+    cookies: req.headers.cookie || 'no cookies',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // ===== NOW APPLY RATE LIMITING =====
 
 // Apply validation middleware to all routes
@@ -570,16 +590,20 @@ function initializeDatabase() {
 // Authentication middleware
 function requireAuth(req, res, next) {
   if (req.session.user) {
+    console.log(`Auth check passed for: ${req.session.user.phone}`);
     next();
   } else {
+    console.log(`Auth check failed - no session user. SessionID: ${req.sessionID}, Path: ${req.path}`);
     res.redirect('/');
   }
 }
 
 function requireAdmin(req, res, next) {
   if (req.session.user && req.session.user.role === 'admin') {
+    console.log(`Admin check passed for: ${req.session.user.phone}`);
     next();
   } else {
+    console.log(`Admin check failed. User: ${req.session.user?.phone || 'none'}, Role: ${req.session.user?.role || 'none'}`);
     res.status(403).send('Access denied');
   }
 }
@@ -729,11 +753,24 @@ app.post('/login', authLimiter, async (req, res) => {
           
           console.log(`Successful login: ${user.phone} (${user.role})`);
           
-          if (user.role === 'admin') {
-            res.json({ redirect: '/admin', role: 'admin' });
-          } else {
-            res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
-          }
+          // Explicitly save session before sending response
+          req.session.save((err) => {
+            if (err) {
+              console.error('Session save error:', err);
+              return res.status(500).json({ 
+                error: 'Failed to create session',
+                timestamp: new Date().toISOString()
+              });
+            }
+            
+            console.log('Session saved successfully for user:', user.phone);
+            
+            if (user.role === 'admin') {
+              res.json({ redirect: '/admin', role: 'admin' });
+            } else {
+              res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
+            }
+          });
         } else {
           recordFailedAttempt(phone);
           res.status(401).json({ 
