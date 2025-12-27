@@ -58,6 +58,10 @@
     }
   ],
   "categories": ["business", "productivity"],
+  "permissions": [
+    "camera"
+  ],
+  "prefer_related_applications": false,
   "shortcuts": [
     {
       "name": "Admin Dashboard",

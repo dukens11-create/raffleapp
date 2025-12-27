@@ -553,61 +553,103 @@
     
     <!-- PWA Install Prompt -->
     <script>
-        // PWA Install Prompt
+        // PWA Install Prompt - Improved Version
+        console.log('🔧 Initializing PWA install button...');
+        
         let deferredPrompt = null;
+        const installPromptDiv = document.getElementById('installPrompt');
+        const installButton = document.getElementById('installButton');
 
-        // Listen for the beforeinstallprompt event (desktop/Android Chrome)
+        // Check if already installed
+        const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+                           window.navigator.standalone === true;
+        
+        console.log('📱 Installation status:', isInstalled ? 'Already installed' : 'Not installed');
+
+        // Detect platform
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        console.log('📱 Platform:', { isIOS, isAndroid, isSafari });
+
+        if (isInstalled) {
+            console.log('✅ App already installed - hiding install button');
+            installPromptDiv.style.display = 'none';
+        } else {
+            // ALWAYS show the button if not installed
+            console.log('📱 App not installed - showing install button');
+            installPromptDiv.style.display = 'block';
+            
+            // Update button text based on platform
+            if (isIOS) {
+                installButton.innerHTML = '📱 Install App (iOS)';
+            } else if (isAndroid) {
+                installButton.innerHTML = '📱 Install App (Android)';
+            } else {
+                installButton.innerHTML = '📱 Install App';
+            }
+        }
+
+        // Listen for beforeinstallprompt (Chrome/Edge on Android/Desktop)
         window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('📱 PWA install prompt available');
+            console.log('✅ beforeinstallprompt event fired');
             e.preventDefault();
             deferredPrompt = e;
-            // Show install button
-            document.getElementById('installPrompt').style.display = 'block';
+            installPromptDiv.style.display = 'block';
         });
 
         // Install button click handler
-        if (document.getElementById('installButton')) {
-            document.getElementById('installButton').addEventListener('click', async () => {
+        if (installButton) {
+            installButton.addEventListener('click', async () => {
                 console.log('📱 Install button clicked');
                 
-                // Check if we're on iOS Safari (no beforeinstallprompt support)
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-                
-                if (isIOS && isSafari) {
-                    // Show iOS install instructions
-                    alert('To install on iOS:\n\n1. Tap the Share button (⎘)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add" to install');
+                if (isIOS) {
+                    // iOS Safari instructions
+                    const instructions = isInstalled 
+                        ? 'App is already installed! Check your home screen.'
+                        : 'To install on iOS:\n\n' +
+                          '1. Tap the Share button (📤) at the bottom\n' +
+                          '2. Scroll down and tap "Add to Home Screen"\n' +
+                          '3. Tap "Add" in the top right\n\n' +
+                          'The app icon will appear on your home screen!';
+                    alert(instructions);
                     return;
                 }
                 
-                // For Android Chrome and desktop
+                // Android Chrome/Edge with deferredPrompt
                 if (deferredPrompt) {
+                    console.log('📱 Showing native install prompt');
                     deferredPrompt.prompt();
                     const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} the install prompt`);
+                    console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} install`);
+                    
+                    if (outcome === 'accepted') {
+                        installPromptDiv.style.display = 'none';
+                    }
                     deferredPrompt = null;
-                    // Hide button after prompt
-                    document.getElementById('installPrompt').style.display = 'none';
                 } else {
                     // Fallback instructions for other browsers
-                    alert('To install:\n\nChrome: Look for the install icon (⊕) in the address bar\n\niOS Safari: Tap Share (⎘) → "Add to Home Screen"\n\nFirefox/Edge: Check browser menu for "Install" option');
+                    const instructions = isAndroid
+                        ? 'To install on Android:\n\n' +
+                          '1. Tap the menu (⋮) in the top right\n' +
+                          '2. Tap "Install app" or "Add to Home screen"\n' +
+                          '3. Tap "Install"\n\n' +
+                          'The app will appear on your home screen!'
+                        : 'To install this app:\n\n' +
+                          'Chrome/Edge: Look for install icon (⊕) in address bar\n' +
+                          'Firefox: Check menu → "Install"\n' +
+                          'Safari (iOS): Share button → "Add to Home Screen"';
+                    alert(instructions);
                 }
             });
         }
 
-        // Hide install button if app is already installed
-        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
-            console.log('✅ App is already installed');
-            document.getElementById('installPrompt').style.display = 'none';
-        } else {
-            // Show install button for iOS and other browsers that don't fire beforeinstallprompt
-            setTimeout(() => {
-                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-                if (isIOS || !deferredPrompt) {
-                    document.getElementById('installPrompt').style.display = 'block';
-                }
-            }, 1000);
-        }
+        // Track when app is installed
+        window.addEventListener('appinstalled', () => {
+            console.log('✅ App installed successfully!');
+            installPromptDiv.style.display = 'none';
+        });
     </script>
 </body>
 </html>

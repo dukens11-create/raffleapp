@@ -949,7 +949,7 @@
                               }, 2000);
                             }
                             
-                            function startAdminScanner() {
+                            async function startAdminScanner() {
                               console.log('Starting camera scanner...');
                               
                               if (isAdminScannerRunning) {
@@ -957,27 +957,69 @@
                                 return;
                               }
                               
-                              adminScanner = new Html5Qrcode("scanner-reader");
-                              document.getElementById('scanResult').textContent = '📷 Initializing camera...';
-                              
-                              adminScanner.start(
-                                { facingMode: "environment" },
-                                { fps: 10, qrbox: { width: 250, height: 250 } },
-                                onAdminScanSuccess,
-                                (errorMessage) => {
-                                  // Silent error handling - scanning errors are normal
+                              try {
+                                // Request camera permission first
+                                console.log('🎥 Requesting camera permission...');
+                                document.getElementById('scanResult').textContent = '🎥 Requesting camera permission...';
+                                
+                                // Check if camera permission is available
+                                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                                  try {
+                                    // Request camera access to trigger permission prompt
+                                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                                    // Stop the test stream immediately
+                                    stream.getTracks().forEach(track => track.stop());
+                                    console.log('✅ Camera permission granted');
+                                  } catch (permError) {
+                                    console.error('❌ Camera permission denied:', permError);
+                                    document.getElementById('scanResult').innerHTML = 
+                                      '❌ Camera access denied<br><br>' +
+                                      'Please allow camera access in your browser settings and try again.<br><br>' +
+                                      'Or enter ticket number manually below.';
+                                    showNotify('Camera access denied. Please enable camera permissions.', '#ef4444', 5000);
+                                    return;
+                                  }
                                 }
-                              ).then(() => {
+                                
+                                // Now start the scanner
+                                adminScanner = new Html5Qrcode("scanner-reader");
+                                document.getElementById('scanResult').textContent = '📷 Starting camera...';
+                                
+                                await adminScanner.start(
+                                  { facingMode: "environment" },
+                                  { 
+                                    fps: 10, 
+                                    qrbox: { width: 250, height: 250 },
+                                    aspectRatio: 1.0
+                                  },
+                                  onAdminScanSuccess,
+                                  (errorMessage) => {
+                                    // Silent error handling - scanning errors are normal
+                                  }
+                                );
+                                
                                 isAdminScannerRunning = true;
                                 document.getElementById('scanResult').textContent = '✅ Camera ready - point at barcode';
                                 console.log('✅ Camera started successfully');
-                              }).catch((err) => {
+                                
+                              } catch (err) {
                                 console.error('❌ Camera error:', err);
-                                document.getElementById('scanResult').textContent = `❌ Camera Error: ${err}`;
-                                showNotify('Camera Error: ' + err, '#ef4444', 5000);
+                                let errorMsg = '❌ Camera Error: ' + err;
+                                
+                                // Provide helpful error messages
+                                if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission')) {
+                                  errorMsg = '❌ Camera access denied<br><br>Please allow camera access and try again.<br><br>Or enter ticket number manually.';
+                                } else if (err.toString().includes('NotFoundError')) {
+                                  errorMsg = '❌ No camera found<br><br>Please use a device with a camera or enter ticket number manually.';
+                                } else if (err.toString().includes('NotReadableError')) {
+                                  errorMsg = '❌ Camera is busy<br><br>Close other apps using the camera and try again.';
+                                }
+                                
+                                document.getElementById('scanResult').innerHTML = errorMsg;
+                                showNotify('Camera error: ' + err, '#ef4444', 5000);
                                 isAdminScannerRunning = false;
                                 adminScanner = null;
-                              });
+                              }
                             }
                             
                             function stopAdminScanner() {
