@@ -43,18 +43,9 @@ db.initializeSchema().catch(err => {
   process.exit(1);
 });
 
-// Security: Helmet for security headers
+// Security: Helmet for basic security headers (CSP handled by custom middleware below)
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'", "data:", "https:"],
-    },
-  },
+  contentSecurityPolicy: false, // Disabled - using custom CSP middleware instead
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -219,6 +210,56 @@ app.use((req, res, next) => {
     
     req.session.lastActivity = now;
   }
+  next();
+});
+
+// Content Security Policy middleware for enhanced security
+app.use((req, res, next) => {
+  // Set Content Security Policy headers
+  const cspDirectives = [
+    // Default: only load resources from same origin
+    "default-src 'self'",
+    
+    // Scripts: allow inline scripts (needed for HTML files) and CDNs
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    
+    // Styles: allow inline styles and Google Fonts
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    
+    // Fonts: allow Google Fonts
+    "font-src 'self' https://fonts.gstatic.com",
+    
+    // Images: allow from same origin, data URIs, and any HTTPS source
+    "img-src 'self' data: https: blob:",
+    
+    // Media: allow camera streams and blob URLs
+    "media-src 'self' blob: mediastream:",
+    
+    // Connect: allow API calls and WebSocket connections
+    "connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    
+    // Frame ancestors: prevent clickjacking
+    "frame-ancestors 'self'",
+    
+    // Base URI: prevent base tag injection
+    "base-uri 'self'",
+    
+    // Form actions: only allow form submissions to same origin
+    "form-action 'self'",
+    
+    // Upgrade insecure requests (HTTP to HTTPS)
+    "upgrade-insecure-requests"
+  ];
+  
+  res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
+  
+  // Additional security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=*, microphone=*, geolocation=()');
+  
   next();
 });
 
