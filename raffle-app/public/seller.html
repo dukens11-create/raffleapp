@@ -447,35 +447,108 @@
     }
     
     function startSellerScanner() {
-      console.log('Starting seller camera scanner...');
+      console.log('🎬 Starting seller scanner...');
       
+      // Check if already running
       if (isSellerScannerRunning) {
-        console.log('Seller scanner already running');
+        console.log('⚠️ Scanner already running');
         return;
       }
       
       // Clear previous messages
-      document.getElementById('scanResult').textContent = '';
+      const scanResult = document.getElementById('scanResult');
+      if (!scanResult) {
+        console.error('❌ scanResult element not found!');
+        alert('Scanner UI error. Please refresh the page.');
+        return;
+      }
+      
+      scanResult.textContent = '';
+      
+      // Check HTTPS requirement (except localhost)
+      const isSecure = location.protocol === 'https:' || 
+                       location.hostname === 'localhost' || 
+                       location.hostname === '127.0.0.1';
+      
+      if (!isSecure) {
+        scanResult.textContent = '❌ Camera requires HTTPS connection';
+        alert('Camera access requires HTTPS. Please use https:// URL.');
+        return;
+      }
+      
+      // Check browser support
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        scanResult.textContent = '❌ Browser does not support camera';
+        alert('Your browser does not support camera access. Please use Chrome, Firefox, Safari, or Edge.');
+        return;
+      }
+      
+      // Check if Html5Qrcode is loaded
+      if (typeof Html5Qrcode === 'undefined') {
+        scanResult.textContent = '❌ Scanner library not loaded';
+        alert('Scanner library failed to load. Please check your internet connection and refresh the page.');
+        return;
+      }
       
       // Create scanner instance
-      sellerScanner = new Html5Qrcode("scanner-reader");
-      document.getElementById('scanResult').textContent = '📷 Initializing camera...';
+      try {
+        sellerScanner = new Html5Qrcode("scanner-reader");
+        console.log('✅ Html5Qrcode instance created');
+      } catch (err) {
+        console.error('❌ Failed to create scanner:', err);
+        scanResult.textContent = `❌ Scanner error: ${err.message}`;
+        return;
+      }
       
-      // Start scanner with simple .then/.catch
+      // Show initializing message
+      scanResult.textContent = '📷 Initializing camera...';
+      
+      // Start scanner
       sellerScanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { 
+          fps: 10, 
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        },
         onScanSuccess,
         (errorMessage) => {
           // Silent error handling - scanning errors are normal
         }
       ).then(() => {
         isSellerScannerRunning = true;
-        document.getElementById('scanResult').textContent = '✅ Camera ready - point at barcode';
+        scanResult.textContent = '✅ Camera ready - point at barcode';
         console.log('✅ Seller camera started successfully');
       }).catch((err) => {
-        console.error('❌ Seller camera error:', err);
-        document.getElementById('scanResult').textContent = `❌ Camera Error: ${err}`;
+        console.error('❌ Camera error:', err);
+        
+        // User-friendly error messages
+        let displayMessage = '';
+        let alertMessage = '';
+        
+        const errString = err.toString();
+        const errName = err.name || '';
+        
+        if (errName === 'NotAllowedError' || errString.includes('NotAllowedError') || errString.includes('Permission')) {
+          displayMessage = '❌ Camera permission denied. Please allow camera access in your browser settings.';
+          alertMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
+        } else if (errName === 'NotFoundError' || errString.includes('NotFoundError')) {
+          displayMessage = '❌ No camera found on this device.';
+          alertMessage = 'No camera found on this device.';
+        } else if (errName === 'NotReadableError' || errString.includes('NotReadableError')) {
+          displayMessage = '❌ Camera is in use by another app. Please close other apps.';
+          alertMessage = 'Camera is in use by another app. Please close other apps.';
+        } else if (errName === 'OverconstrainedError' || errString.includes('OverconstrainedError')) {
+          displayMessage = '❌ Camera does not meet requirements.';
+          alertMessage = 'Camera does not meet requirements.';
+        } else {
+          displayMessage = `❌ Camera error: ${err.message || err}`;
+          alertMessage = `Camera error: ${err.message || err}`;
+        }
+        
+        scanResult.textContent = displayMessage;
+        alert(alertMessage);
+        
         isSellerScannerRunning = false;
         sellerScanner = null;
       });
