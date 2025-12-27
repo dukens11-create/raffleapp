@@ -477,7 +477,7 @@
     function stopSellerScanner() {
       if (sellerScanner) {
         const scanner = sellerScanner;
-        sellerScanner.stop()
+        scanner.stop()
           .then(() => {
             return scanner.clear();
           })

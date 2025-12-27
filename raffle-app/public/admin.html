@@ -1013,7 +1013,7 @@
                             function stopAdminScanner() {
                               if (adminScanner) {
                                 const scanner = adminScanner;
-                                adminScanner.stop()
+                                scanner.stop()
                                   .then(() => {
                                     return scanner.clear();
                                   })
