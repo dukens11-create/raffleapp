@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-const sqlite3 = require('sqlite3').verbose();
+const db = require('./db');
 const path = require('path');
 const fs = require('fs');
 const rateLimit = require('express-rate-limit');
@@ -37,73 +37,11 @@ process.on('unhandledRejection', (reason, promise) => {
   // Log the error but don't crash
 });
 
-// Database setup with retry logic
-let dbRetryCount = 0;
-const maxDbRetries = 3;
-
-function connectDatabase() {
-  const db = new sqlite3.Database('./raffle.db', (err) => {
-    if (err) {
-      console.error('Error opening database:', err);
-      if (dbRetryCount < maxDbRetries) {
-        dbRetryCount++;
-        console.log(`Retrying database connection (${dbRetryCount}/${maxDbRetries})...`);
-        setTimeout(connectDatabase, 1000 * dbRetryCount);
-      } else {
-        console.error('Failed to connect to database after maximum retries');
-        process.exit(1);
-      }
-    } else {
-      console.log('Connected to SQLite database');
-      initializeDatabase();
-    }
-  });
-  return db;
-}
-
-const db = connectDatabase();
-
-// Database query with retry logic
-async function dbQueryWithRetry(query, params = [], maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await new Promise((resolve, reject) => {
-        db.get(query, params, (err, result) => {
-          if (err) reject(err);
-          else resolve(result);
-        });
-      });
-    } catch (error) {
-      console.error(`Database query failed (attempt ${i + 1}/${maxRetries}):`, error);
-      
-      if (i === maxRetries - 1) throw error;
-      
-      // Wait before retry with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-    }
-  }
-}
-
-// Helper function for database run operations with retry
-async function dbRunWithRetry(query, params = [], maxRetries = 3) {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await new Promise((resolve, reject) => {
-        db.run(query, params, function(err) {
-          if (err) reject(err);
-          else resolve(this);
-        });
-      });
-    } catch (error) {
-      console.error(`Database run failed (attempt ${i + 1}/${maxRetries}):`, error);
-      
-      if (i === maxRetries - 1) throw error;
-      
-      // Wait before retry with exponential backoff
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
-    }
-  }
-}
+// Initialize database schema
+db.initializeSchema().catch(err => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
+});
 
 // Security: Helmet for security headers
 app.use(helmet({
@@ -296,32 +234,14 @@ app.post('/api/setup-admin', async (req, res) => {
     console.log('Setup admin endpoint called');
     
     // Delete existing admin
-    await new Promise((resolve, reject) => {
-      db.run("DELETE FROM users WHERE role = 'admin'", (err) => {
-        if (err) {
-          console.error('Error deleting admin:', err);
-          reject(err);
-        }
-        else resolve();
-      });
-    });
+    await db.run("DELETE FROM users WHERE role = 'admin'");
     
     // Create new admin
     const hashedPassword = await bcrypt.hash('admin123', 10);
-    
-    await new Promise((resolve, reject) => {
-      db.run(
-        "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
-        ['Admin', '1234567890', hashedPassword, 'admin'],
-        function(err) {
-          if (err) {
-            console.error('Error creating admin:', err);
-            reject(err);
-          }
-          else resolve(this.lastID);
-        }
-      );
-    });
+    await db.run(
+      "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
+      ['Admin', '1234567890', hashedPassword, 'admin']
+    );
     
     console.log('Admin account created/reset - Phone: 1234567890, Password: admin123');
     
@@ -383,12 +303,7 @@ app.get('/api/login-status/:phone', async (req, res) => {
     const { phone } = req.params;
     
     // Check if user exists
-    const user = await new Promise((resolve, reject) => {
-      db.get("SELECT id, name, role FROM users WHERE phone = ?", [phone], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+    const user = await db.get("SELECT id, name, role FROM users WHERE phone = ?", [phone]);
     
     // Check brute force status
     const attempts = loginAttempts.get(phone) || { count: 0, firstAttempt: Date.now() };
@@ -417,12 +332,7 @@ app.get('/api/login-status/:phone', async (req, res) => {
 app.get('/health', async (req, res) => {
   try {
     // Check database connection
-    await new Promise((resolve, reject) => {
-      db.get('SELECT 1', (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    await db.get('SELECT 1');
     
     res.json({
       status: 'healthy',
@@ -430,6 +340,7 @@ app.get('/health', async (req, res) => {
       uptime: process.uptime(),
       memory: process.memoryUsage(),
       environment: process.env.NODE_ENV || 'development',
+      database: db.USE_POSTGRES ? 'PostgreSQL' : 'SQLite'
     });
   } catch (error) {
     console.error('Health check failed:', error);
@@ -467,126 +378,6 @@ app.use('/api/', apiLimiter);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Initialize database tables
-function initializeDatabase() {
-  db.serialize(() => {
-    // Users table
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      phone TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      role TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-
-    // Tickets table
-    db.run(`CREATE TABLE IF NOT EXISTS tickets (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ticket_number TEXT UNIQUE NOT NULL,
-      buyer_name TEXT NOT NULL,
-      buyer_phone TEXT NOT NULL,
-      seller_name TEXT NOT NULL,
-      seller_phone TEXT NOT NULL,
-      amount REAL NOT NULL,
-      status TEXT DEFAULT 'active',
-      barcode TEXT,
-      category TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-    
-    // Add barcode and category columns if they don't exist (migration)
-    db.run(`ALTER TABLE tickets ADD COLUMN barcode TEXT`, (err) => {
-      // Error code 1 is SQLITE_ERROR which includes "duplicate column name"
-      // Silently ignore if column already exists
-      if (err && err.errno !== 1) {
-        console.error('Error adding barcode column:', err);
-      }
-    });
-    
-    db.run(`ALTER TABLE tickets ADD COLUMN category TEXT`, (err) => {
-      // Error code 1 is SQLITE_ERROR which includes "duplicate column name"
-      // Silently ignore if column already exists
-      if (err && err.errno !== 1) {
-        console.error('Error adding category column:', err);
-      }
-    });
-
-    // Draws table
-    db.run(`CREATE TABLE IF NOT EXISTS draws (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      draw_number INTEGER NOT NULL,
-      ticket_number INTEGER NOT NULL,
-      prize_name TEXT NOT NULL,
-      winner_name TEXT NOT NULL,
-      winner_phone TEXT NOT NULL,
-      drawn_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-
-    // Seller requests table
-    db.run(`CREATE TABLE IF NOT EXISTS seller_requests (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      full_name TEXT NOT NULL,
-      phone TEXT NOT NULL UNIQUE,
-      email TEXT NOT NULL,
-      experience TEXT,
-      status TEXT DEFAULT 'pending',
-      request_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-      reviewed_by TEXT,
-      reviewed_date DATETIME,
-      approval_notes TEXT
-    )`);
-
-    // Add columns to users table for seller registration tracking
-    db.run(`ALTER TABLE users ADD COLUMN email TEXT`, (err) => {
-      if (err && err.errno !== 1) {
-        console.error('Error adding email column:', err);
-      }
-    });
-    
-    db.run(`ALTER TABLE users ADD COLUMN registered_via TEXT DEFAULT 'manual'`, (err) => {
-      if (err && err.errno !== 1) {
-        console.error('Error adding registered_via column:', err);
-      }
-    });
-    
-    db.run(`ALTER TABLE users ADD COLUMN approved_by TEXT`, (err) => {
-      if (err && err.errno !== 1) {
-        console.error('Error adding approved_by column:', err);
-      }
-    });
-    
-    db.run(`ALTER TABLE users ADD COLUMN approved_date DATETIME`, (err) => {
-      if (err && err.errno !== 1) {
-        console.error('Error adding approved_date column:', err);
-      }
-    });
-
-    // Check if admin exists, if not create default admin
-    db.get("SELECT * FROM users WHERE role = 'admin'", (err, row) => {
-      if (!row) {
-        bcrypt.hash('admin123', 10, (err, hash) => {
-          if (err) {
-            console.error('Error hashing password:', err);
-            return;
-          }
-          db.run(
-            "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
-            ['Admin', '1234567890', hash, 'admin'],
-            (err) => {
-              if (err) {
-                console.error('Error creating admin:', err);
-              } else {
-                console.log('Default admin created - Phone: 1234567890, Password: admin123');
-              }
-            }
-          );
-        });
-      }
-    });
-  });
-}
 
 // Authentication middleware
 function requireAuth(req, res, next) {
@@ -693,81 +484,74 @@ app.post('/login', authLimiter, async (req, res) => {
       });
     }
     
-    db.get("SELECT * FROM users WHERE phone = ?", [phone], async (err, user) => {
-      if (err) {
-        console.error('Login database error:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
+    const user = await db.get("SELECT * FROM users WHERE phone = ?", [phone]);
+    
+    if (!user) {
+      recordFailedAttempt(phone);
+      if (DEBUG_MODE) {
+        console.log('User not found:', phone);
       }
+      return res.status(401).json({ 
+        error: 'Invalid phone number or password',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Debug logging
+    if (DEBUG_MODE) {
+      console.log('User found:', {
+        phone: user.phone,
+        role: user.role,
+        hasPassword: !!user.password
+      });
+    }
+    
+    try {
+      const result = await bcrypt.compare(password, user.password);
       
-      if (!user) {
+      if (result) {
+        // Clear failed attempts on successful login
+        clearFailedAttempts(phone);
+        
+        req.session.user = {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          role: user.role
+        };
+        
+        req.session.lastActivity = Date.now();
+        
+        console.log(`Successful login: ${user.phone} (${user.role})`);
+        
+        // Explicitly save session before sending response
+        req.session.save((err) => {
+          if (err) {
+            console.error('Session save error:', err);
+            return res.status(500).json({ 
+              error: 'Failed to create session',
+              timestamp: new Date().toISOString()
+            });
+          }
+          
+          console.log('Session saved successfully for user:', user.phone);
+          
+          if (user.role === 'admin') {
+            res.json({ redirect: '/admin', role: 'admin' });
+          } else {
+            res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
+          }
+        });
+      } else {
         recordFailedAttempt(phone);
-        if (DEBUG_MODE) {
-          console.log('User not found:', phone);
-        }
-        return res.status(401).json({ 
+        res.status(401).json({ 
           error: 'Invalid phone number or password',
           timestamp: new Date().toISOString()
         });
       }
-      
-      // Debug logging
-      if (DEBUG_MODE) {
-        console.log('User found:', {
-          phone: user.phone,
-          role: user.role,
-          hasPassword: !!user.password
-        });
-      }
-      
-      try {
-        const result = await bcrypt.compare(password, user.password);
-        
-        if (result) {
-          // Clear failed attempts on successful login
-          clearFailedAttempts(phone);
-          
-          req.session.user = {
-            id: user.id,
-            name: user.name,
-            phone: user.phone,
-            role: user.role
-          };
-          
-          req.session.lastActivity = Date.now();
-          
-          console.log(`Successful login: ${user.phone} (${user.role})`);
-          
-          // Explicitly save session before sending response
-          req.session.save((err) => {
-            if (err) {
-              console.error('Session save error:', err);
-              return res.status(500).json({ 
-                error: 'Failed to create session',
-                timestamp: new Date().toISOString()
-              });
-            }
-            
-            console.log('Session saved successfully for user:', user.phone);
-            
-            if (user.role === 'admin') {
-              res.json({ redirect: '/admin', role: 'admin' });
-            } else {
-              res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
-            }
-          });
-        } else {
-          recordFailedAttempt(phone);
-          res.status(401).json({ 
-            error: 'Invalid phone number or password',
-            timestamp: new Date().toISOString()
-          });
-        }
-      } catch (bcryptError) {
-        console.error('Bcrypt error:', bcryptError);
-        recordFailedAttempt(phone);
+    } catch (bcryptError) {
+      console.error('Bcrypt error:', bcryptError);
+      recordFailedAttempt(phone);
         return res.status(500).json({ 
           error: 'Authentication error',
           timestamp: new Date().toISOString()
