@@ -88,6 +88,20 @@ function initializeDatabase() {
       drawn_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Seller requests table
+    db.run(`CREATE TABLE IF NOT EXISTS seller_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name TEXT NOT NULL,
+      phone TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL,
+      experience TEXT,
+      status TEXT DEFAULT 'pending',
+      request_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reviewed_by TEXT,
+      reviewed_date DATETIME,
+      approval_notes TEXT
+    )`);
+
     // Check if admin exists, if not create default admin
     db.get("SELECT * FROM users WHERE role = 'admin'", (err, row) => {
       if (!row) {
@@ -681,6 +695,194 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, (req, res) 
       return res.status(500).json({ error: 'Database error' });
     }
     res.json(rows);
+  });
+});
+
+// Seller Registration API Endpoints
+
+// POST /api/seller-registration - Submit registration request (Public)
+app.post('/api/seller-registration', (req, res) => {
+  const { full_name, phone, email, experience } = req.body;
+  
+  // Validate required fields
+  if (!full_name || !phone || !email) {
+    return res.status(400).json({ error: 'Full name, phone, and email are required' });
+  }
+  
+  // Check for duplicate phone in users table
+  db.get("SELECT * FROM users WHERE phone = ?", [phone], (err, existingUser) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (existingUser) {
+      return res.status(400).json({ error: 'Phone number already registered' });
+    }
+    
+    // Check for existing pending request
+    db.get("SELECT * FROM seller_requests WHERE phone = ? AND status = 'pending'", [phone], (err, existingRequest) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (existingRequest) {
+        return res.status(400).json({ error: 'You already have a pending registration request' });
+      }
+      
+      // Insert new request
+      db.run(
+        "INSERT INTO seller_requests (full_name, phone, email, experience) VALUES (?, ?, ?, ?)",
+        [full_name, phone, email, experience || null],
+        function(err) {
+          if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+              return res.status(400).json({ error: 'Phone number already has a request' });
+            }
+            return res.status(500).json({ error: 'Database error' });
+          }
+          res.json({ success: true, message: 'Registration request submitted successfully', id: this.lastID });
+        }
+      );
+    });
+  });
+});
+
+// GET /api/seller-requests - Get all registration requests (Admin only)
+app.get('/api/seller-requests', requireAuth, requireAdmin, (req, res) => {
+  db.all(
+    `SELECT * FROM seller_requests 
+     ORDER BY 
+       CASE status 
+         WHEN 'pending' THEN 1 
+         WHEN 'approved' THEN 2 
+         WHEN 'rejected' THEN 3 
+       END,
+       request_date DESC`,
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(rows);
+    }
+  );
+});
+
+// POST /api/seller-requests/:id/approve - Approve request (Admin only)
+app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const adminName = req.session.user.name;
+  
+  // Get request details
+  db.get("SELECT * FROM seller_requests WHERE id = ?", [id], (err, request) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'Request has already been processed' });
+    }
+    
+    // Generate random password
+    const randomChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghjkmnpqrstuvwxyz';
+    let randomPart = '';
+    for (let i = 0; i < 6; i++) {
+      randomPart += randomChars.charAt(Math.floor(Math.random() * randomChars.length));
+    }
+    const password = 'Seller@' + randomPart;
+    
+    // Hash password
+    bcrypt.hash(password, 10, (err, hash) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error generating password' });
+      }
+      
+      // Create user account
+      db.run(
+        "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, 'seller')",
+        [request.full_name, request.phone, hash],
+        function(err) {
+          if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+              return res.status(400).json({ error: 'User already exists with this phone number' });
+            }
+            return res.status(500).json({ error: 'Error creating user account' });
+          }
+          
+          // Update request status
+          db.run(
+            `UPDATE seller_requests 
+             SET status = 'approved', 
+                 reviewed_by = ?, 
+                 reviewed_date = CURRENT_TIMESTAMP,
+                 approval_notes = ?
+             WHERE id = ?`,
+            [adminName, 'Approved and account created', id],
+            function(err) {
+              if (err) {
+                return res.status(500).json({ error: 'Error updating request status' });
+              }
+              
+              res.json({ 
+                success: true, 
+                credentials: {
+                  phone: request.phone,
+                  password: password,
+                  name: request.full_name,
+                  email: request.email
+                }
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+});
+
+// POST /api/seller-requests/:id/reject - Reject request (Admin only)
+app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const adminName = req.session.user.name;
+  
+  // Get request details
+  db.get("SELECT * FROM seller_requests WHERE id = ?", [id], (err, request) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (!request) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+    
+    if (request.status !== 'pending') {
+      return res.status(400).json({ error: 'Request has already been processed' });
+    }
+    
+    // Update request status
+    db.run(
+      `UPDATE seller_requests 
+       SET status = 'rejected', 
+           reviewed_by = ?, 
+           reviewed_date = CURRENT_TIMESTAMP,
+           approval_notes = ?
+       WHERE id = ?`,
+      [adminName, reason || 'Rejected by admin', id],
+      function(err) {
+        if (err) {
+          return res.status(500).json({ error: 'Error updating request status' });
+        }
+        
+        res.json({ 
+          success: true,
+          message: 'Request rejected successfully'
+        });
+      }
+    );
   });
 });
 

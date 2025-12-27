@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Raffle App</title>
+    <title>Seller Registration - Raffle App</title>
     <style>
         * {
             margin: 0;
@@ -27,7 +27,7 @@
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
             width: 100%;
-            max-width: 420px;
+            max-width: 500px;
         }
         
         .logo-container {
@@ -68,16 +68,26 @@
             font-weight: 500;
         }
         
-        input {
+        .required {
+            color: #e53e3e;
+        }
+        
+        input, textarea {
             width: 100%;
             padding: 12px;
             border: 2px solid #e2e8f0;
             border-radius: 5px;
             font-size: 16px;
             transition: all 0.3s ease;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
-        input:focus {
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        input:focus, textarea:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -105,30 +115,47 @@
             transform: translateY(0);
         }
         
-        #message {
-            margin-top: 15px;
-            text-align: center;
-            font-weight: 500;
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         
-        .register-link {
+        #message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+        }
+        
+        #message.success {
+            background-color: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        
+        #message.error {
+            background-color: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        
+        .login-link {
             text-align: center;
             margin-top: 20px;
             color: #555;
         }
         
-        .register-link a {
+        .login-link a {
             color: #667eea;
             text-decoration: none;
             font-weight: 600;
         }
         
-        .register-link a:hover {
+        .login-link a:hover {
             text-decoration: underline;
-        }
-        
-        .register-link p {
-            margin: 5px 0;
         }
         
         /* Responsive design */
@@ -152,69 +179,89 @@
     <div class="container">
         <!-- Logo -->
         <div class="logo-container">
-            <img src="/logo.png" alt="RaffleApp Logo" class="logo-image">
+            <img src="/logo.png" alt="RaffleApp Logo" class="logo-image" onerror="this.style.display='none'">
         </div>
         
         <!-- Heading -->
-        <h1>Welcome Back</h1>
-        <p class="subtitle">Sign in to your RaffleApp account</p>
+        <h1>Request Seller Access</h1>
+        <p class="subtitle">Fill out the form below to request seller access</p>
         
-        <form id="loginForm">
+        <form id="registrationForm">
             <div class="form-group">
-                <label for="phone">Phone Number</label>
+                <label for="fullName">Full Name <span class="required">*</span></label>
+                <input type="text" id="fullName" required placeholder="Enter your full name">
+            </div>
+            
+            <div class="form-group">
+                <label for="phone">Phone Number <span class="required">*</span></label>
                 <input type="tel" id="phone" required placeholder="Enter your phone number">
             </div>
+            
             <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" required placeholder="Enter your password">
+                <label for="email">Email Address <span class="required">*</span></label>
+                <input type="email" id="email" required placeholder="Enter your email address">
             </div>
-            <button type="submit">Login</button>
+            
+            <div class="form-group">
+                <label for="experience">Experience / Reason for Request (Optional)</label>
+                <textarea id="experience" placeholder="Tell us about your experience or why you'd like to become a seller..."></textarea>
+            </div>
+            
+            <button type="submit" id="submitBtn">Submit Request</button>
             <div id="message"></div>
         </form>
-        <div class="register-link">
-            <p>Don't have access? <a href="/register-seller.html">Request Seller Access</a></p>
-            <p style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e2e8f0;">Default Admin Login:</p>
-            <p><strong>Phone:</strong> 1234567890 | <strong>Password:</strong> admin123</p>
+        
+        <div class="login-link">
+            <p>Already have an account? <a href="/login.html">Login here</a></p>
         </div>
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        document.getElementById('registrationForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const phone = document.getElementById('phone').value;
-            const password = document.getElementById('password').value;
+            const fullName = document.getElementById('fullName').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const experience = document.getElementById('experience').value.trim();
             const messageDiv = document.getElementById('message');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
             
             try {
-                const response = await fetch('/login', {
+                const response = await fetch('/api/seller-registration', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone, password })
+                    body: JSON.stringify({ 
+                        full_name: fullName, 
+                        phone, 
+                        email, 
+                        experience 
+                    })
                 });
                 
                 const data = await response.json();
                 
-                // Check if there's an error
-                if (data.error) {
-                    messageDiv.textContent = data.error;
-                    messageDiv.style.color = 'red';
-                    return;
-                }
+                messageDiv.style.display = 'block';
                 
-                // Check if there's a redirect URL
-                if (data.redirect) {
-                    messageDiv.textContent = 'Login successful! Redirecting...';
-                    messageDiv.style.color = 'green';
-                    // Redirect to the URL provided by the server
-                    window.location.href = data.redirect;
+                if (response.ok && data.success) {
+                    messageDiv.className = 'success';
+                    messageDiv.textContent = 'Registration request submitted successfully! You will be notified once your request is reviewed.';
+                    document.getElementById('registrationForm').reset();
                 } else {
-                    messageDiv.textContent = 'Login response invalid';
-                    messageDiv.style.color = 'red';
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = data.error || 'Failed to submit registration request. Please try again.';
                 }
             } catch (error) {
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'error';
                 messageDiv.textContent = 'Connection error. Please try again.';
-                messageDiv.style.color = 'red';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Request';
             }
         });
     </script>
