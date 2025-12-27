@@ -83,6 +83,43 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
+        /* Input state indicators */
+        input.has-value {
+            border-color: #10b981;
+            background-color: #f0fdf4;
+        }
+        
+        input.has-error {
+            border-color: #ef4444;
+            background-color: #fef2f2;
+        }
+        
+        /* Prevent form shake and reset */
+        #loginForm {
+            animation: none !important;
+        }
+        
+        #loginForm.submitting button {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Custom error shake - only if we want it */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        #message.error {
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
         button {
             width: 100%;
             padding: 14px;
@@ -181,14 +218,29 @@
         <h1>Welcome Back</h1>
         <p class="subtitle">Sign in to your RaffleApp account</p>
         
-        <form id="loginForm">
+        <form id="loginForm" autocomplete="off">
             <div class="form-group">
                 <label for="phone">Phone Number</label>
-                <input type="tel" id="phone" required placeholder="Enter your phone number">
+                <input 
+                    type="tel" 
+                    id="phone" 
+                    name="phone"
+                    required 
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    placeholder="1234567890">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" required placeholder="Enter your password">
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password"
+                    required 
+                    autocomplete="new-password"
+                    placeholder="Enter your password">
             </div>
             <button type="submit">Login</button>
             <div id="message"></div>
@@ -197,6 +249,11 @@
             <p>Don't have access? <a href="/register-seller.html">Request Seller Access</a></p>
             <p style="margin-top: 10px;">Default Admin Login:</p>
             <p><strong>Phone:</strong> 1234567890 | <strong>Password:</strong> admin123</p>
+            <p style="margin-top: 8px;">
+                <button type="button" onclick="fillDefaultCredentials()" style="padding: 8px 16px; font-size: 14px; width: auto;">
+                    Use Default Credentials
+                </button>
+            </p>
         </div>
         
         <div class="help-section">
@@ -212,17 +269,59 @@
     </div>
 
     <script>
+        // Log page load
+        console.log('=== LOGIN PAGE LOADED ===');
+        console.log('Phone input:', document.getElementById('phone'));
+        console.log('Password input:', document.getElementById('password'));
+        console.log('Form:', document.getElementById('loginForm'));
+        
+        // Form submission handler
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
             
-            const phone = document.getElementById('phone').value;
-            const password = document.getElementById('password').value;
+            console.log('=== LOGIN FORM SUBMISSION STARTED ===');
+            
+            const phoneInput = document.getElementById('phone');
+            const passwordInput = document.getElementById('password');
             const messageDiv = document.getElementById('message');
             
-            console.log('=== LOGIN ATTEMPT ===');
-            console.log('Phone:', phone);
+            // Get values and trim whitespace
+            const phone = phoneInput.value.trim();
+            const password = passwordInput.value.trim();
+            
+            console.log('Phone input element:', phoneInput);
+            console.log('Password input element:', passwordInput);
+            console.log('Phone value:', phone);
+            console.log('Phone length:', phone.length);
             console.log('Password length:', password.length);
-            console.log('Endpoint: /login');
+            console.log('Password value (first 3 chars):', password.substring(0, 3));
+            
+            // Validate inputs
+            if (!phone || phone.length === 0) {
+                console.error('Phone is empty!');
+                messageDiv.textContent = 'Please enter your phone number';
+                messageDiv.style.color = 'red';
+                return;
+            }
+            
+            if (!password || password.length === 0) {
+                console.error('Password is empty!');
+                messageDiv.textContent = 'Please enter your password';
+                messageDiv.style.color = 'red';
+                return;
+            }
+            
+            // Show loading state
+            messageDiv.textContent = 'Logging in...';
+            messageDiv.style.color = '#667eea';
+            
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Logging in...';
+            
+            console.log('Sending request to /login');
+            console.log('Request body:', { phone, password: '***' });
             
             try {
                 const response = await fetch('/login', {
@@ -232,14 +331,18 @@
                 });
                 
                 console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
+                console.log('Response ok:', response.ok);
                 
                 const data = await response.json();
                 console.log('Response data:', data);
                 
+                // Re-enable button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Login';
+                
                 // Check if there's an error
                 if (data.error) {
-                    console.error('Login error:', data.error);
+                    console.error('Login error from server:', data.error);
                     let errorMessage = data.error;
                     
                     // Add helpful hints based on error type
@@ -258,11 +361,14 @@
                 
                 // Check if there's a redirect URL
                 if (data.redirect) {
-                    console.log('Login successful, redirecting to:', data.redirect);
-                    messageDiv.textContent = 'Login successful! Redirecting...';
+                    console.log('Login successful! Redirecting to:', data.redirect);
+                    messageDiv.textContent = '✅ Login successful! Redirecting...';
                     messageDiv.style.color = 'green';
-                    // Redirect to the URL provided by the server
-                    window.location.href = data.redirect;
+                    
+                    // Don't clear inputs on success
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 500);
                 } else {
                     console.error('No redirect URL in response');
                     messageDiv.textContent = 'Login response invalid - check console for details';
@@ -270,10 +376,47 @@
                 }
             } catch (error) {
                 console.error('Login exception:', error);
+                console.error('Error stack:', error.stack);
+                
+                // Re-enable button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Login';
+                
                 messageDiv.textContent = 'Connection error: ' + error.message + '. Check console for details.';
                 messageDiv.style.color = 'red';
             }
+            
+            console.log('=== LOGIN FORM SUBMISSION ENDED ===');
         });
+        
+        // Add input change listeners
+        document.getElementById('phone').addEventListener('input', function() {
+            console.log('Phone input changed:', this.value);
+            if (this.value.trim().length > 0) {
+                this.classList.add('has-value');
+            } else {
+                this.classList.remove('has-value');
+            }
+        });
+        
+        document.getElementById('password').addEventListener('input', function() {
+            console.log('Password input changed, length:', this.value.length);
+            if (this.value.trim().length > 0) {
+                this.classList.add('has-value');
+            } else {
+                this.classList.remove('has-value');
+            }
+        });
+        
+        // Fill default credentials helper function
+        function fillDefaultCredentials() {
+            console.log('Filling default credentials');
+            document.getElementById('phone').value = '1234567890';
+            document.getElementById('password').value = 'admin123';
+            document.getElementById('phone').classList.add('has-value');
+            document.getElementById('password').classList.add('has-value');
+            console.log('Default credentials filled');
+        }
     </script>
 </body>
 </html>
