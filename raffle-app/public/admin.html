@@ -940,11 +940,13 @@
                               if (adminScanner) {
                                 const oldScanner = adminScanner;
                                 adminScanner = null;
-                                isAdminScannerRunning = false;
                                 try {
-                                  await oldScanner.stop().catch(() => {});
-                                  await oldScanner.clear().catch(() => {});
-                                } catch (e) {}
+                                  await oldScanner.stop().catch((e) => console.log('Stop error during cleanup:', e));
+                                  await oldScanner.clear().catch((e) => console.log('Clear error during cleanup:', e));
+                                } catch (e) {
+                                  console.log('Cleanup error:', e);
+                                }
+                                isAdminScannerRunning = false;
                               }
                               
                               // Prevent double start
