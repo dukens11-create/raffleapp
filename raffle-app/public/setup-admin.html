@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Setup - RaffleApp</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 48px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 500px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 24px;
+        }
+        
+        .info {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            border-left: 4px solid #667eea;
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #message {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        #message:empty {
+            display: none;
+        }
+        
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+        
+        .credentials {
+            background: #fff;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            border: 2px solid #667eea;
+        }
+        
+        .credentials p {
+            margin: 8px 0;
+        }
+        
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Admin Setup</h1>
+        
+        <div class="info">
+            <p><strong>⚠️ Warning:</strong> This will reset/create the admin account.</p>
+            <p>Use this if you cannot login or need to reset the admin password.</p>
+        </div>
+        
+        <button id="setupBtn">Reset Admin Account</button>
+        
+        <div id="message"></div>
+        
+        <div class="back-link">
+            <a href="/login.html">← Back to Login</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('setupBtn').addEventListener('click', async function() {
+            const messageDiv = document.getElementById('message');
+            const button = document.getElementById('setupBtn');
+            
+            button.disabled = true;
+            button.textContent = 'Setting up...';
+            
+            try {
+                const response = await fetch('/api/setup-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    messageDiv.className = 'success';
+                    messageDiv.innerHTML = `
+                        <p><strong>✅ Admin account created successfully!</strong></p>
+                        <div class="credentials">
+                            <p><strong>Phone:</strong> ${data.credentials.phone}</p>
+                            <p><strong>Password:</strong> ${data.credentials.password}</p>
+                        </div>
+                        <p style="margin-top: 12px;">You can now <a href="/login.html">login here</a></p>
+                    `;
+                } else {
+                    messageDiv.className = 'error';
+                    messageDiv.textContent = data.error || 'Setup failed';
+                }
+                
+            } catch (error) {
+                messageDiv.className = 'error';
+                messageDiv.textContent = 'Connection error: ' + error.message;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Reset Admin Account';
+            }
+        });
+    </script>
+</body>
+</html>
