@@ -5,29 +5,276 @@ const bcrypt = require('bcrypt');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const { body, validationResult } = require('express-validator');
+const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
+
+// Load environment variables
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Database setup
-const db = new sqlite3.Database('./raffle.db', (err) => {
-  if (err) {
-    console.error('Error opening database:', err);
-  } else {
-    console.log('Connected to SQLite database');
-    initializeDatabase();
+// Global error handlers for uncaught errors
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION:', error);
+  console.error('Stack:', error.stack);
+  // In production, you might want to log to external service
+  // For now, keep the process running but log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION at:', promise);
+  console.error('Reason:', reason);
+  // Log the error but don't crash
+});
+
+// Database setup with retry logic
+let dbRetryCount = 0;
+const maxDbRetries = 3;
+
+function connectDatabase() {
+  const db = new sqlite3.Database('./raffle.db', (err) => {
+    if (err) {
+      console.error('Error opening database:', err);
+      if (dbRetryCount < maxDbRetries) {
+        dbRetryCount++;
+        console.log(`Retrying database connection (${dbRetryCount}/${maxDbRetries})...`);
+        setTimeout(connectDatabase, 1000 * dbRetryCount);
+      } else {
+        console.error('Failed to connect to database after maximum retries');
+        process.exit(1);
+      }
+    } else {
+      console.log('Connected to SQLite database');
+      initializeDatabase();
+    }
+  });
+  return db;
+}
+
+const db = connectDatabase();
+
+// Database query with retry logic
+async function dbQueryWithRetry(query, params = [], maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await new Promise((resolve, reject) => {
+        db.get(query, params, (err, result) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
+      });
+    } catch (error) {
+      console.error(`Database query failed (attempt ${i + 1}/${maxRetries}):`, error);
+      
+      if (i === maxRetries - 1) throw error;
+      
+      // Wait before retry with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+}
+
+// Helper function for database run operations with retry
+async function dbRunWithRetry(query, params = [], maxRetries = 3) {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await new Promise((resolve, reject) => {
+        db.run(query, params, function(err) {
+          if (err) reject(err);
+          else resolve(this);
+        });
+      });
+    } catch (error) {
+      console.error(`Database run failed (attempt ${i + 1}/${maxRetries}):`, error);
+      
+      if (i === maxRetries - 1) throw error;
+      
+      // Wait before retry with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+}
+
+// Security: Helmet for security headers
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
+
+// Rate limiting - General API limiter
+const apiLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests per window
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too many requests, please try again later',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
+// Rate limiting - Strict limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5, // 5 attempts per window
+  message: 'Too many login attempts, please try again later',
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`Auth rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too many login attempts, please try again later',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms - ${req.ip}`);
+  });
+  
+  next();
+});
+
+// Request validation middleware - Bot detection and payload size check
+function validateRequest(req, res, next) {
+  // Check for suspicious patterns
+  const userAgent = req.headers['user-agent'] || '';
+  
+  // Block known bot signatures (but allow legitimate browsers)
+  const suspiciousBotSignatures = ['scraper', 'crawler', 'spider', 'bot'];
+  const legitimateAgents = ['mozilla', 'chrome', 'safari', 'firefox', 'edge'];
+  
+  const hasLegitimateAgent = legitimateAgents.some(sig => 
+    userAgent.toLowerCase().includes(sig)
+  );
+  
+  const hasSuspiciousBot = suspiciousBotSignatures.some(sig => 
+    userAgent.toLowerCase().includes(sig)
+  );
+  
+  if (hasSuspiciousBot && !hasLegitimateAgent) {
+    console.warn(`Suspicious bot detected: ${userAgent} from IP: ${req.ip}`);
+    return res.status(403).json({ 
+      error: 'Forbidden',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  // Check for excessively large payloads
+  if (req.body && JSON.stringify(req.body).length > 1000000) {
+    console.warn(`Excessive payload size from IP: ${req.ip}`);
+    return res.status(413).json({ 
+      error: 'Payload too large',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  next();
+}
+
+// Brute force protection for login
+const loginAttempts = new Map();
+
+function checkBruteForce(identifier) {
+  const attempts = loginAttempts.get(identifier) || { count: 0, firstAttempt: Date.now() };
+  
+  // Reset after 1 hour
+  if (Date.now() - attempts.firstAttempt > 60 * 60 * 1000) {
+    loginAttempts.delete(identifier);
+    return false;
+  }
+  
+  // Block after 5 failed attempts
+  return attempts.count >= 5;
+}
+
+function recordFailedAttempt(identifier) {
+  const attempts = loginAttempts.get(identifier) || { count: 0, firstAttempt: Date.now() };
+  attempts.count++;
+  loginAttempts.set(identifier, attempts);
+}
+
+function clearFailedAttempts(identifier) {
+  loginAttempts.delete(identifier);
+}
+
 // Middleware
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(cookieParser());
+
+// Session configuration with enhanced security
 app.use(session({
   secret: process.env.SESSION_SECRET || 'raffle-secret-key-2024',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+  name: 'sessionId', // Rename session cookie to prevent fingerprinting
+  cookie: { 
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'strict',
+  },
+  rolling: true, // Reset expiry on activity
 }));
+
+// Session timeout middleware
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+app.use((req, res, next) => {
+  if (req.session.user) {
+    const now = Date.now();
+    const lastActivity = req.session.lastActivity || now;
+    
+    if (now - lastActivity > SESSION_TIMEOUT) {
+      console.log(`Session expired for user: ${req.session.user.phone}`);
+      req.session.destroy((err) => {
+        if (err) console.error('Error destroying session:', err);
+      });
+      return res.status(401).json({ 
+        error: 'Session expired. Please login again.',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    req.session.lastActivity = now;
+  }
+  next();
+});
+
+// Apply validation middleware to all routes
+app.use(validateRequest);
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -237,41 +484,90 @@ app.get('/', (req, res) => {
 });
 
 // Login
-app.post('/login', (req, res) => {
-  const { phone, password } = req.body;
-  
-  db.get("SELECT * FROM users WHERE phone = ?", [phone], (err, user) => {
-    if (err) {
-      return res.json({ error: 'Database error' });
+app.post('/login', authLimiter, async (req, res) => {
+  try {
+    const { phone, password } = req.body;
+    
+    // Validate inputs
+    if (!phone || !password) {
+      return res.status(400).json({ 
+        error: 'Phone and password are required',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    if (!user) {
-      return res.json({ error: 'Invalid phone number or password' });
+    // Check brute force protection
+    if (checkBruteForce(phone)) {
+      console.warn(`Brute force detected for phone: ${phone}`);
+      return res.status(429).json({ 
+        error: 'Too many failed attempts. Please try again later.',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    bcrypt.compare(password, user.password, (err, result) => {
+    db.get("SELECT * FROM users WHERE phone = ?", [phone], async (err, user) => {
       if (err) {
-        return res.json({ error: 'Authentication error' });
+        console.error('Login database error:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
       }
       
-      if (result) {
-        req.session.user = {
-          id: user.id,
-          name: user.name,
-          phone: user.phone,
-          role: user.role
-        };
+      if (!user) {
+        recordFailedAttempt(phone);
+        return res.status(401).json({ 
+          error: 'Invalid phone number or password',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      try {
+        const result = await bcrypt.compare(password, user.password);
         
-        if (user.role === 'admin') {
-          res.json({ redirect: '/admin', role: 'admin' });
+        if (result) {
+          // Clear failed attempts on successful login
+          clearFailedAttempts(phone);
+          
+          req.session.user = {
+            id: user.id,
+            name: user.name,
+            phone: user.phone,
+            role: user.role
+          };
+          
+          req.session.lastActivity = Date.now();
+          
+          console.log(`Successful login: ${user.phone} (${user.role})`);
+          
+          if (user.role === 'admin') {
+            res.json({ redirect: '/admin', role: 'admin' });
+          } else {
+            res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
+          }
         } else {
-          res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
+          recordFailedAttempt(phone);
+          res.status(401).json({ 
+            error: 'Invalid phone number or password',
+            timestamp: new Date().toISOString()
+          });
         }
-      } else {
-        res.json({ error: 'Invalid phone number or password' });
+      } catch (bcryptError) {
+        console.error('Bcrypt error:', bcryptError);
+        recordFailedAttempt(phone);
+        return res.status(500).json({ 
+          error: 'Authentication error',
+          timestamp: new Date().toISOString()
+        });
       }
     });
-  });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during login',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Logout
@@ -281,34 +577,60 @@ app.get('/logout', (req, res) => {
 });
 
 // Seller Registration APIs
-// Submit registration request
-app.post('/api/seller-registration', async (req, res) => {
+// Submit registration request with validation
+const validateSellerRegistration = [
+  body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
+  body('phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Phone must be 10-15 digits'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('experience').optional().trim().isLength({ max: 500 }).escape().withMessage('Experience must be less than 500 characters'),
+];
+
+app.post('/api/seller-registration', authLimiter, validateSellerRegistration, async (req, res) => {
   try {
-    const { fullName, phone, email, experience } = req.body;
-    
-    // Validate required fields
-    if (!fullName || !phone || !email) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array(),
+        timestamp: new Date().toISOString()
+      });
     }
+    
+    const { fullName, phone, email, experience } = req.body;
     
     // Check if phone already exists in users
     db.get('SELECT id FROM users WHERE phone = ?', [phone], (err, existingUser) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Database error checking user:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
       }
       
       if (existingUser) {
-        return res.status(400).json({ error: 'Phone number already registered' });
+        return res.status(400).json({ 
+          error: 'Phone number already registered',
+          timestamp: new Date().toISOString()
+        });
       }
       
       // Check if pending request exists
       db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = "pending"', [phone], (err, existingRequest) => {
         if (err) {
-          return res.status(500).json({ error: 'Database error' });
+          console.error('Database error checking request:', err);
+          return res.status(500).json({ 
+            error: 'Database error',
+            timestamp: new Date().toISOString()
+          });
         }
         
         if (existingRequest) {
-          return res.status(400).json({ error: 'Registration request already pending' });
+          return res.status(400).json({ 
+            error: 'Registration request already pending',
+            timestamp: new Date().toISOString()
+          });
         }
         
         // Insert registration request
@@ -318,12 +640,18 @@ app.post('/api/seller-registration', async (req, res) => {
         `, [fullName, phone, email, experience || ''], (err) => {
           if (err) {
             console.error('Registration error:', err);
-            return res.status(500).json({ error: err.message });
+            return res.status(500).json({ 
+              error: 'Failed to submit registration request',
+              timestamp: new Date().toISOString()
+            });
           }
+          
+          console.log(`New seller registration request from: ${fullName} (${phone})`);
           
           res.json({ 
             success: true, 
-            message: 'Registration request submitted successfully. You will be notified once approved.' 
+            message: 'Registration request submitted successfully. You will be notified once approved.',
+            timestamp: new Date().toISOString()
           });
         });
       });
@@ -331,7 +659,10 @@ app.post('/api/seller-registration', async (req, res) => {
     
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'An error occurred during registration',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -349,12 +680,20 @@ app.get('/api/seller-requests', requireAuth, requireAdmin, async (req, res) => {
         request_date DESC
     `, (err, requests) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Error fetching seller requests:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
       }
       res.json(requests);
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error in get seller requests:', error);
+    res.status(500).json({ 
+      error: 'An error occurred',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -368,64 +707,94 @@ app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (r
     // Get request details
     db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId], async (err, request) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Database error fetching request:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
       }
       
       if (!request) {
-        return res.status(404).json({ error: 'Request not found' });
+        return res.status(404).json({ 
+          error: 'Request not found',
+          timestamp: new Date().toISOString()
+        });
       }
       
       if (request.status !== 'pending') {
-        return res.status(400).json({ error: 'Request already processed' });
+        return res.status(400).json({ 
+          error: 'Request already processed',
+          timestamp: new Date().toISOString()
+        });
       }
       
-      // Generate random password
-      const generatedPassword = generatePassword();
-      const hashedPassword = await bcrypt.hash(generatedPassword, 10);
-      
-      // Create seller user account
-      db.run(`
-        INSERT INTO users (phone, password, role, name, email, registered_via, approved_by, approved_date)
-        VALUES (?, ?, 'seller', ?, ?, 'registration', ?, datetime('now'))
-      `, [request.phone, hashedPassword, request.full_name, request.email, adminPhone], (err) => {
-        if (err) {
-          console.error('Error creating seller user:', err);
-          return res.status(500).json({ error: 'Error creating seller account' });
-        }
+      try {
+        // Generate random password
+        const generatedPassword = generatePassword();
+        const hashedPassword = await bcrypt.hash(generatedPassword, 10);
         
-        // Update request status
+        // Create seller user account
         db.run(`
-          UPDATE seller_requests 
-          SET status = 'approved', 
-              reviewed_by = ?, 
-              reviewed_date = datetime('now'),
-              approval_notes = ?
-          WHERE id = ?
-        `, [adminPhone, notes || '', requestId], async (err) => {
+          INSERT INTO users (phone, password, role, name, email, registered_via, approved_by, approved_date)
+          VALUES (?, ?, 'seller', ?, ?, 'registration', ?, datetime('now'))
+        `, [request.phone, hashedPassword, request.full_name, request.email, adminPhone], (err) => {
           if (err) {
-            console.error('Error updating request:', err);
-            return res.status(500).json({ error: 'Error updating request status' });
+            console.error('Error creating seller user:', err);
+            return res.status(500).json({ 
+              error: 'Error creating seller account',
+              timestamp: new Date().toISOString()
+            });
           }
           
-          // Send credentials
-          await sendCredentials(request.email, request.phone, request.full_name, generatedPassword);
-          
-          res.json({ 
-            success: true, 
-            message: 'Seller approved and credentials sent',
-            credentials: {
-              phone: request.phone,
-              password: generatedPassword,
-              email: request.email
+          // Update request status
+          db.run(`
+            UPDATE seller_requests 
+            SET status = 'approved', 
+                reviewed_by = ?, 
+                reviewed_date = datetime('now'),
+                approval_notes = ?
+            WHERE id = ?
+          `, [adminPhone, notes || '', requestId], async (err) => {
+            if (err) {
+              console.error('Error updating request:', err);
+              return res.status(500).json({ 
+                error: 'Error updating request status',
+                timestamp: new Date().toISOString()
+              });
             }
+            
+            // Send credentials
+            await sendCredentials(request.email, request.phone, request.full_name, generatedPassword);
+            
+            console.log(`Seller request approved: ${request.full_name} (${request.phone})`);
+            
+            res.json({ 
+              success: true, 
+              message: 'Seller approved and credentials sent',
+              credentials: {
+                phone: request.phone,
+                password: generatedPassword,
+                email: request.email
+              },
+              timestamp: new Date().toISOString()
+            });
           });
         });
-      });
+      } catch (bcryptError) {
+        console.error('Bcrypt error:', bcryptError);
+        return res.status(500).json({ 
+          error: 'Error generating password',
+          timestamp: new Date().toISOString()
+        });
+      }
     });
     
   } catch (error) {
     console.error('Approval error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'An error occurred during approval',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -481,26 +850,48 @@ app.get('/seller', requireAuth, (req, res) => {
 
 // API: Get all sellers
 app.get('/api/sellers', requireAuth, requireAdmin, (req, res) => {
-  db.all("SELECT id, name, phone, created_at FROM users WHERE role = 'seller'", (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
-    res.json(rows);
-  });
+  try {
+    db.all("SELECT id, name, phone, created_at FROM users WHERE role = 'seller'", (err, rows) => {
+      if (err) {
+        console.error('Error fetching sellers:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
+      }
+      res.json(rows);
+    });
+  } catch (error) {
+    console.error('Error in get sellers:', error);
+    res.status(500).json({ 
+      error: 'An error occurred',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
-// API: Add seller
-app.post('/api/sellers', requireAuth, requireAdmin, (req, res) => {
-  const { name, phone, password } = req.body;
-  
-  if (!name || !phone || !password) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-  
-  bcrypt.hash(password, 10, (err, hash) => {
-    if (err) {
-      return res.status(500).json({ error: 'Error hashing password' });
+// API: Add seller with validation
+const validateSeller = [
+  body('name').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Name must be between 2 and 100 characters'),
+  body('phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Phone must be 10-15 digits'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+];
+
+app.post('/api/sellers', requireAuth, requireAdmin, validateSeller, async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array(),
+        timestamp: new Date().toISOString()
+      });
     }
+    
+    const { name, phone, password } = req.body;
+    
+    const hash = await bcrypt.hash(password, 10);
     
     db.run(
       "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, 'seller')",
@@ -508,14 +899,29 @@ app.post('/api/sellers', requireAuth, requireAdmin, (req, res) => {
       function(err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Phone number already exists' });
+            return res.status(400).json({ 
+              error: 'Phone number already exists',
+              timestamp: new Date().toISOString()
+            });
           }
-          return res.status(500).json({ error: 'Database error' });
+          console.error('Error creating seller:', err);
+          return res.status(500).json({ 
+            error: 'Database error',
+            timestamp: new Date().toISOString()
+          });
         }
+        
+        console.log(`Seller created: ${name} (${phone}) by admin`);
         res.json({ success: true, id: this.lastID });
       }
     );
-  });
+  } catch (error) {
+    console.error('Error adding seller:', error);
+    res.status(500).json({ 
+      error: 'An error occurred while adding seller',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // API: Update seller
@@ -578,46 +984,88 @@ app.delete('/api/sellers/:id', requireAuth, requireAdmin, (req, res) => {
 
 // API: Get all tickets
 app.get('/api/tickets', requireAuth, (req, res) => {
-  let query = "SELECT * FROM tickets ORDER BY ticket_number";
-  let params = [];
-  
-  if (req.session.user.role === 'seller') {
-    query = "SELECT * FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
-    params = [req.session.user.phone];
-  }
-  
-  db.all(query, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+  try {
+    let query = "SELECT * FROM tickets ORDER BY ticket_number";
+    let params = [];
+    
+    if (req.session.user.role === 'seller') {
+      query = "SELECT * FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+      params = [req.session.user.phone];
     }
-    res.json(rows);
-  });
+    
+    db.all(query, params, (err, rows) => {
+      if (err) {
+        console.error('Error fetching tickets:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
+      }
+      res.json(rows);
+    });
+  } catch (error) {
+    console.error('Error in get tickets:', error);
+    res.status(500).json({ 
+      error: 'An error occurred',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
-// API: Add ticket
-app.post('/api/tickets', requireAuth, (req, res) => {
-  const { ticket_number, buyer_name, buyer_phone, amount } = req.body;
-  
-  if (!ticket_number || !buyer_name || !buyer_phone || !amount) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-  
-  const seller_name = req.session.user.name;
-  const seller_phone = req.session.user.phone;
-  
-  db.run(
-    "INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount) VALUES (?, ?, ?, ?, ?, ?)",
-    [ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount],
-    function(err) {
-      if (err) {
-        if (err.message.includes('UNIQUE constraint failed')) {
-          return res.status(400).json({ error: 'Ticket number already exists' });
-        }
-        return res.status(500).json({ error: 'Database error' });
-      }
-      res.json({ success: true, id: this.lastID });
+// API: Add ticket with validation
+const validateTicket = [
+  body('ticket_number').trim().notEmpty().withMessage('Ticket number is required'),
+  body('buyer_name').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Buyer name must be between 2 and 100 characters'),
+  body('buyer_phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Buyer phone must be 10-15 digits'),
+  body('amount').isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
+];
+
+app.post('/api/tickets', requireAuth, validateTicket, async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array(),
+        timestamp: new Date().toISOString()
+      });
     }
-  );
+    
+    const { ticket_number, buyer_name, buyer_phone, amount } = req.body;
+    
+    const seller_name = req.session.user.name;
+    const seller_phone = req.session.user.phone;
+    
+    db.run(
+      "INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount) VALUES (?, ?, ?, ?, ?, ?)",
+      [ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount],
+      function(err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return res.status(400).json({ 
+              error: 'Ticket number already exists',
+              timestamp: new Date().toISOString()
+            });
+          }
+          console.error('Error creating ticket:', err);
+          return res.status(500).json({ 
+            error: 'Database error',
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        console.log(`Ticket created: ${ticket_number} by ${seller_name}`);
+        res.json({ success: true, id: this.lastID });
+      }
+    );
+  } catch (error) {
+    console.error('Error adding ticket:', error);
+    res.status(500).json({ 
+      error: 'An error occurred while adding ticket',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // API: Update ticket
@@ -718,68 +1166,101 @@ app.get('/api/draws', requireAuth, requireAdmin, (req, res) => {
 });
 
 // API: Conduct draw
-app.post('/api/draw', requireAuth, requireAdmin, (req, res) => {
-  const { prize_name } = req.body;
-  
-  if (!prize_name) {
-    return res.status(400).json({ error: 'Prize name is required' });
-  }
-  
-  // Get all active tickets
-  db.all("SELECT * FROM tickets WHERE status = 'active'", (err, tickets) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+app.post('/api/draw', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { prize_name } = req.body;
+    
+    if (!prize_name) {
+      return res.status(400).json({ 
+        error: 'Prize name is required',
+        timestamp: new Date().toISOString()
+      });
     }
     
-    if (tickets.length === 0) {
-      return res.status(400).json({ error: 'No active tickets available' });
-    }
-    
-    // Random selection
-    const winner = tickets[Math.floor(Math.random() * tickets.length)];
-    
-    // Get next draw number
-    db.get("SELECT MAX(draw_number) as max_draw FROM draws", (err, row) => {
+    // Get all active tickets
+    db.all("SELECT * FROM tickets WHERE status = 'active'", (err, tickets) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Database error fetching tickets:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
       }
       
-      const draw_number = (row.max_draw || 0) + 1;
+      if (tickets.length === 0) {
+        return res.status(400).json({ 
+          error: 'No active tickets available',
+          timestamp: new Date().toISOString()
+        });
+      }
       
-      // Insert draw result
-      db.run(
-        "INSERT INTO draws (draw_number, ticket_number, prize_name, winner_name, winner_phone) VALUES (?, ?, ?, ?, ?)",
-        [draw_number, winner.ticket_number, prize_name, winner.buyer_name, winner.buyer_phone],
-        function(err) {
-          if (err) {
-            return res.status(500).json({ error: 'Database error' });
-          }
-          
-          // Mark ticket as won
-          db.run(
-            "UPDATE tickets SET status = 'won' WHERE id = ?",
-            [winner.id],
-            (err) => {
-              if (err) {
-                return res.status(500).json({ error: 'Error updating ticket status' });
-              }
-              
-              res.json({
-                success: true,
-                draw: {
-                  draw_number,
-                  ticket_number: winner.ticket_number,
-                  prize_name,
-                  winner_name: winner.buyer_name,
-                  winner_phone: winner.buyer_phone
-                }
+      // Random selection
+      const winner = tickets[Math.floor(Math.random() * tickets.length)];
+      
+      // Get next draw number
+      db.get("SELECT MAX(draw_number) as max_draw FROM draws", (err, row) => {
+        if (err) {
+          console.error('Database error getting draw number:', err);
+          return res.status(500).json({ 
+            error: 'Database error',
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+        const draw_number = (row.max_draw || 0) + 1;
+        
+        // Insert draw result
+        db.run(
+          "INSERT INTO draws (draw_number, ticket_number, prize_name, winner_name, winner_phone) VALUES (?, ?, ?, ?, ?)",
+          [draw_number, winner.ticket_number, prize_name, winner.buyer_name, winner.buyer_phone],
+          function(err) {
+            if (err) {
+              console.error('Error recording draw:', err);
+              return res.status(500).json({ 
+                error: 'Database error',
+                timestamp: new Date().toISOString()
               });
             }
-          );
-        }
-      );
+            
+            // Mark ticket as won
+            db.run(
+              "UPDATE tickets SET status = 'won' WHERE id = ?",
+              [winner.id],
+              (err) => {
+                if (err) {
+                  console.error('Error updating ticket status:', err);
+                  return res.status(500).json({ 
+                    error: 'Error updating ticket status',
+                    timestamp: new Date().toISOString()
+                  });
+                }
+                
+                console.log(`Draw conducted: ${prize_name} - Winner: ${winner.buyer_name} (Ticket: ${winner.ticket_number})`);
+                
+                res.json({
+                  success: true,
+                  draw: {
+                    draw_number,
+                    ticket_number: winner.ticket_number,
+                    prize_name,
+                    winner_name: winner.buyer_name,
+                    winner_phone: winner.buyer_phone
+                  },
+                  timestamp: new Date().toISOString()
+                });
+              }
+            );
+          }
+        );
+      });
     });
-  });
+  } catch (error) {
+    console.error('Draw error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during draw',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // API: Get available tickets for draw
@@ -818,22 +1299,35 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
     
     // Validate required fields (allow amount to be 0)
     if (!ticketNumber || !buyerName || !buyerPhone || amount === undefined || amount === null) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Validate amount is a number
     if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
-      return res.status(400).json({ error: 'Amount must be a non-negative number' });
+      return res.status(400).json({ 
+        error: 'Amount must be a non-negative number',
+        timestamp: new Date().toISOString()
+      });
     }
     
     // Check if ticket number already exists
     db.get('SELECT id FROM tickets WHERE ticket_number = ?', [ticketNumber], (err, existing) => {
       if (err) {
-        return res.status(500).json({ error: 'Database error' });
+        console.error('Database error checking ticket:', err);
+        return res.status(500).json({ 
+          error: 'Database error',
+          timestamp: new Date().toISOString()
+        });
       }
       
       if (existing) {
-        return res.status(400).json({ error: 'Ticket number already exists' });
+        return res.status(400).json({ 
+          error: 'Ticket number already exists',
+          timestamp: new Date().toISOString()
+        });
       }
       
       // Insert ticket with barcode
@@ -853,19 +1347,28 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
       ], function(err) {
         if (err) {
           console.error('Bulk import error:', err);
-          return res.status(500).json({ error: err.message });
+          return res.status(500).json({ 
+            error: 'Failed to import ticket',
+            timestamp: new Date().toISOString()
+          });
         }
+        
+        console.log(`Ticket imported: ${ticketNumber} by ${req.session.user.name}`);
         
         res.json({ 
           success: true, 
           ticketId: this.lastID,
-          ticketNumber 
+          ticketNumber,
+          timestamp: new Date().toISOString()
         });
       });
     });
   } catch (error) {
     console.error('Bulk import error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: 'An error occurred during import',
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -964,10 +1467,76 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, (req, res) 
   });
 });
 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    // Check database connection
+    await new Promise((resolve, reject) => {
+      db.get('SELECT 1', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      environment: process.env.NODE_ENV || 'development',
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({
+      status: 'unhealthy',
+      error: 'Database connection failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
+// 404 handler - must be after all other routes
+app.use((req, res, next) => {
+  // Check if this is an API request
+  if (req.path.startsWith('/api/')) {
+    res.status(404).json({ 
+      error: 'Endpoint not found',
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    // Serve custom 404 page for regular requests
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  }
+});
+
+// Express error handler middleware - must be last
+app.use((err, req, res, next) => {
+  console.error('Express Error Handler:', err);
+  console.error('Stack:', err.stack);
+  
+  // Don't leak error details in production
+  const errorResponse = {
+    error: process.env.NODE_ENV === 'production' 
+      ? 'An error occurred' 
+      : err.message,
+    timestamp: new Date().toISOString()
+  };
+  
+  // For API requests, return JSON
+  if (req.path.startsWith('/api/')) {
+    res.status(err.status || 500).json(errorResponse);
+  } else {
+    // For regular requests, serve custom 500 page
+    res.status(err.status || 500).sendFile(path.join(__dirname, 'public', '500.html'));
+  }
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Access the application at http://localhost:${PORT}`);
+  console.log(`Health check available at http://localhost:${PORT}/health`);
 });
 
 // Graceful shutdown
