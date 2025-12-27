@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -104,25 +105,25 @@ function initializeDatabase() {
 
     // Add columns to users table for seller registration tracking
     db.run(`ALTER TABLE users ADD COLUMN email TEXT`, (err) => {
-      if (err && err.errno !== 1) {
+      if (err && !err.message.includes('duplicate column')) {
         console.error('Error adding email column:', err);
       }
     });
     
     db.run(`ALTER TABLE users ADD COLUMN registered_via TEXT DEFAULT 'manual'`, (err) => {
-      if (err && err.errno !== 1) {
+      if (err && !err.message.includes('duplicate column')) {
         console.error('Error adding registered_via column:', err);
       }
     });
     
     db.run(`ALTER TABLE users ADD COLUMN approved_by TEXT`, (err) => {
-      if (err && err.errno !== 1) {
+      if (err && !err.message.includes('duplicate column')) {
         console.error('Error adding approved_by column:', err);
       }
     });
     
     db.run(`ALTER TABLE users ADD COLUMN approved_date DATETIME`, (err) => {
-      if (err && err.errno !== 1) {
+      if (err && !err.message.includes('duplicate column')) {
         console.error('Error adding approved_date column:', err);
       }
     });
@@ -173,8 +174,9 @@ function requireAdmin(req, res, next) {
 function generatePassword() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let password = 'Seller@';
+  const randomBytes = crypto.randomBytes(6);
   for (let i = 0; i < 6; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    password += chars.charAt(randomBytes[i] % chars.length);
   }
   return password;
 }
