@@ -222,6 +222,32 @@ app.use((req, res, next) => {
   next();
 });
 
+// Content Security Policy middleware
+app.use((req, res, next) => {
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https: blob:",
+    "media-src 'self' blob: mediastream:",
+    "connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "upgrade-insecure-requests"
+  ];
+  
+  res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=*, microphone=*, geolocation=()');
+  
+  next();
+});
+
 // ===== PUBLIC ENDPOINTS (NO RATE LIMITING) =====
 
 // Admin Setup Endpoint - Must be BEFORE rate limiting
