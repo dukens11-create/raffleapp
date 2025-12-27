@@ -88,6 +88,45 @@ function initializeDatabase() {
       drawn_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
 
+    // Seller requests table
+    db.run(`CREATE TABLE IF NOT EXISTS seller_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      full_name TEXT NOT NULL,
+      phone TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL,
+      experience TEXT,
+      status TEXT DEFAULT 'pending',
+      request_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reviewed_by TEXT,
+      reviewed_date DATETIME,
+      approval_notes TEXT
+    )`);
+
+    // Add columns to users table for seller registration tracking
+    db.run(`ALTER TABLE users ADD COLUMN email TEXT`, (err) => {
+      if (err && err.errno !== 1) {
+        console.error('Error adding email column:', err);
+      }
+    });
+    
+    db.run(`ALTER TABLE users ADD COLUMN registered_via TEXT DEFAULT 'manual'`, (err) => {
+      if (err && err.errno !== 1) {
+        console.error('Error adding registered_via column:', err);
+      }
+    });
+    
+    db.run(`ALTER TABLE users ADD COLUMN approved_by TEXT`, (err) => {
+      if (err && err.errno !== 1) {
+        console.error('Error adding approved_by column:', err);
+      }
+    });
+    
+    db.run(`ALTER TABLE users ADD COLUMN approved_date DATETIME`, (err) => {
+      if (err && err.errno !== 1) {
+        console.error('Error adding approved_date column:', err);
+      }
+    });
+
     // Check if admin exists, if not create default admin
     db.get("SELECT * FROM users WHERE role = 'admin'", (err, row) => {
       if (!row) {
@@ -128,6 +167,58 @@ function requireAdmin(req, res, next) {
   } else {
     res.status(403).send('Access denied');
   }
+}
+
+// Helper function to generate secure password
+function generatePassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let password = 'Seller@';
+  for (let i = 0; i < 6; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+// Helper function to send credentials
+async function sendCredentials(email, phone, name, password) {
+  const message = `
+Hi ${name},
+
+Your seller account has been approved!
+
+Login at: ${process.env.APP_URL || 'http://localhost:3000'}/login.html
+
+Credentials:
+Phone: ${phone}
+Password: ${password}
+
+Please change your password after first login.
+
+- RaffleApp Team
+  `;
+  
+  // For now, just log credentials (email/SMS integration can be added later)
+  console.log('Credentials for', name, ':', { phone, password, email });
+  console.log('Message:', message);
+}
+
+// Helper function to send rejection notification
+async function sendRejectionNotification(email, phone, reason) {
+  const message = `
+Hi,
+
+We regret to inform you that your seller registration request has been rejected.
+
+${reason ? 'Reason: ' + reason : ''}
+
+If you have any questions, please contact support.
+
+- RaffleApp Team
+  `;
+  
+  // For now, just log notification
+  console.log('Rejection notification sent to:', phone, email);
+  console.log('Message:', message);
 }
 
 // Routes
@@ -187,6 +278,195 @@ app.post('/login', (req, res) => {
 app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
+});
+
+// Seller Registration APIs
+// Submit registration request
+app.post('/api/seller-registration', async (req, res) => {
+  try {
+    const { fullName, phone, email, experience } = req.body;
+    
+    // Validate required fields
+    if (!fullName || !phone || !email) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Check if phone already exists in users
+    db.get('SELECT id FROM users WHERE phone = ?', [phone], (err, existingUser) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (existingUser) {
+        return res.status(400).json({ error: 'Phone number already registered' });
+      }
+      
+      // Check if pending request exists
+      db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = "pending"', [phone], (err, existingRequest) => {
+        if (err) {
+          return res.status(500).json({ error: 'Database error' });
+        }
+        
+        if (existingRequest) {
+          return res.status(400).json({ error: 'Registration request already pending' });
+        }
+        
+        // Insert registration request
+        db.run(`
+          INSERT INTO seller_requests (full_name, phone, email, experience, status)
+          VALUES (?, ?, ?, ?, 'pending')
+        `, [fullName, phone, email, experience || ''], (err) => {
+          if (err) {
+            console.error('Registration error:', err);
+            return res.status(500).json({ error: err.message });
+          }
+          
+          res.json({ 
+            success: true, 
+            message: 'Registration request submitted successfully. You will be notified once approved.' 
+          });
+        });
+      });
+    });
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all seller requests (admin only)
+app.get('/api/seller-requests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    db.all(`
+      SELECT * FROM seller_requests 
+      ORDER BY 
+        CASE status 
+          WHEN 'pending' THEN 1 
+          WHEN 'approved' THEN 2 
+          WHEN 'rejected' THEN 3 
+        END,
+        request_date DESC
+    `, (err, requests) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      res.json(requests);
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Approve seller request
+app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const adminPhone = req.session.user.phone;
+    const { notes } = req.body;
+    
+    // Get request details
+    db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId], async (err, request) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (!request) {
+        return res.status(404).json({ error: 'Request not found' });
+      }
+      
+      if (request.status !== 'pending') {
+        return res.status(400).json({ error: 'Request already processed' });
+      }
+      
+      // Generate random password
+      const generatedPassword = generatePassword();
+      const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+      
+      // Create seller user account
+      db.run(`
+        INSERT INTO users (phone, password, role, name, email, registered_via, approved_by, approved_date)
+        VALUES (?, ?, 'seller', ?, ?, 'registration', ?, datetime('now'))
+      `, [request.phone, hashedPassword, request.full_name, request.email, adminPhone], (err) => {
+        if (err) {
+          console.error('Error creating seller user:', err);
+          return res.status(500).json({ error: 'Error creating seller account' });
+        }
+        
+        // Update request status
+        db.run(`
+          UPDATE seller_requests 
+          SET status = 'approved', 
+              reviewed_by = ?, 
+              reviewed_date = datetime('now'),
+              approval_notes = ?
+          WHERE id = ?
+        `, [adminPhone, notes || '', requestId], async (err) => {
+          if (err) {
+            console.error('Error updating request:', err);
+            return res.status(500).json({ error: 'Error updating request status' });
+          }
+          
+          // Send credentials
+          await sendCredentials(request.email, request.phone, request.full_name, generatedPassword);
+          
+          res.json({ 
+            success: true, 
+            message: 'Seller approved and credentials sent',
+            credentials: {
+              phone: request.phone,
+              password: generatedPassword,
+              email: request.email
+            }
+          });
+        });
+      });
+    });
+    
+  } catch (error) {
+    console.error('Approval error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reject seller request
+app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const adminPhone = req.session.user.phone;
+    const { reason } = req.body;
+    
+    db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId], async (err, request) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (!request || request.status !== 'pending') {
+        return res.status(400).json({ error: 'Invalid request' });
+      }
+      
+      db.run(`
+        UPDATE seller_requests 
+        SET status = 'rejected', 
+            reviewed_by = ?, 
+            reviewed_date = datetime('now'),
+            approval_notes = ?
+        WHERE id = ?
+      `, [adminPhone, reason || '', requestId], async (err) => {
+        if (err) {
+          return res.status(500).json({ error: 'Database error' });
+        }
+        
+        // Send rejection notification
+        await sendRejectionNotification(request.email, request.phone, reason);
+        
+        res.json({ success: true, message: 'Request rejected' });
+      });
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Admin dashboard

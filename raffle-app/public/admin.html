@@ -446,6 +446,61 @@
     .print-barcode-btn:hover {
       background: #4f46e5;
     }
+    
+    /* Seller Request Styles */
+    .filter-btn {
+      opacity: 0.7;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    
+    .filter-btn.active {
+      opacity: 1;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    .filter-btn:hover {
+      opacity: 1;
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: capitalize;
+      display: inline-block;
+    }
+    
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .status-approved {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .status-rejected {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 14px;
+      margin: 2px;
+    }
+    
+    .btn-danger {
+      background: #ef4444;
+      color: #ffffff;
+    }
+    
+    .btn-danger:hover {
+      background: #dc2626;
+    }
   </style>
 </head>
 <body>
@@ -592,6 +647,35 @@
       <tbody></tbody>
     </table>
   </div>
+  
+  <!-- Seller Registration Requests Section -->
+  <div class="section">
+    <h2>📝 Seller Registration Requests</h2>
+    
+    <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+      <button class="filter-btn active" data-filter="pending" style="background: #f59e0b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Pending</button>
+      <button class="filter-btn" data-filter="approved" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Approved</button>
+      <button class="filter-btn" data-filter="rejected" style="background: #ef4444; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Rejected</button>
+      <button class="filter-btn" data-filter="all" style="background: #64748b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">All</button>
+    </div>
+    
+    <table id="sellerRequestsTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>Request Date</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="requestsTableBody">
+        <!-- Populated by JavaScript -->
+      </tbody>
+    </table>
+  </div>
+  
   <div class="section">
     <h2>Seller Performance</h2>
     <form id="performance-form">
@@ -1503,6 +1587,119 @@
         }, 2000);
       }
     });
+    
+    // ====== SELLER REGISTRATION REQUESTS ======
+    
+    // Load seller requests
+    async function loadSellerRequests(filter = 'pending') {
+      try {
+        const response = await fetch('/api/seller-requests');
+        const requests = await response.json();
+        
+        const tbody = document.getElementById('requestsTableBody');
+        tbody.innerHTML = '';
+        
+        const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);
+        
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
+          return;
+        }
+        
+        filtered.forEach(request => {
+          const row = document.createElement('tr');
+          const requestDate = new Date(request.request_date).toLocaleDateString();
+          
+          let actionsHtml = '';
+          if (request.status === 'pending') {
+            actionsHtml = `
+              <button onclick="approveRequest(${request.id})" class="btn-success btn-sm">✅ Approve</button>
+              <button onclick="rejectRequest(${request.id})" class="btn-danger btn-sm">❌ Reject</button>
+            `;
+          } else {
+            const reviewedDate = request.reviewed_date ? new Date(request.reviewed_date).toLocaleDateString() : '';
+            actionsHtml = `<small style="color: #64748b;">Reviewed: ${reviewedDate}<br>By: ${request.reviewed_by || 'N/A'}</small>`;
+          }
+          
+          row.innerHTML = `
+            <td>${request.full_name}</td>
+            <td>${request.phone}</td>
+            <td>${request.email}</td>
+            <td>${requestDate}</td>
+            <td><span class="status-badge status-${request.status}">${request.status}</span></td>
+            <td>${actionsHtml}</td>
+          `;
+          tbody.appendChild(row);
+        });
+        
+      } catch (error) {
+        console.error('Error loading requests:', error);
+        showNotify('❌ Error loading requests', '#ef4444');
+      }
+    }
+    
+    // Approve seller request
+    async function approveRequest(id) {
+      if (!confirm('Approve this seller and send login credentials?')) return;
+      
+      try {
+        const response = await fetch(`/api/seller-requests/${id}/approve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: '' })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showNotify(`✅ Seller approved!\n\nCredentials:\nPhone: ${result.credentials.phone}\nPassword: ${result.credentials.password}`, '#10b981', 6000);
+          // Also show in alert for easy copying
+          alert(`✅ Seller approved!\n\nCredentials sent:\nPhone: ${result.credentials.phone}\nPassword: ${result.credentials.password}\nEmail: ${result.credentials.email}`);
+          loadSellerRequests('pending');
+        } else {
+          showNotify('❌ Error: ' + result.error, '#ef4444');
+        }
+      } catch (error) {
+        showNotify('❌ Error approving request: ' + error.message, '#ef4444');
+      }
+    }
+    
+    // Reject seller request
+    async function rejectRequest(id) {
+      const reason = prompt('Reason for rejection (optional):');
+      if (reason === null) return; // Cancelled
+      
+      try {
+        const response = await fetch(`/api/seller-requests/${id}/reject`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showNotify('✅ Request rejected', '#10b981');
+          loadSellerRequests('pending');
+        } else {
+          showNotify('❌ Error: ' + result.error, '#ef4444');
+        }
+      } catch (error) {
+        showNotify('❌ Error rejecting request: ' + error.message, '#ef4444');
+      }
+    }
+    
+    // Filter buttons event listeners
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        loadSellerRequests(e.target.dataset.filter);
+      });
+    });
+    
+    // Load seller requests on page load
+    loadSellerRequests('pending');
     
   </script>
   <footer>
