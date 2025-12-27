@@ -430,7 +430,8 @@
       sellerScanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: 250 },
-        onScanSuccess
+        onScanSuccess,
+        () => {} // Silent error callback - scanning errors are normal
       ).then(() => {
         isSellerScannerRunning = true;
         scanResult.textContent = '✅ Point at barcode';

@@ -911,11 +911,12 @@
                               // Highlight ticket in table
                               const ticketsTable = document.querySelector('#tickets-table tbody');
                               if (ticketsTable) {
-                                ticketsTable.querySelectorAll('tr').forEach(row => row.classList.remove('ticket-highlight'));
                                 ticketsTable.querySelectorAll('tr').forEach(row => {
                                   if (row.children[1]?.textContent === decodedText) {
                                     row.classList.add('ticket-highlight');
                                     row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  } else {
+                                    row.classList.remove('ticket-highlight');
                                   }
                                 });
                               }
@@ -968,7 +969,8 @@
                               adminScanner.start(
                                 { facingMode: "environment" },
                                 { fps: 10, qrbox: 250 },
-                                onAdminScanSuccess
+                                onAdminScanSuccess,
+                                () => {} // Silent error callback - scanning errors are normal
                               ).then(() => {
                                 isAdminScannerRunning = true;
                                 scanResult.textContent = '✅ Point at barcode';
