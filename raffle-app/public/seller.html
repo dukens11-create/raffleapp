@@ -397,13 +397,13 @@
       if (typeof Html5Qrcode === 'undefined') { scanResult.textContent = '❌ Library not loaded'; return; }
       try { sellerScanner = new Html5Qrcode("scanner-reader"); } catch (err) { scanResult.textContent = `❌ ${err.message}`; return; }
       scanResult.textContent = '📷 Starting...';
-      sellerScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess)
+      sellerScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess)
         .then(() => { isSellerScannerRunning = true; scanResult.textContent = '✅ Ready'; })
         .catch((err) => { scanResult.textContent = `❌ ${err.name || 'Error'}`; isSellerScannerRunning = false; sellerScanner = null; });
     }
     
     function stopSellerScanner() {
-      if (sellerScanner && isSellerScannerRunning) { sellerScanner.stop().catch(() => {}); isSellerScannerRunning = false; sellerScanner = null; }
+      if (sellerScanner && isSellerScannerRunning) { sellerScanner.stop().then(() => { isSellerScannerRunning = false; sellerScanner = null; }).catch(() => { isSellerScannerRunning = false; sellerScanner = null; }); }
     }
     
     document.getElementById('scanTicketBtn')?.addEventListener('click', () => { document.getElementById('scannerModal').style.display = 'block'; startSellerScanner(); });
