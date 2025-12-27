@@ -57,27 +57,13 @@
       "purpose": "any maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "/screenshots/admin-dashboard.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
-    },
-    {
-      "src": "/screenshots/login-mobile.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "categories": ["business", "productivity"],
   "shortcuts": [
     {
       "name": "Admin Dashboard",
       "short_name": "Admin",
       "description": "Access admin dashboard",
-      "url": "/admin",
+      "url": "/admin.html",
       "icons": [
         {
           "src": "/icons/icon-96x96.png",
@@ -89,7 +75,7 @@
       "name": "Seller Dashboard",
       "short_name": "Seller",
       "description": "Access seller dashboard",
-      "url": "/seller",
+      "url": "/seller.html",
       "icons": [
         {
           "src": "/icons/icon-96x96.png",

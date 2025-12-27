@@ -53,7 +53,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Skip API requests (always go to network)
-  if (event.request.url.includes('/api/')) {
+  const url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
 
