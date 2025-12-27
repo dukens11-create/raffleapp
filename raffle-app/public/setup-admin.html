@@ -139,6 +139,10 @@
             
             button.disabled = true;
             button.textContent = 'Setting up...';
+            messageDiv.textContent = '';
+            messageDiv.className = '';
+            
+            console.log('Calling /api/setup-admin...');
             
             try {
                 const response = await fetch('/api/setup-admin', {
@@ -147,7 +151,11 @@
                     body: JSON.stringify({})
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
                 const data = await response.json();
+                console.log('Response data:', data);
                 
                 if (data.success) {
                     messageDiv.className = 'success';
@@ -165,8 +173,9 @@
                 }
                 
             } catch (error) {
+                console.error('Setup error:', error);
                 messageDiv.className = 'error';
-                messageDiv.textContent = 'Connection error: ' + error.message;
+                messageDiv.textContent = 'Connection error: ' + error.message + '. Check console for details.';
             } finally {
                 button.disabled = false;
                 button.textContent = 'Reset Admin Account';
