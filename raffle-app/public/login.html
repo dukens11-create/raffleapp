@@ -190,6 +190,12 @@
             color: #764ba2;
         }
         
+        /* Pulse animation for fallback redirect link */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
         /* Responsive design */
         @media (max-width: 480px) {
             .container {
@@ -362,13 +368,42 @@
                 // Check if there's a redirect URL
                 if (data.redirect) {
                     console.log('Login successful! Redirecting to:', data.redirect);
-                    messageDiv.textContent = '✅ Login successful! Redirecting...';
+                    
+                    // Show success message with immediate fallback link
+                    messageDiv.innerHTML = `
+                        ✅ Login successful!
+                        <br><br>
+                        <a href="${data.redirect}" id="redirectLink" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 8px;">
+                            Click Here to Access Dashboard →
+                        </a>
+                        <br>
+                        <small style="color: #666; display: block; margin-top: 12px;">Redirecting automatically...</small>
+                    `;
                     messageDiv.style.color = 'green';
                     
-                    // Don't clear inputs on success
+                    // Attempt immediate redirect (multiple methods for compatibility)
+                    try {
+                        // Method 1: location.replace (no history entry, better for login)
+                        setTimeout(() => window.location.replace(data.redirect), 100);
+                    } catch (e) {
+                        console.error('Redirect method 1 failed:', e);
+                        // Method 2: location.href
+                        try {
+                            window.location.href = data.redirect;
+                        } catch (e2) {
+                            console.error('Redirect method 2 failed:', e2);
+                            // Manual link is already shown above
+                        }
+                    }
+                    
+                    // Fallback: If still on page after 1 second, emphasize the manual link
                     setTimeout(() => {
-                        window.location.href = data.redirect;
-                    }, 500);
+                        const link = document.getElementById('redirectLink');
+                        if (link) {
+                            link.style.animation = 'pulse 1s infinite';
+                            messageDiv.querySelector('small').textContent = 'Please click the button above to continue';
+                        }
+                    }, 1000);
                 } else {
                     console.error('No redirect URL in response');
                     messageDiv.textContent = 'Login response invalid - check console for details';
