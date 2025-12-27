@@ -389,38 +389,40 @@
                     link.href = redirectUrl;
                     link.id = 'redirectLink';
                     link.textContent = 'Click Here to Access Dashboard →';
-                    link.style.cssText = 'display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 8px;';
+                    link.style.cssText = 'display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin: 16px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s ease; min-height: 44px; min-width: 200px; text-align: center;';
                     messageDiv.appendChild(link);
                     
                     messageDiv.appendChild(document.createElement('br'));
                     
                     const small = document.createElement('small');
                     small.style.cssText = 'color: #666; display: block; margin-top: 12px;';
-                    small.textContent = 'Redirecting automatically...';
+                    small.textContent = 'Redirecting in 1 second... or tap button above';
                     messageDiv.appendChild(small);
                     
-                    // Attempt immediate redirect (100ms delay for UI to render)
+                    // Attempt immediate redirect (1500ms delay for UI to render)
                     setTimeout(() => {
                         try {
-                            window.location.replace(redirectUrl);
+                            console.log('Attempting redirect to:', redirectUrl);
+                            window.location.href = redirectUrl;
                         } catch (e) {
                             console.error('Redirect failed:', e);
-                            // Fallback to location.href
-                            window.location.href = redirectUrl;
+                            // Fallback: try window.location.assign
+                            window.location.assign(redirectUrl);
                         }
-                    }, 100);
+                    }, 1500);
                     
-                    // Fallback: If still on page after 1 second, emphasize the manual link
+                    // Fallback: If still on page after 3 seconds, emphasize the manual link
                     setTimeout(() => {
                         const linkEl = document.getElementById('redirectLink');
                         const smallEl = messageDiv.querySelector('small');
                         if (linkEl) {
                             linkEl.style.animation = 'pulse 1s infinite';
+                            console.log('Manual redirect button available');
                         }
                         if (smallEl) {
-                            smallEl.textContent = 'Please click the button above to continue';
+                            smallEl.textContent = 'Tap the button above if not redirected automatically';
                         }
-                    }, 1000);
+                    }, 3000);
                 } else {
                     console.error('No redirect URL in response');
                     messageDiv.textContent = 'Login response invalid - check console for details';
