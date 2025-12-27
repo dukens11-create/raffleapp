@@ -380,6 +380,7 @@
     // Camera Scanner - Seller
     let sellerScanner = null;
     let isSellerScannerRunning = false;
+    const SCANNER_CLOSE_DELAY_MS = 2000;
     
     function onScanSuccess(decodedText) {
       document.getElementById('scanResult').textContent = `✅ Scanned: ${decodedText}`;
@@ -389,7 +390,7 @@
       setTimeout(() => {
         stopSellerScanner();
         document.getElementById('scannerModal').style.display = 'none';
-      }, 2000);
+      }, SCANNER_CLOSE_DELAY_MS);
     }
     
     function startSellerScanner() {

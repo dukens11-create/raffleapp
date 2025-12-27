@@ -902,6 +902,7 @@
                             // Camera Scanner - Admin
                             let adminScanner = null;
                             let isAdminScannerRunning = false;
+                            const SCANNER_CLOSE_DELAY_MS = 2000;
                             
                             function onAdminScanSuccess(decodedText) {
                               document.getElementById('scanResult').textContent = `✅ Scanned: ${decodedText}`;
@@ -922,7 +923,7 @@
                               setTimeout(() => {
                                 stopAdminScanner();
                                 document.getElementById('scannerModal').style.display = 'none';
-                              }, 2000);
+                              }, SCANNER_CLOSE_DELAY_MS);
                             }
                             
                             function startAdminScanner() {
