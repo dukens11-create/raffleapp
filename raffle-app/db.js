@@ -215,6 +215,26 @@ function serialize(callback) {
   }
 }
 
+/**
+ * Get current timestamp expression for SQL queries
+ */
+function getCurrentTimestamp() {
+  return USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')";
+}
+
+/**
+ * Check if error is a unique constraint violation
+ * Works for both SQLite and PostgreSQL
+ */
+function isUniqueConstraintError(error) {
+  if (!error || !error.message) return false;
+  const message = error.message.toLowerCase();
+  // SQLite: "UNIQUE constraint failed"
+  // PostgreSQL: "duplicate key value violates unique constraint"
+  return message.includes('unique constraint') || 
+         message.includes('duplicate key');
+}
+
 module.exports = {
   query,
   get,
@@ -223,5 +243,7 @@ module.exports = {
   initializeSchema,
   close,
   serialize,
-  USE_POSTGRES
+  USE_POSTGRES,
+  getCurrentTimestamp,
+  isUniqueConstraintError
 };

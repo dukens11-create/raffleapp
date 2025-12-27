@@ -692,7 +692,7 @@ app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (r
     // Create seller user account
     await db.run(`
       INSERT INTO users (phone, password, role, name, email, registered_via, approved_by, approved_date)
-      VALUES (?, ?, 'seller', ?, ?, 'registration', ?, ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"})
+      VALUES (?, ?, 'seller', ?, ?, 'registration', ?, ${db.getCurrentTimestamp()})
     `, [request.phone, hashedPassword, request.full_name, request.email, adminPhone]);
     
     // Update request status
@@ -700,7 +700,7 @@ app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (r
       UPDATE seller_requests 
       SET status = 'approved', 
           reviewed_by = ?, 
-          reviewed_date = ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"},
+          reviewed_date = ${db.getCurrentTimestamp()},
           approval_notes = ?
       WHERE id = ?
     `, [adminPhone, notes || '', requestId]);
@@ -747,7 +747,7 @@ app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, async (re
       UPDATE seller_requests 
       SET status = 'rejected', 
           reviewed_by = ?, 
-          reviewed_date = ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"},
+          reviewed_date = ${db.getCurrentTimestamp()},
           approval_notes = ?
       WHERE id = ?
     `, [adminPhone, reason || '', requestId]);
@@ -818,7 +818,7 @@ app.post('/api/sellers', requireAuth, requireAdmin, validateSeller, async (req, 
       console.log(`Seller created: ${name} (${phone}) by admin`);
       res.json({ success: true, id: result.lastID });
     } catch (err) {
-      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      if (db.isUniqueConstraintError(err)) {
         return res.status(400).json({ 
           error: 'Phone number already exists',
           timestamp: new Date().toISOString()
@@ -859,7 +859,7 @@ app.put('/api/sellers/:id', requireAuth, requireAdmin, async (req, res) => {
         );
         res.json({ success: true });
       } catch (err) {
-        if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        if (db.isUniqueConstraintError(err)) {
           return res.status(400).json({ error: 'Phone number already exists' });
         }
         return res.status(500).json({ error: 'Database error' });
@@ -872,7 +872,7 @@ app.put('/api/sellers/:id', requireAuth, requireAdmin, async (req, res) => {
         );
         res.json({ success: true });
       } catch (err) {
-        if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        if (db.isUniqueConstraintError(err)) {
           return res.status(400).json({ error: 'Phone number already exists' });
         }
         return res.status(500).json({ error: 'Database error' });
@@ -952,7 +952,7 @@ app.post('/api/tickets', requireAuth, validateTicket, async (req, res) => {
       console.log(`Ticket created: ${ticket_number} by ${seller_name}`);
       res.json({ success: true, id: result.lastID });
     } catch (err) {
-      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+      if (db.isUniqueConstraintError(err)) {
         return res.status(400).json({ 
           error: 'Ticket number already exists',
           timestamp: new Date().toISOString()
@@ -1191,7 +1191,7 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
     // Insert ticket with barcode
     const result = await db.run(`
       INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount, category, status, barcode, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"})
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ${db.getCurrentTimestamp()})
     `, [
       ticketNumber, 
       buyerName, 
