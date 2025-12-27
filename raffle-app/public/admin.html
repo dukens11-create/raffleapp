@@ -996,137 +996,39 @@
                               }, 2000);
                             }
                             
-                            async function startAdminScanner() {
-                              console.log('%c[DIAGNOSTIC] ===== START SCANNER CALLED =====', 'color: purple; font-size: 14px; font-weight: bold');
-                              console.log('[DIAGNOSTIC] Time:', new Date().toISOString());
-                              console.log('[DIAGNOSTIC] isAdminScannerRunning:', isAdminScannerRunning);
-                              console.log('[DIAGNOSTIC] adminScanner exists:', !!adminScanner);
+                            function startAdminScanner() {
+                              console.log('Starting admin camera scanner...');
                               
                               if (isAdminScannerRunning) {
-                                console.warn('[DIAGNOSTIC] Scanner already running - EXITING');
+                                console.log('Admin scanner already running');
                                 return;
                               }
                               
-                              try {
-                                console.log('[DIAGNOSTIC] Checking camera permission...');
-                                console.log('[DIAGNOSTIC] navigator.mediaDevices:', typeof navigator.mediaDevices);
-                                console.log('[DIAGNOSTIC] getUserMedia:', typeof navigator.mediaDevices?.getUserMedia);
-                                
-                                // Update UI
-                                const scanResult = document.getElementById('scanResult');
-                                if (scanResult) {
-                                  scanResult.textContent = '🎥 Requesting camera permission...';
-                                  console.log('[DIAGNOSTIC] Updated UI: Requesting permission');
+                              // Clear previous messages
+                              document.getElementById('scanResult').textContent = '';
+                              
+                              // Create scanner instance
+                              adminScanner = new Html5Qrcode("scanner-reader");
+                              document.getElementById('scanResult').textContent = '📷 Initializing camera...';
+                              
+                              // Start scanner with simple .then/.catch
+                              adminScanner.start(
+                                { facingMode: "environment" },
+                                { fps: 10, qrbox: { width: 250, height: 250 } },
+                                onAdminScanSuccess,
+                                (errorMessage) => {
+                                  // Silent error handling - scanning errors are normal
                                 }
-                                
-                                // Request permission
-                                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                                  console.log('[DIAGNOSTIC] Calling getUserMedia...');
-                                  
-                                  try {
-                                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                                      video: { facingMode: "environment" } 
-                                    });
-                                    
-                                    console.log('[DIAGNOSTIC] getUserMedia SUCCESS');
-                                    console.log('[DIAGNOSTIC] Stream tracks:', stream.getTracks().length);
-                                    
-                                    // Stop test stream
-                                    stream.getTracks().forEach(track => {
-                                      track.stop();
-                                      console.log('[DIAGNOSTIC] Stopped track:', track.kind);
-                                    });
-                                    
-                                    console.log('[DIAGNOSTIC] Camera permission GRANTED');
-                                    
-                                  } catch (permError) {
-                                    console.error('%c[DIAGNOSTIC] PERMISSION DENIED', 'color: red; font-weight: bold');
-                                    console.error('[DIAGNOSTIC] Error name:', permError.name);
-                                    console.error('[DIAGNOSTIC] Error message:', permError.message);
-                                    console.error('[DIAGNOSTIC] Error stack:', permError.stack);
-                                    
-                                    if (scanResult) {
-                                      scanResult.innerHTML = 
-                                        '❌ Camera access denied<br><br>' +
-                                        'Error: ' + permError.name + '<br>' +
-                                        'Message: ' + permError.message + '<br><br>' +
-                                        'Please allow camera access and try again.';
-                                    }
-                                    return;
-                                  }
-                                } else {
-                                  console.error('%c[DIAGNOSTIC] MEDIA DEVICES NOT SUPPORTED', 'color: red; font-weight: bold');
-                                  if (scanResult) {
-                                    scanResult.innerHTML = '❌ Camera not supported in this browser';
-                                  }
-                                  return;
-                                }
-                                
-                                // Initialize Html5Qrcode
-                                console.log('[DIAGNOSTIC] Creating Html5Qrcode instance...');
-                                console.log('[DIAGNOSTIC] Html5Qrcode available:', typeof Html5Qrcode);
-                                
-                                if (typeof Html5Qrcode === 'undefined') {
-                                  console.error('%c[DIAGNOSTIC] Html5Qrcode LIBRARY NOT LOADED!', 'color: red; font-weight: bold');
-                                  if (scanResult) {
-                                    scanResult.innerHTML = '❌ Scanner library not loaded. Please refresh the page.';
-                                  }
-                                  return;
-                                }
-                                
-                                adminScanner = new Html5Qrcode("scanner-reader");
-                                console.log('[DIAGNOSTIC] Html5Qrcode instance created');
-                                
-                                if (scanResult) {
-                                  scanResult.textContent = '📷 Starting camera...';
-                                  console.log('[DIAGNOSTIC] Updated UI: Starting camera');
-                                }
-                                
-                                // Start scanner
-                                console.log('[DIAGNOSTIC] Calling scanner.start()...');
-                                console.log('[DIAGNOSTIC] Config: facingMode=environment, fps=10, qrbox=250x250');
-                                
-                                await adminScanner.start(
-                                  { facingMode: "environment" },
-                                  { 
-                                    fps: 10, 
-                                    qrbox: { width: 250, height: 250 }
-                                  },
-                                  onAdminScanSuccess,
-                                  (errorMessage) => {
-                                    // Silent scanning errors are normal
-                                    console.log('[DIAGNOSTIC] Scanning error (normal):', errorMessage);
-                                  }
-                                );
-                                
-                                console.log('%c[DIAGNOSTIC] SCANNER START SUCCESS!', 'color: green; font-weight: bold; font-size: 14px');
-                                
+                              ).then(() => {
                                 isAdminScannerRunning = true;
-                                
-                                if (scanResult) {
-                                  scanResult.textContent = '✅ Camera ready - point at barcode';
-                                  console.log('[DIAGNOSTIC] Updated UI: Camera ready');
-                                }
-                                
-                              } catch (err) {
-                                console.error('%c[DIAGNOSTIC] ===== SCANNER START FAILED =====', 'color: red; font-weight: bold; font-size: 14px');
-                                console.error('[DIAGNOSTIC] Error name:', err.name);
-                                console.error('[DIAGNOSTIC] Error message:', err.message);
-                                console.error('[DIAGNOSTIC] Error toString:', err.toString());
-                                console.error('[DIAGNOSTIC] Error stack:', err.stack);
-                                
-                                const scanResult = document.getElementById('scanResult');
-                                if (scanResult) {
-                                  scanResult.innerHTML = 
-                                    '❌ Scanner Error<br><br>' +
-                                    'Name: ' + err.name + '<br>' +
-                                    'Message: ' + err.message + '<br><br>' +
-                                    'Check console for details';
-                                }
-                                
+                                document.getElementById('scanResult').textContent = '✅ Camera ready - point at barcode';
+                                console.log('✅ Admin camera started successfully');
+                              }).catch((err) => {
+                                console.error('❌ Admin camera error:', err);
+                                document.getElementById('scanResult').textContent = `❌ Camera Error: ${err}`;
                                 isAdminScannerRunning = false;
                                 adminScanner = null;
-                              }
+                              });
                             }
                             
                             function stopAdminScanner() {
