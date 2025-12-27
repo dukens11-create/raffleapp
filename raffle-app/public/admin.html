@@ -25,6 +25,7 @@
     header {
       width: 100vw;
       background: rgba(255, 255, 255, 0.95);
+      -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
       color: #1e293b;
       display: flex;
@@ -48,6 +49,7 @@
     footer {
       width: 100vw;
       background: rgba(255, 255, 255, 0.95);
+      -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
       color: #64748b;
       text-align: center;
@@ -235,6 +237,11 @@
     tr:hover {
       background: #f8fafc;
     }
+    /* Table header gradient helper class */
+    .table-header-gradient {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
     /* Scanner Modal Styles */
     .scanner-modal {
       display: none;
@@ -246,6 +253,7 @@
       height: 100%;
       overflow: auto;
       background-color: rgba(102, 126, 234, 0.95);
+      -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
       animation: fadeIn 0.3s ease;
     }
@@ -535,7 +543,7 @@
     <h1 style="color:#1e293b;text-shadow:none;font-size:24px;font-weight:600;" data-i18n="Audit Logs">Audit Logs</h1>
     <table id="audit-table" style="background:#ffffff;color:#1e293b;">
       <thead>
-        <tr style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+        <tr class="table-header-gradient"><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
       </thead>
       <tbody></tbody>
     </table>
@@ -1018,10 +1026,12 @@
                     }
                     loadAuditLogs();
             // Notification helper
-            function showNotify(msg, color = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', timeout = 2500) {
+            function showNotify(msg, color = null, timeout = 2500) {
               const notify = document.getElementById('notify');
               notify.textContent = msg;
-              notify.style.background = color;
+              if (color) {
+                notify.style.background = color;
+              }
               notify.style.display = 'block';
               setTimeout(() => { notify.style.display = 'none'; }, timeout);
             }
