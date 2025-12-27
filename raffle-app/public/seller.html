@@ -405,13 +405,14 @@
       
       // CRITICAL FIX: Force cleanup any existing scanner FIRST
       if (sellerScanner) {
-        try {
-          sellerScanner.stop().catch(() => {}).then(() => {
-            return sellerScanner ? sellerScanner.clear().catch(() => {}) : Promise.resolve();
-          });
-        } catch (e) {}
+        const oldScanner = sellerScanner;
         sellerScanner = null;
         isSellerScannerRunning = false;
+        try {
+          oldScanner.stop().catch(() => {}).then(() => {
+            return oldScanner.clear().catch(() => {});
+          });
+        } catch (e) {}
       }
       
       // Prevent double start

@@ -938,13 +938,14 @@
                               
                               // CRITICAL FIX: Force cleanup any existing scanner FIRST
                               if (adminScanner) {
-                                try {
-                                  adminScanner.stop().catch(() => {}).then(() => {
-                                    return adminScanner ? adminScanner.clear().catch(() => {}) : Promise.resolve();
-                                  });
-                                } catch (e) {}
+                                const oldScanner = adminScanner;
                                 adminScanner = null;
                                 isAdminScannerRunning = false;
+                                try {
+                                  oldScanner.stop().catch(() => {}).then(() => {
+                                    return oldScanner.clear().catch(() => {});
+                                  });
+                                } catch (e) {}
                               }
                               
                               // Prevent double start
