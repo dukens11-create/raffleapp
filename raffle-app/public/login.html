@@ -369,39 +369,56 @@
                 if (data.redirect) {
                     console.log('Login successful! Redirecting to:', data.redirect);
                     
-                    // Show success message with immediate fallback link
-                    messageDiv.innerHTML = `
-                        ✅ Login successful!
-                        <br><br>
-                        <a href="${data.redirect}" id="redirectLink" style="display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 8px;">
-                            Click Here to Access Dashboard →
-                        </a>
-                        <br>
-                        <small style="color: #666; display: block; margin-top: 12px;">Redirecting automatically...</small>
-                    `;
+                    // Validate redirect URL to prevent XSS
+                    const redirectUrl = data.redirect;
+                    const isValidRedirect = redirectUrl.startsWith('/') || redirectUrl.startsWith(window.location.origin);
+                    
+                    if (!isValidRedirect) {
+                        console.error('Invalid redirect URL:', redirectUrl);
+                        messageDiv.textContent = 'Invalid redirect URL - security check failed';
+                        messageDiv.style.color = 'red';
+                        return;
+                    }
+                    
+                    // Show success message with immediate fallback link (using DOM for security)
+                    messageDiv.innerHTML = '✅ Login successful!<br><br>';
                     messageDiv.style.color = 'green';
                     
-                    // Attempt immediate redirect (multiple methods for compatibility)
-                    try {
-                        // Method 1: location.replace (no history entry, better for login)
-                        setTimeout(() => window.location.replace(data.redirect), 100);
-                    } catch (e) {
-                        console.error('Redirect method 1 failed:', e);
-                        // Method 2: location.href
+                    // Create link element safely using DOM
+                    const link = document.createElement('a');
+                    link.href = redirectUrl;
+                    link.id = 'redirectLink';
+                    link.textContent = 'Click Here to Access Dashboard →';
+                    link.style.cssText = 'display: inline-block; padding: 12px 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 8px;';
+                    messageDiv.appendChild(link);
+                    
+                    messageDiv.appendChild(document.createElement('br'));
+                    
+                    const small = document.createElement('small');
+                    small.style.cssText = 'color: #666; display: block; margin-top: 12px;';
+                    small.textContent = 'Redirecting automatically...';
+                    messageDiv.appendChild(small);
+                    
+                    // Attempt immediate redirect (100ms delay for UI to render)
+                    setTimeout(() => {
                         try {
-                            window.location.href = data.redirect;
-                        } catch (e2) {
-                            console.error('Redirect method 2 failed:', e2);
-                            // Manual link is already shown above
+                            window.location.replace(redirectUrl);
+                        } catch (e) {
+                            console.error('Redirect failed:', e);
+                            // Fallback to location.href
+                            window.location.href = redirectUrl;
                         }
-                    }
+                    }, 100);
                     
                     // Fallback: If still on page after 1 second, emphasize the manual link
                     setTimeout(() => {
-                        const link = document.getElementById('redirectLink');
-                        if (link) {
-                            link.style.animation = 'pulse 1s infinite';
-                            messageDiv.querySelector('small').textContent = 'Please click the button above to continue';
+                        const linkEl = document.getElementById('redirectLink');
+                        const smallEl = messageDiv.querySelector('small');
+                        if (linkEl) {
+                            linkEl.style.animation = 'pulse 1s infinite';
+                        }
+                        if (smallEl) {
+                            smallEl.textContent = 'Please click the button above to continue';
                         }
                     }, 1000);
                 } else {
