@@ -902,6 +902,37 @@
                             let adminScanner = null;
                             let isAdminScannerRunning = false;
                             
+                            // Check camera availability before starting scanner
+                            async function checkCameraAvailability() {
+                              // Check if browser supports getUserMedia
+                              if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                                return { available: false, error: 'Your browser does not support camera access. Please use Chrome, Firefox, Safari, or Edge.' };
+                              }
+                              
+                              // Check HTTPS requirement
+                              if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                                return { available: false, error: 'Camera requires HTTPS connection. Please access this site via HTTPS.' };
+                              }
+                              
+                              // Check if Html5Qrcode is loaded
+                              if (typeof Html5Qrcode === 'undefined') {
+                                return { available: false, error: 'Scanner library not loaded. Please refresh the page.' };
+                              }
+                              
+                              // Try to get camera permission status
+                              try {
+                                const devices = await navigator.mediaDevices.enumerateDevices();
+                                const cameras = devices.filter(device => device.kind === 'videoinput');
+                                if (cameras.length === 0) {
+                                  return { available: false, error: 'No camera found on this device.' };
+                                }
+                              } catch (err) {
+                                console.warn('Could not enumerate devices:', err);
+                              }
+                              
+                              return { available: true };
+                            }
+                            
                             function onAdminScanSuccess(decodedText, decodedResult) {
                               // Display scanned result
                               document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
@@ -948,25 +979,65 @@
                               }, 2000);
                             }
                             
-                            function startAdminScanner() {
-                              if (isAdminScannerRunning) return;
+                            function handleCameraError(err) {
+                              let userMessage = '';
                               
-                              adminScanner = new Html5Qrcode("scanner-reader");
-                              document.getElementById('scanResult').textContent = '🔍 Scanning...';
+                              if (err.name === 'NotAllowedError' || err.toString().includes('NotAllowedError')) {
+                                userMessage = '❌ Camera permission denied. Please allow camera access in your browser settings and try again.';
+                              } else if (err.name === 'NotFoundError' || err.toString().includes('NotFoundError')) {
+                                userMessage = '❌ No camera found on this device. Please connect a camera.';
+                              } else if (err.name === 'NotReadableError' || err.toString().includes('NotReadableError')) {
+                                userMessage = '❌ Camera is already in use by another application. Please close other apps using the camera.';
+                              } else if (err.name === 'OverconstrainedError' || err.toString().includes('OverconstrainedError')) {
+                                userMessage = '❌ Camera does not meet requirements. Trying with different settings...';
+                              } else if (err.toString().includes('secure')) {
+                                userMessage = '❌ Camera requires HTTPS connection. Please access via HTTPS.';
+                              } else {
+                                userMessage = `❌ Camera error: ${err.toString()}. Please try again or use a different browser.`;
+                              }
                               
-                              adminScanner.start(
-                                { facingMode: "environment" },
-                                { fps: 10, qrbox: { width: 250, height: 250 } },
-                                onAdminScanSuccess,
-                                (errorMessage) => {
-                                  // Silent error handling - scanning errors are normal
-                                }
-                              ).then(() => {
+                              document.getElementById('scanResult').innerHTML = userMessage;
+                              showNotify(userMessage.replace('❌ ', ''), '#ef4444', 5000);
+                              
+                              // Reset scanner state
+                              isAdminScannerRunning = false;
+                              adminScanner = null;
+                            }
+                            
+                            async function startAdminScanner() {
+                              if (isAdminScannerRunning) {
+                                console.log('Scanner already running');
+                                return;
+                              }
+                              
+                              // Check camera availability first
+                              const cameraCheck = await checkCameraAvailability();
+                              if (!cameraCheck.available) {
+                                document.getElementById('scanResult').innerHTML = `❌ ${cameraCheck.error}`;
+                                showNotify(cameraCheck.error, '#ef4444', 5000);
+                                return;
+                              }
+                              
+                              try {
+                                adminScanner = new Html5Qrcode("scanner-reader");
+                                document.getElementById('scanResult').textContent = '🔍 Initializing camera...';
+                                
+                                await adminScanner.start(
+                                  { facingMode: "environment" },
+                                  { fps: 10, qrbox: { width: 250, height: 250 } },
+                                  onAdminScanSuccess,
+                                  (errorMessage) => {
+                                    // Silent error handling - scanning errors are normal
+                                  }
+                                );
+                                
                                 isAdminScannerRunning = true;
-                              }).catch((err) => {
-                                document.getElementById('scanResult').innerHTML = `❌ Camera Error: ${err}`;
-                                showNotify('Camera access denied or unavailable', '#ef4444', 3000);
-                              });
+                                document.getElementById('scanResult').textContent = '🔍 Scanning... Point camera at barcode';
+                                
+                              } catch (err) {
+                                console.error('Camera error:', err);
+                                handleCameraError(err);
+                              }
                             }
                             
                             function stopAdminScanner() {
@@ -984,6 +1055,8 @@
                             // Scanner button click handler
                             if (document.getElementById('scanTicketBtn')) {
                               document.getElementById('scanTicketBtn').addEventListener('click', function() {
+                                // Clear previous scan results and errors
+                                document.getElementById('scanResult').textContent = '';
                                 document.getElementById('scannerModal').style.display = 'block';
                                 startAdminScanner();
                               });
