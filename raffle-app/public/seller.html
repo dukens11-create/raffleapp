@@ -357,6 +357,53 @@
     <ul id="sales-history"></ul>
   </div>
   <script>
+        // ===== SCANNER DIAGNOSTICS ENABLED =====
+        console.log('%c===== SCANNER DIAGNOSTICS ENABLED =====', 'color: blue; font-size: 16px; font-weight: bold');
+        console.log('Html5Qrcode available:', typeof Html5Qrcode !== 'undefined');
+        console.log('navigator.mediaDevices:', typeof navigator.mediaDevices);
+        console.log('getUserMedia:', typeof navigator.mediaDevices?.getUserMedia);
+        console.log('Current URL:', window.location.href);
+        console.log('Is HTTPS:', window.location.protocol === 'https:');
+        console.log('Is localhost:', window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        
+        // Check if CDN script loaded
+        const html5QrcodeScript = document.querySelector('script[src*="html5-qrcode"]');
+        if (html5QrcodeScript) {
+          console.log('[DIAGNOSTIC] Html5Qrcode script tag found');
+          console.log('[DIAGNOSTIC] Script src:', html5QrcodeScript.src);
+          
+          html5QrcodeScript.addEventListener('error', function() {
+            console.error('%c[DIAGNOSTIC] CDN SCRIPT FAILED TO LOAD!', 'color: red; font-weight: bold');
+            alert('Error: Cannot load scanner library from CDN. Please check your internet connection.');
+          });
+          
+          html5QrcodeScript.addEventListener('load', function() {
+            console.log('%c[DIAGNOSTIC] CDN script loaded successfully', 'color: green');
+          });
+        } else {
+          console.error('[DIAGNOSTIC] Html5Qrcode script tag NOT FOUND in page!');
+        }
+        
+        // Add after html5-qrcode script tag loads
+        window.addEventListener('load', function() {
+          console.log('%c[DIAGNOSTIC] Page loaded', 'color: blue');
+          console.log('[DIAGNOSTIC] Html5Qrcode loaded:', typeof Html5Qrcode !== 'undefined');
+          
+          if (typeof Html5Qrcode === 'undefined') {
+            console.error('%c[DIAGNOSTIC] Html5Qrcode library FAILED TO LOAD from CDN', 'color: red; font-weight: bold');
+            alert('Error: Scanner library failed to load. Please check your internet connection and refresh the page.');
+          } else {
+            console.log('[DIAGNOSTIC] Html5Qrcode version:', Html5Qrcode.VERSION || 'unknown');
+          }
+          
+          // Check required elements
+          console.log('[DIAGNOSTIC] Checking required elements...');
+          console.log('[DIAGNOSTIC] scannerModal exists:', !!document.getElementById('scannerModal'));
+          console.log('[DIAGNOSTIC] scanner-reader exists:', !!document.getElementById('scanner-reader'));
+          console.log('[DIAGNOSTIC] scanResult exists:', !!document.getElementById('scanResult'));
+          console.log('[DIAGNOSTIC] scanTicketBtn exists:', !!document.getElementById('scanTicketBtn'));
+        });
+        
         // Notification helper
         function showNotify(msg, timeout = 2500) {
           const notify = document.getElementById('notify');
@@ -400,40 +447,94 @@
     }
     
     async function startSellerScanner() {
-      console.log('Starting camera scanner...');
+      console.log('%c[DIAGNOSTIC] ===== START SCANNER CALLED =====', 'color: purple; font-size: 14px; font-weight: bold');
+      console.log('[DIAGNOSTIC] Time:', new Date().toISOString());
+      console.log('[DIAGNOSTIC] isSellerScannerRunning:', isSellerScannerRunning);
+      console.log('[DIAGNOSTIC] sellerScanner exists:', !!sellerScanner);
       
       if (isSellerScannerRunning) {
-        console.log('Scanner already running');
+        console.warn('[DIAGNOSTIC] Scanner already running - EXITING');
         return;
       }
       
       try {
-        // Request camera permission first
-        console.log('🎥 Requesting camera permission...');
-        document.getElementById('scanResult').textContent = '🎥 Requesting camera permission...';
+        console.log('[DIAGNOSTIC] Checking camera permission...');
+        console.log('[DIAGNOSTIC] navigator.mediaDevices:', typeof navigator.mediaDevices);
+        console.log('[DIAGNOSTIC] getUserMedia:', typeof navigator.mediaDevices?.getUserMedia);
         
-        // Check if camera permission is available
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          try {
-            // Request camera access to trigger permission prompt
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            // Stop the test stream immediately
-            stream.getTracks().forEach(track => track.stop());
-            console.log('✅ Camera permission granted');
-          } catch (permError) {
-            console.error('❌ Camera permission denied:', permError);
-            document.getElementById('scanResult').innerHTML = 
-              '❌ Camera access denied<br><br>' +
-              'Please allow camera access in your browser settings and try again.<br><br>' +
-              'Or enter ticket number manually below.';
-            showNotify('Camera access denied. Please enable camera permissions.', '#ef4444', 5000);
-            return;
-          }
+        // Update UI
+        const scanResult = document.getElementById('scanResult');
+        if (scanResult) {
+          scanResult.textContent = '🎥 Requesting camera permission...';
+          console.log('[DIAGNOSTIC] Updated UI: Requesting permission');
         }
         
-        // Now start the scanner
+        // Request permission
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          console.log('[DIAGNOSTIC] Calling getUserMedia...');
+          
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+              video: { facingMode: "environment" } 
+            });
+            
+            console.log('[DIAGNOSTIC] getUserMedia SUCCESS');
+            console.log('[DIAGNOSTIC] Stream tracks:', stream.getTracks().length);
+            
+            // Stop test stream
+            stream.getTracks().forEach(track => {
+              track.stop();
+              console.log('[DIAGNOSTIC] Stopped track:', track.kind);
+            });
+            
+            console.log('[DIAGNOSTIC] Camera permission GRANTED');
+            
+          } catch (permError) {
+            console.error('%c[DIAGNOSTIC] PERMISSION DENIED', 'color: red; font-weight: bold');
+            console.error('[DIAGNOSTIC] Error name:', permError.name);
+            console.error('[DIAGNOSTIC] Error message:', permError.message);
+            console.error('[DIAGNOSTIC] Error stack:', permError.stack);
+            
+            if (scanResult) {
+              scanResult.innerHTML = 
+                '❌ Camera access denied<br><br>' +
+                'Error: ' + permError.name + '<br>' +
+                'Message: ' + permError.message + '<br><br>' +
+                'Please allow camera access and try again.';
+            }
+            return;
+          }
+        } else {
+          console.error('%c[DIAGNOSTIC] MEDIA DEVICES NOT SUPPORTED', 'color: red; font-weight: bold');
+          if (scanResult) {
+            scanResult.innerHTML = '❌ Camera not supported in this browser';
+          }
+          return;
+        }
+        
+        // Initialize Html5Qrcode
+        console.log('[DIAGNOSTIC] Creating Html5Qrcode instance...');
+        console.log('[DIAGNOSTIC] Html5Qrcode available:', typeof Html5Qrcode);
+        
+        if (typeof Html5Qrcode === 'undefined') {
+          console.error('%c[DIAGNOSTIC] Html5Qrcode LIBRARY NOT LOADED!', 'color: red; font-weight: bold');
+          if (scanResult) {
+            scanResult.innerHTML = '❌ Scanner library not loaded. Please refresh the page.';
+          }
+          return;
+        }
+        
         sellerScanner = new Html5Qrcode("scanner-reader");
-        document.getElementById('scanResult').textContent = '📷 Starting camera...';
+        console.log('[DIAGNOSTIC] Html5Qrcode instance created');
+        
+        if (scanResult) {
+          scanResult.textContent = '📷 Starting camera...';
+          console.log('[DIAGNOSTIC] Updated UI: Starting camera');
+        }
+        
+        // Start scanner
+        console.log('[DIAGNOSTIC] Calling scanner.start()...');
+        console.log('[DIAGNOSTIC] Config: facingMode=environment, fps=10, qrbox=250x250');
         
         await sellerScanner.start(
           { facingMode: "environment" },
@@ -443,29 +544,36 @@
           },
           onScanSuccess,
           (errorMessage) => {
-            // Silent error handling - scanning errors are normal
+            // Silent scanning errors are normal
+            console.log('[DIAGNOSTIC] Scanning error (normal):', errorMessage);
           }
         );
         
+        console.log('%c[DIAGNOSTIC] SCANNER START SUCCESS!', 'color: green; font-weight: bold; font-size: 14px');
+        
         isSellerScannerRunning = true;
-        document.getElementById('scanResult').textContent = '✅ Camera ready - point at barcode';
-        console.log('✅ Camera started successfully');
         
-      } catch (err) {
-        console.error('❌ Camera error:', err);
-        let errorMsg = '❌ Camera Error: ' + err;
-        
-        // Provide helpful error messages
-        if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission')) {
-          errorMsg = '❌ Camera access denied<br><br>Please allow camera access and try again.<br><br>Or enter ticket number manually.';
-        } else if (err.toString().includes('NotFoundError')) {
-          errorMsg = '❌ No camera found<br><br>Please use a device with a camera or enter ticket number manually.';
-        } else if (err.toString().includes('NotReadableError')) {
-          errorMsg = '❌ Camera is busy<br><br>Close other apps using the camera and try again.';
+        if (scanResult) {
+          scanResult.textContent = '✅ Camera ready - point at barcode';
+          console.log('[DIAGNOSTIC] Updated UI: Camera ready');
         }
         
-        document.getElementById('scanResult').innerHTML = errorMsg;
-        showNotify('Camera error. Enter ticket number manually.', '#ef4444', 5000);
+      } catch (err) {
+        console.error('%c[DIAGNOSTIC] ===== SCANNER START FAILED =====', 'color: red; font-weight: bold; font-size: 14px');
+        console.error('[DIAGNOSTIC] Error name:', err.name);
+        console.error('[DIAGNOSTIC] Error message:', err.message);
+        console.error('[DIAGNOSTIC] Error toString:', err.toString());
+        console.error('[DIAGNOSTIC] Error stack:', err.stack);
+        
+        const scanResult = document.getElementById('scanResult');
+        if (scanResult) {
+          scanResult.innerHTML = 
+            '❌ Scanner Error<br><br>' +
+            'Name: ' + err.name + '<br>' +
+            'Message: ' + err.message + '<br><br>' +
+            'Check console for details';
+        }
+        
         isSellerScannerRunning = false;
         sellerScanner = null;
       }
@@ -485,18 +593,49 @@
     
     // Scanner button click handler
     if (document.getElementById('scanTicketBtn')) {
+      console.log('%c[DIAGNOSTIC] Scanner button found and adding listener', 'color: green');
+      
       document.getElementById('scanTicketBtn').addEventListener('click', function() {
-        console.log('📷 Scan button clicked');
+        console.log('%c[DIAGNOSTIC] ===== BUTTON CLICKED =====', 'color: orange; font-size: 14px; font-weight: bold');
+        console.log('[DIAGNOSTIC] Time:', new Date().toISOString());
         
-        // Show modal IMMEDIATELY
-        document.getElementById('scannerModal').style.display = 'block';
-        
-        // Show message IMMEDIATELY
-        document.getElementById('scanResult').textContent = '📷 Opening camera...';
-        
-        // Start scanner with simple code
-        startSellerScanner();
+        try {
+          // Show modal
+          const modal = document.getElementById('scannerModal');
+          console.log('[DIAGNOSTIC] Modal element found:', !!modal);
+          
+          if (modal) {
+            modal.style.display = 'block';
+            console.log('[DIAGNOSTIC] Modal display set to block');
+          }
+          
+          // Show result message
+          const scanResult = document.getElementById('scanResult');
+          console.log('[DIAGNOSTIC] ScanResult element found:', !!scanResult);
+          
+          if (scanResult) {
+            scanResult.textContent = '📷 Opening camera...';
+            console.log('[DIAGNOSTIC] ScanResult text set');
+          }
+          
+          // Start scanner
+          console.log('[DIAGNOSTIC] Calling startScanner function...');
+          if (typeof startSellerScanner === 'function') {
+            console.log('[DIAGNOSTIC] Starting Seller Scanner');
+            startSellerScanner();
+          } else {
+            console.error('[DIAGNOSTIC] Scanner function NOT FOUND!');
+          }
+          
+        } catch (error) {
+          console.error('[DIAGNOSTIC] ERROR in button click handler:', error);
+          console.error('[DIAGNOSTIC] Error stack:', error.stack);
+        }
       });
+      
+      console.log('%c[DIAGNOSTIC] Button listener attached successfully', 'color: green');
+    } else {
+      console.error('%c[DIAGNOSTIC] Scanner button NOT FOUND!', 'color: red; font-size: 14px; font-weight: bold');
     }
     
     // Close scanner button
