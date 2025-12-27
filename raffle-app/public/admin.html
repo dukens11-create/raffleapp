@@ -939,8 +939,9 @@
                               // CRITICAL FIX: Force cleanup any existing scanner FIRST
                               if (adminScanner) {
                                 try {
-                                  adminScanner.stop().catch(() => {});
-                                  adminScanner.clear().catch(() => {});
+                                  adminScanner.stop().catch(() => {}).then(() => {
+                                    return adminScanner.clear().catch(() => {});
+                                  }).catch(() => {});
                                 } catch (e) {}
                                 adminScanner = null;
                                 isAdminScannerRunning = false;
@@ -1003,7 +1004,7 @@
                                 alert(msg);
                                 isAdminScannerRunning = false;
                                 if (adminScanner) {
-                                  try { adminScanner.clear().catch(() => {}); } catch (e) {}
+                                  adminScanner.clear().catch(() => {});
                                   adminScanner = null;
                                 }
                               });
@@ -1022,7 +1023,7 @@
                                   .catch((err) => {
                                     console.log('Cleanup error:', err);
                                     // Force cleanup even on error
-                                    try { adminScanner.clear().catch(() => {}); } catch (e) {}
+                                    adminScanner.clear().catch(() => {});
                                     isAdminScannerRunning = false;
                                     adminScanner = null;
                                   });
