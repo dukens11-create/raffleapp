@@ -1006,8 +1006,9 @@
                                 alert(msg);
                                 isAdminScannerRunning = false;
                                 if (adminScanner) {
-                                  adminScanner.clear().catch(() => {});
+                                  const failedScanner = adminScanner;
                                   adminScanner = null;
+                                  failedScanner.clear().catch((e) => console.log('Clear error after start failure:', e));
                                 }
                               });
                             }
@@ -1026,7 +1027,7 @@
                                   .catch((err) => {
                                     console.log('Cleanup error:', err);
                                     // Force cleanup even on error
-                                    scanner.clear().catch(() => {});
+                                    scanner.clear().catch((e) => console.log('Clear error during error recovery:', e));
                                     isAdminScannerRunning = false;
                                     adminScanner = null;
                                   });
