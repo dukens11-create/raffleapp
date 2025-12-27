@@ -422,7 +422,7 @@
         console.log('✅ Camera started successfully');
       }).catch((err) => {
         console.error('❌ Camera error:', err);
-        document.getElementById('scanResult').innerHTML = `❌ Camera Error: ${err}`;
+        document.getElementById('scanResult').textContent = `❌ Camera Error: ${err}`;
         isSellerScannerRunning = false;
         sellerScanner = null;
       });

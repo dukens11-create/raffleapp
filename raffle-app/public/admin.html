@@ -972,7 +972,7 @@
                                 console.log('✅ Camera started successfully');
                               }).catch((err) => {
                                 console.error('❌ Camera error:', err);
-                                document.getElementById('scanResult').innerHTML = `❌ Camera Error: ${err}`;
+                                document.getElementById('scanResult').textContent = `❌ Camera Error: ${err}`;
                                 showNotify('Camera Error: ' + err, '#ef4444', 5000);
                                 isAdminScannerRunning = false;
                                 adminScanner = null;
