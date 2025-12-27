@@ -10,6 +10,7 @@ const helmet = require('helmet');
 const { body, validationResult } = require('express-validator');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
+const emailService = require('./services/emailService');
 
 // Load environment variables
 require('dotenv').config();
@@ -620,44 +621,30 @@ function generatePassword() {
 
 // Helper function to send credentials
 async function sendCredentials(email, phone, name, password) {
-  const message = `
-Hi ${name},
-
-Your seller account has been approved!
-
-Login at: ${process.env.APP_URL || 'http://localhost:3000'}/login.html
-
-Credentials:
-Phone: ${phone}
-Password: ${password}
-
-Please change your password after first login.
-
-- RaffleApp Team
-  `;
+  // Send email with credentials
+  const result = await emailService.sendCredentialsEmail(email, phone, name, password);
   
-  // For now, just log credentials (email/SMS integration can be added later)
-  console.log('Credentials for', name, ':', { phone, password, email });
-  console.log('Message:', message);
+  if (result.success) {
+    console.log(`✅ Credentials email sent successfully to ${email}`);
+  } else {
+    console.error(`❌ Failed to send email to ${email}, credentials logged to console`);
+  }
+  
+  return result;
 }
 
 // Helper function to send rejection notification
-async function sendRejectionNotification(email, phone, reason) {
-  const message = `
-Hi,
-
-We regret to inform you that your seller registration request has been rejected.
-
-${reason ? 'Reason: ' + reason : ''}
-
-If you have any questions, please contact support.
-
-- RaffleApp Team
-  `;
+async function sendRejectionNotification(email, phone, name, reason) {
+  // Send rejection email
+  const result = await emailService.sendRejectionEmail(email, phone, name, reason);
   
-  // For now, just log notification
-  console.log('Rejection notification sent to:', phone, email);
-  console.log('Message:', message);
+  if (result.success) {
+    console.log(`✅ Rejection email sent successfully to ${email}`);
+  } else {
+    console.error(`❌ Failed to send email to ${email}, notification logged to console`);
+  }
+  
+  return result;
 }
 
 // Routes
@@ -1053,7 +1040,7 @@ app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, async (re
         }
         
         // Send rejection notification
-        await sendRejectionNotification(request.email, request.phone, reason);
+        await sendRejectionNotification(request.email, request.phone, request.full_name, reason);
         
         res.json({ success: true, message: 'Request rejected' });
       });
