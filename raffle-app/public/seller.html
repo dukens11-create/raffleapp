@@ -407,8 +407,8 @@
       if (sellerScanner) {
         try {
           sellerScanner.stop().catch(() => {}).then(() => {
-            return sellerScanner.clear().catch(() => {});
-          }).catch(() => {});
+            return sellerScanner ? sellerScanner.clear().catch(() => {}) : Promise.resolve();
+          });
         } catch (e) {}
         sellerScanner = null;
         isSellerScannerRunning = false;
@@ -476,9 +476,10 @@
     
     function stopSellerScanner() {
       if (sellerScanner) {
+        const scanner = sellerScanner;
         sellerScanner.stop()
           .then(() => {
-            return sellerScanner.clear();
+            return scanner.clear();
           })
           .then(() => {
             isSellerScannerRunning = false;
@@ -487,7 +488,7 @@
           .catch((err) => {
             console.log('Cleanup error:', err);
             // Force cleanup even on error
-            sellerScanner.clear().catch(() => {});
+            scanner.clear().catch(() => {});
             isSellerScannerRunning = false;
             sellerScanner = null;
           });

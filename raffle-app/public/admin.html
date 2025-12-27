@@ -940,8 +940,8 @@
                               if (adminScanner) {
                                 try {
                                   adminScanner.stop().catch(() => {}).then(() => {
-                                    return adminScanner.clear().catch(() => {});
-                                  }).catch(() => {});
+                                    return adminScanner ? adminScanner.clear().catch(() => {}) : Promise.resolve();
+                                  });
                                 } catch (e) {}
                                 adminScanner = null;
                                 isAdminScannerRunning = false;
@@ -1012,9 +1012,10 @@
                             
                             function stopAdminScanner() {
                               if (adminScanner) {
+                                const scanner = adminScanner;
                                 adminScanner.stop()
                                   .then(() => {
-                                    return adminScanner.clear();
+                                    return scanner.clear();
                                   })
                                   .then(() => {
                                     isAdminScannerRunning = false;
@@ -1023,7 +1024,7 @@
                                   .catch((err) => {
                                     console.log('Cleanup error:', err);
                                     // Force cleanup even on error
-                                    adminScanner.clear().catch(() => {});
+                                    scanner.clear().catch(() => {});
                                     isAdminScannerRunning = false;
                                     adminScanner = null;
                                   });
