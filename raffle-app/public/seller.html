@@ -381,6 +381,17 @@
     let isSellerScannerRunning = false;
     
     // Check camera availability before starting scanner
+    async function waitForHtml5Qrcode(maxWait = 5000) {
+      const startTime = Date.now();
+      while (typeof Html5Qrcode === 'undefined') {
+        if (Date.now() - startTime > maxWait) {
+          throw new Error('Scanner library failed to load. Please refresh the page.');
+        }
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      return true;
+    }
+    
     async function checkCameraAvailability() {
       // Check if browser supports getUserMedia
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -455,22 +466,31 @@
     }
     
     async function startSellerScanner() {
+      console.log('🎬 Starting scanner...'); // Debug log
+      
       if (isSellerScannerRunning) {
         console.log('Scanner already running');
         return;
       }
       
-      // Check camera availability first
-      const cameraCheck = await checkCameraAvailability();
-      if (!cameraCheck.available) {
-        document.getElementById('scanResult').innerHTML = `❌ ${cameraCheck.error}`;
-        showNotify(cameraCheck.error, 5000);
-        return;
-      }
-      
       try {
+        // Wait for library to load
+        document.getElementById('scanResult').textContent = '⏳ Loading scanner library...';
+        await waitForHtml5Qrcode();
+        
+        // Check camera availability
+        document.getElementById('scanResult').textContent = '🔍 Checking camera...';
+        const cameraCheck = await checkCameraAvailability();
+        if (!cameraCheck.available) {
+          document.getElementById('scanResult').innerHTML = `❌ ${cameraCheck.error}`;
+          showNotify(cameraCheck.error, 5000);
+          return;
+        }
+        
+        // Initialize scanner
         sellerScanner = new Html5Qrcode("scanner-reader");
         document.getElementById('scanResult').textContent = '🔍 Initializing camera...';
+        console.log('📸 Requesting camera access...');
         
         await sellerScanner.start(
           { facingMode: "environment" },
@@ -483,9 +503,10 @@
         
         isSellerScannerRunning = true;
         document.getElementById('scanResult').textContent = '🔍 Scanning... Point camera at barcode';
+        console.log('✅ Scanner started successfully');
         
       } catch (err) {
-        console.error('Camera error:', err);
+        console.error('❌ Camera error:', err);
         handleCameraError(err);
       }
     }
@@ -505,9 +526,18 @@
     // Scanner button click handler
     if (document.getElementById('scanTicketBtn')) {
       document.getElementById('scanTicketBtn').addEventListener('click', function() {
-        // Clear previous scan results and errors
+        console.log('🔘 Scan button clicked');
+        
+        // Clear previous messages
         document.getElementById('scanResult').textContent = '';
+        
+        // Show modal IMMEDIATELY
         document.getElementById('scannerModal').style.display = 'block';
+        
+        // Show loading message IMMEDIATELY (before async operations)
+        document.getElementById('scanResult').textContent = '⏳ Loading scanner...';
+        
+        // Start scanner (async)
         startSellerScanner();
       });
     }
