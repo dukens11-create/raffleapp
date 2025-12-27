@@ -380,48 +380,6 @@
     let sellerScanner = null;
     let isSellerScannerRunning = false;
     
-    // Check camera availability before starting scanner
-    async function waitForHtml5Qrcode(maxWait = 5000) {
-      const startTime = Date.now();
-      while (typeof Html5Qrcode === 'undefined') {
-        if (Date.now() - startTime > maxWait) {
-          throw new Error('Scanner library failed to load. Please refresh the page.');
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      return true;
-    }
-    
-    async function checkCameraAvailability() {
-      // Check if browser supports getUserMedia
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        return { available: false, error: 'Your browser does not support camera access. Please use Chrome, Firefox, Safari, or Edge.' };
-      }
-      
-      // Check HTTPS requirement
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        return { available: false, error: 'Camera requires HTTPS connection. Please access this site via HTTPS.' };
-      }
-      
-      // Check if Html5Qrcode is loaded
-      if (typeof Html5Qrcode === 'undefined') {
-        return { available: false, error: 'Scanner library not loaded. Please refresh the page.' };
-      }
-      
-      // Try to get camera permission status
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(device => device.kind === 'videoinput');
-        if (cameras.length === 0) {
-          return { available: false, error: 'No camera found on this device.' };
-        }
-      } catch (err) {
-        console.warn('Could not enumerate devices:', err);
-      }
-      
-      return { available: true };
-    }
-    
     function onScanSuccess(decodedText, decodedResult) {
       // Display scanned result
       document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
@@ -440,75 +398,34 @@
       }, 2000);
     }
     
-    function handleCameraError(err) {
-      let userMessage = '';
-      
-      if (err.name === 'NotAllowedError' || err.toString().includes('NotAllowedError')) {
-        userMessage = '❌ Camera permission denied. Please allow camera access in your browser settings and try again.';
-      } else if (err.name === 'NotFoundError' || err.toString().includes('NotFoundError')) {
-        userMessage = '❌ No camera found on this device. Please connect a camera.';
-      } else if (err.name === 'NotReadableError' || err.toString().includes('NotReadableError')) {
-        userMessage = '❌ Camera is already in use by another application. Please close other apps using the camera.';
-      } else if (err.name === 'OverconstrainedError' || err.toString().includes('OverconstrainedError')) {
-        userMessage = '❌ Camera does not meet requirements. Trying with different settings...';
-      } else if (err.toString().includes('secure')) {
-        userMessage = '❌ Camera requires HTTPS connection. Please access via HTTPS.';
-      } else {
-        userMessage = `❌ Camera error: ${err.toString()}. Please try again or use a different browser.`;
-      }
-      
-      document.getElementById('scanResult').innerHTML = userMessage;
-      showNotify(userMessage.replace('❌ ', ''), 5000);
-      
-      // Reset scanner state
-      isSellerScannerRunning = false;
-      sellerScanner = null;
-    }
-    
-    async function startSellerScanner() {
-      console.log('🎬 Starting scanner...'); // Debug log
+    function startSellerScanner() {
+      console.log('Starting camera scanner...');
       
       if (isSellerScannerRunning) {
         console.log('Scanner already running');
         return;
       }
       
-      try {
-        // Wait for library to load
-        document.getElementById('scanResult').textContent = '⏳ Loading scanner library...';
-        await waitForHtml5Qrcode();
-        
-        // Check camera availability
-        document.getElementById('scanResult').textContent = '🔍 Checking camera...';
-        const cameraCheck = await checkCameraAvailability();
-        if (!cameraCheck.available) {
-          document.getElementById('scanResult').innerHTML = `❌ ${cameraCheck.error}`;
-          showNotify(cameraCheck.error, 5000);
-          return;
+      sellerScanner = new Html5Qrcode("scanner-reader");
+      document.getElementById('scanResult').textContent = '📷 Initializing camera...';
+      
+      sellerScanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        (errorMessage) => {
+          // Silent error handling - scanning errors are normal
         }
-        
-        // Initialize scanner
-        sellerScanner = new Html5Qrcode("scanner-reader");
-        document.getElementById('scanResult').textContent = '🔍 Initializing camera...';
-        console.log('📸 Requesting camera access...');
-        
-        await sellerScanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          onScanSuccess,
-          (errorMessage) => {
-            // Silent error handling - scanning errors are normal
-          }
-        );
-        
+      ).then(() => {
         isSellerScannerRunning = true;
-        document.getElementById('scanResult').textContent = '🔍 Scanning... Point camera at barcode';
-        console.log('✅ Scanner started successfully');
-        
-      } catch (err) {
+        document.getElementById('scanResult').textContent = '✅ Camera ready - point at barcode';
+        console.log('✅ Camera started successfully');
+      }).catch((err) => {
         console.error('❌ Camera error:', err);
-        handleCameraError(err);
-      }
+        document.getElementById('scanResult').innerHTML = `❌ Camera Error: ${err}`;
+        isSellerScannerRunning = false;
+        sellerScanner = null;
+      });
     }
     
     function stopSellerScanner() {
@@ -526,18 +443,15 @@
     // Scanner button click handler
     if (document.getElementById('scanTicketBtn')) {
       document.getElementById('scanTicketBtn').addEventListener('click', function() {
-        console.log('🔘 Scan button clicked');
-        
-        // Clear previous messages
-        document.getElementById('scanResult').textContent = '';
+        console.log('📷 Scan button clicked');
         
         // Show modal IMMEDIATELY
         document.getElementById('scannerModal').style.display = 'block';
         
-        // Show loading message IMMEDIATELY (before async operations)
-        document.getElementById('scanResult').textContent = '⏳ Loading scanner...';
+        // Show message IMMEDIATELY
+        document.getElementById('scanResult').textContent = '📷 Opening camera...';
         
-        // Start scanner (async)
+        // Start scanner with simple code
         startSellerScanner();
       });
     }
