@@ -202,6 +202,7 @@
         <div class="help-section">
             <p><strong>Having trouble logging in?</strong></p>
             <p style="margin: 8px 0;">
+                <a href="/diagnose.html">🔍 Run System Diagnostics</a> | 
                 <a href="/setup-admin.html">Reset Admin Account</a>
             </p>
             <p style="font-size: 12px; color: #666; margin-top: 8px;">
@@ -218,6 +219,11 @@
             const password = document.getElementById('password').value;
             const messageDiv = document.getElementById('message');
             
+            console.log('=== LOGIN ATTEMPT ===');
+            console.log('Phone:', phone);
+            console.log('Password length:', password.length);
+            console.log('Endpoint: /login');
+            
             try {
                 const response = await fetch('/login', {
                     method: 'POST',
@@ -225,17 +231,22 @@
                     body: JSON.stringify({ phone, password })
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
                 const data = await response.json();
+                console.log('Response data:', data);
                 
                 // Check if there's an error
                 if (data.error) {
+                    console.error('Login error:', data.error);
                     let errorMessage = data.error;
                     
                     // Add helpful hints based on error type
                     if (errorMessage.includes('Too many')) {
                         errorMessage += '\n\nToo many failed attempts. Wait 60 minutes or use the Reset Admin Account link below.';
                     } else if (errorMessage.includes('Invalid')) {
-                        errorMessage += '\n\nDefault admin login:\nPhone: 1234567890\nPassword: admin123';
+                        errorMessage += '\n\nDefault admin login:\nPhone: 1234567890\nPassword: admin123\n\nTry the Diagnostics page to check system status.';
                     } else if (errorMessage.includes('Session expired')) {
                         errorMessage += '\n\nYour session has expired. Please login again.';
                     }
@@ -247,16 +258,19 @@
                 
                 // Check if there's a redirect URL
                 if (data.redirect) {
+                    console.log('Login successful, redirecting to:', data.redirect);
                     messageDiv.textContent = 'Login successful! Redirecting...';
                     messageDiv.style.color = 'green';
                     // Redirect to the URL provided by the server
                     window.location.href = data.redirect;
                 } else {
-                    messageDiv.textContent = 'Login response invalid';
+                    console.error('No redirect URL in response');
+                    messageDiv.textContent = 'Login response invalid - check console for details';
                     messageDiv.style.color = 'red';
                 }
             } catch (error) {
-                messageDiv.textContent = 'Connection error. Please try again.';
+                console.error('Login exception:', error);
+                messageDiv.textContent = 'Connection error: ' + error.message + '. Check console for details.';
                 messageDiv.style.color = 'red';
             }
         });
