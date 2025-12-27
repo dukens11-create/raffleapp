@@ -357,52 +357,6 @@
     <ul id="sales-history"></ul>
   </div>
   <script>
-        // ===== SCANNER DIAGNOSTICS ENABLED =====
-        console.log('%c===== SCANNER DIAGNOSTICS ENABLED =====', 'color: blue; font-size: 16px; font-weight: bold');
-        console.log('Html5Qrcode available:', typeof Html5Qrcode !== 'undefined');
-        console.log('navigator.mediaDevices:', typeof navigator.mediaDevices);
-        console.log('getUserMedia:', typeof navigator.mediaDevices?.getUserMedia);
-        console.log('Current URL:', window.location.href);
-        console.log('Is HTTPS:', window.location.protocol === 'https:');
-        console.log('Is localhost:', window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-        
-        // Check if CDN script loaded
-        const html5QrcodeScript = document.querySelector('script[src*="html5-qrcode"]');
-        if (html5QrcodeScript) {
-          console.log('[DIAGNOSTIC] Html5Qrcode script tag found');
-          console.log('[DIAGNOSTIC] Script src:', html5QrcodeScript.src);
-          
-          html5QrcodeScript.addEventListener('error', function() {
-            console.error('%c[DIAGNOSTIC] CDN SCRIPT FAILED TO LOAD!', 'color: red; font-weight: bold');
-            alert('Error: Cannot load scanner library from CDN. Please check your internet connection.');
-          });
-          
-          html5QrcodeScript.addEventListener('load', function() {
-            console.log('%c[DIAGNOSTIC] CDN script loaded successfully', 'color: green');
-          });
-        } else {
-          console.error('[DIAGNOSTIC] Html5Qrcode script tag NOT FOUND in page!');
-        }
-        
-        // Add after html5-qrcode script tag loads
-        window.addEventListener('load', function() {
-          console.log('%c[DIAGNOSTIC] Page loaded', 'color: blue');
-          console.log('[DIAGNOSTIC] Html5Qrcode loaded:', typeof Html5Qrcode !== 'undefined');
-          
-          if (typeof Html5Qrcode === 'undefined') {
-            console.error('%c[DIAGNOSTIC] Html5Qrcode library FAILED TO LOAD from CDN', 'color: red; font-weight: bold');
-            alert('Error: Scanner library failed to load. Please check your internet connection and refresh the page.');
-          } else {
-            console.log('[DIAGNOSTIC] Html5Qrcode version:', Html5Qrcode.VERSION || 'unknown');
-          }
-          
-          // Check required elements
-          console.log('[DIAGNOSTIC] Checking required elements...');
-          console.log('[DIAGNOSTIC] scannerModal exists:', !!document.getElementById('scannerModal'));
-          console.log('[DIAGNOSTIC] scanner-reader exists:', !!document.getElementById('scanner-reader'));
-          console.log('[DIAGNOSTIC] scanResult exists:', !!document.getElementById('scanResult'));
-          console.log('[DIAGNOSTIC] scanTicketBtn exists:', !!document.getElementById('scanTicketBtn'));
-        });
         
         // Notification helper
         function showNotify(msg, timeout = 2500) {
@@ -424,22 +378,16 @@
         }
         pollNotifications();
         
-    // Camera barcode scanner for seller
+    // Camera Scanner - Seller
     let sellerScanner = null;
     let isSellerScannerRunning = false;
     
-    function onScanSuccess(decodedText, decodedResult) {
-      // Display scanned result
+    function onScanSuccess(decodedText) {
       document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
-      document.getElementById('result').textContent = `Ready to sell ticket: ${decodedText}`;
-      
-      // Populate the ticket number in the form
+      document.getElementById('result').textContent = `Ready to sell: ${decodedText}`;
       document.getElementById('ticket-number').value = decodedText;
+      showNotify(`✅ Ticket #${decodedText} scanned!`, 3000);
       
-      // Show success notification
-      showNotify(`✅ Ticket #${decodedText} scanned! Fill in buyer details to complete sale.`, 4000);
-      
-      // Stop scanner and close modal after 2 seconds
       setTimeout(() => {
         stopSellerScanner();
         document.getElementById('scannerModal').style.display = 'none';
@@ -447,108 +395,63 @@
     }
     
     function startSellerScanner() {
-      console.log('🎬 Starting seller scanner...');
+      if (isSellerScannerRunning) return;
       
-      // Check if already running
-      if (isSellerScannerRunning) {
-        console.log('⚠️ Scanner already running');
-        return;
-      }
-      
-      // Clear previous messages
       const scanResult = document.getElementById('scanResult');
       if (!scanResult) {
-        console.error('❌ scanResult element not found!');
-        alert('Scanner UI error. Please refresh the page.');
+        alert('Scanner UI error. Refresh page.');
         return;
       }
       
       scanResult.textContent = '';
       
-      // Check HTTPS requirement (except localhost)
-      const isSecure = location.protocol === 'https:' || 
-                       location.hostname === 'localhost' || 
-                       location.hostname === '127.0.0.1';
-      
+      const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
       if (!isSecure) {
-        scanResult.textContent = '❌ Camera requires HTTPS connection';
-        alert('Camera access requires HTTPS. Please use https:// URL.');
+        scanResult.textContent = '❌ Requires HTTPS';
+        alert('Camera requires HTTPS connection.');
         return;
       }
       
-      // Check browser support
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        scanResult.textContent = '❌ Browser does not support camera';
-        alert('Your browser does not support camera access. Please use Chrome, Firefox, Safari, or Edge.');
+      if (!navigator.mediaDevices?.getUserMedia) {
+        scanResult.textContent = '❌ Browser not supported';
+        alert('Browser does not support camera.');
         return;
       }
       
-      // Check if Html5Qrcode is loaded
       if (typeof Html5Qrcode === 'undefined') {
-        scanResult.textContent = '❌ Scanner library not loaded';
-        alert('Scanner library failed to load. Please check your internet connection and refresh the page.');
+        scanResult.textContent = '❌ Library not loaded';
+        alert('Scanner library failed to load. Check connection and refresh.');
         return;
       }
       
-      // Create scanner instance
       try {
         sellerScanner = new Html5Qrcode("scanner-reader");
-        console.log('✅ Html5Qrcode instance created');
       } catch (err) {
-        console.error('❌ Failed to create scanner:', err);
-        scanResult.textContent = `❌ Scanner error: ${err.message}`;
+        scanResult.textContent = `❌ Error: ${err.message}`;
         return;
       }
       
-      // Show initializing message
-      scanResult.textContent = '📷 Initializing camera...';
+      scanResult.textContent = '📷 Initializing...';
       
-      // Start scanner
       sellerScanner.start(
         { facingMode: "environment" },
-        { 
-          fps: 10, 
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0
-        },
+        { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
         onScanSuccess,
-        (errorMessage) => {
-          // Silent error handling - scanning errors are normal
-        }
+        () => {}
       ).then(() => {
         isSellerScannerRunning = true;
-        scanResult.textContent = '✅ Camera ready - point at barcode';
-        console.log('✅ Seller camera started successfully');
+        scanResult.textContent = '✅ Ready - point at barcode';
       }).catch((err) => {
-        console.error('❌ Camera error:', err);
+        let msg = 'Camera error';
+        const name = err.name || '';
         
-        // User-friendly error messages
-        let displayMessage = '';
-        let alertMessage = '';
+        if (name === 'NotAllowedError') msg = 'Permission denied';
+        else if (name === 'NotFoundError') msg = 'No camera found';
+        else if (name === 'NotReadableError') msg = 'Camera in use';
+        else msg = err.message || 'Unknown error';
         
-        const errString = err.toString();
-        const errName = err.name || '';
-        
-        if (errName === 'NotAllowedError' || errString.includes('NotAllowedError') || errString.includes('Permission')) {
-          displayMessage = '❌ Camera permission denied. Please allow camera access in your browser settings.';
-          alertMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
-        } else if (errName === 'NotFoundError' || errString.includes('NotFoundError')) {
-          displayMessage = '❌ No camera found on this device.';
-          alertMessage = 'No camera found on this device.';
-        } else if (errName === 'NotReadableError' || errString.includes('NotReadableError')) {
-          displayMessage = '❌ Camera is in use by another app. Please close other apps.';
-          alertMessage = 'Camera is in use by another app. Please close other apps.';
-        } else if (errName === 'OverconstrainedError' || errString.includes('OverconstrainedError')) {
-          displayMessage = '❌ Camera does not meet requirements.';
-          alertMessage = 'Camera does not meet requirements.';
-        } else {
-          displayMessage = `❌ Camera error: ${err.message || err}`;
-          alertMessage = `Camera error: ${err.message || err}`;
-        }
-        
-        scanResult.textContent = displayMessage;
-        alert(alertMessage);
-        
+        scanResult.textContent = `❌ ${msg}`;
+        alert(msg);
         isSellerScannerRunning = false;
         sellerScanner = null;
       });
@@ -559,72 +462,25 @@
         sellerScanner.stop().then(() => {
           isSellerScannerRunning = false;
           sellerScanner = null;
-        }).catch((err) => {
-          console.error('Error stopping scanner:', err);
+        }).catch(() => {
           isSellerScannerRunning = false;
         });
       }
     }
     
-    // Scanner button click handler
-    if (document.getElementById('scanTicketBtn')) {
-      console.log('%c[DIAGNOSTIC] Scanner button found and adding listener', 'color: green');
-      
-      document.getElementById('scanTicketBtn').addEventListener('click', function() {
-        console.log('%c[DIAGNOSTIC] ===== BUTTON CLICKED =====', 'color: orange; font-size: 14px; font-weight: bold');
-        console.log('[DIAGNOSTIC] Time:', new Date().toISOString());
-        
-        try {
-          // Show modal
-          const modal = document.getElementById('scannerModal');
-          console.log('[DIAGNOSTIC] Modal element found:', !!modal);
-          
-          if (modal) {
-            modal.style.display = 'block';
-            console.log('[DIAGNOSTIC] Modal display set to block');
-          }
-          
-          // Show result message
-          const scanResult = document.getElementById('scanResult');
-          console.log('[DIAGNOSTIC] ScanResult element found:', !!scanResult);
-          
-          if (scanResult) {
-            scanResult.textContent = '📷 Opening camera...';
-            console.log('[DIAGNOSTIC] ScanResult text set');
-          }
-          
-          // Start scanner
-          console.log('[DIAGNOSTIC] Calling startScanner function...');
-          if (typeof startSellerScanner === 'function') {
-            console.log('[DIAGNOSTIC] Starting Seller Scanner');
-            startSellerScanner();
-          } else {
-            console.error('[DIAGNOSTIC] Scanner function NOT FOUND!');
-          }
-          
-        } catch (error) {
-          console.error('[DIAGNOSTIC] ERROR in button click handler:', error);
-          console.error('[DIAGNOSTIC] Error stack:', error.stack);
-        }
-      });
-      
-      console.log('%c[DIAGNOSTIC] Button listener attached successfully', 'color: green');
-    } else {
-      console.error('%c[DIAGNOSTIC] Scanner button NOT FOUND!', 'color: red; font-size: 14px; font-weight: bold');
-    }
+    document.getElementById('scanTicketBtn')?.addEventListener('click', () => {
+      document.getElementById('scannerModal').style.display = 'block';
+      startSellerScanner();
+    });
     
-    // Close scanner button
-    if (document.getElementById('closeScannerBtn')) {
-      document.getElementById('closeScannerBtn').addEventListener('click', function() {
-        stopSellerScanner();
-        document.getElementById('scannerModal').style.display = 'none';
-      });
-    }
+    document.getElementById('closeScannerBtn')?.addEventListener('click', () => {
+      stopSellerScanner();
+      document.getElementById('scannerModal').style.display = 'none';
+    });
     
-    // Close modal when clicking outside
-    window.addEventListener('click', function(event) {
+    window.addEventListener('click', (e) => {
       const modal = document.getElementById('scannerModal');
-      if (event.target === modal) {
+      if (e.target === modal) {
         stopSellerScanner();
         modal.style.display = 'none';
       }
