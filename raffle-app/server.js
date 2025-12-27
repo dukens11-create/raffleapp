@@ -48,15 +48,34 @@ function initializeDatabase() {
     // Tickets table
     db.run(`CREATE TABLE IF NOT EXISTS tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ticket_number INTEGER UNIQUE NOT NULL,
+      ticket_number TEXT UNIQUE NOT NULL,
       buyer_name TEXT NOT NULL,
       buyer_phone TEXT NOT NULL,
       seller_name TEXT NOT NULL,
       seller_phone TEXT NOT NULL,
       amount REAL NOT NULL,
       status TEXT DEFAULT 'active',
+      barcode TEXT,
+      category TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    // Add barcode and category columns if they don't exist (migration)
+    db.run(`ALTER TABLE tickets ADD COLUMN barcode TEXT`, (err) => {
+      // Error code 1 is SQLITE_ERROR which includes "duplicate column name"
+      // Silently ignore if column already exists
+      if (err && err.errno !== 1) {
+        console.error('Error adding barcode column:', err);
+      }
+    });
+    
+    db.run(`ALTER TABLE tickets ADD COLUMN category TEXT`, (err) => {
+      // Error code 1 is SQLITE_ERROR which includes "duplicate column name"
+      // Silently ignore if column already exists
+      if (err && err.errno !== 1) {
+        console.error('Error adding category column:', err);
+      }
+    });
 
     // Draws table
     db.run(`CREATE TABLE IF NOT EXISTS draws (
@@ -504,6 +523,159 @@ app.get('/api/seller-stats', requireAuth, requireAdmin, (req, res) => {
     FROM tickets
     GROUP BY seller_phone
     ORDER BY total_revenue DESC
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+// API: Bulk import ticket
+app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber, buyerName, buyerPhone, amount, category, seller, status, barcode } = req.body;
+    
+    // Validate required fields (allow amount to be 0)
+    if (!ticketNumber || !buyerName || !buyerPhone || amount === undefined || amount === null) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Validate amount is a number
+    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+      return res.status(400).json({ error: 'Amount must be a non-negative number' });
+    }
+    
+    // Check if ticket number already exists
+    db.get('SELECT id FROM tickets WHERE ticket_number = ?', [ticketNumber], (err, existing) => {
+      if (err) {
+        return res.status(500).json({ error: 'Database error' });
+      }
+      
+      if (existing) {
+        return res.status(400).json({ error: 'Ticket number already exists' });
+      }
+      
+      // Insert ticket with barcode
+      db.run(`
+        INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount, category, status, barcode, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `, [
+        ticketNumber, 
+        buyerName, 
+        buyerPhone, 
+        seller || 'Admin', 
+        req.session.user.phone, 
+        amount, 
+        category || 'Standard', 
+        status || 'sold', 
+        barcode
+      ], function(err) {
+        if (err) {
+          console.error('Bulk import error:', err);
+          return res.status(500).json({ error: err.message });
+        }
+        
+        res.json({ 
+          success: true, 
+          ticketId: this.lastID,
+          ticketNumber 
+        });
+      });
+    });
+  } catch (error) {
+    console.error('Bulk import error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Legacy endpoints (for backward compatibility with frontend)
+app.get('/tickets', requireAuth, (req, res) => {
+  let query = "SELECT ticket_number as number, category, status, barcode FROM tickets ORDER BY ticket_number";
+  let params = [];
+  
+  if (req.session.user.role === 'seller') {
+    query = "SELECT ticket_number as number, category, status, barcode FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+    params = [req.session.user.phone];
+  }
+  
+  db.all(query, params, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/users', requireAuth, requireAdmin, (req, res) => {
+  db.all("SELECT name, phone, role FROM users ORDER BY name", (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
+  // Return empty array for now - audit logs table doesn't exist yet
+  res.json([]);
+});
+
+app.get('/sales-report', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT seller_name as sold_by, COUNT(*) as count
+    FROM tickets
+    GROUP BY seller_name
+    ORDER BY count DESC
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/seller-leaderboard', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT seller_name as sold_by, COUNT(*) as tickets_sold
+    FROM tickets
+    GROUP BY seller_name
+    ORDER BY tickets_sold DESC
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
+  // Return empty array for now - backup functionality not implemented
+  res.json([]);
+});
+
+app.get('/analytics/sales-by-day', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT DATE(created_at) as day, COUNT(*) as count
+    FROM tickets
+    WHERE created_at >= DATE('now', '-30 days')
+    GROUP BY DATE(created_at)
+    ORDER BY day
+  `, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(rows);
+  });
+});
+
+app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, (req, res) => {
+  db.all(`
+    SELECT category, COUNT(*) as count
+    FROM tickets
+    WHERE category IS NOT NULL
+    GROUP BY category
+    ORDER BY count DESC
   `, (err, rows) => {
     if (err) {
       return res.status(500).json({ error: 'Database error' });
