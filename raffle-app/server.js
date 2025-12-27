@@ -786,10 +786,10 @@ app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, (req, re
       return res.status(400).json({ error: 'Request has already been processed' });
     }
     
-    // Generate random password
+    // Generate random password with 10 random characters for better security
     const randomChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789abcdefghjkmnpqrstuvwxyz';
     let randomPart = '';
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 10; i++) {
       randomPart += randomChars.charAt(Math.floor(Math.random() * randomChars.length));
     }
     const password = 'Seller@' + randomPart;
