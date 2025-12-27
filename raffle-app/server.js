@@ -552,12 +552,11 @@ app.post('/login', authLimiter, async (req, res) => {
     } catch (bcryptError) {
       console.error('Bcrypt error:', bcryptError);
       recordFailedAttempt(phone);
-        return res.status(500).json({ 
-          error: 'Authentication error',
-          timestamp: new Date().toISOString()
-        });
-      }
-    });
+      return res.status(500).json({ 
+        error: 'Authentication error',
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ 
@@ -597,61 +596,37 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
     const { fullName, phone, email, experience } = req.body;
     
     // Check if phone already exists in users
-    db.get('SELECT id FROM users WHERE phone = ?', [phone], (err, existingUser) => {
-      if (err) {
-        console.error('Database error checking user:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      if (existingUser) {
-        return res.status(400).json({ 
-          error: 'Phone number already registered',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Check if pending request exists
-      db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = "pending"', [phone], (err, existingRequest) => {
-        if (err) {
-          console.error('Database error checking request:', err);
-          return res.status(500).json({ 
-            error: 'Database error',
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        if (existingRequest) {
-          return res.status(400).json({ 
-            error: 'Registration request already pending',
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        // Insert registration request
-        db.run(`
-          INSERT INTO seller_requests (full_name, phone, email, experience, status)
-          VALUES (?, ?, ?, ?, 'pending')
-        `, [fullName, phone, email, experience || ''], (err) => {
-          if (err) {
-            console.error('Registration error:', err);
-            return res.status(500).json({ 
-              error: 'Failed to submit registration request',
-              timestamp: new Date().toISOString()
-            });
-          }
-          
-          console.log(`New seller registration request from: ${fullName} (${phone})`);
-          
-          res.json({ 
-            success: true, 
-            message: 'Registration request submitted successfully. You will be notified once approved.',
-            timestamp: new Date().toISOString()
-          });
-        });
+    const existingUser = await db.get('SELECT id FROM users WHERE phone = ?', [phone]);
+    
+    if (existingUser) {
+      return res.status(400).json({ 
+        error: 'Phone number already registered',
+        timestamp: new Date().toISOString()
       });
+    }
+    
+    // Check if pending request exists
+    const existingRequest = await db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = "pending"', [phone]);
+    
+    if (existingRequest) {
+      return res.status(400).json({ 
+        error: 'Registration request already pending',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Insert registration request
+    await db.run(`
+      INSERT INTO seller_requests (full_name, phone, email, experience, status)
+      VALUES (?, ?, ?, ?, 'pending')
+    `, [fullName, phone, email, experience || '']);
+    
+    console.log(`New seller registration request from: ${fullName} (${phone})`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Registration request submitted successfully. You will be notified once approved.',
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
@@ -666,7 +641,7 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
 // Get all seller requests (admin only)
 app.get('/api/seller-requests', requireAuth, requireAdmin, async (req, res) => {
   try {
-    db.all(`
+    const requests = await db.all(`
       SELECT * FROM seller_requests 
       ORDER BY 
         CASE status 
@@ -675,16 +650,8 @@ app.get('/api/seller-requests', requireAuth, requireAdmin, async (req, res) => {
           WHEN 'rejected' THEN 3 
         END,
         request_date DESC
-    `, (err, requests) => {
-      if (err) {
-        console.error('Error fetching seller requests:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
-      }
-      res.json(requests);
-    });
+    `);
+    res.json(requests);
   } catch (error) {
     console.error('Error in get seller requests:', error);
     res.status(500).json({ 
@@ -702,88 +669,56 @@ app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (r
     const { notes } = req.body;
     
     // Get request details
-    db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId], async (err, request) => {
-      if (err) {
-        console.error('Database error fetching request:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      if (!request) {
-        return res.status(404).json({ 
-          error: 'Request not found',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      if (request.status !== 'pending') {
-        return res.status(400).json({ 
-          error: 'Request already processed',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      try {
-        // Generate random password
-        const generatedPassword = generatePassword();
-        const hashedPassword = await bcrypt.hash(generatedPassword, 10);
-        
-        // Create seller user account
-        db.run(`
-          INSERT INTO users (phone, password, role, name, email, registered_via, approved_by, approved_date)
-          VALUES (?, ?, 'seller', ?, ?, 'registration', ?, datetime('now'))
-        `, [request.phone, hashedPassword, request.full_name, request.email, adminPhone], (err) => {
-          if (err) {
-            console.error('Error creating seller user:', err);
-            return res.status(500).json({ 
-              error: 'Error creating seller account',
-              timestamp: new Date().toISOString()
-            });
-          }
-          
-          // Update request status
-          db.run(`
-            UPDATE seller_requests 
-            SET status = 'approved', 
-                reviewed_by = ?, 
-                reviewed_date = datetime('now'),
-                approval_notes = ?
-            WHERE id = ?
-          `, [adminPhone, notes || '', requestId], async (err) => {
-            if (err) {
-              console.error('Error updating request:', err);
-              return res.status(500).json({ 
-                error: 'Error updating request status',
-                timestamp: new Date().toISOString()
-              });
-            }
-            
-            // Send credentials
-            await sendCredentials(request.email, request.phone, request.full_name, generatedPassword);
-            
-            console.log(`Seller request approved: ${request.full_name} (${request.phone})`);
-            
-            res.json({ 
-              success: true, 
-              message: 'Seller approved and credentials sent',
-              credentials: {
-                phone: request.phone,
-                password: generatedPassword,
-                email: request.email
-              },
-              timestamp: new Date().toISOString()
-            });
-          });
-        });
-      } catch (bcryptError) {
-        console.error('Bcrypt error:', bcryptError);
-        return res.status(500).json({ 
-          error: 'Error generating password',
-          timestamp: new Date().toISOString()
-        });
-      }
+    const request = await db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId]);
+    
+    if (!request) {
+      return res.status(404).json({ 
+        error: 'Request not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    if (request.status !== 'pending') {
+      return res.status(400).json({ 
+        error: 'Request already processed',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Generate random password
+    const generatedPassword = generatePassword();
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+    
+    // Create seller user account
+    await db.run(`
+      INSERT INTO users (phone, password, role, name, email, registered_via, approved_by, approved_date)
+      VALUES (?, ?, 'seller', ?, ?, 'registration', ?, ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"})
+    `, [request.phone, hashedPassword, request.full_name, request.email, adminPhone]);
+    
+    // Update request status
+    await db.run(`
+      UPDATE seller_requests 
+      SET status = 'approved', 
+          reviewed_by = ?, 
+          reviewed_date = ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"},
+          approval_notes = ?
+      WHERE id = ?
+    `, [adminPhone, notes || '', requestId]);
+    
+    // Send credentials
+    await sendCredentials(request.email, request.phone, request.full_name, generatedPassword);
+    
+    console.log(`Seller request approved: ${request.full_name} (${request.phone})`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Seller approved and credentials sent',
+      credentials: {
+        phone: request.phone,
+        password: generatedPassword,
+        email: request.email
+      },
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
@@ -802,33 +737,25 @@ app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, async (re
     const adminPhone = req.session.user.phone;
     const { reason } = req.body;
     
-    db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId], async (err, request) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      if (!request || request.status !== 'pending') {
-        return res.status(400).json({ error: 'Invalid request' });
-      }
-      
-      db.run(`
-        UPDATE seller_requests 
-        SET status = 'rejected', 
-            reviewed_by = ?, 
-            reviewed_date = datetime('now'),
-            approval_notes = ?
-        WHERE id = ?
-      `, [adminPhone, reason || '', requestId], async (err) => {
-        if (err) {
-          return res.status(500).json({ error: 'Database error' });
-        }
-        
-        // Send rejection notification
-        await sendRejectionNotification(request.email, request.phone, request.full_name, reason);
-        
-        res.json({ success: true, message: 'Request rejected' });
-      });
-    });
+    const request = await db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId]);
+    
+    if (!request || request.status !== 'pending') {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    
+    await db.run(`
+      UPDATE seller_requests 
+      SET status = 'rejected', 
+          reviewed_by = ?, 
+          reviewed_date = ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"},
+          approval_notes = ?
+      WHERE id = ?
+    `, [adminPhone, reason || '', requestId]);
+    
+    // Send rejection notification
+    await sendRejectionNotification(request.email, request.phone, request.full_name, reason);
+    
+    res.json({ success: true, message: 'Request rejected' });
     
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -846,18 +773,10 @@ app.get('/seller', requireAuth, (req, res) => {
 });
 
 // API: Get all sellers
-app.get('/api/sellers', requireAuth, requireAdmin, (req, res) => {
+app.get('/api/sellers', requireAuth, requireAdmin, async (req, res) => {
   try {
-    db.all("SELECT id, name, phone, created_at FROM users WHERE role = 'seller'", (err, rows) => {
-      if (err) {
-        console.error('Error fetching sellers:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
-      }
-      res.json(rows);
-    });
+    const rows = await db.all("SELECT id, name, phone, created_at FROM users WHERE role = 'seller'");
+    res.json(rows);
   } catch (error) {
     console.error('Error in get sellers:', error);
     res.status(500).json({ 
@@ -890,28 +809,27 @@ app.post('/api/sellers', requireAuth, requireAdmin, validateSeller, async (req, 
     
     const hash = await bcrypt.hash(password, 10);
     
-    db.run(
-      "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, 'seller')",
-      [name, phone, hash],
-      function(err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ 
-              error: 'Phone number already exists',
-              timestamp: new Date().toISOString()
-            });
-          }
-          console.error('Error creating seller:', err);
-          return res.status(500).json({ 
-            error: 'Database error',
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        console.log(`Seller created: ${name} (${phone}) by admin`);
-        res.json({ success: true, id: this.lastID });
+    try {
+      const result = await db.run(
+        "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, 'seller')",
+        [name, phone, hash]
+      );
+      
+      console.log(`Seller created: ${name} (${phone}) by admin`);
+      res.json({ success: true, id: result.lastID });
+    } catch (err) {
+      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ 
+          error: 'Phone number already exists',
+          timestamp: new Date().toISOString()
+        });
       }
-    );
+      console.error('Error creating seller:', err);
+      return res.status(500).json({ 
+        error: 'Database error',
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error('Error adding seller:', error);
     res.status(500).json({ 
@@ -922,65 +840,64 @@ app.post('/api/sellers', requireAuth, requireAdmin, validateSeller, async (req, 
 });
 
 // API: Update seller
-app.put('/api/sellers/:id', requireAuth, requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const { name, phone, password } = req.body;
-  
-  if (!name || !phone) {
-    return res.status(400).json({ error: 'Name and phone are required' });
-  }
-  
-  if (password) {
-    bcrypt.hash(password, 10, (err, hash) => {
-      if (err) {
-        return res.status(500).json({ error: 'Error hashing password' });
-      }
+app.put('/api/sellers/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, password } = req.body;
+    
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone are required' });
+    }
+    
+    if (password) {
+      const hash = await bcrypt.hash(password, 10);
       
-      db.run(
-        "UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ? AND role = 'seller'",
-        [name, phone, hash, id],
-        function(err) {
-          if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-              return res.status(400).json({ error: 'Phone number already exists' });
-            }
-            return res.status(500).json({ error: 'Database error' });
-          }
-          res.json({ success: true });
-        }
-      );
-    });
-  } else {
-    db.run(
-      "UPDATE users SET name = ?, phone = ? WHERE id = ? AND role = 'seller'",
-      [name, phone, id],
-      function(err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ error: 'Phone number already exists' });
-          }
-          return res.status(500).json({ error: 'Database error' });
-        }
+      try {
+        await db.run(
+          "UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ? AND role = 'seller'",
+          [name, phone, hash, id]
+        );
         res.json({ success: true });
+      } catch (err) {
+        if (err.message && err.message.includes('UNIQUE constraint failed')) {
+          return res.status(400).json({ error: 'Phone number already exists' });
+        }
+        return res.status(500).json({ error: 'Database error' });
       }
-    );
+    } else {
+      try {
+        await db.run(
+          "UPDATE users SET name = ?, phone = ? WHERE id = ? AND role = 'seller'",
+          [name, phone, id]
+        );
+        res.json({ success: true });
+      } catch (err) {
+        if (err.message && err.message.includes('UNIQUE constraint failed')) {
+          return res.status(400).json({ error: 'Phone number already exists' });
+        }
+        return res.status(500).json({ error: 'Database error' });
+      }
+    }
+  } catch (error) {
+    console.error('Error updating seller:', error);
+    res.status(500).json({ error: 'An error occurred' });
   }
 });
 
 // API: Delete seller
-app.delete('/api/sellers/:id', requireAuth, requireAdmin, (req, res) => {
-  const { id } = req.params;
-  
-  db.run("DELETE FROM users WHERE id = ? AND role = 'seller'", [id], function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.delete('/api/sellers/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await db.run("DELETE FROM users WHERE id = ? AND role = 'seller'", [id]);
     res.json({ success: true });
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // API: Get all tickets
-app.get('/api/tickets', requireAuth, (req, res) => {
+app.get('/api/tickets', requireAuth, async (req, res) => {
   try {
     let query = "SELECT * FROM tickets ORDER BY ticket_number";
     let params = [];
@@ -990,16 +907,8 @@ app.get('/api/tickets', requireAuth, (req, res) => {
       params = [req.session.user.phone];
     }
     
-    db.all(query, params, (err, rows) => {
-      if (err) {
-        console.error('Error fetching tickets:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
-      }
-      res.json(rows);
-    });
+    const rows = await db.all(query, params);
+    res.json(rows);
   } catch (error) {
     console.error('Error in get tickets:', error);
     res.status(500).json({ 
@@ -1034,28 +943,27 @@ app.post('/api/tickets', requireAuth, validateTicket, async (req, res) => {
     const seller_name = req.session.user.name;
     const seller_phone = req.session.user.phone;
     
-    db.run(
-      "INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount) VALUES (?, ?, ?, ?, ?, ?)",
-      [ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount],
-      function(err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return res.status(400).json({ 
-              error: 'Ticket number already exists',
-              timestamp: new Date().toISOString()
-            });
-          }
-          console.error('Error creating ticket:', err);
-          return res.status(500).json({ 
-            error: 'Database error',
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        console.log(`Ticket created: ${ticket_number} by ${seller_name}`);
-        res.json({ success: true, id: this.lastID });
+    try {
+      const result = await db.run(
+        "INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount) VALUES (?, ?, ?, ?, ?, ?)",
+        [ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount]
+      );
+      
+      console.log(`Ticket created: ${ticket_number} by ${seller_name}`);
+      res.json({ success: true, id: result.lastID });
+    } catch (err) {
+      if (err.message && err.message.includes('UNIQUE constraint failed')) {
+        return res.status(400).json({ 
+          error: 'Ticket number already exists',
+          timestamp: new Date().toISOString()
+        });
       }
-    );
+      console.error('Error creating ticket:', err);
+      return res.status(500).json({ 
+        error: 'Database error',
+        timestamp: new Date().toISOString()
+      });
+    }
   } catch (error) {
     console.error('Error adding ticket:', error);
     res.status(500).json({ 
@@ -1066,7 +974,7 @@ app.post('/api/tickets', requireAuth, validateTicket, async (req, res) => {
 });
 
 // API: Update ticket
-app.put('/api/tickets/:id', requireAuth, (req, res) => {
+app.put('/api/tickets/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   const { buyer_name, buyer_phone, amount } = req.body;
   
@@ -1074,92 +982,87 @@ app.put('/api/tickets/:id', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'All fields are required' });
   }
   
-  let query, params;
-  
-  if (req.session.user.role === 'admin') {
-    query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ?";
-    params = [buyer_name, buyer_phone, amount, id];
-  } else {
-    query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ? AND seller_phone = ?";
-    params = [buyer_name, buyer_phone, amount, id, req.session.user.phone];
-  }
-  
-  db.run(query, params, function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+  try {
+    let query, params;
+    
+    if (req.session.user.role === 'admin') {
+      query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ?";
+      params = [buyer_name, buyer_phone, amount, id];
+    } else {
+      query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ? AND seller_phone = ?";
+      params = [buyer_name, buyer_phone, amount, id, req.session.user.phone];
     }
-    if (this.changes === 0) {
+    
+    const result = await db.run(query, params);
+    if (result.changes === 0) {
       return res.status(403).json({ error: 'Not authorized to update this ticket' });
     }
     res.json({ success: true });
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // API: Delete ticket
-app.delete('/api/tickets/:id', requireAuth, (req, res) => {
+app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
   
-  let query, params;
-  
-  if (req.session.user.role === 'admin') {
-    query = "DELETE FROM tickets WHERE id = ?";
-    params = [id];
-  } else {
-    query = "DELETE FROM tickets WHERE id = ? AND seller_phone = ?";
-    params = [id, req.session.user.phone];
-  }
-  
-  db.run(query, params, function(err) {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+  try {
+    let query, params;
+    
+    if (req.session.user.role === 'admin') {
+      query = "DELETE FROM tickets WHERE id = ?";
+      params = [id];
+    } else {
+      query = "DELETE FROM tickets WHERE id = ? AND seller_phone = ?";
+      params = [id, req.session.user.phone];
     }
-    if (this.changes === 0) {
+    
+    const result = await db.run(query, params);
+    if (result.changes === 0) {
       return res.status(403).json({ error: 'Not authorized to delete this ticket' });
     }
     res.json({ success: true });
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // API: Get ticket statistics
-app.get('/api/stats', requireAuth, (req, res) => {
-  let ticketQuery, revenueQuery;
-  let params = [];
-  
-  if (req.session.user.role === 'admin') {
-    ticketQuery = "SELECT COUNT(*) as total FROM tickets";
-    revenueQuery = "SELECT SUM(amount) as total FROM tickets";
-  } else {
-    ticketQuery = "SELECT COUNT(*) as total FROM tickets WHERE seller_phone = ?";
-    revenueQuery = "SELECT SUM(amount) as total FROM tickets WHERE seller_phone = ?";
-    params = [req.session.user.phone];
-  }
-  
-  db.get(ticketQuery, params, (err, ticketRow) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+app.get('/api/stats', requireAuth, async (req, res) => {
+  try {
+    let ticketQuery, revenueQuery;
+    let params = [];
+    
+    if (req.session.user.role === 'admin') {
+      ticketQuery = "SELECT COUNT(*) as total FROM tickets";
+      revenueQuery = "SELECT SUM(amount) as total FROM tickets";
+    } else {
+      ticketQuery = "SELECT COUNT(*) as total FROM tickets WHERE seller_phone = ?";
+      revenueQuery = "SELECT SUM(amount) as total FROM tickets WHERE seller_phone = ?";
+      params = [req.session.user.phone];
     }
     
-    db.get(revenueQuery, params, (err, revenueRow) => {
-      if (err) {
-        return res.status(500).json({ error: 'Database error' });
-      }
-      
-      res.json({
-        totalTickets: ticketRow.total || 0,
-        totalRevenue: revenueRow.total || 0
-      });
+    const ticketRow = await db.get(ticketQuery, params);
+    const revenueRow = await db.get(revenueQuery, params);
+    
+    res.json({
+      totalTickets: ticketRow.total || 0,
+      totalRevenue: revenueRow.total || 0
     });
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // API: Get all draws
-app.get('/api/draws', requireAuth, requireAdmin, (req, res) => {
-  db.all("SELECT * FROM draws ORDER BY drawn_at DESC", (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/api/draws', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all("SELECT * FROM draws ORDER BY drawn_at DESC");
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // API: Conduct draw
@@ -1175,81 +1078,46 @@ app.post('/api/draw', requireAuth, requireAdmin, async (req, res) => {
     }
     
     // Get all active tickets
-    db.all("SELECT * FROM tickets WHERE status = 'active'", (err, tickets) => {
-      if (err) {
-        console.error('Database error fetching tickets:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      if (tickets.length === 0) {
-        return res.status(400).json({ 
-          error: 'No active tickets available',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Random selection
-      const winner = tickets[Math.floor(Math.random() * tickets.length)];
-      
-      // Get next draw number
-      db.get("SELECT MAX(draw_number) as max_draw FROM draws", (err, row) => {
-        if (err) {
-          console.error('Database error getting draw number:', err);
-          return res.status(500).json({ 
-            error: 'Database error',
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        const draw_number = (row.max_draw || 0) + 1;
-        
-        // Insert draw result
-        db.run(
-          "INSERT INTO draws (draw_number, ticket_number, prize_name, winner_name, winner_phone) VALUES (?, ?, ?, ?, ?)",
-          [draw_number, winner.ticket_number, prize_name, winner.buyer_name, winner.buyer_phone],
-          function(err) {
-            if (err) {
-              console.error('Error recording draw:', err);
-              return res.status(500).json({ 
-                error: 'Database error',
-                timestamp: new Date().toISOString()
-              });
-            }
-            
-            // Mark ticket as won
-            db.run(
-              "UPDATE tickets SET status = 'won' WHERE id = ?",
-              [winner.id],
-              (err) => {
-                if (err) {
-                  console.error('Error updating ticket status:', err);
-                  return res.status(500).json({ 
-                    error: 'Error updating ticket status',
-                    timestamp: new Date().toISOString()
-                  });
-                }
-                
-                console.log(`Draw conducted: ${prize_name} - Winner: ${winner.buyer_name} (Ticket: ${winner.ticket_number})`);
-                
-                res.json({
-                  success: true,
-                  draw: {
-                    draw_number,
-                    ticket_number: winner.ticket_number,
-                    prize_name,
-                    winner_name: winner.buyer_name,
-                    winner_phone: winner.buyer_phone
-                  },
-                  timestamp: new Date().toISOString()
-                });
-              }
-            );
-          }
-        );
+    const tickets = await db.all("SELECT * FROM tickets WHERE status = 'active'");
+    
+    if (tickets.length === 0) {
+      return res.status(400).json({ 
+        error: 'No active tickets available',
+        timestamp: new Date().toISOString()
       });
+    }
+    
+    // Random selection
+    const winner = tickets[Math.floor(Math.random() * tickets.length)];
+    
+    // Get next draw number
+    const row = await db.get("SELECT MAX(draw_number) as max_draw FROM draws");
+    const draw_number = (row.max_draw || 0) + 1;
+    
+    // Insert draw result
+    await db.run(
+      "INSERT INTO draws (draw_number, ticket_number, prize_name, winner_name, winner_phone) VALUES (?, ?, ?, ?, ?)",
+      [draw_number, winner.ticket_number, prize_name, winner.buyer_name, winner.buyer_phone]
+    );
+    
+    // Mark ticket as won
+    await db.run(
+      "UPDATE tickets SET status = 'won' WHERE id = ?",
+      [winner.id]
+    );
+    
+    console.log(`Draw conducted: ${prize_name} - Winner: ${winner.buyer_name} (Ticket: ${winner.ticket_number})`);
+    
+    res.json({
+      success: true,
+      draw: {
+        draw_number,
+        ticket_number: winner.ticket_number,
+        prize_name,
+        winner_name: winner.buyer_name,
+        winner_phone: winner.buyer_phone
+      },
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Draw error:', error);
@@ -1261,32 +1129,32 @@ app.post('/api/draw', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // API: Get available tickets for draw
-app.get('/api/available-tickets', requireAuth, requireAdmin, (req, res) => {
-  db.all("SELECT ticket_number FROM tickets WHERE status = 'active' ORDER BY ticket_number", (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/api/available-tickets', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all("SELECT ticket_number FROM tickets WHERE status = 'active' ORDER BY ticket_number");
     res.json(rows.map(row => row.ticket_number));
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // API: Get seller statistics
-app.get('/api/seller-stats', requireAuth, requireAdmin, (req, res) => {
-  db.all(`
-    SELECT 
-      seller_name,
-      seller_phone,
-      COUNT(*) as ticket_count,
-      SUM(amount) as total_revenue
-    FROM tickets
-    GROUP BY seller_phone
-    ORDER BY total_revenue DESC
-  `, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/api/seller-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT 
+        seller_name,
+        seller_phone,
+        COUNT(*) as ticket_count,
+        SUM(amount) as total_revenue
+      FROM tickets
+      GROUP BY seller_phone
+      ORDER BY total_revenue DESC
+    `);
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // API: Bulk import ticket
@@ -1311,54 +1179,36 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
     }
     
     // Check if ticket number already exists
-    db.get('SELECT id FROM tickets WHERE ticket_number = ?', [ticketNumber], (err, existing) => {
-      if (err) {
-        console.error('Database error checking ticket:', err);
-        return res.status(500).json({ 
-          error: 'Database error',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      if (existing) {
-        return res.status(400).json({ 
-          error: 'Ticket number already exists',
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Insert ticket with barcode
-      db.run(`
-        INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount, category, status, barcode, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-      `, [
-        ticketNumber, 
-        buyerName, 
-        buyerPhone, 
-        seller || 'Admin', 
-        req.session.user.phone, 
-        amount, 
-        category || 'Standard', 
-        status || 'sold', 
-        barcode
-      ], function(err) {
-        if (err) {
-          console.error('Bulk import error:', err);
-          return res.status(500).json({ 
-            error: 'Failed to import ticket',
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        console.log(`Ticket imported: ${ticketNumber} by ${req.session.user.name}`);
-        
-        res.json({ 
-          success: true, 
-          ticketId: this.lastID,
-          ticketNumber,
-          timestamp: new Date().toISOString()
-        });
+    const existing = await db.get('SELECT id FROM tickets WHERE ticket_number = ?', [ticketNumber]);
+    
+    if (existing) {
+      return res.status(400).json({ 
+        error: 'Ticket number already exists',
+        timestamp: new Date().toISOString()
       });
+    }
+    
+    // Insert ticket with barcode
+    const result = await db.run(`
+      INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount, category, status, barcode, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')"})
+    `, [
+      ticketNumber, 
+      buyerName, 
+      buyerPhone, 
+      seller || 'Admin', 
+      req.session.user.phone, 
+      amount, 
+      category || 'Standard', 
+      status || 'sold', 
+      barcode
+    ]);
+    
+    console.log(`Bulk ticket imported: ${ticketNumber}`);
+    res.json({ 
+      success: true, 
+      id: result.lastID,
+      ticketNumber: ticketNumber
     });
   } catch (error) {
     console.error('Bulk import error:', error);
@@ -1370,30 +1220,30 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
 });
 
 // Legacy endpoints (for backward compatibility with frontend)
-app.get('/tickets', requireAuth, (req, res) => {
-  let query = "SELECT ticket_number as number, category, status, barcode FROM tickets ORDER BY ticket_number";
-  let params = [];
-  
-  if (req.session.user.role === 'seller') {
-    query = "SELECT ticket_number as number, category, status, barcode FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
-    params = [req.session.user.phone];
-  }
-  
-  db.all(query, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
+app.get('/tickets', requireAuth, async (req, res) => {
+  try {
+    let query = "SELECT ticket_number as number, category, status, barcode FROM tickets ORDER BY ticket_number";
+    let params = [];
+    
+    if (req.session.user.role === 'seller') {
+      query = "SELECT ticket_number as number, category, status, barcode FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+      params = [req.session.user.phone];
     }
+    
+    const rows = await db.all(query, params);
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
-app.get('/users', requireAuth, requireAdmin, (req, res) => {
-  db.all("SELECT name, phone, role FROM users ORDER BY name", (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all("SELECT name, phone, role FROM users ORDER BY name");
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
@@ -1401,32 +1251,32 @@ app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
   res.json([]);
 });
 
-app.get('/sales-report', requireAuth, requireAdmin, (req, res) => {
-  db.all(`
-    SELECT seller_name as sold_by, COUNT(*) as count
-    FROM tickets
-    GROUP BY seller_name
-    ORDER BY count DESC
-  `, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT seller_name as sold_by, COUNT(*) as count
+      FROM tickets
+      GROUP BY seller_name
+      ORDER BY count DESC
+    `);
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
-app.get('/seller-leaderboard', requireAuth, requireAdmin, (req, res) => {
-  db.all(`
-    SELECT seller_name as sold_by, COUNT(*) as tickets_sold
-    FROM tickets
-    GROUP BY seller_name
-    ORDER BY tickets_sold DESC
-  `, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/seller-leaderboard', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT seller_name as sold_by, COUNT(*) as tickets_sold
+      FROM tickets
+      GROUP BY seller_name
+      ORDER BY tickets_sold DESC
+    `);
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
@@ -1434,34 +1284,34 @@ app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
   res.json([]);
 });
 
-app.get('/analytics/sales-by-day', requireAuth, requireAdmin, (req, res) => {
-  db.all(`
-    SELECT DATE(created_at) as day, COUNT(*) as count
-    FROM tickets
-    WHERE created_at >= DATE('now', '-30 days')
-    GROUP BY DATE(created_at)
-    ORDER BY day
-  `, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT DATE(created_at) as day, COUNT(*) as count
+      FROM tickets
+      WHERE created_at >= DATE('now', '-30 days')
+      GROUP BY DATE(created_at)
+      ORDER BY day
+    `);
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
-app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, (req, res) => {
-  db.all(`
-    SELECT category, COUNT(*) as count
-    FROM tickets
-    WHERE category IS NOT NULL
-    GROUP BY category
-    ORDER BY count DESC
-  `, (err, rows) => {
-    if (err) {
-      return res.status(500).json({ error: 'Database error' });
-    }
+app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT category, COUNT(*) as count
+      FROM tickets
+      WHERE category IS NOT NULL
+      GROUP BY category
+      ORDER BY count DESC
+    `);
     res.json(rows);
-  });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
 });
 
 // 404 handler - must be after all other routes
