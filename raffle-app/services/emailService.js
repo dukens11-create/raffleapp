@@ -12,8 +12,10 @@ const transporter = nodemailer.createTransport({
 // Verify transporter configuration
 transporter.verify(function(error, success) {
   if (error) {
-    console.error('Email service configuration error:', error);
-    console.log('Email notifications will be logged to console only');
+    console.error('Email service configuration error. Email notifications will be logged to console only.');
+    if (process.env.DEBUG_MODE === 'true') {
+      console.error('Email error details:', error.message);
+    }
   } else {
     console.log('Email service is ready to send messages');
   }
@@ -107,9 +109,13 @@ Please change your password after first login.
     console.log('Credentials email sent to:', email, '| Message ID:', info.messageId);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending credentials email to', email, ':', error);
-    // Fallback: log to console
-    console.log('FALLBACK - Credentials for', name, ':', { phone, password, email });
+    console.error('Error sending credentials email to', email, ':', error.message);
+    // Fallback: log to console (password masked for security)
+    console.log('FALLBACK - Credentials for', name, ':', { phone, password: '****', email });
+    // Log full credentials only in debug mode
+    if (process.env.DEBUG_MODE === 'true') {
+      console.log('DEBUG - Full credentials:', { phone, password, email });
+    }
     return { success: false, error: error.message };
   }
 }
