@@ -928,8 +928,6 @@
                             }
                             
                             function startAdminScanner() {
-                              if (isAdminScannerRunning) return;
-                              
                               const scanResult = document.getElementById('scanResult');
                               if (!scanResult) {
                                 alert('Scanner UI error. Refresh page.');
@@ -937,6 +935,19 @@
                               }
                               
                               scanResult.textContent = '';
+                              
+                              // CRITICAL FIX: Force cleanup any existing scanner FIRST
+                              if (adminScanner) {
+                                try {
+                                  adminScanner.stop().catch(() => {});
+                                  adminScanner.clear().catch(() => {});
+                                } catch (e) {}
+                                adminScanner = null;
+                                isAdminScannerRunning = false;
+                              }
+                              
+                              // Prevent double start
+                              if (isAdminScannerRunning) return;
                               
                               // HTTPS check
                               const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -960,10 +971,12 @@
                                 return;
                               }
                               
+                              // Create scanner
                               try {
                                 adminScanner = new Html5Qrcode("scanner-reader");
                               } catch (err) {
                                 scanResult.textContent = `❌ Error: ${err.message}`;
+                                adminScanner = null;
                                 return;
                               }
                               
@@ -989,18 +1002,30 @@
                                 scanResult.textContent = `❌ ${msg}`;
                                 alert(msg);
                                 isAdminScannerRunning = false;
-                                adminScanner = null;
+                                if (adminScanner) {
+                                  try { adminScanner.clear().catch(() => {}); } catch (e) {}
+                                  adminScanner = null;
+                                }
                               });
                             }
                             
                             function stopAdminScanner() {
-                              if (adminScanner && isAdminScannerRunning) {
-                                adminScanner.stop().then(() => {
-                                  isAdminScannerRunning = false;
-                                  adminScanner = null;
-                                }).catch(() => {
-                                  isAdminScannerRunning = false;
-                                });
+                              if (adminScanner) {
+                                adminScanner.stop()
+                                  .then(() => {
+                                    return adminScanner.clear();
+                                  })
+                                  .then(() => {
+                                    isAdminScannerRunning = false;
+                                    adminScanner = null;
+                                  })
+                                  .catch((err) => {
+                                    console.log('Cleanup error:', err);
+                                    // Force cleanup even on error
+                                    try { adminScanner.clear().catch(() => {}); } catch (e) {}
+                                    isAdminScannerRunning = false;
+                                    adminScanner = null;
+                                  });
                               }
                             }
                             

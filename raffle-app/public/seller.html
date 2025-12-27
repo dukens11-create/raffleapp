@@ -395,8 +395,6 @@
     }
     
     function startSellerScanner() {
-      if (isSellerScannerRunning) return;
-      
       const scanResult = document.getElementById('scanResult');
       if (!scanResult) {
         alert('Scanner UI error. Refresh page.');
@@ -404,6 +402,19 @@
       }
       
       scanResult.textContent = '';
+      
+      // CRITICAL FIX: Force cleanup any existing scanner FIRST
+      if (sellerScanner) {
+        try {
+          sellerScanner.stop().catch(() => {});
+          sellerScanner.clear().catch(() => {});
+        } catch (e) {}
+        sellerScanner = null;
+        isSellerScannerRunning = false;
+      }
+      
+      // Prevent double start
+      if (isSellerScannerRunning) return;
       
       const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
       if (!isSecure) {
@@ -424,10 +435,12 @@
         return;
       }
       
+      // Create scanner
       try {
         sellerScanner = new Html5Qrcode("scanner-reader");
       } catch (err) {
         scanResult.textContent = `❌ Error: ${err.message}`;
+        sellerScanner = null;
         return;
       }
       
@@ -453,18 +466,30 @@
         scanResult.textContent = `❌ ${msg}`;
         alert(msg);
         isSellerScannerRunning = false;
-        sellerScanner = null;
+        if (sellerScanner) {
+          try { sellerScanner.clear().catch(() => {}); } catch (e) {}
+          sellerScanner = null;
+        }
       });
     }
     
     function stopSellerScanner() {
-      if (sellerScanner && isSellerScannerRunning) {
-        sellerScanner.stop().then(() => {
-          isSellerScannerRunning = false;
-          sellerScanner = null;
-        }).catch(() => {
-          isSellerScannerRunning = false;
-        });
+      if (sellerScanner) {
+        sellerScanner.stop()
+          .then(() => {
+            return sellerScanner.clear();
+          })
+          .then(() => {
+            isSellerScannerRunning = false;
+            sellerScanner = null;
+          })
+          .catch((err) => {
+            console.log('Cleanup error:', err);
+            // Force cleanup even on error
+            try { sellerScanner.clear().catch(() => {}); } catch (e) {}
+            isSellerScannerRunning = false;
+            sellerScanner = null;
+          });
       }
     }
     
