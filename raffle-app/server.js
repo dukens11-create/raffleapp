@@ -48,7 +48,7 @@ function initializeDatabase() {
     // Tickets table
     db.run(`CREATE TABLE IF NOT EXISTS tickets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      ticket_number INTEGER UNIQUE NOT NULL,
+      ticket_number TEXT UNIQUE NOT NULL,
       buyer_name TEXT NOT NULL,
       buyer_phone TEXT NOT NULL,
       seller_name TEXT NOT NULL,
@@ -62,13 +62,17 @@ function initializeDatabase() {
     
     // Add barcode and category columns if they don't exist (migration)
     db.run(`ALTER TABLE tickets ADD COLUMN barcode TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      // Error code 1 is SQLITE_ERROR which includes "duplicate column name"
+      // Silently ignore if column already exists
+      if (err && err.errno !== 1) {
         console.error('Error adding barcode column:', err);
       }
     });
     
     db.run(`ALTER TABLE tickets ADD COLUMN category TEXT`, (err) => {
-      if (err && !err.message.includes('duplicate column')) {
+      // Error code 1 is SQLITE_ERROR which includes "duplicate column name"
+      // Silently ignore if column already exists
+      if (err && err.errno !== 1) {
         console.error('Error adding category column:', err);
       }
     });
@@ -532,9 +536,14 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { ticketNumber, buyerName, buyerPhone, amount, category, seller, status, barcode } = req.body;
     
-    // Validate required fields
-    if (!ticketNumber || !buyerName || !buyerPhone || !amount) {
+    // Validate required fields (allow amount to be 0)
+    if (!ticketNumber || !buyerName || !buyerPhone || amount === undefined || amount === null) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    // Validate amount is a number
+    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+      return res.status(400).json({ error: 'Amount must be a non-negative number' });
     }
     
     // Check if ticket number already exists
