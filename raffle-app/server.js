@@ -16,6 +16,7 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
 // Global error handlers for uncaught errors
 process.on('uncaughtException', (error) => {
@@ -505,6 +506,15 @@ app.post('/login', authLimiter, async (req, res) => {
       });
     }
     
+    // Debug logging
+    if (DEBUG_MODE) {
+      console.log('Login attempt:', {
+        phone,
+        bruteForceLocked: checkBruteForce(phone),
+        attempts: loginAttempts.get(phone)
+      });
+    }
+    
     db.get("SELECT * FROM users WHERE phone = ?", [phone], async (err, user) => {
       if (err) {
         console.error('Login database error:', err);
@@ -516,9 +526,21 @@ app.post('/login', authLimiter, async (req, res) => {
       
       if (!user) {
         recordFailedAttempt(phone);
+        if (DEBUG_MODE) {
+          console.log('User not found:', phone);
+        }
         return res.status(401).json({ 
           error: 'Invalid phone number or password',
           timestamp: new Date().toISOString()
+        });
+      }
+      
+      // Debug logging
+      if (DEBUG_MODE) {
+        console.log('User found:', {
+          phone: user.phone,
+          role: user.role,
+          hasPassword: !!user.password
         });
       }
       
@@ -575,6 +597,115 @@ app.get('/logout', (req, res) => {
   req.session.destroy();
   res.redirect('/');
 });
+
+// Admin Setup Endpoint - Public endpoint to create/reset admin
+app.post('/api/setup-admin', async (req, res) => {
+  try {
+    const { secretKey } = req.body;
+    
+    // Optional: Add a secret key for security
+    // if (secretKey !== process.env.ADMIN_SETUP_KEY) {
+    //   return res.status(403).json({ error: 'Invalid secret key' });
+    // }
+    
+    // Delete existing admin
+    await new Promise((resolve, reject) => {
+      db.run("DELETE FROM users WHERE role = 'admin'", (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+    
+    // Create new admin
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    
+    await new Promise((resolve, reject) => {
+      db.run(
+        "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
+        ['Admin', '1234567890', hashedPassword, 'admin'],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.lastID);
+        }
+      );
+    });
+    
+    console.log('Admin account created/reset - Phone: 1234567890, Password: admin123');
+    
+    res.json({ 
+      success: true, 
+      message: 'Admin account created successfully',
+      credentials: {
+        phone: '1234567890',
+        password: 'admin123'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Setup admin error:', error);
+    res.status(500).json({ 
+      error: 'Failed to setup admin account',
+      details: error.message 
+    });
+  }
+});
+
+// Clear Login Attempts Endpoint - Clear brute force protection
+app.post('/api/clear-login-attempts', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number required' });
+    }
+    
+    clearFailedAttempts(phone);
+    
+    res.json({ 
+      success: true, 
+      message: 'Login attempts cleared for ' + phone 
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to clear attempts' });
+  }
+});
+
+// Login Status Diagnostic Endpoint - Check login/rate limit status
+app.get('/api/login-status/:phone', async (req, res) => {
+  try {
+    const { phone } = req.params;
+    
+    // Check if user exists
+    const user = await new Promise((resolve, reject) => {
+      db.get("SELECT id, name, role FROM users WHERE phone = ?", [phone], (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+    
+    // Check brute force status
+    const attempts = loginAttempts.get(phone) || { count: 0, firstAttempt: Date.now() };
+    const isBlocked = checkBruteForce(phone);
+    const timeUntilReset = isBlocked 
+      ? Math.max(0, 60 * 60 * 1000 - (Date.now() - attempts.firstAttempt))
+      : 0;
+    
+    res.json({
+      userExists: !!user,
+      userName: user ? user.name : null,
+      userRole: user ? user.role : null,
+      failedAttempts: attempts.count,
+      isBlocked: isBlocked,
+      timeUntilResetMs: timeUntilReset,
+      timeUntilResetMin: Math.ceil(timeUntilReset / 60000)
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check status' });
+  }
+});
+
 
 // Seller Registration APIs
 // Submit registration request with validation
