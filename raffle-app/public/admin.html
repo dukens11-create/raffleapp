@@ -1073,22 +1073,31 @@
                                 console.error('❌ Camera error:', err);
                                 
                                 // User-friendly error messages
-                                let userMessage = 'Camera Error';
+                                let displayMessage = '';
+                                let alertMessage = '';
                                 
-                                if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission')) {
-                                  userMessage = '❌ Camera permission denied. Please allow camera access in your browser settings.';
-                                } else if (err.toString().includes('NotFoundError')) {
-                                  userMessage = '❌ No camera found on this device.';
-                                } else if (err.toString().includes('NotReadableError')) {
-                                  userMessage = '❌ Camera is in use by another app. Please close other apps.';
-                                } else if (err.toString().includes('OverconstrainedError')) {
-                                  userMessage = '❌ Camera does not meet requirements.';
+                                const errString = err.toString();
+                                const errName = err.name || '';
+                                
+                                if (errName === 'NotAllowedError' || errString.includes('NotAllowedError') || errString.includes('Permission')) {
+                                  displayMessage = '❌ Camera permission denied. Please allow camera access in your browser settings.';
+                                  alertMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
+                                } else if (errName === 'NotFoundError' || errString.includes('NotFoundError')) {
+                                  displayMessage = '❌ No camera found on this device.';
+                                  alertMessage = 'No camera found on this device.';
+                                } else if (errName === 'NotReadableError' || errString.includes('NotReadableError')) {
+                                  displayMessage = '❌ Camera is in use by another app. Please close other apps.';
+                                  alertMessage = 'Camera is in use by another app. Please close other apps.';
+                                } else if (errName === 'OverconstrainedError' || errString.includes('OverconstrainedError')) {
+                                  displayMessage = '❌ Camera does not meet requirements.';
+                                  alertMessage = 'Camera does not meet requirements.';
                                 } else {
-                                  userMessage = `❌ Camera error: ${err.message || err}`;
+                                  displayMessage = `❌ Camera error: ${err.message || err}`;
+                                  alertMessage = `Camera error: ${err.message || err}`;
                                 }
                                 
-                                scanResult.textContent = userMessage;
-                                alert(userMessage.replace('❌ ', ''));
+                                scanResult.textContent = displayMessage;
+                                alert(alertMessage);
                                 
                                 isAdminScannerRunning = false;
                                 adminScanner = null;
