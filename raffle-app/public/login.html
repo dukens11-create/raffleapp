@@ -396,10 +396,10 @@
                     
                     const small = document.createElement('small');
                     small.style.cssText = 'color: #666; display: block; margin-top: 12px;';
-                    small.textContent = 'Redirecting in 1 second... or tap button above';
+                    small.textContent = 'Redirecting in 1.5 seconds... or tap button above';
                     messageDiv.appendChild(small);
                     
-                    // Attempt immediate redirect (1500ms delay for UI to render)
+                    // Attempt redirect after 1500ms delay for mobile compatibility
                     setTimeout(() => {
                         try {
                             console.log('Attempting redirect to:', redirectUrl);
