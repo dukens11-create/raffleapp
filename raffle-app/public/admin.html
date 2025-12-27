@@ -904,7 +904,7 @@
                             let isAdminScannerRunning = false;
                             
                             function onAdminScanSuccess(decodedText) {
-                              document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
+                              document.getElementById('scanResult').textContent = `✅ Scanned: ${decodedText}`;
                               document.getElementById('ticket-number').value = decodedText;
                               
                               // Highlight ticket in table

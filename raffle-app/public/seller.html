@@ -382,7 +382,7 @@
     let isSellerScannerRunning = false;
     
     function onScanSuccess(decodedText) {
-      document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
+      document.getElementById('scanResult').textContent = `✅ Scanned: ${decodedText}`;
       document.getElementById('result').textContent = `Ready: ${decodedText}`;
       document.getElementById('ticket-number').value = decodedText;
       
