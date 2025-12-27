@@ -936,6 +936,12 @@
                               
                               scanResult.textContent = '';
                               
+                              // Prevent double start
+                              if (isAdminScannerRunning) return;
+                              
+                              // Mark as starting
+                              isAdminScannerRunning = true;
+                              
                               // CRITICAL FIX: Force cleanup any existing scanner FIRST
                               if (adminScanner) {
                                 const oldScanner = adminScanner;
@@ -946,17 +952,14 @@
                                 } catch (e) {
                                   console.log('Cleanup error:', e);
                                 }
-                                isAdminScannerRunning = false;
                               }
-                              
-                              // Prevent double start
-                              if (isAdminScannerRunning) return;
                               
                               // HTTPS check
                               const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
                               if (!isSecure) {
                                 scanResult.textContent = '❌ Requires HTTPS';
                                 alert('Camera requires HTTPS connection.');
+                                isAdminScannerRunning = false;
                                 return;
                               }
                               
@@ -964,6 +967,7 @@
                               if (!navigator.mediaDevices?.getUserMedia) {
                                 scanResult.textContent = '❌ Browser not supported';
                                 alert('Browser does not support camera.');
+                                isAdminScannerRunning = false;
                                 return;
                               }
                               
@@ -971,6 +975,7 @@
                               if (typeof Html5Qrcode === 'undefined') {
                                 scanResult.textContent = '❌ Library not loaded';
                                 alert('Scanner library failed to load. Check connection and refresh.');
+                                isAdminScannerRunning = false;
                                 return;
                               }
                               
@@ -980,6 +985,7 @@
                               } catch (err) {
                                 scanResult.textContent = `❌ Error: ${err.message}`;
                                 adminScanner = null;
+                                isAdminScannerRunning = false;
                                 return;
                               }
                               
@@ -991,7 +997,6 @@
                                 onAdminScanSuccess,
                                 () => {}
                               ).then(() => {
-                                isAdminScannerRunning = true;
                                 scanResult.textContent = '✅ Ready - point at barcode';
                               }).catch((err) => {
                                 let msg = 'Camera error';
@@ -1016,20 +1021,19 @@
                             function stopAdminScanner() {
                               if (adminScanner) {
                                 const scanner = adminScanner;
+                                adminScanner = null;
                                 scanner.stop()
                                   .then(() => {
                                     return scanner.clear();
                                   })
                                   .then(() => {
                                     isAdminScannerRunning = false;
-                                    adminScanner = null;
                                   })
                                   .catch((err) => {
                                     console.log('Cleanup error:', err);
                                     // Force cleanup even on error
                                     scanner.clear().catch((e) => console.log('Clear error during error recovery:', e));
                                     isAdminScannerRunning = false;
-                                    adminScanner = null;
                                   });
                               }
                             }

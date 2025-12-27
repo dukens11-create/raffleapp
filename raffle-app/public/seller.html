@@ -403,6 +403,12 @@
       
       scanResult.textContent = '';
       
+      // Prevent double start
+      if (isSellerScannerRunning) return;
+      
+      // Mark as starting
+      isSellerScannerRunning = true;
+      
       // CRITICAL FIX: Force cleanup any existing scanner FIRST
       if (sellerScanner) {
         const oldScanner = sellerScanner;
@@ -413,28 +419,27 @@
         } catch (e) {
           console.log('Cleanup error:', e);
         }
-        isSellerScannerRunning = false;
       }
-      
-      // Prevent double start
-      if (isSellerScannerRunning) return;
       
       const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
       if (!isSecure) {
         scanResult.textContent = '❌ Requires HTTPS';
         alert('Camera requires HTTPS connection.');
+        isSellerScannerRunning = false;
         return;
       }
       
       if (!navigator.mediaDevices?.getUserMedia) {
         scanResult.textContent = '❌ Browser not supported';
         alert('Browser does not support camera.');
+        isSellerScannerRunning = false;
         return;
       }
       
       if (typeof Html5Qrcode === 'undefined') {
         scanResult.textContent = '❌ Library not loaded';
         alert('Scanner library failed to load. Check connection and refresh.');
+        isSellerScannerRunning = false;
         return;
       }
       
@@ -444,6 +449,7 @@
       } catch (err) {
         scanResult.textContent = `❌ Error: ${err.message}`;
         sellerScanner = null;
+        isSellerScannerRunning = false;
         return;
       }
       
@@ -455,7 +461,6 @@
         onScanSuccess,
         () => {}
       ).then(() => {
-        isSellerScannerRunning = true;
         scanResult.textContent = '✅ Ready - point at barcode';
       }).catch((err) => {
         let msg = 'Camera error';
@@ -480,20 +485,19 @@
     function stopSellerScanner() {
       if (sellerScanner) {
         const scanner = sellerScanner;
+        sellerScanner = null;
         scanner.stop()
           .then(() => {
             return scanner.clear();
           })
           .then(() => {
             isSellerScannerRunning = false;
-            sellerScanner = null;
           })
           .catch((err) => {
             console.log('Cleanup error:', err);
             // Force cleanup even on error
             scanner.clear().catch((e) => console.log('Clear error during error recovery:', e));
             isSellerScannerRunning = false;
-            sellerScanner = null;
           });
       }
     }
