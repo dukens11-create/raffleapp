@@ -57,13 +57,6 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) {
     return;
   }
-  
-  // Skip camera/media requests (always go to network)
-  if (event.request.url.includes('getUserMedia') || 
-      event.request.url.includes('mediaDevices') ||
-      event.request.url.includes('camera')) {
-    return;
-  }
 
   event.respondWith(
     caches.match(event.request)
