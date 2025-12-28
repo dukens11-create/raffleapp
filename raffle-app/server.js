@@ -694,7 +694,7 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
     }
     
     // Check if pending request exists
-    const existingRequest = await db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = "pending"', [phone]);
+    const existingRequest = await db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = \'pending\'', [phone]);
     
     if (existingRequest) {
       return res.status(400).json({ 
@@ -1317,7 +1317,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     }
     
     // Find ticket by barcode
-    const ticket = await db.get('SELECT * FROM tickets WHERE barcode = ? AND status = "active"', [barcode]);
+    const ticket = await db.get('SELECT * FROM tickets WHERE barcode = ? AND status = \'active\'', [barcode]);
     
     if (!ticket) {
       return res.status(404).json({ error: 'Ticket not found or already sold' });
