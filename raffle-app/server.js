@@ -10,6 +10,7 @@ const helmet = require('helmet');
 const { body, validationResult } = require('express-validator');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
+const pgSession = require('connect-pg-simple')(session);
 const emailService = require('./services/emailService');
 
 // Load environment variables
@@ -208,8 +209,29 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 app.use(bodyParser.json({ limit: '10mb' }));
 app.use(cookieParser());
 
+// Session store configuration
+let sessionStore;
+
+if (process.env.DATABASE_URL) {
+  // Production: Use PostgreSQL session store
+  sessionStore = new pgSession({
+    conString: process.env.DATABASE_URL,
+    tableName: 'session', // Table name for sessions
+    createTableIfMissing: true, // Auto-create session table
+    pruneSessionInterval: 60 * 15, // Clean up expired sessions every 15 minutes
+  });
+  console.log('✅ Using PostgreSQL session store');
+} else {
+  // Development: Use memory store (with warning)
+  console.warn('⚠️  WARNING: Using MemoryStore for sessions (development only)');
+  console.warn('   Sessions will be lost on server restart');
+  console.warn('   Add DATABASE_URL for persistent sessions');
+  sessionStore = undefined; // Express will use default MemoryStore
+}
+
 // Session configuration with enhanced security
 app.use(session({
+  store: sessionStore,
   secret: process.env.SESSION_SECRET || 'raffle-secret-key-2024',
   resave: false,
   saveUninitialized: false,
