@@ -473,8 +473,8 @@
                 const response = await fetch('/api/session-check');
                 const data = await response.json();
                 
-                // Check if user is logged in
-                if (!data.hasUser) {
+                // Check if user is logged in and user object exists
+                if (!data.hasUser || !data.user) {
                     window.location.href = '/';
                     return;
                 }
