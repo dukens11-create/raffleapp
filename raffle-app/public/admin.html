@@ -1320,26 +1320,49 @@
       printWindow.document.close();
     }
 
-    // Fetch sales report
-    fetch('/sales-report').then(res => res.json()).then(data => {
-      const tbody = document.querySelector('#sales-table tbody');
-      tbody.innerHTML = '';
-      data.forEach(row => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${row.sold_by}</td><td>${row.count}</td>`;
-        tbody.appendChild(tr);
-      });
-    });
-    // Fetch users
-    fetch('/users').then(res => res.json()).then(data => {
-      const tbody = document.querySelector('#users-table tbody');
-      tbody.innerHTML = '';
-      data.forEach(user => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td><input type="checkbox" value="${user.phone}"></td><td>${user.name}</td><td>${user.role}</td><td>${user.phone}</td>`;
-        tbody.appendChild(tr);
-      });
-    });
+    // Load sales report
+    async function loadSalesReport() {
+      try {
+        const res = await fetch('/sales-report');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        const tbody = document.querySelector('#sales-table tbody');
+        tbody.innerHTML = '';
+        data.forEach(row => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${row.sold_by}</td><td>${row.count}</td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error('Error loading sales report:', error);
+      }
+    }
+    
+    // Load users
+    async function loadUsers() {
+      try {
+        const res = await fetch('/users');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        const tbody = document.querySelector('#users-table tbody');
+        tbody.innerHTML = '';
+        data.forEach(user => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td><input type="checkbox" value="${user.phone}"></td><td>${user.name}</td><td>${user.role}</td><td>${user.phone}</td>`;
+          tbody.appendChild(tr);
+        });
+      } catch (error) {
+        console.error('Error loading users:', error);
+      }
+    }
+    
+    // Call initial data load
+    loadSalesReport();
+    loadUsers();
     async function loadBackups() {
       const res = await fetch('/list-backups');
       const files = await res.json();
