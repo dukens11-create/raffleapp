@@ -713,7 +713,7 @@
         <input type="password" id="editSellerPassword" placeholder="Leave blank to keep current password" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 5px; margin-bottom: 15px;">
         
         <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
-          <button type="button" onclick="closeEditSellerModal()" style="background: #6b7280; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;">Cancel</button>
+          <button type="button" id="cancelEditSellerBtn" style="background: #6b7280; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;">Cancel</button>
           <button type="submit" style="background: #667eea; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;">Save Changes</button>
         </div>
       </form>
@@ -2057,8 +2057,8 @@
             <td>${escapeHtml(seller.phone)}</td>
             <td>${createdDate}</td>
             <td>
-              <button class="btn-primary btn-sm edit-seller-btn" data-id="${seller.id}" data-name="${escapeHtml(seller.name)}" data-phone="${escapeHtml(seller.phone)}">✏️ Edit</button>
-              <button class="btn-danger btn-sm delete-seller-btn" data-id="${seller.id}" data-name="${escapeHtml(seller.name)}">🗑️ Delete</button>
+              <button class="btn-primary btn-sm edit-seller-btn" data-id="${seller.id}" data-name="${seller.name.replace(/"/g, '&quot;')}" data-phone="${seller.phone.replace(/"/g, '&quot;')}">✏️ Edit</button>
+              <button class="btn-danger btn-sm delete-seller-btn" data-id="${seller.id}" data-name="${seller.name.replace(/"/g, '&quot;')}">🗑️ Delete</button>
             </td>
           `;
           
@@ -2119,6 +2119,9 @@
         showNotify('❌ Error updating seller: ' + error.message, '#ef4444');
       }
     });
+
+    // Cancel button for edit seller modal
+    document.getElementById('cancelEditSellerBtn').addEventListener('click', closeEditSellerModal);
 
     // Delete seller
     async function deleteSeller(id, name) {
