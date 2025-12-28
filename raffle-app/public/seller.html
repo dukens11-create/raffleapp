@@ -473,11 +473,25 @@
                 const response = await fetch('/api/session-check');
                 const data = await response.json();
                 
+                // Check if user is logged in
                 if (!data.hasUser) {
                     window.location.href = '/';
                     return;
                 }
                 
+                // CHECK ROLE: If admin, redirect to admin page
+                if (data.user.role === 'admin') {
+                    window.location.href = '/admin';
+                    return;
+                }
+                
+                // CHECK ROLE: If not a seller, redirect to login
+                if (data.user.role !== 'seller') {
+                    window.location.href = '/';
+                    return;
+                }
+                
+                // User is a seller - proceed
                 currentSeller = data.user;
                 document.getElementById('sellerName').textContent = currentSeller.name;
                 await loadStats();
