@@ -62,8 +62,10 @@ Follow these steps to permanently fix data loss:
 
 1. **Open in browser:**  
    ```
-   https://raffleapp-e4ev.onrender.com/api/database-status
+   https://your-app-name.onrender.com/api/database-status
    ```
+   
+   Replace `your-app-name` with your actual Render service name.
 
 2. **Check the response:**
    ```json
