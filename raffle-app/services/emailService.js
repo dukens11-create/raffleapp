@@ -59,21 +59,34 @@ async function sendCredentialsEmail(email, phone, name, password) {
             
             <p>You can now login and start selling raffle tickets on our platform.</p>
             
+            <p><strong>📱 You will access the Seller Dashboard</strong> (not the admin page) where you can:</p>
+            <ul>
+              <li>📷 Scan tickets with your camera</li>
+              <li>✍️ Register ticket sales manually</li>
+              <li>📊 View your sales statistics</li>
+              <li>⚠️ Report any concerns</li>
+            </ul>
+            
             <div class="credentials">
-              <p class="credential-label">Login URL:</p>
+              <p class="credential-label">🔗 Login URL:</p>
               <p class="credential-value">${appUrl}/login.html</p>
               
-              <p class="credential-label">Phone Number:</p>
+              <p class="credential-label">📞 Phone Number (Username):</p>
               <p class="credential-value">${phone}</p>
               
-              <p class="credential-label">Password:</p>
+              <p class="credential-label">🔐 Password:</p>
               <p class="credential-value">${password}</p>
             </div>
             
-            <p><strong>⚠️ Important:</strong> Please change your password after your first login for security.</p>
+            <p><strong>⚠️ Important Security Note:</strong></p>
+            <ul>
+              <li>Change your password after first login</li>
+              <li>You will be automatically redirected to your seller dashboard</li>
+              <li>You will NOT see admin features (this is normal!)</li>
+            </ul>
             
             <div style="text-align: center;">
-              <a href="${appUrl}/login.html" class="button">Login Now</a>
+              <a href="${appUrl}/login.html" class="button">Login to Seller Dashboard</a>
             </div>
             
             <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
@@ -92,13 +105,24 @@ Hi ${name},
 
 Your seller account has been approved!
 
+You will access the SELLER DASHBOARD (not admin page).
+
 Login at: ${appUrl}/login.html
 
 Credentials:
-Phone: ${phone}
+Phone (Username): ${phone}
 Password: ${password}
 
-Please change your password after first login.
+What you can do:
+- Scan tickets with camera
+- Register ticket sales manually
+- View your sales stats
+- Report concerns
+
+IMPORTANT:
+- Change your password after first login
+- You will be redirected to the seller dashboard
+- You will NOT see admin features (this is normal)
 
 - RaffleApp Team
     `
