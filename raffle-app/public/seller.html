@@ -444,7 +444,7 @@
             <p>Use your camera to scan ticket barcodes</p>
             <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
             <div id="scannerContainer" style="display: none;">
-                <video id="scannerVideo" width="100%" autoplay></video>
+                <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
                 <canvas id="scannerCanvas" style="display: none;"></canvas>
                 <button class="btn btn-cancel" onclick="closeBarcodeScanner()">Close Scanner</button>
             </div>
@@ -515,9 +515,11 @@
         </div>
     </div>
 
+    <!-- html5-qrcode library for barcode scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
     <script>
         let currentSeller = null;
-        let videoStream = null;
 
         // Translation data
         const translations = {
@@ -754,50 +756,95 @@
         }
 
         // Barcode Scanner Functions
+        let html5QrCode = null;
+
         async function openBarcodeScanner() {
             try {
-                const video = document.getElementById('scannerVideo');
                 const container = document.getElementById('scannerContainer');
+                const video = document.getElementById('scannerVideo');
                 
-                // Request camera access
-                videoStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' } 
-                });
-                
-                video.srcObject = videoStream;
+                // Hide video element, show scanner container
+                video.style.display = 'none';
                 container.style.display = 'block';
                 
+                // Create a div for the scanner
+                const scannerDiv = document.createElement('div');
+                scannerDiv.id = 'seller-scanner-reader';
+                scannerDiv.style.width = '100%';
+                container.insertBefore(scannerDiv, container.firstChild);
+                
+                // Check if library loaded
+                if (typeof Html5Qrcode === 'undefined') {
+                    alert('Scanner library failed to load. Please check your internet connection and refresh the page.');
+                    closeBarcodeScanner();
+                    return;
+                }
+                
+                // Initialize html5-qrcode scanner
+                html5QrCode = new Html5Qrcode("seller-scanner-reader");
+                
+                const config = {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0
+                };
+                
                 // Start scanning
-                scanBarcode();
+                await html5QrCode.start(
+                    { facingMode: "environment" }, // Use back camera
+                    config,
+                    async (decodedText, decodedResult) => {
+                        // Success - barcode detected
+                        console.log(`Barcode detected: ${decodedText}`);
+                        
+                        // Stop scanner (with error handling)
+                        try {
+                            await stopBarcodeScanner();
+                        } catch (stopErr) {
+                            console.error('Error stopping scanner after scan:', stopErr);
+                        }
+                        
+                        // Process the scanned ticket
+                        await processScannedTicket(decodedText);
+                    },
+                    (errorMessage) => {
+                        // Scanning in progress, errors are normal
+                    }
+                );
+                
             } catch (error) {
                 console.error('Camera access error:', error);
                 alert(translations[currentLanguage].cameraError);
+                // Call without await since we're in a catch block and just cleaning up
+                closeBarcodeScanner().catch(err => console.error('Cleanup error:', err));
             }
         }
 
-        function closeBarcodeScanner() {
+        async function stopBarcodeScanner() {
+            if (html5QrCode) {
+                try {
+                    await html5QrCode.stop();
+                    // Clear the scanner UI
+                    html5QrCode.clear().catch((err) => console.log('Clear error (non-critical):', err));
+                    html5QrCode = null;
+                } catch (err) {
+                    console.error('Error stopping scanner:', err);
+                    html5QrCode = null;
+                }
+            }
+        }
+
+        async function closeBarcodeScanner() {
+            await stopBarcodeScanner();
+            
             const container = document.getElementById('scannerContainer');
-            const video = document.getElementById('scannerVideo');
+            const scannerDiv = document.getElementById('seller-scanner-reader');
             
-            if (videoStream) {
-                videoStream.getTracks().forEach(track => track.stop());
-                videoStream = null;
+            if (scannerDiv) {
+                scannerDiv.remove();
             }
             
-            video.srcObject = null;
             container.style.display = 'none';
-        }
-
-        async function scanBarcode() {
-            // Use a barcode scanning library like QuaggaJS or jsQR
-            // For now, using manual input fallback
-            const barcode = prompt(translations[currentLanguage].enterBarcode);
-            
-            if (barcode) {
-                await processScannedTicket(barcode);
-            }
-            
-            closeBarcodeScanner();
         }
 
         async function processScannedTicket(barcode) {
