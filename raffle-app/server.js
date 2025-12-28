@@ -37,11 +37,45 @@ process.on('unhandledRejection', (reason, promise) => {
   // Log the error but don't crash
 });
 
-// Initialize database schema
-db.initializeSchema().catch(err => {
-  console.error('Failed to initialize database:', err);
-  process.exit(1);
-});
+// Validate database setup on startup
+async function validateDatabaseSetup() {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('🔍 DATABASE SETUP VALIDATION');
+  console.log('═══════════════════════════════════════');
+  
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasPostgres = process.env.DATABASE_URL ? true : false;
+  
+  if (isProduction && !hasPostgres) {
+    console.log('');
+    console.log('⚠️  CRITICAL WARNING:');
+    console.log('   Running in PRODUCTION with SQLite');
+    console.log('   Data will be LOST on every restart!');
+    console.log('');
+    console.log('🔧 TO FIX:');
+    console.log('   1. Create PostgreSQL database on Render');
+    console.log('   2. Add DATABASE_URL environment variable');
+    console.log('   3. Redeploy service');
+    console.log('');
+    console.log('📚 Full Guide: See raffle-app/MIGRATION.md');
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  } else if (hasPostgres) {
+    console.log('✅ Production database configured correctly');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  }
+}
+
+// Initialize database schema and validate setup
+db.initializeSchema()
+  .then(() => validateDatabaseSetup())
+  .catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
 
 // Security: Helmet for basic security headers (CSP handled by custom middleware below)
 app.use(helmet({
@@ -370,26 +404,39 @@ app.get('/api/login-status/:phone', async (req, res) => {
 });
 
 // Health check endpoint - Public
+// Health check endpoint with database validation
 app.get('/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: {
+      type: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite',
+      connected: false,
+      persistent: false
+    },
+    environment: process.env.NODE_ENV || 'development'
+  };
+
   try {
-    // Check database connection
-    await db.get('SELECT 1');
+    // Test database connection
+    await db.get('SELECT 1 as test');
+    health.database.connected = true;
+    health.database.persistent = process.env.DATABASE_URL ? true : false;
     
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development',
-      database: db.USE_POSTGRES ? 'PostgreSQL' : 'SQLite'
-    });
+    // Warning for SQLite in production
+    if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+      health.warnings = [
+        'Using SQLite in production - data will be lost on restart',
+        'Add DATABASE_URL environment variable to switch to PostgreSQL',
+        'See MIGRATION.md for setup instructions'
+      ];
+    }
+    
+    res.json(health);
   } catch (error) {
-    console.error('Health check failed:', error);
-    res.status(503).json({
-      status: 'unhealthy',
-      error: 'Database connection failed',
-      timestamp: new Date().toISOString(),
-    });
+    health.status = 'error';
+    health.database.error = error.message;
+    res.status(503).json(health);
   }
 });
 

@@ -16,16 +16,38 @@ if (USE_POSTGRES) {
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   });
   
-  // Test connection
-  pgPool.query('SELECT NOW()', (err, res) => {
+  // Enhanced PostgreSQL connection validation
+  console.log('🐘 PostgreSQL Configuration:');
+  console.log('   - Connection String:', process.env.DATABASE_URL ? '✅ Set' : '❌ Not Set');
+  console.log('   - SSL Mode:', process.env.NODE_ENV === 'production' ? 'Enabled' : 'Disabled');
+  
+  pgPool.query('SELECT NOW() as current_time, version() as pg_version', (err, res) => {
     if (err) {
-      console.error('❌ PostgreSQL connection error:', err);
+      console.error('❌ PostgreSQL connection FAILED:');
+      console.error('   Error:', err.message);
+      console.error('   Code:', err.code);
+      console.error('');
+      console.error('🔧 TROUBLESHOOTING:');
+      console.error('   1. Check DATABASE_URL is set in Render environment variables');
+      console.error('   2. Use INTERNAL Database URL (not External)');
+      console.error('   3. Verify database and web service are in same region');
+      console.error('   4. Check database is running in Render dashboard');
+      console.error('');
+      console.error('📚 Setup Guide: See raffle-app/MIGRATION.md');
     } else {
       console.log('✅ PostgreSQL connected successfully');
+      console.log('   - Server Time:', res.rows[0].current_time);
+      console.log('   - Version:', res.rows[0].pg_version.split(',')[0]);
+      console.log('   - Ready for production! 🚀');
     }
   });
 } else {
-  console.log('📁 Using SQLite database (development)');
+  console.log('⚠️  WARNING: Using SQLite database');
+  console.log('   - NOT suitable for production on Render');
+  console.log('   - Data will be LOST on every restart');
+  console.log('   - Add DATABASE_URL environment variable to switch to PostgreSQL');
+  console.log('');
+  console.log('📚 Migration Guide: See raffle-app/MIGRATION.md');
   db = new sqlite3.Database('./raffle.db');
 }
 
@@ -189,7 +211,7 @@ async function initializeSchema() {
       )
     `);
     
-    console.log('✅ Database schema initialized');
+    console.log('✅ Database schema initialized successfully');
     
     // Check if admin exists, create if not
     const admin = await get("SELECT * FROM users WHERE phone = ?", ['1234567890']);
@@ -200,7 +222,7 @@ async function initializeSchema() {
         'INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)',
         ['Admin', '1234567890', hashedPassword, 'admin']
       );
-      console.log('✅ Default admin account created - Phone: 1234567890, Password: admin123');
+      console.log('👤 Default admin account created - Phone: 1234567890, Password: admin123');
     }
     
   } catch (error) {

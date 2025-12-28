@@ -20,6 +20,45 @@ When the application starts for the first time, a default admin account is autom
 
 ⚠️ **Important:** Change the default admin password immediately after first login for security purposes.
 
+## 🗄️ Database Status
+
+### Current Setup Detection
+
+The app automatically detects which database you're using:
+
+- **Development (SQLite):** 📁 Data stored in local file
+- **Production (PostgreSQL):** 🐘 Data stored in persistent database
+
+### Migration Required?
+
+If you see this in your Render logs:
+
+```
+⚠️  WARNING: Using SQLite database
+   Data will be LOST on every restart
+```
+
+**Action Required:** Follow [MIGRATION.md](raffle-app/MIGRATION.md) to switch to PostgreSQL.
+
+### Verify Your Setup
+
+Check your database status:
+```
+GET https://your-app.onrender.com/health
+```
+
+Healthy PostgreSQL setup shows:
+```json
+{
+  "status": "ok",
+  "database": {
+    "type": "PostgreSQL",
+    "connected": true,
+    "persistent": true
+  }
+}
+```
+
 ## Prerequisites
 
 - Node.js (v14 or higher)
