@@ -1497,10 +1497,10 @@ app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
 app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
   try {
     const rows = await db.all(`
-      SELECT DATE(created_at) as day, COUNT(*) as count
+      SELECT CAST(created_at AS DATE) as day, COUNT(*) as count
       FROM tickets
       WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-      GROUP BY DATE(created_at)
+      GROUP BY CAST(created_at AS DATE)
       ORDER BY day
     `);
     res.json(rows);
