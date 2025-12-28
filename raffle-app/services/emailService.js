@@ -200,7 +200,98 @@ If you have any questions, please contact support.
   }
 }
 
+/**
+ * Send concern notification email to admin
+ */
+async function sendConcernNotification(adminEmail, sellerName, issueType, description, ticketNumber) {
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || 'RaffleApp <noreply@raffleapp.com>',
+    to: adminEmail,
+    subject: `⚠️ New Concern Reported by ${sellerName}`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #f59e0b; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .concern-box { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b; }
+          .label { font-weight: bold; color: #f59e0b; }
+          .button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>⚠️ New Seller Concern</h1>
+          </div>
+          <div class="content">
+            <p>A seller has reported a new concern that requires your attention.</p>
+            
+            <div class="concern-box">
+              <p class="label">Seller:</p>
+              <p>${sellerName}</p>
+              
+              <p class="label">Issue Type:</p>
+              <p>${issueType}</p>
+              
+              ${ticketNumber ? `
+              <p class="label">Ticket Number:</p>
+              <p>${ticketNumber}</p>
+              ` : ''}
+              
+              <p class="label">Description:</p>
+              <p>${description}</p>
+            </div>
+            
+            <div style="text-align: center;">
+              <a href="${appUrl}/admin" class="button">View in Admin Dashboard</a>
+            </div>
+            
+            <p>Please review and address this concern as soon as possible.</p>
+            
+            <p>Best regards,<br><strong>RaffleApp System</strong></p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `
+New Seller Concern
+
+Seller: ${sellerName}
+Issue Type: ${issueType}
+${ticketNumber ? 'Ticket Number: ' + ticketNumber : ''}
+
+Description:
+${description}
+
+View in Admin Dashboard: ${appUrl}/admin
+
+- RaffleApp System
+    `
+  };
+  
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Concern notification email sent to admin | Message ID:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending concern notification email:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 module.exports = {
   sendCredentialsEmail,
-  sendRejectionEmail
+  sendRejectionEmail,
+  sendConcernNotification
 };

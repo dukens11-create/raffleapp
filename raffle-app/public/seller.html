@@ -338,6 +338,53 @@
         .btn-warning:hover {
             background: #d97706;
         }
+
+        .scanner-section,
+        .concern-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .scanner-section h2,
+        .concern-section h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .scanner-section p,
+        .concern-section p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        #scannerContainer {
+            margin-top: 15px;
+        }
+
+        #scannerVideo {
+            border-radius: 8px;
+            max-width: 100%;
+        }
+
+        #scanResult {
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 5px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+        }
     </style>
 </head>
 <body>
@@ -352,10 +399,6 @@
 
         <div class="stats-grid">
             <div class="stat-card">
-                <div class="stat-label">Total Tickets</div>
-                <div class="stat-value" id="totalTickets">0</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-label">Tickets Sold</div>
                 <div class="stat-value" id="ticketsSold">0</div>
             </div>
@@ -363,110 +406,58 @@
                 <div class="stat-label">Total Revenue</div>
                 <div class="stat-value currency" id="totalRevenue">0</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Available Tickets</div>
-                <div class="stat-value" id="availableTickets">0</div>
-            </div>
         </div>
 
-        <div class="main-content">
-            <div class="section-header">
-                <h2>My Tickets</h2>
-                <div class="action-buttons">
-                    <button class="btn btn-primary" onclick="openAddTicketModal()">➕ Add Ticket</button>
-                    <button class="btn btn-success" onclick="loadTickets()" style="background:#ef4444">🔄 Refresh</button>
-                </div>
+        <!-- Barcode Scanner Section -->
+        <div class="scanner-section">
+            <h2>📷 Scan Ticket</h2>
+            <p>Use your camera to scan ticket barcodes</p>
+            <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
+            <div id="scannerContainer" style="display: none;">
+                <video id="scannerVideo" width="100%" autoplay></video>
+                <canvas id="scannerCanvas" style="display: none;"></canvas>
+                <button class="btn btn-cancel" onclick="closeBarcodeScanner()">Close Scanner</button>
             </div>
+            <div id="scanResult" style="margin-top: 15px;"></div>
+        </div>
 
-            <div class="filter-controls">
-                <select id="statusFilter" onchange="filterTickets()">
-                    <option value="all">All Status</option>
-                    <option value="available">Available</option>
-                    <option value="sold">Sold</option>
-                    <option value="reserved">Reserved</option>
-                </select>
-                <select id="sortBy" onchange="sortTickets()">
-                    <option value="number">Sort by Number</option>
-                    <option value="price">Sort by Price</option>
-                    <option value="date">Sort by Date</option>
-                </select>
-            </div>
-
-            <table class="tickets-table" id="ticketsTable">
-                <thead>
-                    <tr>
-                        <th>Ticket #</th>
-                        <th>Price</th>
-                        <th>Status</th>
-                        <th>Buyer</th>
-                        <th>Date Added</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="ticketsTableBody">
-                    <tr>
-                        <td colspan="6">
-                            <div class="empty-state">
-                                <div>📋</div>
-                                <p>No tickets yet. Add your first ticket to get started!</p>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- Report Concern Section -->
+        <div class="concern-section">
+            <h2>⚠️ Report a Concern</h2>
+            <p>Report any issues you encounter</p>
+            <button class="btn btn-warning" onclick="openConcernModal()">Report an Issue</button>
         </div>
     </div>
 
-    <!-- Add Ticket Modal -->
-    <div class="modal" id="addTicketModal">
+    <!-- Concern Modal -->
+    <div class="modal" id="concernModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Add New Ticket</h3>
+                <h3>Report a Concern</h3>
             </div>
-            <form id="addTicketForm">
+            <form id="concernForm">
                 <div class="form-group">
-                    <label>Ticket Number</label>
-                    <input type="number" id="ticketNumber" required min="1">
-                </div>
-                <div class="form-group">
-                    <label>Price ($)</label>
-                    <input type="number" id="ticketPrice" required min="0" step="0.01">
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn btn-cancel" onclick="closeAddTicketModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Add Ticket</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Edit Ticket Modal -->
-    <div class="modal" id="editTicketModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Edit Ticket</h3>
-            </div>
-            <form id="editTicketForm">
-                <input type="hidden" id="editTicketId">
-                <div class="form-group">
-                    <label>Ticket Number</label>
-                    <input type="number" id="editTicketNumber" required min="1">
-                </div>
-                <div class="form-group">
-                    <label>Price ($)</label>
-                    <input type="number" id="editTicketPrice" required min="0" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <select id="editTicketStatus">
-                        <option value="available">Available</option>
-                        <option value="sold">Sold</option>
-                        <option value="reserved">Reserved</option>
+                    <label>Issue Type</label>
+                    <select id="issueType" required>
+                        <option value="">Select issue type...</option>
+                        <option value="damaged_ticket">Damaged/Invalid Ticket</option>
+                        <option value="scanner_issue">Scanner Not Working</option>
+                        <option value="duplicate_barcode">Duplicate Barcode</option>
+                        <option value="customer_complaint">Customer Complaint</option>
+                        <option value="other">Other</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Ticket Number (if applicable)</label>
+                    <input type="text" id="concernTicketNumber" placeholder="Optional">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="concernDescription" required rows="4" placeholder="Describe the issue..."></textarea>
+                </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-cancel" onclick="closeEditTicketModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-cancel" onclick="closeConcernModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Report</button>
                 </div>
             </form>
         </div>
@@ -474,228 +465,163 @@
 
     <script>
         let currentSeller = null;
-        let allTickets = [];
+        let videoStream = null;
 
         // Check authentication
-        function checkAuth() {
-            const seller = localStorage.getItem('currentSeller');
-            if (!seller) {
-                window.location.href = 'login.html';
-                return;
-            }
-            currentSeller = JSON.parse(seller);
-            document.getElementById('sellerName').textContent = currentSeller.name;
-            loadTickets();
-        }
-
-        // Load tickets
-        async function loadTickets() {
+        async function checkAuth() {
             try {
-                const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-                allTickets = tickets.filter(t => t.sellerId === currentSeller.id);
-                displayTickets(allTickets);
-                updateStats();
-            } catch (error) {
-                console.error('Error loading tickets:', error);
-            }
-        }
-
-        // Display tickets
-        function displayTickets(tickets) {
-            const tbody = document.getElementById('ticketsTableBody');
-            
-            if (tickets.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="6">
-                            <div class="empty-state">
-                                <div>📋</div>
-                                <p>No tickets found.</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = tickets.map(ticket => `
-                <tr>
-                    <td>#${ticket.number}</td>
-                    <td>$${ticket.price.toFixed(2)}</td>
-                    <td><span class="status-badge status-${ticket.status}">${ticket.status}</span></td>
-                    <td>${ticket.buyerName || '-'}</td>
-                    <td>${new Date(ticket.dateAdded).toLocaleDateString()}</td>
-                    <td>
-                        <div class="ticket-actions">
-                            <button class="btn btn-primary btn-small" onclick="openEditTicketModal('${ticket.id}')">Edit</button>
-                            <button class="btn btn-danger btn-small" onclick="deleteTicket('${ticket.id}')">Delete</button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // Update statistics
-        function updateStats() {
-            const total = allTickets.length;
-            const sold = allTickets.filter(t => t.status === 'sold').length;
-            const available = allTickets.filter(t => t.status === 'available').length;
-            const revenue = allTickets
-                .filter(t => t.status === 'sold')
-                .reduce((sum, t) => sum + t.price, 0);
-
-            document.getElementById('totalTickets').textContent = total;
-            document.getElementById('ticketsSold').textContent = sold;
-            document.getElementById('availableTickets').textContent = available;
-            document.getElementById('totalRevenue').textContent = revenue.toFixed(2);
-        }
-
-        // Add ticket modal
-        function openAddTicketModal() {
-            document.getElementById('addTicketModal').classList.add('active');
-        }
-
-        function closeAddTicketModal() {
-            document.getElementById('addTicketModal').classList.remove('active');
-            document.getElementById('addTicketForm').reset();
-        }
-
-        // Add ticket
-        document.getElementById('addTicketForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const number = document.getElementById('ticketNumber').value;
-            const price = parseFloat(document.getElementById('ticketPrice').value);
-
-            const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-            
-            // Check if ticket number already exists for this seller
-            if (tickets.some(t => t.number === parseInt(number) && t.sellerId === currentSeller.id)) {
-                alert('Ticket number already exists!');
-                return;
-            }
-
-            const newTicket = {
-                id: Date.now().toString(),
-                number: parseInt(number),
-                price: price,
-                status: 'available',
-                sellerId: currentSeller.id,
-                sellerName: currentSeller.name,
-                buyerName: null,
-                dateAdded: new Date().toISOString()
-            };
-
-            tickets.push(newTicket);
-            localStorage.setItem('tickets', JSON.stringify(tickets));
-            
-            closeAddTicketModal();
-            loadTickets();
-            alert('Ticket added successfully!');
-        });
-
-        // Edit ticket modal
-        function openEditTicketModal(ticketId) {
-            const ticket = allTickets.find(t => t.id === ticketId);
-            if (!ticket) return;
-
-            document.getElementById('editTicketId').value = ticket.id;
-            document.getElementById('editTicketNumber').value = ticket.number;
-            document.getElementById('editTicketPrice').value = ticket.price;
-            document.getElementById('editTicketStatus').value = ticket.status;
-            
-            document.getElementById('editTicketModal').classList.add('active');
-        }
-
-        function closeEditTicketModal() {
-            document.getElementById('editTicketModal').classList.remove('active');
-            document.getElementById('editTicketForm').reset();
-        }
-
-        // Edit ticket
-        document.getElementById('editTicketForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const ticketId = document.getElementById('editTicketId').value;
-            const number = parseInt(document.getElementById('editTicketNumber').value);
-            const price = parseFloat(document.getElementById('editTicketPrice').value);
-            const status = document.getElementById('editTicketStatus').value;
-
-            const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-            const index = tickets.findIndex(t => t.id === ticketId);
-            
-            if (index !== -1) {
-                // Check if new number conflicts with another ticket
-                const conflict = tickets.some(t => 
-                    t.id !== ticketId && 
-                    t.number === number && 
-                    t.sellerId === currentSeller.id
-                );
+                const response = await fetch('/api/session-check');
+                const data = await response.json();
                 
-                if (conflict) {
-                    alert('Ticket number already exists!');
+                if (!data.hasUser) {
+                    window.location.href = '/';
                     return;
                 }
-
-                tickets[index].number = number;
-                tickets[index].price = price;
-                tickets[index].status = status;
                 
-                localStorage.setItem('tickets', JSON.stringify(tickets));
-                closeEditTicketModal();
-                loadTickets();
-                alert('Ticket updated successfully!');
+                currentSeller = data.user;
+                document.getElementById('sellerName').textContent = currentSeller.name;
+                await loadStats();
+            } catch (error) {
+                console.error('Auth check error:', error);
+                window.location.href = '/';
+            }
+        }
+
+        // Load statistics
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+                
+                document.getElementById('ticketsSold').textContent = data.totalTickets || 0;
+                document.getElementById('totalRevenue').textContent = (data.totalRevenue || 0).toFixed(2);
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+
+        // Barcode Scanner Functions
+        async function openBarcodeScanner() {
+            try {
+                const video = document.getElementById('scannerVideo');
+                const container = document.getElementById('scannerContainer');
+                
+                // Request camera access
+                videoStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                
+                video.srcObject = videoStream;
+                container.style.display = 'block';
+                
+                // Start scanning
+                scanBarcode();
+            } catch (error) {
+                console.error('Camera access error:', error);
+                alert('Unable to access camera. Please check permissions.');
+            }
+        }
+
+        function closeBarcodeScanner() {
+            const container = document.getElementById('scannerContainer');
+            const video = document.getElementById('scannerVideo');
+            
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                videoStream = null;
+            }
+            
+            video.srcObject = null;
+            container.style.display = 'none';
+        }
+
+        async function scanBarcode() {
+            // Use a barcode scanning library like QuaggaJS or jsQR
+            // For now, using manual input fallback
+            const barcode = prompt('Enter barcode manually (scanner integration in progress):');
+            
+            if (barcode) {
+                await processScannedTicket(barcode);
+            }
+            
+            closeBarcodeScanner();
+        }
+
+        async function processScannedTicket(barcode) {
+            const resultDiv = document.getElementById('scanResult');
+            resultDiv.innerHTML = '⏳ Processing...';
+            resultDiv.style.color = '#666';
+            
+            try {
+                const response = await fetch('/api/tickets/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ barcode: barcode })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to process ticket');
+                }
+                
+                resultDiv.innerHTML = `✅ Ticket ${barcode} sold successfully!`;
+                resultDiv.style.color = 'green';
+                
+                // Refresh stats
+                await loadStats();
+            } catch (error) {
+                console.error('Scan error:', error);
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                resultDiv.style.color = 'red';
+            }
+        }
+
+        // Concern Reporting Functions
+        function openConcernModal() {
+            document.getElementById('concernModal').classList.add('active');
+        }
+
+        function closeConcernModal() {
+            document.getElementById('concernModal').classList.remove('active');
+            document.getElementById('concernForm').reset();
+        }
+
+        document.getElementById('concernForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const issueType = document.getElementById('issueType').value;
+            const ticketNumber = document.getElementById('concernTicketNumber').value;
+            const description = document.getElementById('concernDescription').value;
+            
+            try {
+                const response = await fetch('/api/seller-concerns', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        issue_type: issueType,
+                        ticket_number: ticketNumber,
+                        description: description
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to submit concern');
+                }
+                
+                alert('✅ Concern reported successfully! Admin will review it.');
+                closeConcernModal();
+            } catch (error) {
+                console.error('Error submitting concern:', error);
+                alert('❌ Error: ' + error.message);
             }
         });
-
-        // Delete ticket
-        function deleteTicket(ticketId) {
-            if (!confirm('Are you sure you want to delete this ticket?')) return;
-
-            const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-            const filtered = tickets.filter(t => t.id !== ticketId);
-            localStorage.setItem('tickets', JSON.stringify(filtered));
-            
-            loadTickets();
-            alert('Ticket deleted successfully!');
-        }
-
-        // Filter tickets
-        function filterTickets() {
-            const status = document.getElementById('statusFilter').value;
-            let filtered = allTickets;
-            
-            if (status !== 'all') {
-                filtered = allTickets.filter(t => t.status === status);
-            }
-            
-            displayTickets(filtered);
-        }
-
-        // Sort tickets
-        function sortTickets() {
-            const sortBy = document.getElementById('sortBy').value;
-            let sorted = [...allTickets];
-            
-            switch(sortBy) {
-                case 'number':
-                    sorted.sort((a, b) => a.number - b.number);
-                    break;
-                case 'price':
-                    sorted.sort((a, b) => b.price - a.price);
-                    break;
-                case 'date':
-                    sorted.sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-                    break;
-            }
-            
-            displayTickets(sorted);
-        }
 
         // Logout
         function logout() {
-            localStorage.removeItem('currentSeller');
-            window.location.href = 'login.html';
+            window.location.href = '/logout';
         }
 
         // Initialize

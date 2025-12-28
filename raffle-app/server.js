@@ -1260,6 +1260,128 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// API: Scan ticket barcode (seller only)
+app.post('/api/tickets/scan', requireAuth, async (req, res) => {
+  try {
+    const { barcode } = req.body;
+    
+    if (!barcode) {
+      return res.status(400).json({ error: 'Barcode is required' });
+    }
+    
+    // Find ticket by barcode
+    const ticket = await db.get('SELECT * FROM tickets WHERE barcode = ? AND status = "active"', [barcode]);
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found or already sold' });
+    }
+    
+    // Mark as sold by this seller
+    await db.run(
+      "UPDATE tickets SET status = 'sold', seller_name = ?, seller_phone = ? WHERE id = ?",
+      [req.session.user.name, req.session.user.phone, ticket.id]
+    );
+    
+    console.log(`Ticket ${barcode} scanned and sold by ${req.session.user.name}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Ticket sold successfully',
+      ticket: ticket.ticket_number
+    });
+  } catch (error) {
+    console.error('Scan ticket error:', error);
+    res.status(500).json({ error: 'Failed to process ticket' });
+  }
+});
+
+// API: Submit seller concern
+app.post('/api/seller-concerns', requireAuth, async (req, res) => {
+  try {
+    const { issue_type, ticket_number, description } = req.body;
+    
+    if (!issue_type || !description) {
+      return res.status(400).json({ error: 'Issue type and description are required' });
+    }
+    
+    const result = await db.run(`
+      INSERT INTO seller_concerns (seller_id, seller_name, seller_phone, issue_type, ticket_number, description, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    `, [
+      req.session.user.id,
+      req.session.user.name,
+      req.session.user.phone,
+      issue_type,
+      ticket_number || null,
+      description
+    ]);
+    
+    console.log(`Concern reported by ${req.session.user.name}: ${issue_type}`);
+    
+    // Send email notification to admin
+    const adminEmail = process.env.EMAIL_USER;
+    if (adminEmail) {
+      await emailService.sendConcernNotification(
+        adminEmail,
+        req.session.user.name,
+        issue_type,
+        description,
+        ticket_number
+      );
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Concern submitted successfully',
+      id: result.lastID
+    });
+  } catch (error) {
+    console.error('Submit concern error:', error);
+    res.status(500).json({ error: 'Failed to submit concern' });
+  }
+});
+
+// API: Get all concerns (admin only)
+app.get('/api/seller-concerns', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const concerns = await db.all(`
+      SELECT * FROM seller_concerns 
+      ORDER BY 
+        CASE status 
+          WHEN 'pending' THEN 1 
+          WHEN 'resolved' THEN 2 
+        END,
+        created_at DESC
+    `);
+    res.json(concerns);
+  } catch (error) {
+    console.error('Get concerns error:', error);
+    res.status(500).json({ error: 'Failed to fetch concerns' });
+  }
+});
+
+// API: Resolve concern (admin only)
+app.put('/api/seller-concerns/:id/resolve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { admin_notes } = req.body;
+    
+    await db.run(`
+      UPDATE seller_concerns 
+      SET status = 'resolved', 
+          resolved_by = ?, 
+          resolved_at = ${db.getCurrentTimestamp()},
+          admin_notes = ?
+      WHERE id = ?
+    `, [req.session.user.phone, admin_notes || '', id]);
+    
+    res.json({ success: true, message: 'Concern resolved' });
+  } catch (error) {
+    console.error('Resolve concern error:', error);
+    res.status(500).json({ error: 'Failed to resolve concern' });
+  }
+});
+
 // Legacy endpoints (for backward compatibility with frontend)
 app.get('/tickets', requireAuth, async (req, res) => {
   try {
