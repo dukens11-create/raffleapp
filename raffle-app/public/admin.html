@@ -2026,13 +2026,6 @@
     
     // ==================== SELLER MANAGEMENT FUNCTIONALITY ====================
 
-    // Helper function to escape HTML
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
     // Load sellers
     async function loadSellers() {
       try {
@@ -2049,18 +2042,46 @@
         
         sellers.forEach(seller => {
           const row = document.createElement('tr');
-          const createdDate = new Date(seller.created_at).toLocaleDateString();
           
-          row.innerHTML = `
-            <td>${seller.id}</td>
-            <td>${escapeHtml(seller.name)}</td>
-            <td>${escapeHtml(seller.phone)}</td>
-            <td>${createdDate}</td>
-            <td>
-              <button class="btn-primary btn-sm edit-seller-btn" data-id="${seller.id}" data-name="${seller.name.replace(/"/g, '&quot;')}" data-phone="${seller.phone.replace(/"/g, '&quot;')}">✏️ Edit</button>
-              <button class="btn-danger btn-sm delete-seller-btn" data-id="${seller.id}" data-name="${seller.name.replace(/"/g, '&quot;')}">🗑️ Delete</button>
-            </td>
-          `;
+          // Create cells
+          const idCell = document.createElement('td');
+          idCell.textContent = seller.id;
+          
+          const nameCell = document.createElement('td');
+          nameCell.textContent = seller.name;
+          
+          const phoneCell = document.createElement('td');
+          phoneCell.textContent = seller.phone;
+          
+          const dateCell = document.createElement('td');
+          dateCell.textContent = new Date(seller.created_at).toLocaleDateString();
+          
+          const actionsCell = document.createElement('td');
+          
+          // Create edit button
+          const editBtn = document.createElement('button');
+          editBtn.className = 'btn-primary btn-sm edit-seller-btn';
+          editBtn.textContent = '✏️ Edit';
+          editBtn.dataset.id = seller.id;
+          editBtn.dataset.name = seller.name;
+          editBtn.dataset.phone = seller.phone;
+          
+          // Create delete button
+          const deleteBtn = document.createElement('button');
+          deleteBtn.className = 'btn-danger btn-sm delete-seller-btn';
+          deleteBtn.textContent = '🗑️ Delete';
+          deleteBtn.dataset.id = seller.id;
+          deleteBtn.dataset.name = seller.name;
+          
+          actionsCell.appendChild(editBtn);
+          actionsCell.appendChild(deleteBtn);
+          
+          // Append all cells to row
+          row.appendChild(idCell);
+          row.appendChild(nameCell);
+          row.appendChild(phoneCell);
+          row.appendChild(dateCell);
+          row.appendChild(actionsCell);
           
           tbody.appendChild(row);
         });
