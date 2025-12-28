@@ -1324,6 +1324,9 @@
     async function loadSalesReport() {
       try {
         const res = await fetch('/sales-report');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
         const data = await res.json();
         const tbody = document.querySelector('#sales-table tbody');
         tbody.innerHTML = '';
@@ -1341,6 +1344,9 @@
     async function loadUsers() {
       try {
         const res = await fetch('/users');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
         const data = await res.json();
         const tbody = document.querySelector('#users-table tbody');
         tbody.innerHTML = '';
