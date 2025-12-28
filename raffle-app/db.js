@@ -171,6 +171,24 @@ async function initializeSchema() {
       )
     `);
     
+    // Seller concerns table
+    await run(`
+      CREATE TABLE IF NOT EXISTS seller_concerns (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        seller_id INTEGER NOT NULL,
+        seller_name TEXT NOT NULL,
+        seller_phone TEXT NOT NULL,
+        issue_type TEXT NOT NULL,
+        ticket_number TEXT,
+        description TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        resolved_by TEXT,
+        resolved_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        admin_notes TEXT
+      )
+    `);
+    
     console.log('✅ Database schema initialized');
     
     // Check if admin exists, create if not
