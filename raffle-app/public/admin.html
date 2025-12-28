@@ -703,6 +703,53 @@
     </table>
   </div>
   
+  <!-- Seller Concerns Section -->
+  <div class="section">
+    <h2>⚠️ Seller Concerns</h2>
+    
+    <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+      <button class="concern-filter-btn active" data-filter="pending" style="background: #f59e0b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Pending</button>
+      <button class="concern-filter-btn" data-filter="resolved" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Resolved</button>
+      <button class="concern-filter-btn" data-filter="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">All</button>
+    </div>
+    
+    <table id="sellerConcernsTable">
+      <thead>
+        <tr>
+          <th>Seller</th>
+          <th>Issue Type</th>
+          <th>Ticket #</th>
+          <th>Description</th>
+          <th>Date</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="concernsTableBody">
+        <!-- Populated by JavaScript -->
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Resolve Concern Modal -->
+  <div id="resolveConcernModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
+    <div style="background-color: #fefefe; margin: 5% auto; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <h3 style="margin-top: 0; color: #1e293b;">Resolve Concern</h3>
+      <div id="concernDetailsDisplay" style="background: #f8fafc; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
+        <!-- Concern details will be displayed here -->
+      </div>
+      <form id="resolveConcernForm">
+        <input type="hidden" id="resolveConcernId">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Admin Notes (optional)</label>
+        <textarea id="adminNotes" rows="4" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 5px; font-family: inherit; resize: vertical;" placeholder="Add any notes about the resolution..."></textarea>
+        <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
+          <button type="button" onclick="closeResolveConcernModal()" style="background: #6b7280; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;">Cancel</button>
+          <button type="submit" style="background: #10b981; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;">Mark as Resolved</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
   <div class="section">
     <h2>Seller Performance</h2>
     <form id="performance-form">
@@ -1794,6 +1841,130 @@
     
     // Load seller requests on page load
     loadSellerRequests('pending');
+    
+    // ==================== SELLER CONCERNS FUNCTIONALITY ====================
+    
+    // Load seller concerns
+    async function loadSellerConcerns(filter = 'pending') {
+      try {
+        const response = await fetch('/api/seller-concerns');
+        const concerns = await response.json();
+        
+        const tbody = document.getElementById('concernsTableBody');
+        tbody.innerHTML = '';
+        
+        const filtered = filter === 'all' ? concerns : concerns.filter(c => c.status === filter);
+        
+        if (filtered.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No concerns found</td></tr>';
+          return;
+        }
+        
+        filtered.forEach(concern => {
+          const row = document.createElement('tr');
+          const createdDate = new Date(concern.created_at).toLocaleDateString();
+          
+          let actionsHtml = '';
+          if (concern.status === 'pending') {
+            actionsHtml = `
+              <button onclick="openResolveConcernModal(${concern.id}, '${concern.seller_name.replace(/'/g, "\\'")}', '${concern.issue_type}', '${(concern.ticket_number || '').replace(/'/g, "\\'")}', '${concern.description.replace(/'/g, "\\'").replace(/\n/g, ' ')}')" class="btn-success btn-sm">✅ Resolve</button>
+            `;
+          } else {
+            const resolvedDate = concern.resolved_at ? new Date(concern.resolved_at).toLocaleDateString() : '';
+            actionsHtml = `<small style="color: #64748b;">Resolved: ${resolvedDate}<br>By: ${concern.resolved_by || 'N/A'}</small>`;
+          }
+          
+          const truncateText = (text, maxLength) => {
+            if (!text) return '-';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+          };
+          
+          row.innerHTML = `
+            <td>${concern.seller_name}<br><small style="color: #64748b;">${concern.seller_phone}</small></td>
+            <td><span style="background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${concern.issue_type.replace(/_/g, ' ')}</span></td>
+            <td>${concern.ticket_number || '-'}</td>
+            <td title="${concern.description}">${truncateText(concern.description, 50)}</td>
+            <td>${createdDate}</td>
+            <td><span class="status-badge status-${concern.status}">${concern.status}</span></td>
+            <td>${actionsHtml}</td>
+          `;
+          tbody.appendChild(row);
+        });
+        
+      } catch (error) {
+        console.error('Error loading concerns:', error);
+        showNotify('❌ Error loading concerns', '#ef4444');
+      }
+    }
+    
+    // Open resolve concern modal
+    function openResolveConcernModal(id, sellerName, issueType, ticketNumber, description) {
+      document.getElementById('resolveConcernId').value = id;
+      document.getElementById('adminNotes').value = '';
+      
+      // Display concern details
+      document.getElementById('concernDetailsDisplay').innerHTML = `
+        <p><strong>Seller:</strong> ${sellerName}</p>
+        <p><strong>Issue Type:</strong> ${issueType.replace(/_/g, ' ')}</p>
+        ${ticketNumber ? `<p><strong>Ticket Number:</strong> ${ticketNumber}</p>` : ''}
+        <p><strong>Description:</strong> ${description}</p>
+      `;
+      
+      document.getElementById('resolveConcernModal').style.display = 'block';
+    }
+    
+    // Close resolve concern modal
+    function closeResolveConcernModal() {
+      document.getElementById('resolveConcernModal').style.display = 'none';
+    }
+    
+    // Handle resolve concern form submission
+    document.getElementById('resolveConcernForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const id = document.getElementById('resolveConcernId').value;
+      const adminNotes = document.getElementById('adminNotes').value;
+      
+      try {
+        const response = await fetch(`/api/seller-concerns/${id}/resolve`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ admin_notes: adminNotes })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showNotify('✅ Concern marked as resolved', '#10b981');
+          closeResolveConcernModal();
+          loadSellerConcerns('pending');
+        } else {
+          showNotify('❌ Error: ' + result.error, '#ef4444');
+        }
+      } catch (error) {
+        showNotify('❌ Error resolving concern: ' + error.message, '#ef4444');
+      }
+    });
+    
+    // Filter buttons for concerns
+    document.querySelectorAll('.concern-filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.concern-filter-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        loadSellerConcerns(e.target.dataset.filter);
+      });
+    });
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+      const modal = document.getElementById('resolveConcernModal');
+      if (event.target == modal) {
+        closeResolveConcernModal();
+      }
+    }
+    
+    // Load seller concerns on page load
+    loadSellerConcerns('pending');
     
   </script>
   
