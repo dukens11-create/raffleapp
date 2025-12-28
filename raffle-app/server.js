@@ -1499,7 +1499,7 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
     const rows = await db.all(`
       SELECT DATE(created_at) as day, COUNT(*) as count
       FROM tickets
-      WHERE created_at >= DATE('now', '-30 days')
+      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
       GROUP BY DATE(created_at)
       ORDER BY day
     `);
