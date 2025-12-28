@@ -2036,7 +2036,15 @@
         tbody.innerHTML = '';
         
         if (sellers.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #64748b; padding: 20px;">No sellers found</td></tr>';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 5;
+          cell.style.textAlign = 'center';
+          cell.style.color = '#64748b';
+          cell.style.padding = '20px';
+          cell.textContent = 'No sellers found';
+          row.appendChild(cell);
+          tbody.appendChild(row);
           return;
         }
         
