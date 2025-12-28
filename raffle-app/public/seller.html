@@ -385,6 +385,31 @@
             font-family: inherit;
             resize: vertical;
         }
+
+        .manual-entry-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .manual-entry-section h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .manual-entry-section p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        #manualEntryResult {
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -419,6 +444,28 @@
                 <button class="btn btn-cancel" onclick="closeBarcodeScanner()">Close Scanner</button>
             </div>
             <div id="scanResult" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Manual Ticket Entry Section -->
+        <div class="manual-entry-section">
+            <h2>✍️ Manual Ticket Entry</h2>
+            <p>Enter ticket number manually if scanner doesn't work</p>
+            <form id="manualTicketForm" style="display: flex; gap: 10px; align-items: flex-end;">
+                <div style="flex: 1;">
+                    <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Ticket Number</label>
+                    <input 
+                        type="text" 
+                        id="manualTicketNumber" 
+                        placeholder="Enter ticket number" 
+                        required 
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                    >
+                </div>
+                <button type="submit" class="btn btn-success">
+                    ✅ Register Sale
+                </button>
+            </form>
+            <div id="manualEntryResult" style="margin-top: 15px;"></div>
         </div>
 
         <!-- Report Concern Section -->
@@ -630,6 +677,62 @@
             } catch (error) {
                 console.error('Error submitting concern:', error);
                 alert('❌ Error: ' + error.message);
+            }
+        });
+
+        // Manual Ticket Entry
+        document.getElementById('manualTicketForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const ticketNumber = document.getElementById('manualTicketNumber').value.trim();
+            const resultDiv = document.getElementById('manualEntryResult');
+            
+            if (!ticketNumber) {
+                resultDiv.innerHTML = '❌ Please enter a ticket number';
+                resultDiv.style.color = 'red';
+                resultDiv.style.background = '#fee2e2';
+                resultDiv.style.display = 'block';
+                return;
+            }
+            
+            resultDiv.innerHTML = '⏳ Processing...';
+            resultDiv.style.color = '#666';
+            resultDiv.style.background = '#f3f4f6';
+            resultDiv.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/tickets/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ barcode: ticketNumber })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to register ticket');
+                }
+                
+                resultDiv.innerHTML = `✅ Ticket ${ticketNumber} sold successfully!`;
+                resultDiv.style.color = '#065f46';
+                resultDiv.style.background = '#d1fae5';
+                
+                // Clear form
+                document.getElementById('manualTicketNumber').value = '';
+                
+                // Refresh stats
+                await loadStats();
+                
+                // Clear success message after 5 seconds
+                setTimeout(() => {
+                    resultDiv.style.display = 'none';
+                }, 5000);
+                
+            } catch (error) {
+                console.error('Manual entry error:', error);
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                resultDiv.style.color = '#991b1b';
+                resultDiv.style.background = '#fee2e2';
             }
         });
 
