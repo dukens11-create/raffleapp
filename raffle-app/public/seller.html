@@ -809,10 +809,9 @@
             if (html5QrCode) {
                 try {
                     await html5QrCode.stop();
-                    try {
+                    // Clear the scanner UI if the method exists
+                    if (typeof html5QrCode.clear === 'function') {
                         html5QrCode.clear();
-                    } catch (clearErr) {
-                        // clear() may not exist or may fail, ignore
                     }
                     html5QrCode = null;
                 } catch (err) {
@@ -976,8 +975,6 @@
     </script>
     
     <!-- html5-qrcode library for barcode scanning -->
-    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js" 
-            integrity="sha256-t6T9V3RuIjQPTk3pIE7wxjVFUhNGzfXtPQhUfPkNTH8=" 
-            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </body>
 </html>
