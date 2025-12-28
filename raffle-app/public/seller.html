@@ -475,6 +475,12 @@
     <script>
         let currentSeller = null;
         let allTickets = [];
+        
+        // Constants for ticket buyer placeholders
+        const AVAILABLE_TICKET_BUYER_NAME = 'Available';
+        const AVAILABLE_TICKET_BUYER_PHONE = '0000000000';
+        const UPDATED_TICKET_BUYER_NAME = 'Updated';
+        const UPDATED_TICKET_BUYER_PHONE = '0000000000';
 
         // Check authentication via server session
         async function checkAuth() {
@@ -600,8 +606,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         ticket_number: ticketNumber,
-                        buyer_name: 'Available',
-                        buyer_phone: '0000000000',
+                        buyer_name: AVAILABLE_TICKET_BUYER_NAME,
+                        buyer_phone: AVAILABLE_TICKET_BUYER_PHONE,
                         amount: amount
                     })
                 });
@@ -624,7 +630,7 @@
 
         // Edit ticket modal
         function openEditTicketModal(ticketId) {
-            const ticket = allTickets.find(t => t.id == ticketId);
+            const ticket = allTickets.find(t => t.id === ticketId);
             if (!ticket) return;
 
             document.getElementById('editTicketId').value = ticket.id;
@@ -645,8 +651,8 @@
             e.preventDefault();
             
             const ticketId = document.getElementById('editTicketId').value;
-            const buyerName = 'Updated';
-            const buyerPhone = '0000000000';
+            const buyerName = UPDATED_TICKET_BUYER_NAME;
+            const buyerPhone = UPDATED_TICKET_BUYER_PHONE;
             const amount = parseFloat(document.getElementById('editTicketPrice').value);
 
             try {
