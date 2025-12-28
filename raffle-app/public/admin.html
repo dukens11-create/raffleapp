@@ -2030,10 +2030,13 @@
     async function loadSellers() {
       try {
         const response = await fetch('/api/sellers');
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
         const sellers = await response.json();
         
         const tbody = document.getElementById('sellersTableBody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         
         if (sellers.length === 0) {
           const row = document.createElement('tr');
@@ -2135,6 +2138,10 @@
           body: JSON.stringify(payload)
         });
         
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
@@ -2162,6 +2169,10 @@
         const response = await fetch(`/api/sellers/${id}`, {
           method: 'DELETE'
         });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error: ${response.status}`);
+        }
         
         const result = await response.json();
         
