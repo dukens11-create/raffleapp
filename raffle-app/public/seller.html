@@ -516,7 +516,43 @@
     </div>
 
     <!-- html5-qrcode library for barcode scanning -->
-    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script>
+        // Try loading html5-qrcode library with multiple CDN fallbacks
+        (function loadScanner() {
+            const cdns = [
+                'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+                'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js'
+            ];
+            
+            let currentCdn = 0;
+            
+            function tryLoad() {
+                if (currentCdn >= cdns.length) {
+                    console.error('Failed to load scanner library from all CDN sources');
+                    return;
+                }
+                
+                const script = document.createElement('script');
+                script.src = cdns[currentCdn];
+                script.async = false;
+                
+                script.onload = function() {
+                    console.log('Scanner library loaded successfully from:', cdns[currentCdn]);
+                };
+                
+                script.onerror = function() {
+                    console.warn('Failed to load from:', cdns[currentCdn]);
+                    currentCdn++;
+                    tryLoad();
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            tryLoad();
+        })();
+    </script>
 
     <script>
         let currentSeller = null;
@@ -560,6 +596,7 @@
                 concernSuccess: "Concern reported successfully! Admin will review it.",
                 enterTicket: "Please enter a ticket number",
                 cameraError: "Unable to access camera. Please check permissions.",
+                scannerLibraryError: "Scanner library not available. Please use Manual Ticket Entry below instead.",
                 enterManually: "Enter ticket number manually",
                 enterBarcode: "Enter barcode manually (scanner integration in progress):"
             },
@@ -600,6 +637,7 @@
                 concernSuccess: "Pwoblèm rapòte avèk siksè! Admin ap gade l.",
                 enterTicket: "Tanpri antre yon nimewo tikè",
                 cameraError: "Pa ka aksede kamera. Tanpri verifye pèmisyon yo.",
+                scannerLibraryError: "Bibliyotèk eskanè pa disponib. Tanpri itilize Antre Tikè Manyèlman.",
                 enterManually: "Antre nimewo tikè manyèlman",
                 enterBarcode: "Antre kòd manyèlman (entegrasyon eskanè an pwogrè):"
             },
@@ -640,6 +678,7 @@
                 concernSuccess: "Problème signalé avec succès! L'admin le vérifiera.",
                 enterTicket: "Veuillez entrer un numéro de billet",
                 cameraError: "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations.",
+                scannerLibraryError: "Bibliothèque de scanner non disponible. Veuillez utiliser la saisie manuelle.",
                 enterManually: "Entrer le numéro de billet manuellement",
                 enterBarcode: "Entrez le code-barres manuellement (intégration du scanner en cours):"
             }
@@ -775,7 +814,8 @@
                 
                 // Check if library loaded
                 if (typeof Html5Qrcode === 'undefined') {
-                    alert('Scanner library failed to load. Please check your internet connection and refresh the page.');
+                    const t = translations[currentLanguage];
+                    alert(t.scannerLibraryError || 'Scanner library not available. Please use Manual Ticket Entry below instead.');
                     closeBarcodeScanner();
                     return;
                 }
