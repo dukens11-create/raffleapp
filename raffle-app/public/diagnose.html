@@ -141,18 +141,18 @@
             
             // 3. Test login endpoint
             html += '<div class="diagnostic-section"><h3>3. Login Endpoint Test</h3>';
-            html += `<p>Testing login with correct credentials...</p>`;
+            html += `<p>Testing login endpoint availability...</p>`;
             try {
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone: '1234567890', password: 'admin123' })
+                    body: JSON.stringify({ phone: 'test', password: 'test' })
                 });
                 const data = await response.json();
                 if (data.redirect) {
                     html += `<p class="status-ok">✅ Login endpoint working! Redirect: ${data.redirect}</p>`;
                 } else if (data.error) {
-                    html += `<p class="status-warning">⚠️ Login returned error: ${data.error}</p>`;
+                    html += `<p class="status-ok">✅ Login endpoint is responding</p>`;
                 } else {
                     html += `<p class="status-error">❌ Login response invalid</p>`;
                 }
@@ -185,8 +185,7 @@
                     html += `<p class="status-ok">✅ Admin user EXISTS</p>`;
                     html += `<p><strong>Name:</strong> ${data.userName}</p>`;
                     html += `<p><strong>Role:</strong> ${data.userRole}</p>`;
-                    html += `<p><strong>Phone:</strong> 1234567890</p>`;
-                    html += `<p><strong>Password:</strong> admin123</p>`;
+                    html += `<p><strong>Credentials:</strong> Configured</p>`;
                     html += `<p><strong>Failed attempts:</strong> ${data.failedAttempts}</p>`;
                     html += `<p><strong>Blocked:</strong> ${data.isBlocked ? '<span class="status-error">YES</span>' : '<span class="status-ok">NO</span>'}</p>`;
                     if (data.isBlocked) {
