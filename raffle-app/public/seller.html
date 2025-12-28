@@ -770,6 +770,13 @@
                 scannerDiv.style.width = '100%';
                 container.insertBefore(scannerDiv, container.firstChild);
                 
+                // Check if library loaded
+                if (typeof Html5Qrcode === 'undefined') {
+                    alert('Scanner library failed to load. Please check your internet connection and refresh the page.');
+                    closeBarcodeScanner();
+                    return;
+                }
+                
                 // Initialize html5-qrcode scanner
                 html5QrCode = new Html5Qrcode("seller-scanner-reader");
                 
@@ -787,8 +794,12 @@
                         // Success - barcode detected
                         console.log(`Barcode detected: ${decodedText}`);
                         
-                        // Stop scanner
-                        await stopBarcodeScanner();
+                        // Stop scanner (with error handling)
+                        try {
+                            await stopBarcodeScanner();
+                        } catch (stopErr) {
+                            console.error('Error stopping scanner after scan:', stopErr);
+                        }
                         
                         // Process the scanned ticket
                         await processScannedTicket(decodedText);
@@ -801,7 +812,8 @@
             } catch (error) {
                 console.error('Camera access error:', error);
                 alert(translations[currentLanguage].cameraError);
-                closeBarcodeScanner();
+                // Call without await since we're in a catch block and just cleaning up
+                closeBarcodeScanner().catch(err => console.error('Cleanup error:', err));
             }
         }
 
@@ -811,7 +823,7 @@
                     await html5QrCode.stop();
                     // Clear the scanner UI if the method exists
                     if (typeof html5QrCode.clear === 'function') {
-                        html5QrCode.clear();
+                        await html5QrCode.clear().catch(() => {});
                     }
                     html5QrCode = null;
                 } catch (err) {
