@@ -444,8 +444,6 @@
             <p>Use your camera to scan ticket barcodes</p>
             <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
             <div id="scannerContainer" style="display: none;">
-                <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
-                <canvas id="scannerCanvas" style="display: none;"></canvas>
                 <button class="btn btn-cancel" onclick="closeBarcodeScanner()">Close Scanner</button>
             </div>
             <div id="scanResult" style="margin-top: 15px;"></div>
@@ -517,7 +515,6 @@
 
     <script>
         let currentSeller = null;
-        let videoStream = null;
         let html5QrCode = null;
 
         // Translation data
@@ -758,10 +755,8 @@
         async function openBarcodeScanner() {
             try {
                 const container = document.getElementById('scannerContainer');
-                const video = document.getElementById('scannerVideo');
                 
-                // Hide video element, show scanner container
-                video.style.display = 'none';
+                // Show scanner container
                 container.style.display = 'block';
                 
                 // Create a div for the scanner
@@ -769,11 +764,6 @@
                 scannerDiv.id = 'seller-scanner-reader';
                 scannerDiv.style.width = '100%';
                 container.insertBefore(scannerDiv, container.firstChild);
-                
-                // Verify scanner div was created successfully
-                if (!document.getElementById('seller-scanner-reader')) {
-                    throw new Error('Failed to create scanner element');
-                }
                 
                 // Initialize html5-qrcode scanner
                 html5QrCode = new Html5Qrcode("seller-scanner-reader");
