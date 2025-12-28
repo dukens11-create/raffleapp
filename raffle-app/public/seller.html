@@ -515,6 +515,9 @@
         </div>
     </div>
 
+    <!-- html5-qrcode library for barcode scanning -->
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
     <script>
         let currentSeller = null;
 
@@ -821,10 +824,8 @@
             if (html5QrCode) {
                 try {
                     await html5QrCode.stop();
-                    // Clear the scanner UI if the method exists
-                    if (typeof html5QrCode.clear === 'function') {
-                        await html5QrCode.clear().catch(() => {});
-                    }
+                    // Clear the scanner UI
+                    html5QrCode.clear().catch(() => {});
                     html5QrCode = null;
                 } catch (err) {
                     console.error('Error stopping scanner:', err);
@@ -985,8 +986,5 @@
         // Initialize
         checkAuth();
     </script>
-    
-    <!-- html5-qrcode library for barcode scanning -->
-    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </body>
 </html>
