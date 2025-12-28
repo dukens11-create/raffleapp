@@ -418,6 +418,11 @@
             <h1>🎟️ Seller Dashboard</h1>
             <div class="seller-info">
                 <span class="seller-name" id="sellerName">Loading...</span>
+                <select id="languageSelector" onchange="changeLanguage()" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; cursor: pointer; background: white;">
+                    <option value="en">🇺🇸 English</option>
+                    <option value="ht">🇭🇹 Kreyòl Ayisyen</option>
+                    <option value="fr">🇫🇷 Français</option>
+                </select>
                 <button class="logout-btn" onclick="logout()">Logout</button>
             </div>
         </div>
@@ -514,6 +519,190 @@
         let currentSeller = null;
         let videoStream = null;
 
+        // Translation data
+        const translations = {
+            en: {
+                title: "Seller Dashboard",
+                sellerName: "Seller",
+                logout: "Logout",
+                ticketsSold: "Tickets Sold",
+                totalRevenue: "Total Revenue",
+                scanTicket: "Scan Ticket",
+                scanDescription: "Use your camera to scan ticket barcodes",
+                openScanner: "Open Camera Scanner",
+                closeScanner: "Close Scanner",
+                manualEntry: "Manual Ticket Entry",
+                manualDescription: "Enter ticket number manually if scanner doesn't work",
+                ticketNumber: "Ticket Number",
+                registerSale: "Register Sale",
+                reportConcern: "Report a Concern",
+                reportDescription: "Report any issues you encounter",
+                reportIssue: "Report an Issue",
+                concernTitle: "Report a Concern",
+                issueType: "Issue Type",
+                selectIssue: "Select issue type...",
+                damagedTicket: "Damaged/Invalid Ticket",
+                scannerIssue: "Scanner Not Working",
+                duplicateBarcode: "Duplicate Barcode",
+                customerComplaint: "Customer Complaint",
+                other: "Other",
+                ticketNumberOptional: "Ticket Number (if applicable)",
+                optional: "Optional",
+                description: "Description",
+                descriptionPlaceholder: "Describe the issue...",
+                cancel: "Cancel",
+                submitReport: "Submit Report",
+                processing: "Processing...",
+                ticketSoldSuccess: "sold successfully!",
+                errorPrefix: "Error:",
+                concernSuccess: "Concern reported successfully! Admin will review it.",
+                enterTicket: "Please enter a ticket number",
+                cameraError: "Unable to access camera. Please check permissions.",
+                enterManually: "Enter ticket number manually",
+                enterBarcode: "Enter barcode manually (scanner integration in progress):"
+            },
+            ht: {
+                title: "Tablo Vandè",
+                sellerName: "Vandè",
+                logout: "Dekonekte",
+                ticketsSold: "Tikè Vann",
+                totalRevenue: "Total Lajan",
+                scanTicket: "Eskane Tikè",
+                scanDescription: "Sèvi ak kamera ou pou eskane kòd tikè yo",
+                openScanner: "Louvri Kamera",
+                closeScanner: "Fèmen Kamera",
+                manualEntry: "Antre Tikè Manyèlman",
+                manualDescription: "Antre nimewo tikè a manyèlman si eskanè a pa mache",
+                ticketNumber: "Nimewo Tikè",
+                registerSale: "Anrejistre Vant",
+                reportConcern: "Rapòte yon Pwoblèm",
+                reportDescription: "Rapòte nenpòt pwoblèm ou rankontre",
+                reportIssue: "Rapòte yon Pwoblèm",
+                concernTitle: "Rapòte yon Pwoblèm",
+                issueType: "Kalite Pwoblèm",
+                selectIssue: "Chwazi kalite pwoblèm...",
+                damagedTicket: "Tikè Domaje/Envalid",
+                scannerIssue: "Eskanè Pa Mache",
+                duplicateBarcode: "Kòd Duplike",
+                customerComplaint: "Plent Kliyan",
+                other: "Lòt",
+                ticketNumberOptional: "Nimewo Tikè (si posib)",
+                optional: "Opsyonèl",
+                description: "Deskripsyon",
+                descriptionPlaceholder: "Dekri pwoblèm nan...",
+                cancel: "Anile",
+                submitReport: "Soumèt Rapò",
+                processing: "K ap trete...",
+                ticketSoldSuccess: "vann avèk siksè!",
+                errorPrefix: "Erè:",
+                concernSuccess: "Pwoblèm rapòte avèk siksè! Admin ap gade l.",
+                enterTicket: "Tanpri antre yon nimewo tikè",
+                cameraError: "Pa ka aksede kamera. Tanpri verifye pèmisyon yo.",
+                enterManually: "Antre nimewo tikè manyèlman",
+                enterBarcode: "Antre kòd manyèlman (entegrasyon eskanè an pwogrè):"
+            },
+            fr: {
+                title: "Tableau de Bord Vendeur",
+                sellerName: "Vendeur",
+                logout: "Déconnexion",
+                ticketsSold: "Billets Vendus",
+                totalRevenue: "Revenu Total",
+                scanTicket: "Scanner Billet",
+                scanDescription: "Utilisez votre caméra pour scanner les codes-barres des billets",
+                openScanner: "Ouvrir Scanner",
+                closeScanner: "Fermer Scanner",
+                manualEntry: "Saisie Manuelle de Billet",
+                manualDescription: "Entrez le numéro de billet manuellement si le scanner ne fonctionne pas",
+                ticketNumber: "Numéro de Billet",
+                registerSale: "Enregistrer Vente",
+                reportConcern: "Signaler un Problème",
+                reportDescription: "Signalez tout problème rencontré",
+                reportIssue: "Signaler un Problème",
+                concernTitle: "Signaler un Problème",
+                issueType: "Type de Problème",
+                selectIssue: "Sélectionner le type de problème...",
+                damagedTicket: "Billet Endommagé/Invalide",
+                scannerIssue: "Scanner Ne Fonctionne Pas",
+                duplicateBarcode: "Code-Barres Dupliqué",
+                customerComplaint: "Plainte Client",
+                other: "Autre",
+                ticketNumberOptional: "Numéro de Billet (si applicable)",
+                optional: "Optionnel",
+                description: "Description",
+                descriptionPlaceholder: "Décrivez le problème...",
+                cancel: "Annuler",
+                submitReport: "Soumettre Rapport",
+                processing: "Traitement...",
+                ticketSoldSuccess: "vendu avec succès!",
+                errorPrefix: "Erreur:",
+                concernSuccess: "Problème signalé avec succès! L'admin le vérifiera.",
+                enterTicket: "Veuillez entrer un numéro de billet",
+                cameraError: "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations.",
+                enterManually: "Entrer le numéro de billet manuellement",
+                enterBarcode: "Entrez le code-barres manuellement (intégration du scanner en cours):"
+            }
+        };
+
+        // Get saved language or default to English
+        let currentLanguage = localStorage.getItem('sellerLanguage') || 'en';
+
+        // Change language function
+        function changeLanguage() {
+            const selector = document.getElementById('languageSelector');
+            currentLanguage = selector.value;
+            localStorage.setItem('sellerLanguage', currentLanguage);
+            applyTranslations();
+        }
+
+        // Apply translations to page
+        function applyTranslations() {
+            const t = translations[currentLanguage];
+            
+            // Header
+            document.querySelector('.header h1').textContent = '🎟️ ' + t.title;
+            document.querySelector('.logout-btn').textContent = t.logout;
+            
+            // Stats
+            document.querySelectorAll('.stat-label')[0].textContent = t.ticketsSold;
+            document.querySelectorAll('.stat-label')[1].textContent = t.totalRevenue;
+            
+            // Scanner section
+            document.querySelector('.scanner-section h2').textContent = '📷 ' + t.scanTicket;
+            document.querySelector('.scanner-section p').textContent = t.scanDescription;
+            document.querySelector('.scanner-section .btn-primary').textContent = t.openScanner;
+            document.querySelector('#scannerContainer .btn-cancel').textContent = t.closeScanner;
+            
+            // Manual entry section
+            document.querySelector('.manual-entry-section h2').textContent = '✍️ ' + t.manualEntry;
+            document.querySelector('.manual-entry-section p').textContent = t.manualDescription;
+            document.querySelector('label[for="manualTicketNumber"]').textContent = t.ticketNumber;
+            document.querySelector('#manualTicketForm button').innerHTML = '✅ ' + t.registerSale;
+            
+            // Concern section
+            document.querySelector('.concern-section h2').textContent = '⚠️ ' + t.reportConcern;
+            document.querySelector('.concern-section p').textContent = t.reportDescription;
+            document.querySelector('.concern-section .btn-warning').textContent = t.reportIssue;
+            
+            // Concern modal
+            document.querySelector('.modal-header h3').textContent = t.concernTitle;
+            document.querySelectorAll('.form-group label')[0].textContent = t.issueType;
+            document.querySelector('#issueType option[value=""]').textContent = t.selectIssue;
+            document.querySelector('#issueType option[value="damaged_ticket"]').textContent = t.damagedTicket;
+            document.querySelector('#issueType option[value="scanner_issue"]').textContent = t.scannerIssue;
+            document.querySelector('#issueType option[value="duplicate_barcode"]').textContent = t.duplicateBarcode;
+            document.querySelector('#issueType option[value="customer_complaint"]').textContent = t.customerComplaint;
+            document.querySelector('#issueType option[value="other"]').textContent = t.other;
+            document.querySelectorAll('.form-group label')[1].textContent = t.ticketNumberOptional;
+            document.querySelector('#concernTicketNumber').placeholder = t.optional;
+            document.querySelectorAll('.form-group label')[2].textContent = t.description;
+            document.querySelector('#concernDescription').placeholder = t.descriptionPlaceholder;
+            document.querySelectorAll('.form-actions .btn-cancel')[0].textContent = t.cancel;
+            document.querySelector('.form-actions .btn-primary').textContent = t.submitReport;
+            
+            // Update language selector
+            document.getElementById('languageSelector').value = currentLanguage;
+        }
+
         // Check authentication
         async function checkAuth() {
             try {
@@ -542,6 +731,9 @@
                 currentSeller = data.user;
                 document.getElementById('sellerName').textContent = currentSeller.name;
                 await loadStats();
+                
+                // Apply translations after loading user
+                applyTranslations();
             } catch (error) {
                 console.error('Auth check error:', error);
                 window.location.href = '/';
@@ -579,7 +771,7 @@
                 scanBarcode();
             } catch (error) {
                 console.error('Camera access error:', error);
-                alert('Unable to access camera. Please check permissions.');
+                alert(translations[currentLanguage].cameraError);
             }
         }
 
@@ -599,7 +791,7 @@
         async function scanBarcode() {
             // Use a barcode scanning library like QuaggaJS or jsQR
             // For now, using manual input fallback
-            const barcode = prompt('Enter barcode manually (scanner integration in progress):');
+            const barcode = prompt(translations[currentLanguage].enterBarcode);
             
             if (barcode) {
                 await processScannedTicket(barcode);
@@ -610,7 +802,8 @@
 
         async function processScannedTicket(barcode) {
             const resultDiv = document.getElementById('scanResult');
-            resultDiv.innerHTML = '⏳ Processing...';
+            const t = translations[currentLanguage];
+            resultDiv.innerHTML = '⏳ ' + t.processing;
             resultDiv.style.color = '#666';
             
             try {
@@ -626,14 +819,14 @@
                     throw new Error(data.error || 'Failed to process ticket');
                 }
                 
-                resultDiv.innerHTML = `✅ Ticket ${barcode} sold successfully!`;
+                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${barcode} ${t.ticketSoldSuccess}`;
                 resultDiv.style.color = 'green';
                 
                 // Refresh stats
                 await loadStats();
             } catch (error) {
                 console.error('Scan error:', error);
-                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                resultDiv.innerHTML = `❌ ${t.errorPrefix} ${error.message}`;
                 resultDiv.style.color = 'red';
             }
         }
@@ -672,11 +865,12 @@
                     throw new Error(data.error || 'Failed to submit concern');
                 }
                 
-                alert('✅ Concern reported successfully! Admin will review it.');
+                alert('✅ ' + translations[currentLanguage].concernSuccess);
                 closeConcernModal();
             } catch (error) {
                 console.error('Error submitting concern:', error);
-                alert('❌ Error: ' + error.message);
+                const t = translations[currentLanguage];
+                alert('❌ ' + t.errorPrefix + ' ' + error.message);
             }
         });
 
@@ -686,16 +880,17 @@
             
             const ticketNumber = document.getElementById('manualTicketNumber').value.trim();
             const resultDiv = document.getElementById('manualEntryResult');
+            const t = translations[currentLanguage];
             
             if (!ticketNumber) {
-                resultDiv.innerHTML = '❌ Please enter a ticket number';
+                resultDiv.innerHTML = '❌ ' + t.enterTicket;
                 resultDiv.style.color = 'red';
                 resultDiv.style.background = '#fee2e2';
                 resultDiv.style.display = 'block';
                 return;
             }
             
-            resultDiv.innerHTML = '⏳ Processing...';
+            resultDiv.innerHTML = '⏳ ' + t.processing;
             resultDiv.style.color = '#666';
             resultDiv.style.background = '#f3f4f6';
             resultDiv.style.display = 'block';
@@ -713,7 +908,7 @@
                     throw new Error(data.error || 'Failed to register ticket');
                 }
                 
-                resultDiv.innerHTML = `✅ Ticket ${ticketNumber} sold successfully!`;
+                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${ticketNumber} ${t.ticketSoldSuccess}`;
                 resultDiv.style.color = '#065f46';
                 resultDiv.style.background = '#d1fae5';
                 
@@ -730,7 +925,7 @@
                 
             } catch (error) {
                 console.error('Manual entry error:', error);
-                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                resultDiv.innerHTML = `❌ ${t.errorPrefix} ${error.message}`;
                 resultDiv.style.color = '#991b1b';
                 resultDiv.style.background = '#fee2e2';
             }
