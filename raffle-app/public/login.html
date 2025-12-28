@@ -306,13 +306,6 @@
         </form>
         <div class="register-link">
             <p>Don't have access? <a href="/register-seller.html">Request Seller Access</a></p>
-            <p style="margin-top: 10px;">Default Admin Login:</p>
-            <p><strong>Phone:</strong> 1234567890 | <strong>Password:</strong> admin123</p>
-            <p style="margin-top: 8px;">
-                <button type="button" onclick="fillDefaultCredentials()" style="padding: 8px 16px; font-size: 14px; width: auto;">
-                    Use Default Credentials
-                </button>
-            </p>
         </div>
         
         <div class="help-section">
@@ -418,7 +411,7 @@
                     if (errorMessage.includes('Too many')) {
                         errorMessage += '\n\nToo many failed attempts. Wait 60 minutes or use the Reset Admin Account link below.';
                     } else if (errorMessage.includes('Invalid')) {
-                        errorMessage += '\n\nDefault admin login:\nPhone: 1234567890\nPassword: admin123\n\nTry the Diagnostics page to check system status.';
+                        errorMessage += '\n\nTry the Diagnostics page to check system status.';
                     } else if (errorMessage.includes('Session expired')) {
                         errorMessage += '\n\nYour session has expired. Please login again.';
                     }
@@ -525,15 +518,6 @@
             }
         });
         
-        // Fill default credentials helper function
-        function fillDefaultCredentials() {
-            console.log('Filling default credentials');
-            document.getElementById('phone').value = '1234567890';
-            document.getElementById('password').value = 'admin123';
-            document.getElementById('phone').classList.add('has-value');
-            document.getElementById('password').classList.add('has-value');
-            console.log('Default credentials filled');
-        }
     </script>
     
     <!-- Service Worker Registration -->
