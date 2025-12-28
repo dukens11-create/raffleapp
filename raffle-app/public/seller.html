@@ -532,6 +532,8 @@
                 }
                 const stats = await response.json();
                 document.getElementById('totalTickets').textContent = stats.totalTickets;
+                // Note: ticketsSold and availableTickets show same as totalTickets 
+                // since the API doesn't distinguish between sold/available yet
                 document.getElementById('ticketsSold').textContent = stats.totalTickets;
                 document.getElementById('totalRevenue').textContent = stats.totalRevenue.toFixed(2);
                 document.getElementById('availableTickets').textContent = stats.totalTickets;
