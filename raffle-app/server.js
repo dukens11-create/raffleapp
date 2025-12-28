@@ -436,7 +436,8 @@ app.get('/health', async (req, res) => {
       connected: false,
       persistent: false
     },
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    criticalIssues: []
   };
 
   try {
@@ -445,12 +446,21 @@ app.get('/health', async (req, res) => {
     health.database.connected = true;
     health.database.persistent = process.env.DATABASE_URL ? true : false;
     
-    // Warning for SQLite in production
-    if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+    // CRITICAL: Check for SQLite in production
+    if (!process.env.DATABASE_URL) {
+      health.status = 'degraded';
+      health.criticalIssues.push({
+        severity: 'CRITICAL',
+        issue: 'Using SQLite - Data will be LOST on restart',
+        action: 'Set DATABASE_URL environment variable to PostgreSQL connection string',
+        documentation: '/api/database-status for detailed steps'
+      });
+      
       health.warnings = [
-        'Using SQLite in production - data will be lost on restart',
-        'Add DATABASE_URL environment variable to switch to PostgreSQL',
-        'See MIGRATION.md for setup instructions'
+        '🚨 CRITICAL: Using SQLite in production',
+        '🚨 ALL DATA (sellers, tickets, users) WILL BE LOST on restart',
+        '🔧 ACTION REQUIRED: Connect PostgreSQL database',
+        '📚 Visit /api/database-status for fix instructions'
       ];
     }
     
@@ -460,6 +470,84 @@ app.get('/health', async (req, res) => {
     health.database.error = error.message;
     res.status(503).json(health);
   }
+});
+
+// Detailed database diagnostic endpoint
+app.get('/api/database-status', async (req, res) => {
+  const status = {
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    database: {
+      configured: {
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        databaseUrlPreview: process.env.DATABASE_URL 
+          ? process.env.DATABASE_URL.substring(0, 20) + '...' 
+          : 'NOT SET',
+        usingPostgres: !!process.env.DATABASE_URL,
+        usingSqlite: !process.env.DATABASE_URL
+      },
+      connection: {
+        connected: false,
+        error: null
+      },
+      persistence: {
+        isPersistent: !!process.env.DATABASE_URL,
+        dataWillSurviveRestart: !!process.env.DATABASE_URL,
+        warning: !process.env.DATABASE_URL 
+          ? '⚠️ CRITICAL: Using SQLite - ALL DATA WILL BE LOST ON RESTART' 
+          : null
+      }
+    },
+    sessions: {
+      store: process.env.DATABASE_URL ? 'PostgreSQL' : 'MemoryStore',
+      persistent: false, // Will be true after PR #69 is merged
+      warning: 'Sessions stored in memory - users will be logged out on restart (Fix in PR #69)'
+    },
+    actionRequired: []
+  };
+
+  // Test database connection
+  try {
+    await db.get('SELECT 1 as test');
+    status.database.connection.connected = true;
+  } catch (error) {
+    status.database.connection.connected = false;
+    status.database.connection.error = error.message;
+  }
+
+  // Determine action required
+  if (!process.env.DATABASE_URL) {
+    status.actionRequired.push({
+      priority: 'CRITICAL',
+      issue: 'No PostgreSQL connection',
+      impact: 'ALL user data (sellers, tickets, requests) is being LOST on every restart',
+      solution: 'Add DATABASE_URL environment variable with PostgreSQL connection string',
+      steps: [
+        '1. Go to Render Dashboard → Your PostgreSQL database',
+        '2. Copy the INTERNAL connection string',
+        '3. Go to Web Service → Environment tab',
+        '4. Add: Key=DATABASE_URL, Value=[internal connection string]',
+        '5. Save changes (will trigger automatic redeploy)'
+      ]
+    });
+  }
+
+  if (!status.sessions.persistent) {
+    status.actionRequired.push({
+      priority: 'HIGH',
+      issue: 'Sessions not persistent',
+      impact: 'Users are logged out on every restart',
+      solution: 'Merge PR #69 to use PostgreSQL session store',
+      steps: [
+        '1. Review PR #69: Fix session loss when Render restarts',
+        '2. Merge the pull request',
+        '3. Wait for automatic deployment'
+      ]
+    });
+  }
+
+  const httpCode = status.actionRequired.length > 0 ? 503 : 200;
+  res.status(httpCode).json(status);
 });
 
 // Session debug endpoint - check if session is working
