@@ -170,14 +170,13 @@
             cursor: pointer;
             font-size: 14px;
             color: #667eea;
-            padding: 8px 0;
+            padding: 8px 12px;
             width: auto;
             text-align: left;
             display: inline-flex;
             align-items: center;
             gap: 6px;
             min-height: 44px;
-            min-width: 44px;
             font-weight: 500;
             transition: all 0.2s ease;
         }
@@ -335,7 +334,7 @@
                     onclick="togglePasswordVisibility()"
                     title="Show password"
                     aria-label="Toggle password visibility">
-                    <span class="icon">👁️</span>
+                    <span class="icon" aria-hidden="true">👁️</span>
                     <span>Show password</span>
                 </button>
             </div>
@@ -553,11 +552,11 @@
             
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                toggleButton.innerHTML = '<span class="icon">🙈</span><span>Hide password</span>';
+                toggleButton.innerHTML = '<span class="icon" aria-hidden="true">🙈</span><span>Hide password</span>';
                 toggleButton.title = 'Hide password';
             } else {
                 passwordInput.type = 'password';
-                toggleButton.innerHTML = '<span class="icon">👁️</span><span>Show password</span>';
+                toggleButton.innerHTML = '<span class="icon" aria-hidden="true">👁️</span><span>Show password</span>';
                 toggleButton.title = 'Show password';
             }
         }
