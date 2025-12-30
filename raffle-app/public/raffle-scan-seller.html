@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Scan & Sell - Raffle Seller</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 10px;
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 { color: #1e293b; font-size: 24px; }
+    .section {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    .section h2 { color: #1e293b; font-size: 18px; margin-bottom: 15px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      margin-bottom: 12px;
+      transition: border-color 0.3s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.3s;
+      margin-bottom: 10px;
+    }
+    button:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+    }
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+    .ticket-info {
+      border: 2px solid #e2e8f0;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+    .ticket-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 10px;
+    }
+    .ticket-price {
+      font-size: 36px;
+      font-weight: 700;
+      color: #10b981;
+      margin: 15px 0;
+    }
+    .ticket-status {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .status-available { background: #d1fae5; color: #065f46; }
+    .status-sold { background: #fee2e2; color: #991b1b; }
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+    .alert-success { background: #d1fae5; color: #065f46; }
+    .alert-error { background: #fee2e2; color: #991b1b; }
+    .hidden { display: none; }
+    .back-link { color: #667eea; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📷 Scan & Sell</h1>
+      <a href="raffle-seller-dashboard.html" class="back-link">← Back</a>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <!-- Scan Step -->
+    <div id="scanStep" class="section">
+      <h2>Enter Ticket Information</h2>
+      <input 
+        type="text" 
+        id="scanInput" 
+        placeholder="Enter barcode or ticket number (e.g., 1000001 or ABC-000001)" 
+        autofocus
+      >
+      <button class="btn-primary" onclick="scanTicket()">
+        🔍 Check Ticket
+      </button>
+      <p style="color: #64748b; font-size: 14px; margin-top: 10px; text-align: center;">
+        Scan barcode or manually enter ticket number
+      </p>
+    </div>
+
+    <!-- Ticket Details Step -->
+    <div id="ticketStep" class="section hidden">
+      <h2>Ticket Details</h2>
+      <div class="ticket-info" id="ticketInfo"></div>
+      <button class="btn-secondary" onclick="resetScan()">
+        ← Scan Another Ticket
+      </button>
+    </div>
+
+    <!-- Sale Form Step -->
+    <div id="saleStep" class="section hidden">
+      <h2>Complete Sale</h2>
+      <form id="saleForm" onsubmit="completeSale(event)">
+        <input type="text" id="buyerName" placeholder="Buyer Name *" required>
+        <input type="tel" id="buyerPhone" placeholder="Buyer Phone *" required>
+        <input type="email" id="buyerEmail" placeholder="Buyer Email (optional)">
+        
+        <select id="paymentMethod" required>
+          <option value="">Select Payment Method *</option>
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="mobile_money">Mobile Money</option>
+        </select>
+
+        <label style="display: block; margin: 10px 0;">
+          <input type="checkbox" id="paymentVerified" style="width: auto; margin-right: 8px;">
+          Payment Verified (for high-value tickets)
+        </label>
+
+        <button type="submit" class="btn-primary">
+          ✅ Confirm Sale
+        </button>
+        <button type="button" class="btn-secondary" onclick="cancelSale()">
+          Cancel
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentTicket = null;
+
+    function showAlert(message, type = 'success') {
+      const container = document.getElementById('alertContainer');
+      container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      setTimeout(() => container.innerHTML = '', 5000);
+    }
+
+    async function scanTicket() {
+      const input = document.getElementById('scanInput').value.trim();
+      if (!input) {
+        showAlert('Please enter a barcode or ticket number', 'error');
+        return;
+      }
+
+      try {
+        // Determine if input is barcode or ticket number
+        const isBarcode = /^\d+$/.test(input);
+        
+        const response = await fetch('/api/seller/tickets/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            barcode: isBarcode ? input : null,
+            ticketNumber: !isBarcode ? input.toUpperCase() : null
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.ticket) {
+          currentTicket = data.ticket;
+          displayTicketInfo(data.ticket);
+        } else {
+          showAlert(data.error || 'Ticket not found', 'error');
+        }
+      } catch (error) {
+        console.error('Error scanning ticket:', error);
+        showAlert('Error scanning ticket', 'error');
+      }
+    }
+
+    function displayTicketInfo(ticket) {
+      const infoHtml = `
+        <div class="ticket-number">${ticket.ticket_number}</div>
+        <div style="color: #64748b; margin-bottom: 10px;">
+          ${ticket.category_name || ticket.category} Category
+        </div>
+        <div class="ticket-price">$${parseFloat(ticket.price).toFixed(2)}</div>
+        <div class="ticket-status status-${ticket.status.toLowerCase()}">
+          ${ticket.status}
+        </div>
+        ${ticket.barcode ? `<div style="color: #64748b; margin-top: 10px; font-size: 14px;">Barcode: ${ticket.barcode}</div>` : ''}
+      `;
+      
+      document.getElementById('ticketInfo').innerHTML = infoHtml;
+      document.getElementById('scanStep').classList.add('hidden');
+      document.getElementById('ticketStep').classList.remove('hidden');
+
+      // Show sale form if ticket is available
+      if (ticket.status === 'AVAILABLE') {
+        document.getElementById('saleStep').classList.remove('hidden');
+      } else {
+        showAlert('This ticket is not available for sale', 'error');
+      }
+    }
+
+    async function completeSale(event) {
+      event.preventDefault();
+
+      if (!currentTicket) {
+        showAlert('No ticket selected', 'error');
+        return;
+      }
+
+      const saleData = {
+        ticketId: currentTicket.id,
+        buyerName: document.getElementById('buyerName').value,
+        buyerPhone: document.getElementById('buyerPhone').value,
+        buyerEmail: document.getElementById('buyerEmail').value || null,
+        paymentMethod: document.getElementById('paymentMethod').value,
+        paymentVerified: document.getElementById('paymentVerified').checked,
+        actualPricePaid: currentTicket.price
+      };
+
+      try {
+        const response = await fetch('/api/seller/tickets/sell', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(saleData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          showAlert(`Sale completed! Ticket ${currentTicket.ticket_number} sold to ${saleData.buyerName}`, 'success');
+          setTimeout(() => {
+            window.location.href = 'raffle-seller-dashboard.html';
+          }, 2000);
+        } else {
+          showAlert(data.error || 'Failed to complete sale', 'error');
+        }
+      } catch (error) {
+        console.error('Error completing sale:', error);
+        showAlert('Error completing sale', 'error');
+      }
+    }
+
+    function resetScan() {
+      currentTicket = null;
+      document.getElementById('scanInput').value = '';
+      document.getElementById('saleForm').reset();
+      document.getElementById('scanStep').classList.remove('hidden');
+      document.getElementById('ticketStep').classList.add('hidden');
+      document.getElementById('saleStep').classList.add('hidden');
+      document.getElementById('scanInput').focus();
+    }
+
+    function cancelSale() {
+      if (confirm('Cancel this sale and return to scan?')) {
+        resetScan();
+      }
+    }
+
+    // Allow Enter key to scan
+    document.getElementById('scanInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        scanTicket();
+      }
+    });
+
+    // Check authentication
+    fetch('/api/session-check')
+      .then(r => r.json())
+      .then(data => {
+        if (!data.hasUser || data.user.role !== 'seller') {
+          window.location.href = '/';
+        }
+      });
+  </script>
+</body>
+</html>

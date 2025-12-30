@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Seller Dashboard - Raffle</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 10px;
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .header h1 { color: #1e293b; font-size: 24px; margin-bottom: 5px; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .stat-card h3 { color: #64748b; font-size: 12px; margin-bottom: 5px; }
+    .stat-card .value { color: #1e293b; font-size: 28px; font-weight: 700; }
+    .scan-btn {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 20px;
+      border: none;
+      border-radius: 12px;
+      font-size: 20px;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 15px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.3s;
+    }
+    .scan-btn:active { transform: scale(0.98); }
+    .section {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    .section h2 { color: #1e293b; font-size: 18px; margin-bottom: 15px; }
+    .sale-item {
+      border-bottom: 1px solid #e2e8f0;
+      padding: 12px 0;
+    }
+    .sale-item:last-child { border-bottom: none; }
+    .logout-btn {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎫 Seller Dashboard</h1>
+      <div id="sellerName" style="color: #64748b; font-size: 14px;"></div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <h3>TODAY'S SALES</h3>
+        <div class="value" id="todaySales">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>TODAY'S REVENUE</h3>
+        <div class="value" id="todayRevenue">$0</div>
+      </div>
+      <div class="stat-card">
+        <h3>TOTAL SALES</h3>
+        <div class="value" id="totalSales">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>TOTAL COMMISSION</h3>
+        <div class="value" id="totalCommission">$0</div>
+      </div>
+    </div>
+
+    <button class="scan-btn" onclick="window.location.href='raffle-scan-seller.html'">
+      📷 SCAN TICKET TO SELL
+    </button>
+
+    <div class="section">
+      <h2>Recent Sales</h2>
+      <div id="recentSales" style="color: #64748b; text-align: center;">
+        Loading...
+      </div>
+    </div>
+
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <script>
+    function logout() {
+      fetch('/logout', { method: 'POST' })
+        .then(() => window.location.href = '/');
+    }
+
+    async function loadDashboard() {
+      try {
+        // Check session
+        const sessionResp = await fetch('/api/session-check');
+        const session = await sessionResp.json();
+        
+        if (!session.hasUser || session.user.role !== 'seller') {
+          window.location.href = '/';
+          return;
+        }
+        
+        document.getElementById('sellerName').textContent = session.user.name;
+        
+        // Load dashboard data
+        const response = await fetch('/api/seller/dashboard');
+        const data = await response.json();
+        
+        if (data.success) {
+          document.getElementById('todaySales').textContent = data.stats.todaySales;
+          document.getElementById('todayRevenue').textContent = '$' + data.stats.todayRevenue.toFixed(2);
+          document.getElementById('totalSales').textContent = data.stats.totalSales;
+          document.getElementById('totalCommission').textContent = '$' + data.stats.totalCommission.toFixed(2);
+          
+          // Show recent sales
+          const salesContainer = document.getElementById('recentSales');
+          if (data.recentSales && data.recentSales.length > 0) {
+            salesContainer.innerHTML = data.recentSales.map(sale => `
+              <div class="sale-item">
+                <strong>${sale.ticket_number}</strong> - ${sale.buyer_name}<br>
+                <small style="color: #64748b;">$${parseFloat(sale.actual_price_paid).toFixed(2)} | ${new Date(sale.sold_at).toLocaleTimeString()}</small>
+              </div>
+            `).join('');
+          } else {
+            salesContainer.innerHTML = '<p style="padding: 20px; text-align: center;">No sales today</p>';
+          }
+        }
+      } catch (error) {
+        console.error('Error loading dashboard:', error);
+      }
+    }
+
+    loadDashboard();
+    setInterval(loadDashboard, 30000); // Refresh every 30 seconds
+  </script>
+</body>
+</html>
