@@ -162,6 +162,16 @@
             transform: translateY(0);
         }
         
+        /* Password toggle button specific styles */
+        #togglePassword {
+            transition: all 0.2s ease;
+        }
+        
+        #togglePassword:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
         #message {
             margin-top: 15px;
             text-align: center;
@@ -293,25 +303,23 @@
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <div style="position: relative;">
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password"
-                        required 
-                        autocomplete="new-password"
-                        placeholder="Enter your password"
-                        style="padding-right: 45px;">
-                    <button 
-                        type="button" 
-                        id="togglePassword" 
-                        onclick="togglePasswordVisibility()"
-                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; font-size: 20px; color: #667eea; padding: 8px;"
-                        title="Show password"
-                        aria-label="Toggle password visibility">
-                        👁️
-                    </button>
-                </div>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password"
+                    required 
+                    autocomplete="new-password"
+                    placeholder="Enter your password">
+                <button 
+                    type="button" 
+                    id="togglePassword" 
+                    onclick="togglePasswordVisibility()"
+                    style="margin-top: 8px; background: transparent; border: none; cursor: pointer; font-size: 14px; color: #667eea; padding: 8px 0; width: auto; text-align: left; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; font-weight: 500;"
+                    title="Show password"
+                    aria-label="Toggle password visibility">
+                    <span style="font-size: 20px;">👁️</span>
+                    <span>Show password</span>
+                </button>
             </div>
             <button type="submit">Login</button>
             <div id="message"></div>
@@ -527,11 +535,11 @@
             
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                toggleButton.textContent = '🙈';
+                toggleButton.innerHTML = '<span style="font-size: 20px;">🙈</span><span>Hide password</span>';
                 toggleButton.title = 'Hide password';
             } else {
                 passwordInput.type = 'password';
-                toggleButton.textContent = '👁️';
+                toggleButton.innerHTML = '<span style="font-size: 20px;">👁️</span><span>Show password</span>';
                 toggleButton.title = 'Show password';
             }
         }
