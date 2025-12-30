@@ -345,6 +345,33 @@
       min-height: 30px;
     }
     /* Language Selector Styles */
+    #language-selector {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .lang-btn {
+      background: #fff;
+      color: #1e293b;
+      border: 2px solid #e2e8f0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
     .lang-btn:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
@@ -568,14 +595,14 @@
     <a href="/logout" style="position:fixed;top:20px;left:20px;background:#ef4444;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;z-index:1000;box-shadow:0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);" data-translate="logout" aria-label="Logout">Logout</a>
     
     <!-- Enhanced Language Selector -->
-    <div id="language-selector" style="position:fixed;top:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:8px;display:flex;gap:8px;">
-      <button class="lang-btn" data-lang="en" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;display:flex;align-items:center;gap:6px;" title="English">
+    <div id="language-selector">
+      <button class="lang-btn active" data-lang="en" title="English">
         <span>🇺🇸</span><span>EN</span>
       </button>
-      <button class="lang-btn" data-lang="ht" style="background:#fff;color:#1e293b;border:2px solid #e2e8f0;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;display:flex;align-items:center;gap:6px;" title="Kreyòl Ayisyen">
+      <button class="lang-btn" data-lang="ht" title="Kreyòl Ayisyen">
         <span>🇭🇹</span><span>HT</span>
       </button>
-      <button class="lang-btn" data-lang="fr" style="background:#fff;color:#1e293b;border:2px solid #e2e8f0;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;display:flex;align-items:center;gap:6px;" title="Français">
+      <button class="lang-btn" data-lang="fr" title="Français">
         <span>🇫🇷</span><span>FR</span>
       </button>
     </div>
@@ -1206,14 +1233,8 @@
                               document.querySelectorAll('.lang-btn').forEach(btn => {
                                 if (btn.getAttribute('data-lang') === lang) {
                                   btn.classList.add('active');
-                                  btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                                  btn.style.color = '#fff';
-                                  btn.style.borderColor = 'transparent';
                                 } else {
                                   btn.classList.remove('active');
-                                  btn.style.background = '#fff';
-                                  btn.style.color = '#1e293b';
-                                  btn.style.borderColor = '#e2e8f0';
                                 }
                               });
                             }
