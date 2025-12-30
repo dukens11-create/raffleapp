@@ -344,6 +344,31 @@
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
       min-height: 30px;
     }
+    /* Language Selector Styles */
+    .lang-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3) !important;
+    }
+    .lang-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+      color: #fff !important;
+      border-color: transparent !important;
+    }
+    @media (max-width: 600px) {
+      #language-selector {
+        top: 70px !important;
+        right: 10px !important;
+        padding: 6px !important;
+        gap: 6px !important;
+      }
+      .lang-btn {
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+      }
+      .lang-btn span:last-child {
+        display: none;
+      }
+    }
     .ticket-highlight {
       background: rgba(102, 126, 234, 0.15) !important;
       color: #1e293b !important;
@@ -540,17 +565,24 @@
   </style>
 </head>
 <body>
-    <a href="/logout" style="position:fixed;top:20px;left:20px;background:#ef4444;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;z-index:1000;box-shadow:0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);" data-i18n="Logout" aria-label="Logout">Logout</a>
-    <select id="lang-select" style="position:fixed;top:20px;right:20px;padding:10px 12px;border-radius:6px;z-index:1000;border:1px solid #e2e8f0;background:#ffffff;color:#1e293b;font-size:14px;" aria-label="Language selector">
-      <option value="en">English</option>
-      <option value="fr">Français</option>
-      <option value="ht">Kreyòl Ayisyen</option>
-      <option value="es">Español</option>
-    </select>
+    <a href="/logout" style="position:fixed;top:20px;left:20px;background:#ef4444;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;z-index:1000;box-shadow:0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);" data-translate="logout" aria-label="Logout">Logout</a>
+    
+    <!-- Enhanced Language Selector -->
+    <div id="language-selector" style="position:fixed;top:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);border-radius:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);padding:8px;display:flex;gap:8px;">
+      <button class="lang-btn" data-lang="en" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;display:flex;align-items:center;gap:6px;" title="English">
+        <span>🇺🇸</span><span>EN</span>
+      </button>
+      <button class="lang-btn" data-lang="ht" style="background:#fff;color:#1e293b;border:2px solid #e2e8f0;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;display:flex;align-items:center;gap:6px;" title="Kreyòl Ayisyen">
+        <span>🇭🇹</span><span>HT</span>
+      </button>
+      <button class="lang-btn" data-lang="fr" style="background:#fff;color:#1e293b;border:2px solid #e2e8f0;padding:8px 12px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;display:flex;align-items:center;gap:6px;" title="Français">
+        <span>🇫🇷</span><span>FR</span>
+      </button>
+    </div>
     <div class="section">
-      <h2>Sales Trends (Last 30 Days)</h2>
+      <h2 data-translate="salesTrends">Sales Trends (Last 30 Days)</h2>
       <canvas id="salesChart" height="120"></canvas>
-      <h2>Tickets by Category</h2>
+      <h2 data-translate="ticketsByCategory">Tickets by Category</h2>
       <canvas id="categoryChart" height="120"></canvas>
     </div>
     
@@ -558,73 +590,73 @@
     <div id="scannerModal" class="scanner-modal">
       <div class="scanner-content">
         <span class="close-scanner" id="closeScannerBtn">&times;</span>
-        <h2>📷 Scan Ticket Barcode</h2>
+        <h2 data-translate="scanTicketBarcode">📷 Scan Ticket Barcode</h2>
         <div id="scanner-reader"></div>
         <div id="scanResult"></div>
       </div>
     </div>
     
     <div class="section">
-    <h1 style="color:#1e293b;text-shadow:none;font-size:24px;font-weight:600;" data-i18n="Audit Logs">Audit Logs</h1>
+    <h1 style="color:#1e293b;text-shadow:none;font-size:24px;font-weight:600;" data-translate="auditLogs">Audit Logs</h1>
     <table id="audit-table" style="background:#ffffff;color:#1e293b;">
       <thead>
-        <tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+        <tr><th data-translate="time">Time</th><th data-translate="user">User</th><th data-translate="action">Action</th><th data-translate="details">Details</th></tr>
       </thead>
       <tbody></tbody>
     </table>
   </div>
     <div id="notify"></div>
   <img src="logo.png" alt="Logo" style="display:block;margin:32px auto 8px auto;max-width:160px;">
-  <h1>Admin Dashboard</h1>
+  <h1 data-translate="adminDashboard">Admin Dashboard</h1>
   <div class="section">
-    <h2>Ticket Inventory</h2>
+    <h2 data-translate="ticketInventory">Ticket Inventory</h2>
     <table id="inventory-table">
       <thead>
-        <tr><th>Category</th><th>Total</th><th>Sold</th><th>Available</th></tr>
+        <tr><th data-translate="category">Category</th><th data-translate="total">Total</th><th data-translate="sold">Sold</th><th data-translate="available">Available</th></tr>
       </thead>
       <tbody></tbody>
     </table>
   </div>
   <div class="section">
-    <h2>Create Ticket</h2>
+    <h2 data-translate="createTicket">Create Ticket</h2>
     <button id="scanTicketBtn" class="scan-btn">
-      📷 Scan Ticket
+      <span data-translate="scanTicket">📷 Scan Ticket</span>
     </button>
     <form id="create-ticket-form">
-      <label for="ticket-number" style="margin-bottom:4px;display:block;">Ticket Number</label>
-      <input id="ticket-number" placeholder="Ticket Number" required />
-      <label for="ticket-category" style="margin-top:10px;margin-bottom:4px;display:block;">Category</label>
+      <label for="ticket-number" style="margin-bottom:4px;display:block;" data-translate="ticketNumber">Ticket Number</label>
+      <input id="ticket-number" data-translate-placeholder="ticketNumberPlaceholder" placeholder="Ticket Number" required />
+      <label for="ticket-category" style="margin-top:10px;margin-bottom:4px;display:block;" data-translate="category">Category</label>
       <select id="ticket-category" required>
-        <option value="">Select Category</option>
+        <option value="" data-translate="selectCategory">Select Category</option>
         <option value="ABC">ABC</option>
         <option value="EFG">EFG</option>
         <option value="JKL">JKL</option>
         <option value="XYZ">XYZ</option>
       </select>
-      <button type="submit" style="margin-top:10px;">Create Ticket</button>
+      <button type="submit" style="margin-top:10px;" data-translate="createTicketBtn">Create Ticket</button>
       <div id="ticket-success" class="msg-success" style="display:none;"></div>
       <div id="ticket-error" class="msg-error" style="display:none;"></div>
     </form>
     
     <!-- Bulk Import Section -->
     <div class="import-section" style="margin-top: 32px;">
-      <h3>📊 Bulk Import Tickets</h3>
+      <h3 data-translate="bulkImportTickets">📊 Bulk Import Tickets</h3>
       
       <div class="import-actions">
         <button id="downloadTemplateBtn" class="btn-secondary">
-          📥 Download Excel Template
+          <span data-translate="downloadTemplate">📥 Download Excel Template</span>
         </button>
         
         <div class="upload-area">
           <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
           <button id="selectFileBtn">
-            📁 Select Excel File
+            <span data-translate="selectExcelFile">📁 Select Excel File</span>
           </button>
           <span id="selectedFileName"></span>
         </div>
         
         <button id="importBtn" class="btn-success" disabled>
-          ⬆️ Import Tickets
+          <span data-translate="importTickets">⬆️ Import Tickets</span>
         </button>
       </div>
       
@@ -636,48 +668,48 @@
       <div id="importResults" style="display: none;"></div>
     </div>
     
-    <h2>All Tickets</h2>
+    <h2 data-translate="allTickets">All Tickets</h2>
     <table id="tickets-table">
       <thead>
         <tr>
           <th><input type="checkbox" id="select-all-tickets"></th>
-          <th>Number</th>
-          <th>Category</th>
-          <th>Status</th>
-          <th>Barcode</th>
-          <th>Actions</th>
+          <th data-translate="number">Number</th>
+          <th data-translate="category">Category</th>
+          <th data-translate="status">Status</th>
+          <th data-translate="barcode">Barcode</th>
+          <th data-translate="actions">Actions</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
-    <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#ef4444;color:#fff;">Delete Selected Tickets</button>
+    <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#ef4444;color:#fff;" data-translate="deleteSelectedTickets">Delete Selected Tickets</button>
   </div>
   <div class="section">
-    <h2>Sales Report</h2>
+    <h2 data-translate="salesReport">Sales Report</h2>
     <table id="sales-table">
       <thead>
-        <tr><th>Seller</th><th>Tickets Sold</th></tr>
+        <tr><th data-translate="seller">Seller</th><th data-translate="ticketsSold">Tickets Sold</th></tr>
       </thead>
       <tbody></tbody>
     </table>
   </div>
   <div class="section">
-    <h2>Users</h2>
+    <h2 data-translate="users">Users</h2>
     <table id="users-table">
       <thead>
-        <tr><th><input type="checkbox" id="select-all-users"></th><th>Name</th><th>Role</th><th>Phone</th></tr>
+        <tr><th><input type="checkbox" id="select-all-users"></th><th data-translate="name">Name</th><th data-translate="role">Role</th><th data-translate="phone">Phone</th></tr>
       </thead>
       <tbody></tbody>
     </table>
-    <button id="bulk-delete-users-btn" style="margin-top:10px;background:#ef4444;color:#fff;">Delete Selected Users</button>
+    <button id="bulk-delete-users-btn" style="margin-top:10px;background:#ef4444;color:#fff;" data-translate="deleteSelectedUsers">Delete Selected Users</button>
   </div>
   
   <!-- Manage Sellers Section -->
   <div class="section">
-    <h2>👥 Manage Sellers</h2>
+    <h2 data-translate="manageSellers">👥 Manage Sellers</h2>
     
     <button id="refreshSellersBtn" style="margin-bottom: 15px; background: #10b981;">
-      🔄 Refresh Sellers
+      <span data-translate="refreshSellers">🔄 Refresh Sellers</span>
     </button>
     
     <!-- Search/Filter Controls -->
@@ -687,6 +719,7 @@
         <input 
           type="text" 
           id="sellersSearchInput" 
+          data-translate-placeholder="searchSellersPlaceholder"
           placeholder="Search sellers by name..." 
           style="width: 100%; max-width: 400px; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 15px; transition: border-color 0.2s;"
         />
@@ -695,7 +728,7 @@
       <!-- A-Z Filter Buttons -->
       <div style="margin-bottom: 15px;">
         <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-          <button id="sellersFilterAll" class="seller-filter-btn" data-letter="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
+          <button id="sellersFilterAll" class="seller-filter-btn" data-letter="all" data-translate="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
             All
           </button>
           <button class="seller-filter-btn" data-letter="A" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">A</button>
@@ -752,60 +785,60 @@
   <!-- Edit Seller Modal -->
   <div id="editSellerModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
     <div style="background-color: #fefefe; margin: 5% auto; padding: 30px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-      <h3 style="margin-top: 0; color: #1e293b;">Edit Seller</h3>
+      <h3 style="margin-top: 0; color: #1e293b;" data-translate="editSeller">Edit Seller</h3>
       <form id="editSellerForm">
         <input type="hidden" id="editSellerId">
         
-        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Name</label>
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;" data-translate="name">Name</label>
         <input type="text" id="editSellerName" required style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 5px; margin-bottom: 15px;">
         
-        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">Phone</label>
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;" data-translate="phone">Phone</label>
         <input type="tel" id="editSellerPhone" required pattern="[0-9]{10,15}" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 5px; margin-bottom: 15px;">
         
-        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;">New Password (optional)</label>
-        <input type="password" id="editSellerPassword" placeholder="Leave blank to keep current password" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 5px; margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #1e293b;" data-translate="newPassword">New Password (optional)</label>
+        <input type="password" id="editSellerPassword" data-translate-placeholder="leaveBlankPassword" placeholder="Leave blank to keep current password" style="width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 5px; margin-bottom: 15px;">
         
         <div style="display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end;">
-          <button type="button" id="cancelEditSellerBtn" style="background: #6b7280; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;">Cancel</button>
-          <button type="submit" style="background: #667eea; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;">Save Changes</button>
+          <button type="button" id="cancelEditSellerBtn" style="background: #6b7280; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;" data-translate="cancel">Cancel</button>
+          <button type="submit" style="background: #667eea; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; font-weight: 600;" data-translate="saveChanges">Save Changes</button>
         </div>
       </form>
     </div>
   </div>
   
   <div class="section">
-    <h2>Database Backups</h2>
-    <button id="refresh-backups-btn">Refresh List</button>
+    <h2 data-translate="databaseBackups">Database Backups</h2>
+    <button id="refresh-backups-btn" data-translate="refreshList">Refresh List</button>
     <ul id="backup-list"></ul>
   </div>
   <div class="section">
-    <h2>Seller Leaderboard</h2>
+    <h2 data-translate="sellerLeaderboard">Seller Leaderboard</h2>
     <table id="leaderboard-table">
-      <thead><tr><th>Seller</th><th>Tickets Sold</th></tr></thead>
+      <thead><tr><th data-translate="seller">Seller</th><th data-translate="ticketsSold">Tickets Sold</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
   
   <!-- Seller Registration Requests Section -->
   <div class="section">
-    <h2>📝 Seller Registration Requests</h2>
+    <h2 data-translate="sellerRegistrationRequests">📝 Seller Registration Requests</h2>
     
     <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-      <button class="filter-btn active" data-filter="pending" style="background: #f59e0b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Pending</button>
-      <button class="filter-btn" data-filter="approved" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Approved</button>
-      <button class="filter-btn" data-filter="rejected" style="background: #ef4444; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Rejected</button>
-      <button class="filter-btn" data-filter="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">All</button>
+      <button class="filter-btn active" data-filter="pending" data-translate="pending" style="background: #f59e0b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Pending</button>
+      <button class="filter-btn" data-filter="approved" data-translate="approved" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Approved</button>
+      <button class="filter-btn" data-filter="rejected" data-translate="rejected" style="background: #ef4444; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Rejected</button>
+      <button class="filter-btn" data-filter="all" data-translate="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">All</button>
     </div>
     
     <table id="sellerRequestsTable">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Phone</th>
-          <th>Email</th>
-          <th>Request Date</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th data-translate="name">Name</th>
+          <th data-translate="phone">Phone</th>
+          <th data-translate="email">Email</th>
+          <th data-translate="requestDate">Request Date</th>
+          <th data-translate="status">Status</th>
+          <th data-translate="actions">Actions</th>
         </tr>
       </thead>
       <tbody id="requestsTableBody">
@@ -816,24 +849,24 @@
   
   <!-- Seller Concerns Section -->
   <div class="section">
-    <h2>⚠️ Seller Concerns</h2>
+    <h2 data-translate="sellerConcerns">⚠️ Seller Concerns</h2>
     
     <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-      <button class="concern-filter-btn active" data-filter="pending" style="background: #f59e0b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Pending</button>
-      <button class="concern-filter-btn" data-filter="resolved" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Resolved</button>
-      <button class="concern-filter-btn" data-filter="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">All</button>
+      <button class="concern-filter-btn active" data-filter="pending" data-translate="pending" style="background: #f59e0b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Pending</button>
+      <button class="concern-filter-btn" data-filter="resolved" data-translate="resolved" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Resolved</button>
+      <button class="concern-filter-btn" data-filter="all" data-translate="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">All</button>
     </div>
     
     <table id="sellerConcernsTable">
       <thead>
         <tr>
-          <th>Seller</th>
-          <th>Issue Type</th>
-          <th>Ticket #</th>
-          <th>Description</th>
-          <th>Date</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th data-translate="seller">Seller</th>
+          <th data-translate="issueType">Issue Type</th>
+          <th data-translate="ticketHash">Ticket #</th>
+          <th data-translate="description">Description</th>
+          <th data-translate="date">Date</th>
+          <th data-translate="status">Status</th>
+          <th data-translate="actions">Actions</th>
         </tr>
       </thead>
       <tbody id="concernsTableBody">
@@ -845,7 +878,7 @@
   <!-- Resolve Concern Modal -->
   <div id="resolveConcernModal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4);">
     <div style="background-color: #fefefe; margin: 5% auto; padding: 30px; border-radius: 10px; width: 90%; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-      <h3 style="margin-top: 0; color: #1e293b;">Resolve Concern</h3>
+      <h3 style="margin-top: 0; color: #1e293b;" data-translate="resolveConcern">Resolve Concern</h3>
       <div id="concernDetailsDisplay" style="background: #f8fafc; padding: 15px; border-radius: 5px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
         <!-- Concern details will be displayed here -->
       </div>
