@@ -1011,7 +1011,14 @@
                               }
                             };
 
+                            // Get current language from localStorage or default to English
+                            function getCurrentLanguage() {
+                              return localStorage.getItem('raffleAppLanguage') || 'en';
+                            }
+
                             function setLanguage(lang) {
+                              localStorage.setItem('raffleAppLanguage', lang);
+                              
                               document.querySelectorAll('[data-translate]').forEach(el => {
                                 const key = el.getAttribute('data-translate');
                                 if (translations[lang] && translations[lang][key]) {
