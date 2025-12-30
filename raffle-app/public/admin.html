@@ -680,6 +680,59 @@
       🔄 Refresh Sellers
     </button>
     
+    <!-- Search/Filter Controls -->
+    <div id="sellersSearchControls" style="margin-bottom: 20px; padding: 20px; background: rgba(102, 126, 234, 0.05); border-radius: 8px; border: 1px solid rgba(102, 126, 234, 0.1);">
+      <!-- Search Input -->
+      <div style="margin-bottom: 15px;">
+        <input 
+          type="text" 
+          id="sellersSearchInput" 
+          placeholder="Search sellers by name..." 
+          style="width: 100%; max-width: 400px; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 15px; transition: border-color 0.2s;"
+        />
+      </div>
+      
+      <!-- A-Z Filter Buttons -->
+      <div style="margin-bottom: 15px;">
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+          <button id="sellersFilterAll" class="seller-filter-btn" data-letter="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
+            All
+          </button>
+          <button class="seller-filter-btn" data-letter="A" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">A</button>
+          <button class="seller-filter-btn" data-letter="B" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">B</button>
+          <button class="seller-filter-btn" data-letter="C" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">C</button>
+          <button class="seller-filter-btn" data-letter="D" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">D</button>
+          <button class="seller-filter-btn" data-letter="E" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">E</button>
+          <button class="seller-filter-btn" data-letter="F" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">F</button>
+          <button class="seller-filter-btn" data-letter="G" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">G</button>
+          <button class="seller-filter-btn" data-letter="H" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">H</button>
+          <button class="seller-filter-btn" data-letter="I" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">I</button>
+          <button class="seller-filter-btn" data-letter="J" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">J</button>
+          <button class="seller-filter-btn" data-letter="K" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">K</button>
+          <button class="seller-filter-btn" data-letter="L" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">L</button>
+          <button class="seller-filter-btn" data-letter="M" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">M</button>
+          <button class="seller-filter-btn" data-letter="N" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">N</button>
+          <button class="seller-filter-btn" data-letter="O" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">O</button>
+          <button class="seller-filter-btn" data-letter="P" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">P</button>
+          <button class="seller-filter-btn" data-letter="Q" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">Q</button>
+          <button class="seller-filter-btn" data-letter="R" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">R</button>
+          <button class="seller-filter-btn" data-letter="S" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">S</button>
+          <button class="seller-filter-btn" data-letter="T" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">T</button>
+          <button class="seller-filter-btn" data-letter="U" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">U</button>
+          <button class="seller-filter-btn" data-letter="V" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">V</button>
+          <button class="seller-filter-btn" data-letter="W" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">W</button>
+          <button class="seller-filter-btn" data-letter="X" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">X</button>
+          <button class="seller-filter-btn" data-letter="Y" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">Y</button>
+          <button class="seller-filter-btn" data-letter="Z" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">Z</button>
+        </div>
+      </div>
+      
+      <!-- Result Count -->
+      <div id="sellersResultCount" style="font-size: 14px; color: #64748b; font-weight: 500;">
+        Showing 0 of 0 sellers
+      </div>
+    </div>
+    
     <table id="sellersTable">
       <thead>
         <tr>
@@ -2123,6 +2176,77 @@
         console.error('Error loading sellers:', error);
         showNotify('❌ Error loading sellers: ' + error.message, '#ef4444');
       }
+      
+      // Update result count after loading
+      updateSellersResultCount();
+    }
+
+    // Filter sellers table based on search and letter filter
+    function filterSellers() {
+      const searchInput = document.getElementById('sellersSearchInput');
+      const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+      const tbody = document.getElementById('sellersTableBody');
+      const rows = tbody.getElementsByTagName('tr');
+      
+      let visibleCount = 0;
+      let totalCount = 0;
+      
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const nameCell = row.cells[1]; // Name is in the second column
+        
+        if (!nameCell) continue; // Skip rows without name cell (e.g., "No sellers found" row)
+        
+        totalCount++;
+        const sellerName = nameCell.textContent.toLowerCase();
+        
+        // Get active letter filter
+        const activeLetterBtn = document.querySelector('.seller-filter-btn[data-active="true"]');
+        const activeLetter = activeLetterBtn ? activeLetterBtn.dataset.letter : 'all';
+        
+        // Check if row matches search term
+        const matchesSearch = searchTerm === '' || sellerName.includes(searchTerm);
+        
+        // Check if row matches letter filter
+        const matchesLetter = activeLetter === 'all' || sellerName.startsWith(activeLetter.toLowerCase());
+        
+        // Show row if it matches both filters
+        if (matchesSearch && matchesLetter) {
+          row.style.display = '';
+          visibleCount++;
+        } else {
+          row.style.display = 'none';
+        }
+      }
+      
+      // Update result count
+      updateSellersResultCount();
+    }
+    
+    // Update the result count display
+    function updateSellersResultCount() {
+      const resultCount = document.getElementById('sellersResultCount');
+      const tbody = document.getElementById('sellersTableBody');
+      const rows = tbody.getElementsByTagName('tr');
+      
+      let visibleCount = 0;
+      let totalCount = 0;
+      
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const nameCell = row.cells[1];
+        
+        if (!nameCell) continue; // Skip rows without name cell
+        
+        totalCount++;
+        if (row.style.display !== 'none') {
+          visibleCount++;
+        }
+      }
+      
+      if (resultCount) {
+        resultCount.textContent = `Showing ${visibleCount} of ${totalCount} sellers`;
+      }
     }
 
     // Open edit seller modal
@@ -2215,6 +2339,44 @@
       loadSellers();
       showNotify('🔄 Sellers refreshed', '#667eea');
     });
+
+    // Search input event listener
+    const sellersSearchInput = document.getElementById('sellersSearchInput');
+    if (sellersSearchInput) {
+      sellersSearchInput.addEventListener('input', filterSellers);
+    }
+
+    // Letter filter buttons event listeners
+    const filterButtons = document.querySelectorAll('.seller-filter-btn');
+    filterButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        // Remove active state from all buttons
+        filterButtons.forEach(b => {
+          b.removeAttribute('data-active');
+          if (b.dataset.letter === 'all') {
+            b.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            b.style.color = 'white';
+          } else {
+            b.style.background = 'white';
+            b.style.color = '#667eea';
+          }
+        });
+        
+        // Set active state on clicked button
+        this.setAttribute('data-active', 'true');
+        this.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        this.style.color = 'white';
+        
+        // Apply filter
+        filterSellers();
+      });
+    });
+
+    // Set "All" button as active by default
+    const allButton = document.getElementById('sellersFilterAll');
+    if (allButton) {
+      allButton.setAttribute('data-active', 'true');
+    }
 
     // Event delegation for edit and delete buttons
     document.getElementById('sellersTableBody').addEventListener('click', (e) => {
