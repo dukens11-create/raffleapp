@@ -164,12 +164,31 @@
         
         /* Password toggle button specific styles */
         #togglePassword {
+            margin-top: 8px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #667eea;
+            padding: 8px 0;
+            width: auto;
+            text-align: left;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 44px;
+            min-width: 44px;
+            font-weight: 500;
             transition: all 0.2s ease;
         }
         
         #togglePassword:hover {
             color: #764ba2;
             text-decoration: underline;
+        }
+        
+        #togglePassword .icon {
+            font-size: 20px;
         }
         
         #message {
@@ -314,10 +333,9 @@
                     type="button" 
                     id="togglePassword" 
                     onclick="togglePasswordVisibility()"
-                    style="margin-top: 8px; background: transparent; border: none; cursor: pointer; font-size: 14px; color: #667eea; padding: 8px 0; width: auto; text-align: left; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; font-weight: 500;"
                     title="Show password"
                     aria-label="Toggle password visibility">
-                    <span style="font-size: 20px;">👁️</span>
+                    <span class="icon">👁️</span>
                     <span>Show password</span>
                 </button>
             </div>
@@ -535,11 +553,11 @@
             
             if (passwordInput.type === 'password') {
                 passwordInput.type = 'text';
-                toggleButton.innerHTML = '<span style="font-size: 20px;">🙈</span><span>Hide password</span>';
+                toggleButton.innerHTML = '<span class="icon">🙈</span><span>Hide password</span>';
                 toggleButton.title = 'Hide password';
             } else {
                 passwordInput.type = 'password';
-                toggleButton.innerHTML = '<span style="font-size: 20px;">👁️</span><span>Show password</span>';
+                toggleButton.innerHTML = '<span class="icon">👁️</span><span>Show password</span>';
                 toggleButton.title = 'Show password';
             }
         }
