@@ -238,7 +238,7 @@ app.use(session({
   name: 'sessionId', // Rename session cookie to prevent fingerprinting
   cookie: { 
     httpOnly: true,
-    secure: true, // Always use secure on Render (HTTPS)
+    secure: process.env.NODE_ENV === 'production', // Only use secure cookies in production
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax', // Changed from 'strict' for mobile compatibility
   },
