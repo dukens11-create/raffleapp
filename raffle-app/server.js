@@ -1634,6 +1634,440 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req,
   }
 });
 
+// ============================================================================
+// RAFFLE TICKET SYSTEM API ENDPOINTS
+// ============================================================================
+
+const ticketService = require('./services/ticketService');
+const printService = require('./services/printService');
+const importExportService = require('./services/importExportService');
+const multer = require('multer');
+
+// Configure multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Admin Raffle Endpoints
+
+// GET /api/admin/raffles - List all raffles
+app.get('/api/admin/raffles', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffles = await db.all('SELECT * FROM raffles ORDER BY created_at DESC');
+    res.json(raffles);
+  } catch (error) {
+    console.error('Error fetching raffles:', error);
+    res.status(500).json({ error: 'Failed to fetch raffles' });
+  }
+});
+
+// POST /api/admin/raffles - Create a new raffle
+app.post('/api/admin/raffles', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { name, description, start_date, draw_date, total_tickets } = req.body;
+    
+    const result = await db.run(
+      `INSERT INTO raffles (name, description, start_date, draw_date, total_tickets, status)
+       VALUES (?, ?, ?, ?, ?, 'draft')`,
+      [name, description, start_date, draw_date, total_tickets || 1500000]
+    );
+    
+    const raffle = await db.get('SELECT * FROM raffles WHERE id = ?', [result.lastID]);
+    res.json(raffle);
+  } catch (error) {
+    console.error('Error creating raffle:', error);
+    res.status(500).json({ error: 'Failed to create raffle' });
+  }
+});
+
+// GET /api/admin/raffles/:id/stats - Get raffle statistics
+app.get('/api/admin/raffles/:id/stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffleId = req.params.id;
+    
+    // Get raffle info
+    const raffle = await db.get('SELECT * FROM raffles WHERE id = ?', [raffleId]);
+    if (!raffle) {
+      return res.status(404).json({ error: 'Raffle not found' });
+    }
+    
+    // Get category statistics
+    const categories = await db.all(`
+      SELECT 
+        tc.id,
+        tc.category_code,
+        tc.category_name,
+        tc.price,
+        tc.total_tickets,
+        tc.color,
+        COUNT(t.id) as tickets_created,
+        COUNT(CASE WHEN t.status = 'SOLD' THEN 1 END) as tickets_sold,
+        COUNT(CASE WHEN t.status = 'AVAILABLE' THEN 1 END) as tickets_available,
+        COUNT(CASE WHEN t.printed = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as tickets_printed,
+        SUM(CASE WHEN t.status = 'SOLD' THEN t.price ELSE 0 END) as revenue
+      FROM ticket_categories tc
+      LEFT JOIN tickets t ON tc.id = t.category_id AND t.raffle_id = ?
+      WHERE tc.raffle_id = ?
+      GROUP BY tc.id, tc.category_code, tc.category_name, tc.price, tc.total_tickets, tc.color
+      ORDER BY tc.category_code
+    `, [raffleId, raffleId]);
+    
+    // Calculate totals
+    const totals = {
+      total_tickets: 0,
+      tickets_created: 0,
+      tickets_sold: 0,
+      tickets_available: 0,
+      tickets_printed: 0,
+      total_revenue: 0,
+      potential_revenue: 0
+    };
+    
+    categories.forEach(cat => {
+      totals.total_tickets += cat.total_tickets;
+      totals.tickets_created += cat.tickets_created || 0;
+      totals.tickets_sold += cat.tickets_sold || 0;
+      totals.tickets_available += cat.tickets_available || 0;
+      totals.tickets_printed += cat.tickets_printed || 0;
+      totals.total_revenue += parseFloat(cat.revenue || 0);
+      totals.potential_revenue += cat.total_tickets * cat.price;
+    });
+    
+    res.json({
+      raffle,
+      categories,
+      totals
+    });
+  } catch (error) {
+    console.error('Error fetching raffle stats:', error);
+    res.status(500).json({ error: 'Failed to fetch raffle statistics' });
+  }
+});
+
+// Ticket Management Endpoints
+
+// POST /api/admin/tickets/import - Import tickets from Excel/CSV
+app.post('/api/admin/tickets/import', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const raffleId = req.body.raffle_id || 1;
+    const fileType = req.file.mimetype;
+    
+    // Parse file
+    const data = importExportService.parseImportFile(req.file.buffer, fileType);
+    
+    // Validate data
+    const validation = importExportService.validateImportData(data);
+    
+    if (validation.errors.length > 0) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        errors: validation.errors,
+        valid: validation.valid.length,
+        invalid: validation.invalid.length
+      });
+    }
+    
+    // Import valid tickets
+    const results = await importExportService.importTickets(validation.valid, raffleId);
+    
+    res.json({
+      success: true,
+      results
+    });
+  } catch (error) {
+    console.error('Error importing tickets:', error);
+    res.status(500).json({ error: 'Failed to import tickets: ' + error.message });
+  }
+});
+
+// GET /api/admin/tickets/export - Export tickets to Excel
+app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const filters = {
+      raffle_id: req.query.raffle_id || 1,
+      category: req.query.category,
+      status: req.query.status,
+      printed: req.query.printed === 'true' ? true : req.query.printed === 'false' ? false : undefined
+    };
+    
+    const buffer = await importExportService.exportTickets(filters);
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=tickets-export-${Date.now()}.xlsx`);
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error exporting tickets:', error);
+    res.status(500).json({ error: 'Failed to export tickets' });
+  }
+});
+
+// GET /api/admin/tickets/template - Download import template
+app.get('/api/admin/tickets/template', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const buffer = importExportService.generateTemplate();
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=ticket-import-template.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error generating template:', error);
+    res.status(500).json({ error: 'Failed to generate template' });
+  }
+});
+
+// Print Endpoints
+
+// POST /api/admin/tickets/print - Generate print job
+app.post('/api/admin/tickets/print', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      raffle_id,
+      category,
+      start_ticket,
+      end_ticket,
+      paper_type
+    } = req.body;
+    
+    // Validate input
+    if (!category || !start_ticket || !end_ticket) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    
+    if (!['AVERY_16145', 'PRINTWORKS'].includes(paper_type)) {
+      return res.status(400).json({ error: 'Invalid paper type' });
+    }
+    
+    // Get tickets in range
+    const tickets = await ticketService.getTicketsByRange(start_ticket, end_ticket);
+    
+    if (tickets.length === 0) {
+      return res.status(404).json({ error: 'No tickets found in range' });
+    }
+    
+    // Create print job
+    const printJobId = await printService.createPrintJob({
+      admin_id: req.session.user.id,
+      raffle_id: raffle_id || 1,
+      category,
+      ticket_range_start: start_ticket,
+      ticket_range_end: end_ticket,
+      total_tickets: tickets.length,
+      paper_type
+    });
+    
+    // Generate PDF asynchronously
+    setTimeout(async () => {
+      try {
+        const doc = await printService.generatePrintPDF(tickets, paper_type, printJobId);
+        // PDF is generated but not streamed to response
+        // In production, you'd save this to a file or cloud storage
+        doc.end();
+      } catch (error) {
+        console.error('Error generating print PDF:', error);
+        await printService.updatePrintJobStatus(printJobId, 'failed', 0);
+      }
+    }, 100);
+    
+    res.json({
+      success: true,
+      printJobId,
+      totalTickets: tickets.length,
+      message: 'Print job started'
+    });
+  } catch (error) {
+    console.error('Error creating print job:', error);
+    res.status(500).json({ error: 'Failed to create print job: ' + error.message });
+  }
+});
+
+// POST /api/admin/tickets/print/generate - Generate and download PDF immediately
+app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      raffle_id,
+      category,
+      start_ticket,
+      end_ticket,
+      paper_type
+    } = req.body;
+    
+    // Validate input
+    if (!category || !start_ticket || !end_ticket) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    
+    if (!['AVERY_16145', 'PRINTWORKS'].includes(paper_type)) {
+      return res.status(400).json({ error: 'Invalid paper type' });
+    }
+    
+    // Get tickets in range
+    let tickets = await ticketService.getTicketsByRange(start_ticket, end_ticket);
+    
+    // If no tickets exist, create them
+    if (tickets.length === 0) {
+      // Parse ticket range
+      const startParts = start_ticket.split('-');
+      const endParts = end_ticket.split('-');
+      
+      if (startParts[0] !== endParts[0]) {
+        return res.status(400).json({ error: 'Ticket range must be within the same category' });
+      }
+      
+      const categoryCode = startParts[0];
+      const startNum = parseInt(startParts[1]);
+      const endNum = parseInt(endParts[1]);
+      
+      // Get category info
+      const categoryInfo = await db.get(
+        'SELECT id, price FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [raffle_id || 1, categoryCode]
+      );
+      
+      if (!categoryInfo) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
+      
+      // Create tickets
+      await ticketService.createTicketsForRange({
+        raffle_id: raffle_id || 1,
+        category_id: categoryInfo.id,
+        category: categoryCode,
+        price: categoryInfo.price,
+        startNum,
+        endNum
+      });
+      
+      // Fetch newly created tickets
+      tickets = await ticketService.getTicketsByRange(start_ticket, end_ticket);
+    }
+    
+    // Create print job
+    const printJobId = await printService.createPrintJob({
+      admin_id: req.session.user.id,
+      raffle_id: raffle_id || 1,
+      category,
+      ticket_range_start: start_ticket,
+      ticket_range_end: end_ticket,
+      total_tickets: tickets.length,
+      paper_type
+    });
+    
+    // Generate PDF and stream to response
+    const doc = await printService.generatePrintPDF(tickets, paper_type, printJobId);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=tickets-${category}-${start_ticket}-to-${end_ticket}.pdf`);
+    
+    doc.pipe(res);
+    doc.end();
+    
+  } catch (error) {
+    console.error('Error generating print PDF:', error);
+    res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+  }
+});
+
+// GET /api/admin/print-jobs - List print jobs
+app.get('/api/admin/print-jobs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const filters = {
+      raffle_id: req.query.raffle_id,
+      status: req.query.status,
+      limit: req.query.limit ? parseInt(req.query.limit) : 50
+    };
+    
+    const jobs = await printService.getPrintJobs(filters);
+    res.json(jobs);
+  } catch (error) {
+    console.error('Error fetching print jobs:', error);
+    res.status(500).json({ error: 'Failed to fetch print jobs' });
+  }
+});
+
+// GET /api/admin/print-jobs/:id - Get print job details
+app.get('/api/admin/print-jobs/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const job = await printService.getPrintJob(req.params.id);
+    
+    if (!job) {
+      return res.status(404).json({ error: 'Print job not found' });
+    }
+    
+    res.json(job);
+  } catch (error) {
+    console.error('Error fetching print job:', error);
+    res.status(500).json({ error: 'Failed to fetch print job' });
+  }
+});
+
+// Reports Endpoints
+
+// GET /api/admin/reports/revenue - Revenue report by category
+app.get('/api/admin/reports/revenue', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffleId = req.query.raffle_id || 1;
+    
+    const revenue = await db.all(`
+      SELECT 
+        tc.category_code,
+        tc.category_name,
+        tc.price,
+        COUNT(t.id) as tickets_sold,
+        SUM(t.price) as total_revenue
+      FROM ticket_categories tc
+      LEFT JOIN tickets t ON tc.id = t.category_id AND t.status = 'SOLD'
+      WHERE tc.raffle_id = ?
+      GROUP BY tc.id, tc.category_code, tc.category_name, tc.price
+      ORDER BY tc.category_code
+    `, [raffleId]);
+    
+    res.json(revenue);
+  } catch (error) {
+    console.error('Error fetching revenue report:', error);
+    res.status(500).json({ error: 'Failed to fetch revenue report' });
+  }
+});
+
+// Public Endpoints
+
+// GET /api/tickets/verify/:ticketNumber - Verify a ticket
+app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
+  try {
+    const ticketNumber = req.params.ticketNumber;
+    const ticket = await ticketService.getTicketByNumber(ticketNumber);
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        valid: false,
+        error: 'Ticket not found' 
+      });
+    }
+    
+    res.json({
+      valid: true,
+      ticket: {
+        ticket_number: ticket.ticket_number,
+        category: ticket.category,
+        price: ticket.price,
+        status: ticket.status,
+        printed: ticket.printed
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying ticket:', error);
+    res.status(500).json({ error: 'Failed to verify ticket' });
+  }
+});
+
+// ============================================================================
+// END RAFFLE TICKET SYSTEM API ENDPOINTS
+// ============================================================================
+
 // 404 handler - must be after all other routes
 app.use((req, res, next) => {
   // Check if this is an API request
