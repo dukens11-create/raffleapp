@@ -147,20 +147,118 @@ async function initializeSchema() {
       )
     `);
     
-    // Tickets table
+    // Raffles table - for raffle ticket system
+    await run(`
+      CREATE TABLE IF NOT EXISTS raffles (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        name TEXT NOT NULL,
+        description TEXT,
+        start_date ${USE_POSTGRES ? 'DATE' : 'TEXT'},
+        draw_date ${USE_POSTGRES ? 'DATE' : 'TEXT'},
+        status TEXT DEFAULT 'draft',
+        total_tickets INTEGER DEFAULT 1500000,
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    
+    // Ticket categories table - for raffle ticket system
+    await run(`
+      CREATE TABLE IF NOT EXISTS ticket_categories (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        raffle_id INTEGER NOT NULL,
+        category_code TEXT NOT NULL,
+        category_name TEXT,
+        price ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'} NOT NULL,
+        total_tickets INTEGER NOT NULL,
+        sold_tickets INTEGER DEFAULT 0,
+        total_revenue ${USE_POSTGRES ? 'NUMERIC(15,2)' : 'REAL'} DEFAULT 0,
+        color TEXT,
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        UNIQUE(raffle_id, category_code)
+      )
+    `);
+    
+    // Tickets table (enhanced for raffle system)
     await run(`
       CREATE TABLE IF NOT EXISTS tickets (
         id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        raffle_id INTEGER,
+        category_id INTEGER,
         ticket_number TEXT UNIQUE NOT NULL,
-        buyer_name TEXT NOT NULL,
-        buyer_phone TEXT NOT NULL,
-        seller_name TEXT NOT NULL,
-        seller_phone TEXT NOT NULL,
-        amount ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'} NOT NULL,
+        buyer_name TEXT,
+        buyer_phone TEXT,
+        seller_name TEXT,
+        seller_phone TEXT,
+        amount ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
+        price ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
         status TEXT DEFAULT 'active',
         barcode TEXT,
         category TEXT,
+        qr_code_data TEXT,
+        printed ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        printed_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        print_count INTEGER DEFAULT 0,
         created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    
+    // Create indexes for tickets table
+    if (USE_POSTGRES) {
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+    } else {
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+    }
+    
+    // Print jobs table - for tracking ticket printing
+    await run(`
+      CREATE TABLE IF NOT EXISTS print_jobs (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        admin_id INTEGER,
+        raffle_id INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        ticket_range_start TEXT NOT NULL,
+        ticket_range_end TEXT NOT NULL,
+        total_tickets INTEGER NOT NULL,
+        total_pages INTEGER NOT NULL,
+        paper_type TEXT NOT NULL,
+        status TEXT DEFAULT 'scheduled',
+        progress_percent INTEGER DEFAULT 0,
+        started_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        completed_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'}
+      )
+    `);
+    
+    // Ticket scans table - for audit trail (future use)
+    await run(`
+      CREATE TABLE IF NOT EXISTS ticket_scans (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        ticket_id INTEGER NOT NULL,
+        ticket_number TEXT NOT NULL,
+        scanned_by TEXT,
+        scan_type TEXT,
+        scanned_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    
+    // Winners table - for winner management (future use)
+    await run(`
+      CREATE TABLE IF NOT EXISTS winners (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        raffle_id INTEGER NOT NULL,
+        ticket_id INTEGER NOT NULL,
+        ticket_number TEXT NOT NULL,
+        prize_name TEXT NOT NULL,
+        winner_name TEXT NOT NULL,
+        winner_phone TEXT NOT NULL,
+        drawn_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        claimed ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        claimed_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'}
       )
     `);
     
@@ -223,6 +321,44 @@ async function initializeSchema() {
         ['Admin', '1234567890', hashedPassword, 'admin']
       );
       console.log('👤 Default admin account created - Phone: 1234567890, Password: admin123');
+    }
+    
+    // Initialize default raffle and categories if they don't exist
+    const existingRaffle = await get("SELECT * FROM raffles WHERE id = 1");
+    if (!existingRaffle) {
+      console.log('🎟️  Creating default raffle and categories...');
+      
+      // Create default raffle
+      await run(
+        `INSERT INTO raffles (name, status, description, total_tickets) 
+         VALUES (?, ?, ?, ?)`,
+        ['Default Raffle 2024', 'active', 'Official raffle with 4 ticket categories', 1500000]
+      );
+      
+      // Create 4 ticket categories
+      const categories = [
+        { code: 'ABC', name: 'Bronze', price: 50.00, total: 500000, color: '#CD7F32' },
+        { code: 'EFG', name: 'Silver', price: 100.00, total: 500000, color: '#C0C0C0' },
+        { code: 'JKL', name: 'Gold', price: 250.00, total: 250000, color: '#FFD700' },
+        { code: 'XYZ', name: 'Platinum', price: 500.00, total: 250000, color: '#E5E4E2' }
+      ];
+      
+      for (const cat of categories) {
+        await run(
+          `INSERT INTO ticket_categories 
+           (raffle_id, category_code, category_name, price, total_tickets, color) 
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [1, cat.code, cat.name, cat.price, cat.total, cat.color]
+        );
+      }
+      
+      console.log('✅ Default raffle created with 4 categories:');
+      console.log('   - ABC (Bronze): $50.00 - 500,000 tickets');
+      console.log('   - EFG (Silver): $100.00 - 500,000 tickets');
+      console.log('   - JKL (Gold): $250.00 - 250,000 tickets');
+      console.log('   - XYZ (Platinum): $500.00 - 250,000 tickets');
+      console.log('   - Total capacity: 1,500,000 tickets');
+      console.log('   - Potential revenue: $262,500,000');
     }
     
   } catch (error) {
