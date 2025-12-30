@@ -932,77 +932,304 @@
   </div>
   <script>
                             
-                            // Simple translations
+                            // Comprehensive translations for English, Haitian Creole, and French
                             const translations = {
                               en: {
-                                'Logout': 'Logout',
-                                'Scan Ticket Barcode': 'Scan Ticket Barcode',
-                                'Audit Logs': 'Audit Logs',
-                                'Ticket Inventory': 'Ticket Inventory',
-                                'Create Ticket': 'Create Ticket',
-                                'All Tickets': 'All Tickets',
-                                'Sales Report': 'Sales Report',
-                                'Users': 'Users',
-                                'Delete Selected Tickets': 'Delete Selected Tickets',
-                                'Delete Selected Users': 'Delete Selected Users',
-                                'Sales Trends (Last 30 Days)': 'Sales Trends (Last 30 Days)',
-                                'Tickets by Category': 'Tickets by Category'
-                              },
-                              fr: {
-                                'Logout': 'Déconnexion',
-                                'Scan Ticket Barcode': 'Scanner le code du billet',
-                                'Audit Logs': 'Journaux d’audit',
-                                'Ticket Inventory': 'Inventaire des billets',
-                                'Create Ticket': 'Créer un billet',
-                                'All Tickets': 'Tous les billets',
-                                'Sales Report': 'Rapport des ventes',
-                                'Users': 'Utilisateurs',
-                                'Delete Selected Tickets': 'Supprimer les billets sélectionnés',
-                                'Delete Selected Users': 'Supprimer les utilisateurs sélectionnés',
-                                'Sales Trends (Last 30 Days)': 'Tendances des ventes (30 derniers jours)',
-                                'Tickets by Category': 'Billets par catégorie'
+                                // Navigation & Actions
+                                logout: 'Logout',
+                                all: 'All',
+                                
+                                // Dashboard Sections
+                                adminDashboard: 'Admin Dashboard',
+                                auditLogs: 'Audit Logs',
+                                ticketInventory: 'Ticket Inventory',
+                                createTicket: 'Create Ticket',
+                                allTickets: 'All Tickets',
+                                salesReport: 'Sales Report',
+                                users: 'Users',
+                                manageSellers: '👥 Manage Sellers',
+                                databaseBackups: 'Database Backups',
+                                sellerLeaderboard: 'Seller Leaderboard',
+                                sellerRegistrationRequests: '📝 Seller Registration Requests',
+                                sellerConcerns: '⚠️ Seller Concerns',
+                                
+                                // Charts & Analytics
+                                salesTrends: 'Sales Trends (Last 30 Days)',
+                                ticketsByCategory: 'Tickets by Category',
+                                
+                                // Table Headers
+                                time: 'Time',
+                                user: 'User',
+                                action: 'Action',
+                                details: 'Details',
+                                category: 'Category',
+                                total: 'Total',
+                                sold: 'Sold',
+                                available: 'Available',
+                                number: 'Number',
+                                status: 'Status',
+                                barcode: 'Barcode',
+                                actions: 'Actions',
+                                seller: 'Seller',
+                                ticketsSold: 'Tickets Sold',
+                                name: 'Name',
+                                role: 'Role',
+                                phone: 'Phone',
+                                email: 'Email',
+                                requestDate: 'Request Date',
+                                issueType: 'Issue Type',
+                                ticketHash: 'Ticket #',
+                                description: 'Description',
+                                date: 'Date',
+                                
+                                // Buttons & Actions
+                                scanTicket: '📷 Scan Ticket',
+                                scanTicketBarcode: '📷 Scan Ticket Barcode',
+                                createTicketBtn: 'Create Ticket',
+                                deleteSelectedTickets: 'Delete Selected Tickets',
+                                deleteSelectedUsers: 'Delete Selected Users',
+                                refreshSellers: '🔄 Refresh Sellers',
+                                refreshList: 'Refresh List',
+                                editSeller: 'Edit Seller',
+                                cancel: 'Cancel',
+                                saveChanges: 'Save Changes',
+                                resolveConcern: 'Resolve Concern',
+                                
+                                // Form Labels & Placeholders
+                                ticketNumber: 'Ticket Number',
+                                ticketNumberPlaceholder: 'Ticket Number',
+                                selectCategory: 'Select Category',
+                                newPassword: 'New Password (optional)',
+                                leaveBlankPassword: 'Leave blank to keep current password',
+                                searchSellersPlaceholder: 'Search sellers by name...',
+                                
+                                // Bulk Import
+                                bulkImportTickets: '📊 Bulk Import Tickets',
+                                downloadTemplate: '📥 Download Excel Template',
+                                selectExcelFile: '📁 Select Excel File',
+                                importTickets: '⬆️ Import Tickets',
+                                
+                                // Status & Filters
+                                pending: 'Pending',
+                                approved: 'Approved',
+                                rejected: 'Rejected',
+                                resolved: 'Resolved'
                               },
                               ht: {
-                                'Logout': 'Dekonekte',
-                                'Scan Ticket Barcode': 'Eskane Kòd Tikè',
-                                'Audit Logs': 'Jounal Odit',
-                                'Ticket Inventory': 'Envantè Tikè',
-                                'Create Ticket': 'Kreye Tikè',
-                                'All Tickets': 'Tout Tikè',
-                                'Sales Report': 'Rapò Vant',
-                                'Users': 'Itilizatè',
-                                'Delete Selected Tickets': 'Efase Tikè Chwazi yo',
-                                'Delete Selected Users': 'Efase Itilizatè Chwazi yo',
-                                'Sales Trends (Last 30 Days)': 'Tandans Vant (30 Dènye Jou yo)',
-                                'Tickets by Category': 'Tikè pa Kategori'
+                                // Navigation & Actions
+                                logout: 'Dekonekte',
+                                all: 'Tout',
+                                
+                                // Dashboard Sections
+                                adminDashboard: 'Tablo Bò Administratè',
+                                auditLogs: 'Jounal Odit',
+                                ticketInventory: 'Envantè Tikè',
+                                createTicket: 'Kreye Tikè',
+                                allTickets: 'Tout Tikè yo',
+                                salesReport: 'Rapò Vant',
+                                users: 'Itilizatè yo',
+                                manageSellers: '👥 Jere Vandè yo',
+                                databaseBackups: 'Kopye Sekirite Baz Done',
+                                sellerLeaderboard: 'Klasman Vandè yo',
+                                sellerRegistrationRequests: '📝 Demann Enskripsyon Vandè',
+                                sellerConcerns: '⚠️ Pwoblèm Vandè yo',
+                                
+                                // Charts & Analytics
+                                salesTrends: 'Tandans Vant (30 Dènye Jou yo)',
+                                ticketsByCategory: 'Tikè pa Kategori',
+                                
+                                // Table Headers
+                                time: 'Lè',
+                                user: 'Itilizatè',
+                                action: 'Aksyon',
+                                details: 'Detay',
+                                category: 'Kategori',
+                                total: 'Total',
+                                sold: 'Vann',
+                                available: 'Disponib',
+                                number: 'Nimewo',
+                                status: 'Estati',
+                                barcode: 'Kòd Tikè',
+                                actions: 'Aksyon yo',
+                                seller: 'Vandè',
+                                ticketsSold: 'Tikè Vann',
+                                name: 'Non',
+                                role: 'Wòl',
+                                phone: 'Telefòn',
+                                email: 'Imèl',
+                                requestDate: 'Dat Demann',
+                                issueType: 'Tip Pwoblèm',
+                                ticketHash: 'Tikè #',
+                                description: 'Deskripsyon',
+                                date: 'Dat',
+                                
+                                // Buttons & Actions
+                                scanTicket: '📷 Eskane Tikè',
+                                scanTicketBarcode: '📷 Eskane Kòd Tikè',
+                                createTicketBtn: 'Kreye Tikè',
+                                deleteSelectedTickets: 'Efase Tikè Chwazi yo',
+                                deleteSelectedUsers: 'Efase Itilizatè Chwazi yo',
+                                refreshSellers: '🔄 Rafrechi Vandè yo',
+                                refreshList: 'Rafrechi Lis',
+                                editSeller: 'Modifye Vandè',
+                                cancel: 'Anile',
+                                saveChanges: 'Anrejistre Chanjman yo',
+                                resolveConcern: 'Rezoud Pwoblèm',
+                                
+                                // Form Labels & Placeholders
+                                ticketNumber: 'Nimewo Tikè',
+                                ticketNumberPlaceholder: 'Nimewo Tikè',
+                                selectCategory: 'Chwazi Kategori',
+                                newPassword: 'Nouvo Modpas (opsyonèl)',
+                                leaveBlankPassword: 'Kite vid pou kenbe modpas aktyèl la',
+                                searchSellersPlaceholder: 'Chèche vandè pa non...',
+                                
+                                // Bulk Import
+                                bulkImportTickets: '📊 Enpòte Anpil Tikè',
+                                downloadTemplate: '📥 Telechaje Modèl Excel',
+                                selectExcelFile: '📁 Chwazi Fichye Excel',
+                                importTickets: '⬆️ Enpòte Tikè yo',
+                                
+                                // Status & Filters
+                                pending: 'An Atant',
+                                approved: 'Apwouve',
+                                rejected: 'Refize',
+                                resolved: 'Rezoud'
                               },
-                              es: {
-                                'Logout': 'Cerrar sesión',
-                                'Scan Ticket Barcode': 'Escanear código de boleto',
-                                'Audit Logs': 'Registros de auditoría',
-                                'Ticket Inventory': 'Inventario de boletos',
-                                'Create Ticket': 'Crear boleto',
-                                'All Tickets': 'Todos los boletos',
-                                'Sales Report': 'Informe de ventas',
-                                'Users': 'Usuarios',
-                                'Delete Selected Tickets': 'Eliminar boletos seleccionados',
-                                'Delete Selected Users': 'Eliminar usuarios seleccionados',
-                                'Sales Trends (Last 30 Days)': 'Tendencias de ventas (últimos 30 días)',
-                                'Tickets by Category': 'Boletos por categoría'
+                              fr: {
+                                // Navigation & Actions
+                                logout: 'Déconnexion',
+                                all: 'Tous',
+                                
+                                // Dashboard Sections
+                                adminDashboard: 'Tableau de bord Administrateur',
+                                auditLogs: 'Journaux d\'audit',
+                                ticketInventory: 'Inventaire des billets',
+                                createTicket: 'Créer un billet',
+                                allTickets: 'Tous les billets',
+                                salesReport: 'Rapport des ventes',
+                                users: 'Utilisateurs',
+                                manageSellers: '👥 Gérer les vendeurs',
+                                databaseBackups: 'Sauvegardes de base de données',
+                                sellerLeaderboard: 'Classement des vendeurs',
+                                sellerRegistrationRequests: '📝 Demandes d\'inscription vendeur',
+                                sellerConcerns: '⚠️ Préoccupations des vendeurs',
+                                
+                                // Charts & Analytics
+                                salesTrends: 'Tendances des ventes (30 derniers jours)',
+                                ticketsByCategory: 'Billets par catégorie',
+                                
+                                // Table Headers
+                                time: 'Heure',
+                                user: 'Utilisateur',
+                                action: 'Action',
+                                details: 'Détails',
+                                category: 'Catégorie',
+                                total: 'Total',
+                                sold: 'Vendu',
+                                available: 'Disponible',
+                                number: 'Numéro',
+                                status: 'Statut',
+                                barcode: 'Code-barres',
+                                actions: 'Actions',
+                                seller: 'Vendeur',
+                                ticketsSold: 'Billets vendus',
+                                name: 'Nom',
+                                role: 'Rôle',
+                                phone: 'Téléphone',
+                                email: 'Email',
+                                requestDate: 'Date de demande',
+                                issueType: 'Type de problème',
+                                ticketHash: 'Billet #',
+                                description: 'Description',
+                                date: 'Date',
+                                
+                                // Buttons & Actions
+                                scanTicket: '📷 Scanner le billet',
+                                scanTicketBarcode: '📷 Scanner le code du billet',
+                                createTicketBtn: 'Créer un billet',
+                                deleteSelectedTickets: 'Supprimer les billets sélectionnés',
+                                deleteSelectedUsers: 'Supprimer les utilisateurs sélectionnés',
+                                refreshSellers: '🔄 Actualiser les vendeurs',
+                                refreshList: 'Actualiser la liste',
+                                editSeller: 'Modifier le vendeur',
+                                cancel: 'Annuler',
+                                saveChanges: 'Enregistrer les modifications',
+                                resolveConcern: 'Résoudre le problème',
+                                
+                                // Form Labels & Placeholders
+                                ticketNumber: 'Numéro de billet',
+                                ticketNumberPlaceholder: 'Numéro de billet',
+                                selectCategory: 'Sélectionner la catégorie',
+                                newPassword: 'Nouveau mot de passe (optionnel)',
+                                leaveBlankPassword: 'Laisser vide pour conserver le mot de passe actuel',
+                                searchSellersPlaceholder: 'Rechercher les vendeurs par nom...',
+                                
+                                // Bulk Import
+                                bulkImportTickets: '📊 Importer des billets en masse',
+                                downloadTemplate: '📥 Télécharger le modèle Excel',
+                                selectExcelFile: '📁 Sélectionner le fichier Excel',
+                                importTickets: '⬆️ Importer les billets',
+                                
+                                // Status & Filters
+                                pending: 'En attente',
+                                approved: 'Approuvé',
+                                rejected: 'Rejeté',
+                                resolved: 'Résolu'
                               }
                             };
 
+                            // Get saved language or default to English
+                            let currentLanguage = localStorage.getItem('raffleAppLanguage') || 'en';
+
                             function setLanguage(lang) {
-                              document.querySelectorAll('[data-i18n]').forEach(el => {
-                                const key = el.getAttribute('data-i18n');
-                                el.textContent = translations[lang][key] || key;
+                              currentLanguage = lang;
+                              localStorage.setItem('raffleAppLanguage', lang);
+                              
+                              // Update all elements with data-translate attribute
+                              document.querySelectorAll('[data-translate]').forEach(el => {
+                                const key = el.getAttribute('data-translate');
+                                if (translations[lang] && translations[lang][key]) {
+                                  el.textContent = translations[lang][key];
+                                }
+                              });
+                              
+                              // Update placeholders
+                              document.querySelectorAll('[data-translate-placeholder]').forEach(el => {
+                                const key = el.getAttribute('data-translate-placeholder');
+                                if (translations[lang] && translations[lang][key]) {
+                                  el.placeholder = translations[lang][key];
+                                }
+                              });
+                              
+                              // Update language selector button states
+                              document.querySelectorAll('.lang-btn').forEach(btn => {
+                                if (btn.getAttribute('data-lang') === lang) {
+                                  btn.classList.add('active');
+                                  btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                                  btn.style.color = '#fff';
+                                  btn.style.borderColor = 'transparent';
+                                } else {
+                                  btn.classList.remove('active');
+                                  btn.style.background = '#fff';
+                                  btn.style.color = '#1e293b';
+                                  btn.style.borderColor = '#e2e8f0';
+                                }
                               });
                             }
-                            document.getElementById('lang-select').addEventListener('change', function() {
-                              setLanguage(this.value);
-                            });
+
+                            // Initialize language on page load
                             document.addEventListener('DOMContentLoaded', function() {
-                              setLanguage(document.getElementById('lang-select').value);
+                              // Set initial language
+                              setLanguage(currentLanguage);
+                              
+                              // Add click handlers to language buttons
+                              document.querySelectorAll('.lang-btn').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                  const lang = this.getAttribute('data-lang');
+                                  setLanguage(lang);
+                                });
+                              });
                             });
                             // Chart.js analytics
                             document.addEventListener('DOMContentLoaded', function() {

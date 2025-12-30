@@ -41,6 +41,65 @@
             padding: 20px;
         }
         
+        /* Language Selector Styles */
+        #language-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .lang-btn {
+            background: #fff;
+            color: #1e293b;
+            border: 2px solid #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .lang-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+        
+        .lang-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            border-color: transparent;
+        }
+        
+        @media (max-width: 480px) {
+            #language-selector {
+                top: 10px;
+                right: 10px;
+                padding: 6px;
+                gap: 6px;
+            }
+            
+            .lang-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+            
+            .lang-btn span:last-child {
+                display: none;
+            }
+        }
+        
         .container {
             background: rgba(255, 255, 255, 0.95);
             padding: 48px;
@@ -189,6 +248,19 @@
     </style>
 </head>
 <body>
+    <!-- Language Selector -->
+    <div id="language-selector">
+        <button class="lang-btn active" data-lang="en" title="English">
+            <span>🇺🇸</span><span>EN</span>
+        </button>
+        <button class="lang-btn" data-lang="ht" title="Kreyòl Ayisyen">
+            <span>🇭🇹</span><span>HT</span>
+        </button>
+        <button class="lang-btn" data-lang="fr" title="Français">
+            <span>🇫🇷</span><span>FR</span>
+        </button>
+    </div>
+    
     <div class="container">
         <!-- Logo -->
         <div class="logo-container">
@@ -196,34 +268,148 @@
         </div>
         
         <!-- Heading -->
-        <h1>Become a Seller</h1>
-        <p class="subtitle">Request access to sell raffle tickets</p>
+        <h1 data-translate="becomeASeller">Become a Seller</h1>
+        <p class="subtitle" data-translate="requestAccess">Request access to sell raffle tickets</p>
         
         <form id="sellerRegistrationForm">
             <div class="form-group">
-                <label for="fullName">Full Name *</label>
-                <input type="text" id="fullName" name="fullName" required placeholder="Enter your full name">
+                <label for="fullName" data-translate="fullName">Full Name *</label>
+                <input type="text" id="fullName" name="fullName" required data-translate-placeholder="enterFullName" placeholder="Enter your full name">
             </div>
             <div class="form-group">
-                <label for="phone">Phone Number *</label>
-                <input type="tel" id="phone" name="phone" required placeholder="Enter your phone number">
+                <label for="phone" data-translate="phoneNumber">Phone Number *</label>
+                <input type="tel" id="phone" name="phone" required data-translate-placeholder="enterPhoneNumber" placeholder="Enter your phone number">
             </div>
             <div class="form-group">
-                <label for="email">Email Address *</label>
-                <input type="email" id="email" name="email" required placeholder="Enter your email address">
+                <label for="email" data-translate="emailAddress">Email Address *</label>
+                <input type="email" id="email" name="email" required data-translate-placeholder="enterEmail" placeholder="Enter your email address">
             </div>
             <div class="form-group">
-                <label for="experience">Why do you want to become a seller? (Optional)</label>
-                <textarea id="experience" name="experience" placeholder="Tell us about your experience or motivation..."></textarea>
+                <label for="experience" data-translate="whyBecomeSeller">Why do you want to become a seller? (Optional)</label>
+                <textarea id="experience" name="experience" data-translate-placeholder="tellUsAbout" placeholder="Tell us about your experience or motivation..."></textarea>
             </div>
-            <button type="submit" id="submitBtn">Submit Request</button>
+            <button type="submit" id="submitBtn" data-translate="submitRequest">Submit Request</button>
             <div id="message"></div>
         </form>
         
         <div class="login-link">
-            <p>Already have access? <a href="/login.html">Login here</a></p>
+            <p><span data-translate="alreadyHaveAccess">Already have access?</span> <a href="/login.html" data-translate="loginHere">Login here</a></p>
         </div>
     </div>
+
+    <!-- Translation System -->
+    <script>
+        // Comprehensive translations for English, Haitian Creole, and French
+        const translations = {
+            en: {
+                becomeASeller: 'Become a Seller',
+                requestAccess: 'Request access to sell raffle tickets',
+                fullName: 'Full Name *',
+                phoneNumber: 'Phone Number *',
+                emailAddress: 'Email Address *',
+                whyBecomeSeller: 'Why do you want to become a seller? (Optional)',
+                submitRequest: 'Submit Request',
+                alreadyHaveAccess: 'Already have access?',
+                loginHere: 'Login here',
+                enterFullName: 'Enter your full name',
+                enterPhoneNumber: 'Enter your phone number',
+                enterEmail: 'Enter your email address',
+                tellUsAbout: 'Tell us about your experience or motivation...',
+                submitting: 'Submitting...',
+                registrationFailed: 'Registration failed. Please try again.',
+                connectionError: 'Connection error. Please try again.'
+            },
+            ht: {
+                becomeASeller: 'Vin yon Vandè',
+                requestAccess: 'Mande aksè pou vann tikè rif',
+                fullName: 'Non Konplè *',
+                phoneNumber: 'Nimewo Telefòn *',
+                emailAddress: 'Adrès Imèl *',
+                whyBecomeSeller: 'Poukisa ou vle vin yon vandè? (Opsyonèl)',
+                submitRequest: 'Soumèt Demann',
+                alreadyHaveAccess: 'Ou gen aksè deja?',
+                loginHere: 'Konekte isit la',
+                enterFullName: 'Ekri non konplè ou',
+                enterPhoneNumber: 'Ekri nimewo telefòn ou',
+                enterEmail: 'Ekri adrès imèl ou',
+                tellUsAbout: 'Di nou sou eksperyans ou oswa motivasyon ou...',
+                submitting: 'Kap Soumèt...',
+                registrationFailed: 'Enskripsyon echwe. Tanpri eseye ankò.',
+                connectionError: 'Erè koneksyon. Tanpri eseye ankò.'
+            },
+            fr: {
+                becomeASeller: 'Devenir Vendeur',
+                requestAccess: 'Demander l\'accès pour vendre des billets de tombola',
+                fullName: 'Nom Complet *',
+                phoneNumber: 'Numéro de Téléphone *',
+                emailAddress: 'Adresse Email *',
+                whyBecomeSeller: 'Pourquoi voulez-vous devenir vendeur ? (Optionnel)',
+                submitRequest: 'Soumettre la Demande',
+                alreadyHaveAccess: 'Vous avez déjà accès ?',
+                loginHere: 'Connectez-vous ici',
+                enterFullName: 'Entrez votre nom complet',
+                enterPhoneNumber: 'Entrez votre numéro de téléphone',
+                enterEmail: 'Entrez votre adresse email',
+                tellUsAbout: 'Parlez-nous de votre expérience ou de votre motivation...',
+                submitting: 'Envoi en cours...',
+                registrationFailed: 'L\'inscription a échoué. Veuillez réessayer.',
+                connectionError: 'Erreur de connexion. Veuillez réessayer.'
+            }
+        };
+
+        // Get saved language or default to English
+        let currentLanguage = localStorage.getItem('raffleAppLanguage') || 'en';
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('raffleAppLanguage', lang);
+            
+            // Update all elements with data-translate attribute
+            document.querySelectorAll('[data-translate]').forEach(el => {
+                const key = el.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    el.textContent = translations[lang][key];
+                }
+            });
+            
+            // Update placeholders
+            document.querySelectorAll('[data-translate-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-translate-placeholder');
+                if (translations[lang] && translations[lang][key]) {
+                    el.placeholder = translations[lang][key];
+                }
+            });
+            
+            // Update language selector button states
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update submit button text if it exists
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn && !submitBtn.disabled) {
+                submitBtn.textContent = translations[lang].submitRequest;
+            }
+        }
+
+        // Initialize language on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial language
+            setLanguage(currentLanguage);
+            
+            // Add click handlers to language buttons
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const lang = this.getAttribute('data-lang');
+                    setLanguage(lang);
+                });
+            });
+        });
+    </script>
 
     <script>
         document.getElementById('sellerRegistrationForm').addEventListener('submit', async (e) => {
@@ -238,7 +424,7 @@
             
             // Disable submit button
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
+            submitBtn.textContent = translations[currentLanguage].submitting;
             
             try {
                 const response = await fetch('/api/seller-registration', {
@@ -259,16 +445,16 @@
                         window.location.href = '/login.html';
                     }, 3000);
                 } else {
-                    messageDiv.textContent = data.error || 'Registration failed. Please try again.';
+                    messageDiv.textContent = data.error || translations[currentLanguage].registrationFailed;
                     messageDiv.className = 'error';
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Submit Request';
+                    submitBtn.textContent = translations[currentLanguage].submitRequest;
                 }
             } catch (error) {
-                messageDiv.textContent = 'Connection error. Please try again.';
+                messageDiv.textContent = translations[currentLanguage].connectionError;
                 messageDiv.className = 'error';
                 submitBtn.disabled = false;
-                submitBtn.textContent = 'Submit Request';
+                submitBtn.textContent = translations[currentLanguage].submitRequest;
             }
         });
     </script>
