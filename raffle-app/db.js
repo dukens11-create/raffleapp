@@ -173,10 +173,13 @@ async function initializeSchema() {
         sold_tickets INTEGER DEFAULT 0,
         total_revenue ${USE_POSTGRES ? 'NUMERIC(15,2)' : 'REAL'} DEFAULT 0,
         color TEXT,
-        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
-        UNIQUE(raffle_id, category_code)
+        description TEXT,
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
       )
     `);
+    
+    // Create unique index for ticket_categories
+    await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_category_unique ON ticket_categories(raffle_id, category_code)`);
     
     // Tickets table (enhanced for raffle system)
     await run(`
@@ -184,20 +187,30 @@ async function initializeSchema() {
         id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
         raffle_id INTEGER,
         category_id INTEGER,
-        ticket_number TEXT UNIQUE NOT NULL,
-        buyer_name TEXT,
-        buyer_phone TEXT,
-        seller_name TEXT,
-        seller_phone TEXT,
-        amount ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
-        price ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
-        status TEXT DEFAULT 'active',
-        barcode TEXT,
         category TEXT,
+        ticket_number TEXT UNIQUE NOT NULL,
+        barcode TEXT UNIQUE,
         qr_code_data TEXT,
-        printed ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        price ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
+        status TEXT DEFAULT 'AVAILABLE',
+        printed ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'FALSE' : '0'},
         printed_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
         print_count INTEGER DEFAULT 0,
+        seller_id INTEGER,
+        buyer_name TEXT,
+        buyer_phone TEXT,
+        buyer_email TEXT,
+        seller_name TEXT,
+        seller_phone TEXT,
+        payment_method TEXT,
+        payment_verified ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'FALSE' : '0'},
+        sold_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        amount ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
+        actual_price_paid ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
+        seller_commission ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'},
+        is_winner ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'FALSE' : '0'},
+        prize_level TEXT,
+        won_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
         created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
       )
     `);
