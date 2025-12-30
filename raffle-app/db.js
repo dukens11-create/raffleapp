@@ -179,11 +179,7 @@ async function initializeSchema() {
     `);
     
     // Create unique index for ticket_categories
-    if (USE_POSTGRES) {
-      await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_category_unique ON ticket_categories(raffle_id, category_code)`);
-    } else {
-      await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_category_unique ON ticket_categories(raffle_id, category_code)`);
-    }
+    await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_category_unique ON ticket_categories(raffle_id, category_code)`);
     
     // Tickets table (enhanced for raffle system)
     await run(`
