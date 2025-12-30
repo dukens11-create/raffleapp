@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Center - Raffle Admin</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header h1 {
+      color: #1e293b;
+      font-size: 28px;
+    }
+    .section {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .section h2 {
+      color: #1e293b;
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      color: #1e293b;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 14px 28px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      width: 100%;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .paper-option {
+      border: 2px solid #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .paper-option:hover {
+      border-color: #667eea;
+    }
+    .paper-option.selected {
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+    .paper-option input[type="radio"] {
+      margin-right: 12px;
+      width: auto;
+    }
+    .paper-title {
+      font-weight: 700;
+      color: #1e293b;
+      font-size: 16px;
+    }
+    .paper-details {
+      color: #64748b;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #6ee7b7;
+    }
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #93c5fd;
+    }
+    .progress-container {
+      display: none;
+      margin-top: 20px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .progress-text {
+      text-align: center;
+      color: #64748b;
+      font-size: 14px;
+    }
+    .back-link {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🖨️ Print Center</h1>
+      <a href="raffle-dashboard.html" class="back-link">← Back to Dashboard</a>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <div class="section">
+      <h2>Print Tickets</h2>
+      
+      <form id="printForm" onsubmit="printTickets(event)">
+        <div class="form-group">
+          <label for="startTicket">Start Ticket Number</label>
+          <input 
+            type="text" 
+            id="startTicket" 
+            placeholder="e.g., ABC-000001" 
+            pattern="[A-Z]{3}-\d{6}"
+            required
+          >
+          <small style="color: #64748b; display: block; margin-top: 4px;">
+            Format: XXX-000000 (e.g., ABC-000001, EFG-000100)
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="endTicket">End Ticket Number</label>
+          <input 
+            type="text" 
+            id="endTicket" 
+            placeholder="e.g., ABC-001000" 
+            pattern="[A-Z]{3}-\d{6}"
+            required
+          >
+          <small style="color: #64748b; display: block; margin-top: 4px;">
+            Must be in the same category as start ticket
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>Select Paper Type</label>
+          
+          <div class="paper-option selected" onclick="selectPaper('avery_16145')">
+            <input type="radio" name="paperType" value="avery_16145" id="avery" checked>
+            <label for="avery" style="display: inline; cursor: pointer;">
+              <div class="paper-title">Avery 16145 (Recommended)</div>
+              <div class="paper-details">
+                1.75" × 5.5" | 10 tickets per page | Pre-perforated
+              </div>
+            </label>
+          </div>
+
+          <div class="paper-option" onclick="selectPaper('printworks')">
+            <input type="radio" name="paperType" value="printworks" id="printworks">
+            <label for="printworks" style="display: inline; cursor: pointer;">
+              <div class="paper-title">PrintWorks Custom</div>
+              <div class="paper-details">
+                2.125" × 5.5" | 8 tickets per page | Manual cutting required
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" id="printBtn">
+          🖨️ Generate Print PDF
+        </button>
+      </form>
+
+      <div class="progress-container" id="progressContainer">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-text" id="progressText">Preparing tickets...</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Print Instructions</h2>
+      <ol style="color: #64748b; line-height: 1.8;">
+        <li>Enter the ticket range you want to print</li>
+        <li>Select your paper type (Avery 16145 recommended)</li>
+        <li>Click "Generate Print PDF"</li>
+        <li>System will generate barcodes and QR codes automatically</li>
+        <li>Download the PDF when ready</li>
+        <li>Print using your browser's print dialog (Ctrl+P)</li>
+        <li>For double-sided printing, ensure "Flip on short edge" is selected</li>
+      </ol>
+    </div>
+
+    <div class="section">
+      <h2>Recent Print Jobs</h2>
+      <div id="printJobsList" style="color: #64748b;">
+        Loading print jobs...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function selectPaper(type) {
+      document.querySelectorAll('.paper-option').forEach(opt => {
+        opt.classList.remove('selected');
+      });
+      event.currentTarget.classList.add('selected');
+      document.querySelector(`input[value="${type}"]`).checked = true;
+    }
+
+    function showAlert(message, type = 'info') {
+      const container = document.getElementById('alertContainer');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type}`;
+      alert.textContent = message;
+      container.appendChild(alert);
+      
+      setTimeout(() => alert.remove(), 5000);
+    }
+
+    async function printTickets(event) {
+      event.preventDefault();
+      
+      const startTicket = document.getElementById('startTicket').value.toUpperCase();
+      const endTicket = document.getElementById('endTicket').value.toUpperCase();
+      const paperType = document.querySelector('input[name="paperType"]:checked').value;
+      
+      // Validate same category
+      const startCat = startTicket.split('-')[0];
+      const endCat = endTicket.split('-')[0];
+      if (startCat !== endCat) {
+        showAlert('Start and end tickets must be from the same category', 'error');
+        return;
+      }
+      
+      // Validate range
+      const startNum = parseInt(startTicket.split('-')[1]);
+      const endNum = parseInt(endTicket.split('-')[1]);
+      if (startNum >= endNum) {
+        showAlert('End ticket must be after start ticket', 'error');
+        return;
+      }
+      
+      const ticketCount = endNum - startNum + 1;
+      if (ticketCount > 10000) {
+        if (!confirm(`You are about to print ${ticketCount.toLocaleString()} tickets. This may take several minutes. Continue?`)) {
+          return;
+        }
+      }
+      
+      // Show progress
+      document.getElementById('printBtn').disabled = true;
+      document.getElementById('progressContainer').style.display = 'block';
+      document.getElementById('progressFill').style.width = '0%';
+      document.getElementById('progressText').textContent = 'Preparing tickets...';
+      
+      try {
+        const response = await fetch('/api/admin/tickets/print', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            startTicket,
+            endTicket,
+            paperType,
+            raffleId: 1
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          document.getElementById('progressFill').style.width = '100%';
+          document.getElementById('progressText').textContent = 
+            `Successfully prepared ${ticketCount} tickets on ${data.pagesGenerated} pages!`;
+          
+          showAlert(`Print job completed! Generated ${ticketCount} tickets.`, 'success');
+          
+          // Reload print jobs list
+          loadPrintJobs();
+        } else {
+          showAlert(data.error || 'Failed to generate print job', 'error');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showAlert('An error occurred while generating the print job', 'error');
+      } finally {
+        document.getElementById('printBtn').disabled = false;
+        setTimeout(() => {
+          document.getElementById('progressContainer').style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    async function loadPrintJobs() {
+      try {
+        const response = await fetch('/api/admin/print-jobs');
+        const data = await response.json();
+        
+        const container = document.getElementById('printJobsList');
+        
+        if (data.success && data.jobs.length > 0) {
+          container.innerHTML = data.jobs.slice(0, 10).map(job => `
+            <div style="border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong>${job.category}</strong> 
+                  ${job.ticket_range_start} to ${job.ticket_range_end}
+                  <br>
+                  <small style="color: #64748b;">
+                    ${job.total_tickets} tickets | ${job.paper_type} | 
+                    ${new Date(job.started_at).toLocaleString()}
+                  </small>
+                </div>
+                <div style="padding: 4px 12px; border-radius: 6px; background: ${
+                  job.status === 'completed' ? '#d1fae5' : 
+                  job.status === 'failed' ? '#fee2e2' : '#dbeafe'
+                }; color: ${
+                  job.status === 'completed' ? '#065f46' : 
+                  job.status === 'failed' ? '#991b1b' : '#1e40af'
+                }; font-size: 12px; font-weight: 600;">
+                  ${job.status.toUpperCase()}
+                </div>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          container.innerHTML = '<p style="text-align: center; padding: 20px;">No print jobs yet</p>';
+        }
+      } catch (error) {
+        console.error('Error loading print jobs:', error);
+        document.getElementById('printJobsList').innerHTML = 
+          '<p style="color: #ef4444;">Failed to load print jobs</p>';
+      }
+    }
+
+    // Load on page load
+    loadPrintJobs();
+  </script>
+</body>
+</html>
