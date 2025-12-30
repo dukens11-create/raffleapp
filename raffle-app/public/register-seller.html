@@ -186,9 +186,51 @@
                 max-height: 64px;
             }
         }
+        /* Language Selector Styles */
+        .language-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .lang-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            width: auto;
+            min-height: 40px;
+        }
+        
+        .lang-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.1);
+        }
+        
+        .lang-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
     </style>
 </head>
 <body>
+    <!-- Language Selector -->
+    <div class="language-selector">
+        <button class="lang-btn" data-lang="en" title="English" aria-label="Switch to English">🇺🇸</button>
+        <button class="lang-btn" data-lang="ht" title="Kreyòl Ayisyen" aria-label="Switch to Haitian Creole">🇭🇹</button>
+        <button class="lang-btn" data-lang="fr" title="Français" aria-label="Switch to French">🇫🇷</button>
+    </div>
+    
     <div class="container">
         <!-- Logo -->
         <div class="logo-container">
@@ -196,32 +238,32 @@
         </div>
         
         <!-- Heading -->
-        <h1>Become a Seller</h1>
-        <p class="subtitle">Request access to sell raffle tickets</p>
+        <h1 data-translate="pageTitle">Become a Seller</h1>
+        <p class="subtitle" data-translate="subtitle">Request access to sell raffle tickets</p>
         
         <form id="sellerRegistrationForm">
             <div class="form-group">
-                <label for="fullName">Full Name *</label>
-                <input type="text" id="fullName" name="fullName" required placeholder="Enter your full name">
+                <label for="fullName" data-translate="fullName">Full Name *</label>
+                <input type="text" id="fullName" name="fullName" required data-translate-placeholder="fullNamePlaceholder" placeholder="Enter your full name">
             </div>
             <div class="form-group">
-                <label for="phone">Phone Number *</label>
-                <input type="tel" id="phone" name="phone" required placeholder="Enter your phone number">
+                <label for="phone" data-translate="phoneNumber">Phone Number *</label>
+                <input type="tel" id="phone" name="phone" required data-translate-placeholder="phonePlaceholder" placeholder="Enter your phone number">
             </div>
             <div class="form-group">
-                <label for="email">Email Address *</label>
-                <input type="email" id="email" name="email" required placeholder="Enter your email address">
+                <label for="email" data-translate="email">Email Address *</label>
+                <input type="email" id="email" name="email" required data-translate-placeholder="emailPlaceholder" placeholder="Enter your email address">
             </div>
             <div class="form-group">
-                <label for="experience">Why do you want to become a seller? (Optional)</label>
-                <textarea id="experience" name="experience" placeholder="Tell us about your experience or motivation..."></textarea>
+                <label for="experience" data-translate="whySeller">Why do you want to become a seller? (Optional)</label>
+                <textarea id="experience" name="experience" data-translate-placeholder="whySellerPlaceholder" placeholder="Tell us about your experience or motivation..."></textarea>
             </div>
-            <button type="submit" id="submitBtn">Submit Request</button>
+            <button type="submit" id="submitBtn" data-translate="submitRequest">Submit Request</button>
             <div id="message"></div>
         </form>
         
         <div class="login-link">
-            <p>Already have access? <a href="/login.html">Login here</a></p>
+            <p><span data-translate="alreadyHaveAccess">Already have access?</span> <a href="/login.html" data-translate="loginHere">Login here</a></p>
         </div>
     </div>
 
@@ -271,6 +313,138 @@
                 submitBtn.textContent = 'Submit Request';
             }
         });
+    </script>
+    
+    <!-- Language Translation Script -->
+    <script>
+        // Comprehensive translations for seller registration page
+        const translations = {
+            en: {
+                pageTitle: "Become a Seller",
+                subtitle: "Request access to sell raffle tickets",
+                fullName: "Full Name *",
+                fullNamePlaceholder: "Enter your full name",
+                phoneNumber: "Phone Number *",
+                phonePlaceholder: "Enter your phone number",
+                email: "Email Address *",
+                emailPlaceholder: "Enter your email address",
+                whySeller: "Why do you want to become a seller? (Optional)",
+                whySellerPlaceholder: "Tell us about your experience or motivation...",
+                submitRequest: "Submit Request",
+                submitting: "Submitting...",
+                alreadyHaveAccess: "Already have access?",
+                loginHere: "Login here",
+                // Messages
+                successMessage: "Request submitted successfully! Redirecting to login...",
+                errorMessage: "Registration failed. Please try again.",
+                connectionError: "Connection error. Please try again."
+            },
+            ht: {
+                pageTitle: "Vin yon Vandè",
+                subtitle: "Mande aksè pou vann tikè rif",
+                fullName: "Non Konplè *",
+                fullNamePlaceholder: "Antre non konplè ou",
+                phoneNumber: "Nimewo Telefòn *",
+                phonePlaceholder: "Antre nimewo telefòn ou",
+                email: "Adrès Imèl *",
+                emailPlaceholder: "Antre adrès imèl ou",
+                whySeller: "Poukisa ou vle vin yon vandè? (Opsyonèl)",
+                whySellerPlaceholder: "Pale nou de eksperyans ou oswa motivasyon ou...",
+                submitRequest: "Soumèt Demann",
+                submitting: "Ap soumèt...",
+                alreadyHaveAccess: "Ou deja gen aksè?",
+                loginHere: "Konekte isit la",
+                // Messages
+                successMessage: "Demann soumèt avèk siksè! Ap redirije nan login...",
+                errorMessage: "Enskripsyon echwe. Tanpri eseye ankò.",
+                connectionError: "Erè koneksyon. Tanpri eseye ankò."
+            },
+            fr: {
+                pageTitle: "Devenir un Vendeur",
+                subtitle: "Demander l'accès pour vendre des billets de tombola",
+                fullName: "Nom Complet *",
+                fullNamePlaceholder: "Entrez votre nom complet",
+                phoneNumber: "Numéro de Téléphone *",
+                phonePlaceholder: "Entrez votre numéro de téléphone",
+                email: "Adresse E-mail *",
+                emailPlaceholder: "Entrez votre adresse e-mail",
+                whySeller: "Pourquoi voulez-vous devenir vendeur? (Optionnel)",
+                whySellerPlaceholder: "Parlez-nous de votre expérience ou motivation...",
+                submitRequest: "Soumettre la Demande",
+                submitting: "Soumission...",
+                alreadyHaveAccess: "Vous avez déjà accès?",
+                loginHere: "Connectez-vous ici",
+                // Messages
+                successMessage: "Demande soumise avec succès! Redirection vers la connexion...",
+                errorMessage: "Échec de l'inscription. Veuillez réessayer.",
+                connectionError: "Erreur de connexion. Veuillez réessayer."
+            }
+        };
+        
+        // Get current language from localStorage or default to English
+        function getCurrentLanguage() {
+            return localStorage.getItem('raffleAppLanguage') || 'en';
+        }
+        
+        // Set language
+        function setLanguage(lang) {
+            localStorage.setItem('raffleAppLanguage', lang);
+            
+            // Update all elements with data-translate attribute
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+            
+            // Update placeholders
+            document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-translate-placeholder');
+                if (translations[lang] && translations[lang][key]) {
+                    element.placeholder = translations[lang][key];
+                }
+            });
+            
+            // Update active button
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+        
+        // Initialize language on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentLang = getCurrentLanguage();
+            setLanguage(currentLang);
+        });
+        
+        // Add click handlers for language buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lang = btn.getAttribute('data-lang');
+                setLanguage(lang);
+            });
+        });
+        
+        // Override form submit button text with translations
+        const form = document.getElementById('sellerRegistrationForm');
+        const originalSubmitHandler = form.onsubmit;
+        
+        form.addEventListener('submit', function() {
+            const currentLang = getCurrentLanguage();
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Update button text during submission
+            setTimeout(() => {
+                if (submitBtn.disabled) {
+                    submitBtn.textContent = translations[currentLang].submitting;
+                }
+            }, 0);
+        }, true);
     </script>
     
     <!-- Service Worker Registration -->
