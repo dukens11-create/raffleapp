@@ -455,6 +455,22 @@
             </div>
         </div>
 
+        <!-- Raffle System Navigation -->
+        <div style="background:white;padding:20px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.1);margin-bottom:20px;">
+            <h3 style="color:#333;margin:0 0 15px 0;font-size:18px;font-weight:600;">🎫 New Raffle System</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+                <a href="raffle-seller-dashboard.html" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px 20px;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;transition:transform 0.3s;display:block;">📊 New Dashboard</a>
+                <a href="raffle-scan-seller.html" style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;padding:14px 20px;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;transition:transform 0.3s;display:block;">📷 Scan & Sell</a>
+                <a href="#" onclick="window.scrollTo(0,document.body.scrollHeight);return false;" style="background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);color:#fff;padding:14px 20px;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;transition:transform 0.3s;display:block;">📋 Classic View</a>
+            </div>
+            <style>
+                div[style*="grid-template-columns"] a:hover {
+                    transform: translateY(-2px);
+                    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+                }
+            </style>
+        </div>
+
         <!-- Barcode Scanner Section -->
         <div class="scanner-section">
             <h2>📷 Scan Ticket</h2>

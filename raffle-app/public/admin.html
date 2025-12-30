@@ -547,6 +547,23 @@
       <option value="ht">Kreyòl Ayisyen</option>
       <option value="es">Español</option>
     </select>
+    
+    <!-- Raffle System Navigation -->
+    <div style="background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);padding:20px;margin:80px 20px 20px 20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+      <h3 style="color:#1e293b;margin:0 0 15px 0;font-size:18px;font-weight:600;">🎫 Raffle Ticket System</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+        <a href="raffle-dashboard.html" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;padding:14px 20px;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;transition:transform 0.3s;display:block;">📊 Raffle Dashboard</a>
+        <a href="raffle-print.html" style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;padding:14px 20px;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;transition:transform 0.3s;display:block;">🖨️ Print Center</a>
+        <a href="raffle-import.html" style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#fff;padding:14px 20px;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;transition:transform 0.3s;display:block;">📥 Import/Export</a>
+        <a href="#" onclick="window.scrollTo(0,document.body.scrollHeight);return false;" style="background:linear-gradient(135deg,#6366f1 0%,#4f46e5 100%);color:#fff;padding:14px 20px;border-radius:8px;text-decoration:none;font-weight:600;text-align:center;transition:transform 0.3s;display:block;">📋 Classic Admin</a>
+      </div>
+      <style>
+        div[style*="grid-template-columns"] a:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+      </style>
+    </div>
     <div class="section">
       <h2>Sales Trends (Last 30 Days)</h2>
       <canvas id="salesChart" height="120"></canvas>
