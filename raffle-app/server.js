@@ -11,6 +11,7 @@ const { body, validationResult } = require('express-validator');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 const pgSession = require('connect-pg-simple')(session);
+const multer = require('multer');
 const emailService = require('./services/emailService');
 
 // Load environment variables
@@ -1631,6 +1632,603 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req,
     res.json(rows);
   } catch (err) {
     return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ===== NEW COMPREHENSIVE RAFFLE SYSTEM API ENDPOINTS =====
+
+// Load services
+const ticketService = require('./services/ticketService');
+const printService = require('./services/printService');
+const importExportService = require('./services/importExportService');
+const barcodeService = require('./services/barcodeService');
+const qrcodeService = require('./services/qrcodeService');
+
+// ----- Admin: Raffle Management -----
+
+app.get('/api/admin/raffles', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffles = await db.all(`
+      SELECT r.*, 
+        (SELECT COUNT(*) FROM tickets WHERE raffle_id = r.id) as total_tickets_created,
+        (SELECT COUNT(*) FROM tickets WHERE raffle_id = r.id AND status = 'SOLD') as tickets_sold
+      FROM raffles r
+      ORDER BY r.created_at DESC
+    `);
+    res.json({ success: true, raffles });
+  } catch (error) {
+    console.error('Error fetching raffles:', error);
+    res.status(500).json({ error: 'Failed to fetch raffles' });
+  }
+});
+
+app.post('/api/admin/raffles', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { name, description, startDate, drawDate } = req.body;
+    
+    const result = await db.run(
+      `INSERT INTO raffles (name, description, start_date, draw_date, status) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [name, description, startDate, drawDate, 'draft']
+    );
+    
+    res.json({ success: true, raffleId: result.lastID });
+  } catch (error) {
+    console.error('Error creating raffle:', error);
+    res.status(500).json({ error: 'Failed to create raffle' });
+  }
+});
+
+app.get('/api/admin/raffles/:id/stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get raffle info
+    const raffle = await db.get('SELECT * FROM raffles WHERE id = ?', [id]);
+    if (!raffle) {
+      return res.status(404).json({ error: 'Raffle not found' });
+    }
+    
+    // Get category stats
+    const categories = await db.all(`
+      SELECT 
+        tc.*,
+        (SELECT COUNT(*) FROM tickets WHERE category_id = tc.id) as tickets_created,
+        (SELECT COUNT(*) FROM tickets WHERE category_id = tc.id AND status = 'SOLD') as actual_sold
+      FROM ticket_categories tc
+      WHERE tc.raffle_id = ?
+      ORDER BY tc.category_code
+    `, [id]);
+    
+    // Calculate totals
+    const totalRevenue = categories.reduce((sum, cat) => sum + parseFloat(cat.total_revenue || 0), 0);
+    const totalPotential = categories.reduce((sum, cat) => sum + (cat.total_tickets * parseFloat(cat.price)), 0);
+    const totalSold = categories.reduce((sum, cat) => sum + (cat.actual_sold || 0), 0);
+    const totalTickets = categories.reduce((sum, cat) => sum + cat.total_tickets, 0);
+    
+    res.json({
+      success: true,
+      raffle,
+      categories,
+      summary: {
+        totalRevenue,
+        totalPotential,
+        totalSold,
+        totalTickets,
+        percentageSold: totalTickets > 0 ? (totalSold / totalTickets * 100).toFixed(2) : 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching raffle stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// ----- Admin: Ticket Import/Export -----
+
+app.post('/api/admin/tickets/import', requireAuth, requireAdmin, multer().single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const raffleId = req.body.raffleId || 1;
+    const generateCodes = req.body.generateCodes === 'true';
+    
+    const result = await importExportService.importTicketsFromExcel(req.file.buffer, {
+      raffleId,
+      generateCodes
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error importing tickets:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { format = 'xlsx', category, status } = req.query;
+    
+    const exportFunc = format === 'csv' 
+      ? importExportService.exportTicketsToCSV 
+      : importExportService.exportTicketsToExcel;
+    
+    const result = await exportFunc({ category, status });
+    
+    const contentType = format === 'csv' 
+      ? 'text/csv' 
+      : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.buffer);
+  } catch (error) {
+    console.error('Error exporting tickets:', error);
+    res.status(500).json({ error: 'Failed to export tickets' });
+  }
+});
+
+app.get('/api/admin/tickets/template', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const result = importExportService.generateImportTemplate();
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.send(result.buffer);
+  } catch (error) {
+    console.error('Error generating template:', error);
+    res.status(500).json({ error: 'Failed to generate template' });
+  }
+});
+
+// ----- Admin: Ticket Printing -----
+
+app.post('/api/admin/tickets/print', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { startTicket, endTicket, paperType = 'avery_16145', printType = 'initial' } = req.body;
+    
+    if (!startTicket || !endTicket) {
+      return res.status(400).json({ error: 'Start and end ticket numbers are required' });
+    }
+    
+    const adminId = req.session.user.id;
+    const raffleId = req.body.raffleId || 1;
+    
+    const result = await printService.printTickets(adminId, raffleId, {
+      startTicket,
+      endTicket,
+      paperType,
+      printType
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error printing tickets:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/tickets/print/:jobId', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    
+    const job = await printService.getPrintJob(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Print job not found' });
+    }
+    
+    res.json({ success: true, job });
+  } catch (error) {
+    console.error('Error fetching print job:', error);
+    res.status(500).json({ error: 'Failed to fetch print job' });
+  }
+});
+
+app.get('/api/admin/print-jobs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const adminId = req.session.user.id;
+    const jobs = await printService.getPrintJobs(adminId);
+    res.json({ success: true, jobs });
+  } catch (error) {
+    console.error('Error fetching print jobs:', error);
+    res.status(500).json({ error: 'Failed to fetch print jobs' });
+  }
+});
+
+// ----- Admin: Ticket Scanning -----
+
+app.post('/api/admin/tickets/scan', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { barcode, ticketNumber, scanType = 'verification' } = req.body;
+    
+    let ticket;
+    if (barcode) {
+      ticket = await ticketService.getTicketByBarcode(barcode);
+    } else if (ticketNumber) {
+      ticket = await ticketService.getTicketByNumber(ticketNumber);
+    } else {
+      return res.status(400).json({ error: 'Barcode or ticket number required' });
+    }
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    // Log scan
+    await ticketService.logTicketScan(
+      ticket.id,
+      req.session.user.id,
+      'admin',
+      scanType,
+      barcode ? 'barcode' : 'manual'
+    );
+    
+    res.json({ success: true, ticket });
+  } catch (error) {
+    console.error('Error scanning ticket:', error);
+    res.status(500).json({ error: 'Failed to scan ticket' });
+  }
+});
+
+// ----- Admin: Winner Management -----
+
+app.post('/api/admin/winners/draw', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketId, prizeLevel, prizeDescription, prizeValue } = req.body;
+    
+    if (!ticketId || !prizeLevel) {
+      return res.status(400).json({ error: 'Ticket ID and prize level required' });
+    }
+    
+    // Get ticket
+    const ticket = await db.get('SELECT * FROM tickets WHERE id = ?', [ticketId]);
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    if (ticket.status !== 'SOLD') {
+      return res.status(400).json({ error: 'Only sold tickets can win' });
+    }
+    
+    // Record winner
+    await db.run(
+      `INSERT INTO winners (raffle_id, ticket_id, prize_level, prize_description, prize_value, drawn_by_admin_id)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [ticket.raffle_id, ticketId, prizeLevel, prizeDescription, prizeValue, req.session.user.id]
+    );
+    
+    // Update ticket
+    const timestamp = db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')";
+    await db.run(
+      `UPDATE tickets SET is_winner = ${db.USE_POSTGRES ? 'TRUE' : '1'}, prize_level = ?, won_at = ${timestamp} WHERE id = ?`,
+      [prizeLevel, ticketId]
+    );
+    
+    res.json({ success: true, message: 'Winner recorded successfully' });
+  } catch (error) {
+    console.error('Error recording winner:', error);
+    res.status(500).json({ error: 'Failed to record winner' });
+  }
+});
+
+app.get('/api/admin/winners', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const winners = await db.all(`
+      SELECT w.*, t.ticket_number, t.buyer_name, t.buyer_phone, u.name as admin_name
+      FROM winners w
+      LEFT JOIN tickets t ON w.ticket_id = t.id
+      LEFT JOIN users u ON w.drawn_by_admin_id = u.id
+      ORDER BY w.drawn_at DESC
+    `);
+    res.json({ success: true, winners });
+  } catch (error) {
+    console.error('Error fetching winners:', error);
+    res.status(500).json({ error: 'Failed to fetch winners' });
+  }
+});
+
+// ----- Admin: Reports -----
+
+app.get('/api/admin/reports/revenue', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const categoryRevenue = await db.all(`
+      SELECT 
+        tc.category_code,
+        tc.category_name,
+        tc.price,
+        tc.total_tickets,
+        tc.sold_tickets,
+        tc.total_revenue,
+        (tc.total_tickets * tc.price) as potential_revenue
+      FROM ticket_categories tc
+      WHERE tc.raffle_id = ?
+      ORDER BY tc.category_code
+    `, [1]);
+    
+    res.json({ success: true, categoryRevenue });
+  } catch (error) {
+    console.error('Error fetching revenue report:', error);
+    res.status(500).json({ error: 'Failed to fetch revenue report' });
+  }
+});
+
+app.get('/api/admin/reports/sellers', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const sellers = await db.all(`
+      SELECT 
+        u.id,
+        u.name,
+        u.phone,
+        u.total_sales,
+        u.total_revenue,
+        u.total_commission
+      FROM users u
+      WHERE u.role = 'seller'
+      ORDER BY u.total_revenue DESC
+    `);
+    res.json({ success: true, sellers });
+  } catch (error) {
+    console.error('Error fetching seller report:', error);
+    res.status(500).json({ error: 'Failed to fetch seller report' });
+  }
+});
+
+// ----- Seller: Dashboard -----
+
+app.get('/api/seller/dashboard', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const sellerId = req.session.user.id;
+    
+    // Get seller stats
+    const seller = await db.get(
+      'SELECT total_sales, total_revenue, total_commission FROM users WHERE id = ?',
+      [sellerId]
+    );
+    
+    // Get today's sales
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    
+    const todaySales = await db.all(
+      `SELECT * FROM tickets 
+       WHERE seller_id = ? AND sold_at >= ?
+       ORDER BY sold_at DESC`,
+      [sellerId, todayStart.toISOString()]
+    );
+    
+    const todayRevenue = todaySales.reduce((sum, t) => sum + parseFloat(t.actual_price_paid || 0), 0);
+    const todayCommission = todaySales.reduce((sum, t) => sum + parseFloat(t.seller_commission || 0), 0);
+    
+    res.json({
+      success: true,
+      stats: {
+        totalSales: seller.total_sales || 0,
+        totalRevenue: parseFloat(seller.total_revenue || 0),
+        totalCommission: parseFloat(seller.total_commission || 0),
+        todaySales: todaySales.length,
+        todayRevenue,
+        todayCommission
+      },
+      recentSales: todaySales.slice(0, 10)
+    });
+  } catch (error) {
+    console.error('Error fetching seller dashboard:', error);
+    res.status(500).json({ error: 'Failed to fetch dashboard' });
+  }
+});
+
+// ----- Seller: Scanning & Selling -----
+
+app.post('/api/seller/tickets/scan', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const { barcode, ticketNumber } = req.body;
+    
+    let ticket;
+    if (barcode) {
+      ticket = await ticketService.getTicketByBarcode(barcode);
+    } else if (ticketNumber) {
+      ticket = await ticketService.getTicketByNumber(ticketNumber);
+    } else {
+      return res.status(400).json({ error: 'Barcode or ticket number required' });
+    }
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    // Log scan
+    await ticketService.logTicketScan(
+      ticket.id,
+      req.session.user.id,
+      'seller',
+      'check',
+      barcode ? 'barcode' : 'manual'
+    );
+    
+    res.json({ success: true, ticket });
+  } catch (error) {
+    console.error('Error scanning ticket:', error);
+    res.status(500).json({ error: 'Failed to scan ticket' });
+  }
+});
+
+app.get('/api/seller/tickets/check/:barcode', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const { barcode } = req.params;
+    const ticket = await ticketService.getTicketByBarcode(barcode);
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    res.json({ success: true, ticket });
+  } catch (error) {
+    console.error('Error checking ticket:', error);
+    res.status(500).json({ error: 'Failed to check ticket' });
+  }
+});
+
+app.post('/api/seller/tickets/sell', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const {
+      ticketId,
+      buyerName,
+      buyerPhone,
+      buyerEmail,
+      paymentMethod,
+      paymentVerified = false,
+      actualPricePaid
+    } = req.body;
+    
+    if (!ticketId || !buyerName || !buyerPhone || !paymentMethod) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    const sellerId = req.session.user.id;
+    
+    // Log scan for sale
+    await ticketService.logTicketScan(ticketId, sellerId, 'seller', 'sale', 'manual');
+    
+    // Sell ticket
+    const updatedTicket = await ticketService.sellTicket(ticketId, {
+      sellerId,
+      buyerName,
+      buyerPhone,
+      buyerEmail,
+      paymentMethod,
+      paymentVerified,
+      actualPricePaid
+    });
+    
+    res.json({ success: true, ticket: updatedTicket });
+  } catch (error) {
+    console.error('Error selling ticket:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ----- Seller: Sales History -----
+
+app.get('/api/seller/sales', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const sellerId = req.session.user.id;
+    const { limit = 50, offset = 0 } = req.query;
+    
+    const sales = await db.all(
+      `SELECT * FROM tickets 
+       WHERE seller_id = ? AND status = 'SOLD'
+       ORDER BY sold_at DESC
+       LIMIT ? OFFSET ?`,
+      [sellerId, parseInt(limit), parseInt(offset)]
+    );
+    
+    res.json({ success: true, sales });
+  } catch (error) {
+    console.error('Error fetching sales:', error);
+    res.status(500).json({ error: 'Failed to fetch sales' });
+  }
+});
+
+// ----- Seller: Commission -----
+
+app.get('/api/seller/commission', requireAuth, async (req, res) => {
+  try {
+    if (req.session.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const sellerId = req.session.user.id;
+    
+    const seller = await db.get(
+      'SELECT total_commission FROM users WHERE id = ?',
+      [sellerId]
+    );
+    
+    // Get commission by category
+    const byCategory = await db.all(`
+      SELECT 
+        t.category,
+        COUNT(*) as tickets_sold,
+        SUM(t.actual_price_paid) as total_sales,
+        SUM(t.seller_commission) as total_commission
+      FROM tickets t
+      WHERE t.seller_id = ? AND t.status = 'SOLD'
+      GROUP BY t.category
+      ORDER BY t.category
+    `, [sellerId]);
+    
+    res.json({
+      success: true,
+      totalCommission: parseFloat(seller.total_commission || 0),
+      byCategory
+    });
+  } catch (error) {
+    console.error('Error fetching commission:', error);
+    res.status(500).json({ error: 'Failed to fetch commission' });
+  }
+});
+
+// ----- Public: Ticket Verification -----
+
+app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
+  try {
+    const { ticketNumber } = req.params;
+    
+    const ticket = await db.get(
+      `SELECT 
+        t.ticket_number,
+        t.category,
+        tc.category_name,
+        t.status,
+        t.is_winner,
+        t.prize_level
+      FROM tickets t
+      LEFT JOIN ticket_categories tc ON t.category_id = tc.id
+      WHERE t.ticket_number = ?`,
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    // Don't expose buyer information publicly
+    res.json({
+      success: true,
+      ticket: {
+        ticketNumber: ticket.ticket_number,
+        category: ticket.category,
+        categoryName: ticket.category_name,
+        status: ticket.status,
+        isWinner: ticket.is_winner ? true : false,
+        prizeLevel: ticket.prize_level
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying ticket:', error);
+    res.status(500).json({ error: 'Failed to verify ticket' });
   }
 });
 
