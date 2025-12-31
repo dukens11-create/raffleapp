@@ -12,6 +12,8 @@ const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
 const pgSession = require('connect-pg-simple')(session);
 const emailService = require('./services/emailService');
+const multer = require('multer');
+const sharp = require('sharp');
 
 // Load environment variables
 require('dotenv').config();
@@ -2088,6 +2090,198 @@ app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (re
     res.status(500).json({ error: 'Failed to mark tickets as printed: ' + error.message });
   }
 });
+
+// ============================================================================
+// TEMPLATE MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Configure multer for template uploads
+const templateStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads', 'templates');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
+  }
+});
+
+const templateUpload = multer({ 
+  storage: templateStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|pdf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG, JPG, and PDF files allowed'));
+    }
+  }
+});
+
+// Image processing function
+async function processTemplateImage(inputPath, width, height, fitMode) {
+  const outputPath = inputPath.replace(/\.(jpg|jpeg|png|pdf)$/i, '-processed.png');
+  
+  let sharpInstance = sharp(inputPath);
+  
+  switch (fitMode) {
+    case 'stretch':
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'fill' });
+      break;
+    case 'aspect':
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'contain', background: '#ffffff' });
+      break;
+    case 'crop':
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'cover' });
+      break;
+    default:
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'contain', background: '#ffffff' });
+  }
+  
+  await sharpInstance.png().toFile(outputPath);
+  
+  return outputPath;
+}
+
+// POST /api/admin/templates/upload - Upload new custom template
+app.post('/api/admin/templates/upload', requireAuth, requireAdmin, 
+  templateUpload.fields([
+    { name: 'frontImage', maxCount: 1 },
+    { name: 'backImage', maxCount: 1 }
+  ]), 
+  async (req, res) => {
+    try {
+      const { templateName, fitMode } = req.body;
+      
+      if (!req.files || !req.files['frontImage'] || !req.files['backImage']) {
+        return res.status(400).json({ error: 'Both front and back images are required' });
+      }
+      
+      const frontImage = req.files['frontImage'][0];
+      const backImage = req.files['backImage'][0];
+      
+      // Process images with Sharp (resize to exact dimensions)
+      const targetWidth = 1650;  // 5.5" at 300 DPI
+      const targetHeight = 525;  // 1.75" at 300 DPI
+      
+      const processedFrontPath = await processTemplateImage(
+        frontImage.path, 
+        targetWidth, 
+        targetHeight, 
+        fitMode || 'aspect'
+      );
+      const processedBackPath = await processTemplateImage(
+        backImage.path, 
+        targetWidth, 
+        targetHeight, 
+        fitMode || 'aspect'
+      );
+      
+      // Delete original files
+      fs.unlinkSync(frontImage.path);
+      fs.unlinkSync(backImage.path);
+      
+      // Save to database
+      const result = await db.run(
+        `INSERT INTO ticket_templates (name, front_image_path, back_image_path, fit_mode) 
+         VALUES (?, ?, ?, ?)`,
+        [templateName, processedFrontPath, processedBackPath, fitMode || 'aspect']
+      );
+      
+      res.json({
+        success: true,
+        templateId: result.lastID,
+        message: 'Template uploaded successfully'
+      });
+    } catch (error) {
+      console.error('Template upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// GET /api/admin/templates - List all templates
+app.get('/api/admin/templates', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const templates = await db.all('SELECT * FROM ticket_templates ORDER BY created_at DESC');
+    res.json({ templates });
+  } catch (error) {
+    console.error('Error fetching templates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/templates/:id - Get specific template
+app.get('/api/admin/templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const template = await db.get('SELECT * FROM ticket_templates WHERE id = ?', [req.params.id]);
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    res.json({ template });
+  } catch (error) {
+    console.error('Error fetching template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/admin/templates/:id/activate - Set active template
+app.put('/api/admin/templates/:id/activate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Deactivate all templates
+    await db.run(`UPDATE ticket_templates SET is_active = ${db.USE_POSTGRES ? 'FALSE' : '0'}`);
+    // Activate selected template
+    await db.run(
+      `UPDATE ticket_templates SET is_active = ${db.USE_POSTGRES ? 'TRUE' : '1'} WHERE id = ?`, 
+      [req.params.id]
+    );
+    res.json({ success: true, message: 'Template activated' });
+  } catch (error) {
+    console.error('Error activating template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/admin/templates/:id - Delete template
+app.delete('/api/admin/templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const template = await db.get('SELECT * FROM ticket_templates WHERE id = ?', [req.params.id]);
+    if (template) {
+      // Delete files if they exist
+      try {
+        if (fs.existsSync(template.front_image_path)) {
+          fs.unlinkSync(template.front_image_path);
+        }
+        if (fs.existsSync(template.back_image_path)) {
+          fs.unlinkSync(template.back_image_path);
+        }
+      } catch (fileError) {
+        console.warn('Error deleting template files:', fileError);
+      }
+      
+      // Delete from DB
+      await db.run('DELETE FROM ticket_templates WHERE id = ?', [req.params.id]);
+    }
+    res.json({ success: true, message: 'Template deleted' });
+  } catch (error) {
+    console.error('Error deleting template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve uploaded template images
+app.use('/uploads/templates', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'templates')));
+
+// ============================================================================
+// REPORTS ENDPOINTS
+// ============================================================================
 
 // Reports Endpoints
 

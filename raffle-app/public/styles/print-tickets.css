@@ -212,6 +212,34 @@
     border-color: #999;
   }
   
+  /* Tear-off line styles for custom templates */
+  .tear-off-line {
+    border-bottom: 2px dashed #999;
+    margin: 0;
+    padding: 0;
+    height: 0;
+  }
+  
+  .ticket-with-tearoff {
+    position: relative;
+  }
+  
+  .ticket-with-tearoff::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: repeating-linear-gradient(
+      90deg,
+      #999 0,
+      #999 5px,
+      transparent 5px,
+      transparent 10px
+    );
+  }
+  
   /* Print quality */
   * {
     -webkit-print-color-adjust: exact !important;
