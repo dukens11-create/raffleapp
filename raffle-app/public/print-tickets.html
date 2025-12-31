@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print Tickets - Raffle App</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/styles/print-tickets.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 24px 32px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    header img {
+      height: 48px;
+    }
+    
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 16px;
+    }
+    
+    .nav-links a {
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    
+    .nav-links a:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+    
+    .card-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .card-subtitle {
+      font-size: 14px;
+      color: #64748b;
+      margin-bottom: 24px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-right: 12px;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+    
+    .btn-secondary:hover {
+      background: #cbd5e1;
+      transform: translateY(-2px);
+    }
+    
+    .btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .alert-error {
+      background: #fee;
+      color: #c00;
+    }
+    
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .info-box {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .info-box strong {
+      color: #1e293b;
+      display: block;
+      margin-bottom: 8px;
+    }
+    
+    .info-box ul {
+      margin-left: 20px;
+      margin-top: 8px;
+    }
+    
+    .preview-section {
+      margin-top: 30px;
+      display: none;
+    }
+    
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .preview-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .stat-box {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #667eea;
+      display: block;
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    
+    .preview-ticket {
+      background: white;
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .preview-ticket h4 {
+      color: #1e293b;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+    
+    .ticket-preview-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    
+    .ticket-side {
+      border: 1px solid #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+    
+    .ticket-side h5 {
+      font-size: 14px;
+      color: #667eea;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    
+    .ticket-field {
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+    
+    .ticket-field strong {
+      color: #1e293b;
+    }
+    
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .nav-links {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .nav-links a {
+        text-align: center;
+      }
+      
+      .input-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .preview-stats {
+        grid-template-columns: 1fr;
+      }
+      
+      .ticket-preview-content {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="no-print">
+      <div class="header-left">
+        <img src="logo.png" alt="Logo">
+        <h1>🖨️ Print Tickets</h1>
+      </div>
+      <div class="nav-links">
+        <a href="/admin.html">← Back to Admin</a>
+      </div>
+    </header>
+    
+    <div class="card no-print">
+      <h2 class="card-title">Ticket Range Selection</h2>
+      <p class="card-subtitle">Select the category and ticket range to print on Avery 16145 paper</p>
+      
+      <div id="alert" style="display: none;"></div>
+      
+      <div class="form-group">
+        <label for="category">Category</label>
+        <select id="category" required>
+          <option value="">Select Category</option>
+          <option value="ABC">ABC - Regular ($50.00)</option>
+          <option value="EFG">EFG - Silver ($100.00)</option>
+          <option value="JKL">JKL - Gold ($250.00)</option>
+          <option value="XYZ">XYZ - Platinum ($500.00)</option>
+        </select>
+      </div>
+      
+      <div class="input-row">
+        <div class="form-group">
+          <label for="start-ticket">Starting Ticket #</label>
+          <input 
+            type="number" 
+            id="start-ticket" 
+            placeholder="1"
+            min="1"
+            required
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="end-ticket">Ending Ticket #</label>
+          <input 
+            type="number" 
+            id="end-ticket" 
+            placeholder="100"
+            min="1"
+            required
+          >
+        </div>
+        
+        <div class="form-group">
+          <label for="sheets-display">Sheets to Print</label>
+          <input 
+            type="text" 
+            id="sheets-display" 
+            value="0"
+            readonly
+            style="background: #f8fafc; cursor: not-allowed;"
+          >
+        </div>
+      </div>
+      
+      <div class="info-box">
+        <strong>📋 Printer Settings:</strong>
+        <ul>
+          <li>Paper Size: Letter (8.5" x 11")</li>
+          <li>Orientation: Portrait</li>
+          <li>Duplex: Long Edge (flip on long side)</li>
+          <li>Scale: 100% (no scaling!)</li>
+          <li>Margins: Use Avery template margins</li>
+          <li>Paper: Avery 16145 perforated ticket paper</li>
+        </ul>
+      </div>
+      
+      <div style="margin-top: 24px;">
+        <button class="btn btn-secondary" onclick="previewTickets()">📄 Preview</button>
+        <button class="btn btn-primary" onclick="printTickets()" disabled id="print-btn">🖨️ Print Tickets</button>
+      </div>
+    </div>
+    
+    <div class="card no-print preview-section" id="preview-section">
+      <div class="preview-header">
+        <h2 class="card-title">Preview</h2>
+        <button class="btn btn-secondary" onclick="closePreview()">✕ Close Preview</button>
+      </div>
+      
+      <div class="preview-stats">
+        <div class="stat-box">
+          <span class="stat-value" id="preview-tickets">0</span>
+          <span class="stat-label">Total Tickets</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value" id="preview-sheets">0</span>
+          <span class="stat-label">Sheets (10/sheet)</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value" id="preview-pages">0</span>
+          <span class="stat-label">Pages (front+back)</span>
+        </div>
+      </div>
+      
+      <div class="preview-ticket">
+        <h4>First Ticket Preview</h4>
+        <div class="ticket-preview-content">
+          <div class="ticket-side">
+            <h5>Front Side (Buyer Keeps)</h5>
+            <div class="ticket-field"><strong>Ticket #:</strong> <span id="preview-ticket-num-front">-</span></div>
+            <div class="ticket-field"><strong>Category:</strong> <span id="preview-category-front">-</span></div>
+            <div class="ticket-field"><strong>Price:</strong> <span id="preview-price-front">-</span></div>
+            <div class="ticket-field"><strong>QR Code:</strong> ✓ Generated</div>
+            <div class="ticket-field"><strong>Fields:</strong> Date, Name, Phone, Draw Date</div>
+          </div>
+          <div class="ticket-side">
+            <h5>Back Side (Seller Stub)</h5>
+            <div class="ticket-field"><strong>Ticket #:</strong> <span id="preview-ticket-num-back">-</span></div>
+            <div class="ticket-field"><strong>Category:</strong> <span id="preview-category-back">-</span></div>
+            <div class="ticket-field"><strong>QR Code:</strong> ✓ Generated (smaller)</div>
+            <div class="ticket-field"><strong>Fields:</strong> Sold By, Seller ID, Buyer Name, Buyer Phone, Date Sold, Payment</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="alert alert-info">
+        ℹ️ Preview shows layout only. Actual tickets will be generated with proper formatting, QR codes, and barcodes on Avery 16145 paper.
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let currentPreviewData = null;
+    
+    // Calculate sheets when ticket range changes
+    function updateSheetCount() {
+      const start = parseInt(document.getElementById('start-ticket').value) || 0;
+      const end = parseInt(document.getElementById('end-ticket').value) || 0;
+      
+      if (start > 0 && end > 0 && end >= start) {
+        const total = end - start + 1;
+        const sheets = Math.ceil(total / 10);
+        document.getElementById('sheets-display').value = `${sheets} (${total} tickets)`;
+      } else {
+        document.getElementById('sheets-display').value = '0';
+      }
+    }
+    
+    document.getElementById('start-ticket').addEventListener('input', updateSheetCount);
+    document.getElementById('end-ticket').addEventListener('input', updateSheetCount);
+    
+    // Show alert
+    function showAlert(message, type = 'info') {
+      const alertDiv = document.getElementById('alert');
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.textContent = message;
+      alertDiv.style.display = 'block';
+      
+      if (type === 'success') {
+        setTimeout(() => {
+          alertDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+    
+    // Preview tickets
+    async function previewTickets() {
+      const category = document.getElementById('category').value;
+      const start = document.getElementById('start-ticket').value;
+      const end = document.getElementById('end-ticket').value;
+      
+      if (!category || !start || !end) {
+        showAlert('Please fill in all fields', 'error');
+        return;
+      }
+      
+      if (parseInt(start) > parseInt(end)) {
+        showAlert('Start ticket must be less than or equal to end ticket', 'error');
+        return;
+      }
+      
+      try {
+        showAlert('Loading preview...', 'info');
+        
+        const response = await fetch(`/api/admin/tickets/print-batch?category=${category}&start=${start}&end=${end}`);
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to fetch tickets');
+        }
+        
+        const data = await response.json();
+        currentPreviewData = data;
+        
+        // Update preview stats
+        document.getElementById('preview-tickets').textContent = data.total_tickets;
+        document.getElementById('preview-sheets').textContent = data.sheets;
+        document.getElementById('preview-pages').textContent = data.sheets * 2; // front + back
+        
+        // Update first ticket preview
+        if (data.tickets.length > 0) {
+          const firstTicket = data.tickets[0];
+          const categoryMap = {
+            'ABC': 'ABC - Regular',
+            'EFG': 'EFG - Silver',
+            'JKL': 'JKL - Gold',
+            'XYZ': 'XYZ - Platinum'
+          };
+          
+          document.getElementById('preview-ticket-num-front').textContent = firstTicket.ticket_number;
+          document.getElementById('preview-category-front').textContent = categoryMap[firstTicket.category];
+          document.getElementById('preview-price-front').textContent = `$${parseFloat(firstTicket.price).toFixed(2)}`;
+          
+          document.getElementById('preview-ticket-num-back').textContent = firstTicket.ticket_number;
+          document.getElementById('preview-category-back').textContent = `${firstTicket.category} ($${parseFloat(firstTicket.price).toFixed(2)})`;
+        }
+        
+        // Show preview section
+        document.getElementById('preview-section').style.display = 'block';
+        document.getElementById('print-btn').disabled = false;
+        
+        showAlert(`Preview loaded: ${data.total_tickets} tickets on ${data.sheets} sheets`, 'success');
+        
+        // Scroll to preview
+        document.getElementById('preview-section').scrollIntoView({ behavior: 'smooth' });
+        
+      } catch (error) {
+        console.error('Error previewing tickets:', error);
+        showAlert('Error: ' + error.message, 'error');
+      }
+    }
+    
+    // Close preview
+    function closePreview() {
+      document.getElementById('preview-section').style.display = 'none';
+      document.getElementById('print-btn').disabled = true;
+      currentPreviewData = null;
+    }
+    
+    // Print tickets
+    async function printTickets() {
+      if (!currentPreviewData) {
+        showAlert('Please preview tickets first', 'error');
+        return;
+      }
+      
+      const category = document.getElementById('category').value;
+      const start = document.getElementById('start-ticket').value;
+      const end = document.getElementById('end-ticket').value;
+      
+      // Build ticket range
+      const startPadded = String(start).padStart(9, '0');
+      const endPadded = String(end).padStart(9, '0');
+      
+      try {
+        showAlert('Generating PDF...', 'info');
+        document.getElementById('print-btn').disabled = true;
+        
+        const response = await fetch('/api/admin/tickets/print/generate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            raffle_id: 1,
+            category: category,
+            start_ticket: `${category}-${startPadded}`,
+            end_ticket: `${category}-${endPadded}`,
+            paper_type: 'AVERY_16145'
+          })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to generate PDF');
+        }
+        
+        // Download PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `tickets-${category}-${start}-to-${end}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('PDF downloaded! Tickets have been marked as printed.', 'success');
+        
+        // Mark tickets as printed
+        const ticketIds = currentPreviewData.tickets.map(t => t.id);
+        await fetch('/api/admin/tickets/mark-printed', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ticket_ids: ticketIds })
+        });
+        
+        document.getElementById('print-btn').disabled = false;
+        
+      } catch (error) {
+        console.error('Error printing tickets:', error);
+        showAlert('Error: ' + error.message, 'error');
+        document.getElementById('print-btn').disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

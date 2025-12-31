@@ -2005,6 +2005,90 @@ app.get('/api/admin/print-jobs/:id', requireAuth, requireAdmin, async (req, res)
   }
 });
 
+// GET /api/admin/tickets/print-batch - Get tickets for printing
+app.get('/api/admin/tickets/print-batch', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, start, end } = req.query;
+    
+    if (!category || !start || !end) {
+      return res.status(400).json({ error: 'Missing required parameters: category, start, end' });
+    }
+    
+    // Build ticket range
+    const startTicket = `${category}-${String(start).padStart(9, '0')}`;
+    const endTicket = `${category}-${String(end).padStart(9, '0')}`;
+    
+    // Get tickets in range
+    const tickets = await ticketService.getTicketsByRange(startTicket, endTicket);
+    
+    // Generate QR codes for preview
+    const ticketsWithQR = await Promise.all(tickets.map(async (ticket) => {
+      const qrCode = await qrcodeService.generateQRCodeDataURL(
+        qrcodeService.generateVerificationURL(ticket.ticket_number),
+        { size: 150 }
+      );
+      
+      return {
+        id: ticket.id,
+        barcode: ticket.barcode || ticket.ticket_number,
+        category: ticket.category,
+        price: ticket.price,
+        qr_code: qrCode,
+        status: ticket.status,
+        ticket_number: ticket.ticket_number
+      };
+    }));
+    
+    // Calculate sheets needed (10 tickets per sheet for Avery 16145)
+    const sheets = Math.ceil(ticketsWithQR.length / 10);
+    
+    res.json({
+      tickets: ticketsWithQR,
+      sheets: sheets,
+      total_tickets: ticketsWithQR.length
+    });
+  } catch (error) {
+    console.error('Error fetching tickets for printing:', error);
+    res.status(500).json({ error: 'Failed to fetch tickets: ' + error.message });
+  }
+});
+
+// POST /api/admin/tickets/mark-printed - Mark tickets as printed
+app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticket_ids } = req.body;
+    
+    if (!ticket_ids || !Array.isArray(ticket_ids)) {
+      return res.status(400).json({ error: 'ticket_ids must be an array' });
+    }
+    
+    let marked = 0;
+    for (const ticketId of ticket_ids) {
+      try {
+        await db.run(
+          `UPDATE tickets 
+           SET printed = ${db.USE_POSTGRES ? 'TRUE' : '1'}, 
+               printed_at = ${db.getCurrentTimestamp()},
+               print_count = print_count + 1
+           WHERE id = ?`,
+          [ticketId]
+        );
+        marked++;
+      } catch (error) {
+        console.error(`Error marking ticket ${ticketId} as printed:`, error);
+      }
+    }
+    
+    res.json({
+      success: true,
+      marked: marked
+    });
+  } catch (error) {
+    console.error('Error marking tickets as printed:', error);
+    res.status(500).json({ error: 'Failed to mark tickets as printed: ' + error.message });
+  }
+});
+
 // Reports Endpoints
 
 // GET /api/admin/reports/revenue - Revenue report by category
