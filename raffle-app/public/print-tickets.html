@@ -345,6 +345,31 @@
         </select>
       </div>
       
+      <div class="form-group" style="margin-top: 24px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px solid #e2e8f0;">
+        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #1e293b;">🎨 Design Options</h3>
+        
+        <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
+          <input type="radio" name="templateMode" value="default" checked style="width: auto; margin-right: 8px;">
+          <span>Use Default Template (Standard Design)</span>
+        </label>
+        
+        <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
+          <input type="radio" name="templateMode" value="custom" style="width: auto; margin-right: 8px;">
+          <span>Use Custom Uploaded Template</span>
+        </label>
+        
+        <div id="customTemplateOptions" style="display: none; margin-top: 16px; padding: 16px; background: white; border-radius: 8px; border: 2px solid #667eea;">
+          <label for="templateSelect">Select Template:</label>
+          <select id="templateSelect" style="margin-top: 8px;">
+            <option value="">-- Choose Template --</option>
+          </select>
+          
+          <button type="button" class="btn btn-secondary" style="margin-top: 12px;" onclick="window.location='/upload-template.html'">
+            ➕ Upload New Template
+          </button>
+        </div>
+      </div>
+      
       <div class="input-row">
         <div class="form-group">
           <label for="start-ticket">Starting Ticket #</label>
@@ -448,6 +473,48 @@
   
   <script>
     let currentPreviewData = null;
+    
+    // Template management
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load templates on page load
+      loadTemplates();
+      
+      // Template mode toggle
+      document.querySelectorAll('[name="templateMode"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          const customOptions = document.getElementById('customTemplateOptions');
+          if (e.target.value === 'custom') {
+            customOptions.style.display = 'block';
+            loadTemplates();
+          } else {
+            customOptions.style.display = 'none';
+          }
+        });
+      });
+    });
+    
+    async function loadTemplates() {
+      try {
+        const response = await fetch('/api/admin/templates');
+        const { templates } = await response.json();
+        
+        const select = document.getElementById('templateSelect');
+        select.innerHTML = '<option value="">-- Choose Template --</option>';
+        
+        templates.forEach(template => {
+          const option = document.createElement('option');
+          option.value = template.id;
+          option.textContent = template.name;
+          if (template.is_active === 1 || template.is_active === true) {
+            option.textContent += ' (Active)';
+            option.selected = true;
+          }
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading templates:', error);
+      }
+    }
     
     // Calculate sheets when ticket range changes
     function updateSheetCount() {
@@ -565,6 +632,10 @@
       const start = document.getElementById('start-ticket').value;
       const end = document.getElementById('end-ticket').value;
       
+      // Get template mode and selection
+      const templateMode = document.querySelector('[name="templateMode"]:checked').value;
+      const templateId = document.getElementById('templateSelect').value;
+      
       // Build ticket range
       const startPadded = String(start).padStart(9, '0');
       const endPadded = String(end).padStart(9, '0');
@@ -573,18 +644,26 @@
         showAlert('Generating PDF...', 'info');
         document.getElementById('print-btn').disabled = true;
         
+        const requestBody = {
+          raffle_id: 1,
+          category: category,
+          start_ticket: `${category}-${startPadded}`,
+          end_ticket: `${category}-${endPadded}`,
+          paper_type: 'AVERY_16145'
+        };
+        
+        // Add custom template info if using custom mode
+        if (templateMode === 'custom' && templateId) {
+          requestBody.use_custom_template = true;
+          requestBody.template_id = templateId;
+        }
+        
         const response = await fetch('/api/admin/tickets/print/generate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            raffle_id: 1,
-            category: category,
-            start_ticket: `${category}-${startPadded}`,
-            end_ticket: `${category}-${endPadded}`,
-            paper_type: 'AVERY_16145'
-          })
+          body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {

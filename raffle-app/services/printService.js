@@ -7,6 +7,7 @@ const PDFDocument = require('pdfkit');
 const barcodeService = require('./barcodeService');
 const qrcodeService = require('./qrcodeService');
 const db = require('../db');
+const fs = require('fs');
 
 // Category display names mapping
 const CATEGORY_NAMES = {
@@ -419,10 +420,134 @@ async function getPrintJob(jobId) {
   }
 }
 
+/**
+ * Generate PDF for ticket printing with custom template
+ * Uses uploaded custom images instead of default template design
+ * 
+ * @param {Array} tickets - Array of ticket objects
+ * @param {Object} customTemplate - Custom template object from database
+ * @param {string} paperType - Paper type (AVERY_16145 or PRINTWORKS)
+ * @param {number} printJobId - Print job ID
+ * @returns {Promise<PDFDocument>} - PDF document stream
+ */
+async function generateCustomTemplatePDF(tickets, customTemplate, paperType, printJobId) {
+  const template = TEMPLATES[paperType];
+  if (!template) {
+    throw new Error(`Unknown paper type: ${paperType}`);
+  }
+
+  // Create PDF document
+  const doc = new PDFDocument({
+    size: [template.pageWidth, template.pageHeight],
+    margin: 0
+  });
+
+  let ticketCount = 0;
+  const totalTickets = tickets.length;
+
+  // Load custom template images
+  const frontImageBuffer = fs.readFileSync(customTemplate.front_image_path);
+  const backImageBuffer = fs.readFileSync(customTemplate.back_image_path);
+
+  // Process tickets in batches per page
+  for (let i = 0; i < tickets.length; i += template.ticketsPerPage) {
+    const batch = tickets.slice(i, i + template.ticketsPerPage);
+    
+    // Add page for FRONT side (buyer tickets)
+    if (i > 0) doc.addPage();
+    
+    // Draw FRONT side tickets with custom template
+    for (let j = 0; j < batch.length; j++) {
+      const ticket = batch[j];
+
+      // Calculate position in grid (2 columns x N rows)
+      const col = j % template.columns;
+      const row = Math.floor(j / template.columns);
+      
+      const x = template.leftMargin + (col * template.ticketWidth) + (col * template.spacing);
+      const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
+
+      // Draw custom template image
+      doc.image(frontImageBuffer, x, y, {
+        width: template.ticketWidth,
+        height: template.ticketHeight
+      });
+
+      // Draw tear-off line
+      drawTearOffLine(doc, x, y, template.ticketWidth, template.ticketHeight);
+    }
+    
+    // Add page for BACK side (seller stubs)
+    doc.addPage();
+    
+    // Draw BACK side stubs with custom template
+    for (let j = 0; j < batch.length; j++) {
+      const ticket = batch[j];
+
+      // Calculate position in grid (same as front)
+      const col = j % template.columns;
+      const row = Math.floor(j / template.columns);
+      
+      const x = template.leftMargin + (col * template.ticketWidth) + (col * template.spacing);
+      const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
+
+      // Draw custom template image
+      doc.image(backImageBuffer, x, y, {
+        width: template.ticketWidth,
+        height: template.ticketHeight
+      });
+
+      // Draw tear-off line
+      drawTearOffLine(doc, x, y, template.ticketWidth, template.ticketHeight);
+      
+      // Mark ticket as printed after processing both sides
+      const ticketService = require('./ticketService');
+      await ticketService.markAsPrinted(ticket.ticket_number);
+      
+      ticketCount++;
+      
+      // Update progress
+      const progress = Math.round((ticketCount / totalTickets) * 100);
+      if (ticketCount % 5 === 0 || ticketCount === totalTickets) {
+        await updatePrintJobStatus(printJobId, 'in_progress', progress);
+      }
+    }
+  }
+
+  // Mark job as completed
+  await updatePrintJobStatus(printJobId, 'completed', 100);
+
+  return doc;
+}
+
+/**
+ * Draw tear-off line for custom templates
+ * 
+ * @param {PDFDocument} doc - PDF document
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {number} width - Ticket width
+ * @param {number} height - Ticket height
+ */
+function drawTearOffLine(doc, x, y, width, height) {
+  doc.save();
+  doc.strokeColor('#999999');
+  doc.lineWidth(1);
+  doc.dash(5, { space: 5 }); // Dashed line pattern
+  
+  // Draw horizontal line at bottom of ticket
+  doc.moveTo(x, y + height);
+  doc.lineTo(x + width, y + height);
+  doc.stroke();
+  
+  doc.restore();
+}
+
 module.exports = {
   createPrintJob,
   updatePrintJobStatus,
   generatePrintPDF,
+  generateCustomTemplatePDF,
   getPrintJobs,
   getPrintJob,
   TEMPLATES

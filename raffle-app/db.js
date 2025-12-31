@@ -362,6 +362,20 @@ async function initializeSchema() {
       )
     `);
     
+    // Ticket templates table - for custom ticket designs
+    await run(`
+      CREATE TABLE IF NOT EXISTS ticket_templates (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        name TEXT NOT NULL,
+        front_image_path TEXT NOT NULL,
+        back_image_path TEXT NOT NULL,
+        fit_mode TEXT DEFAULT 'aspect',
+        is_active ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        updated_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    
     console.log('✅ Database schema initialized successfully');
     
     // Check if admin exists, create if not
