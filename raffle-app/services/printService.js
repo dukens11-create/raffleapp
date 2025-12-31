@@ -149,23 +149,26 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
        align: 'center'
      });
 
-  // Ticket number (prominent)
-  doc.fontSize(16)
+  // Ticket number (LARGE, BOLD, CENTERED - MORE PROMINENT)
+  doc.fontSize(18)
      .font('Helvetica-Bold')
-     .text(ticket.ticket_number, x + padding, y + padding + 20, {
+     .fillColor('#000000')
+     .text(`Ticket #: ${ticket.ticket_number}`, x + padding, y + padding + 22, {
        width: ticketWidth - 120 - (padding * 2),
-       align: 'left'
+       align: 'center'
      });
 
   doc.fontSize(9)
      .font('Helvetica')
-     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, y + padding + 38, {
+     .fillColor('#000000')
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, y + padding + 45, {
        width: ticketWidth - 120 - (padding * 2)
      });
   
   doc.fontSize(10)
      .font('Helvetica-Bold')
-     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, y + padding + 52, {
+     .fillColor('#000000')
+     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, y + padding + 59, {
        width: ticketWidth - 120 - (padding * 2)
      });
 
@@ -185,7 +188,7 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
     const barcodeWidth = 120;
     const barcodeHeight = 40;
     const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
-    const barcodeY = y + padding + 68;
+    const barcodeY = y + padding + 75;
     doc.image(barcodeImage, barcodeX, barcodeY, {
       width: barcodeWidth,
       height: barcodeHeight
@@ -195,6 +198,7 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
     if (ticket.barcode) {
       doc.fontSize(7)
          .font('Helvetica')
+         .fillColor('#000000')
          .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 2, {
            width: ticketWidth - (padding * 2),
            align: 'center'
@@ -241,6 +245,7 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
   // Title with emoji
   doc.fontSize(12)
      .font('Helvetica-Bold')
+     .fillColor('#000000')
      .text('📋 SELLER STUB', x + padding, y + padding, {
        width: ticketWidth - 70 - (padding * 2),
        align: 'left'
@@ -257,19 +262,25 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
     });
   }
 
-  // Ticket number
-  doc.fontSize(11)
+  // Ticket number (LARGE, BOLD - MORE PROMINENT)
+  doc.fontSize(16)
      .font('Helvetica-Bold')
-     .text(`Ticket #: ${ticket.ticket_number}`, x + padding, y + padding + 20);
+     .fillColor('#000000')
+     .text(`Ticket #: ${ticket.ticket_number}`, x + padding, y + padding + 20, {
+       width: ticketWidth - 70 - (padding * 2),
+       align: 'left'
+     });
 
   doc.fontSize(9)
      .font('Helvetica')
-     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.short || ticket.category}`, x + padding, y + padding + 35);
+     .fillColor('#000000')
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.short || ticket.category}`, x + padding, y + padding + 38);
 
   // Seller information fields
-  const fieldsY = y + padding + 55;
+  const fieldsY = y + padding + 58;
   doc.fontSize(8)
      .font('Helvetica')
+     .fillColor('#000000')
      .text('Sold By: __________________', x + padding, fieldsY)
      .text('Seller ID: _____________', x + padding + 140, fieldsY);
   
@@ -508,9 +519,57 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
     // Add page for FRONT side (buyer tickets)
     if (i > 0) doc.addPage();
     
+    // Pre-generate all codes for the batch to avoid redundant generation
+    const batchWithCodes = await Promise.all(batch.map(async (ticket) => {
+      // Generate codes if not already generated
+      const ticketService = require('./ticketService');
+      const barcodeGenerator = require('./barcodeGenerator');
+      if (!ticket.barcode || !ticket.qr_code_data) {
+        const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+        ticket.barcode = codes.barcode;
+        ticket.qr_code_data = codes.qrCodeData;
+      }
+
+      // Generate QR code images with full ticket data
+      const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+        size: 96, // 1 inch at 96 DPI
+        errorCorrectionLevel: 'M'
+      });
+      
+      const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+        size: 50, // Smaller for stub
+        errorCorrectionLevel: 'M'
+      });
+      
+      // Generate EAN-13 barcode image (using bwip-js)
+      const bwipjs = require('bwip-js');
+      let barcodeBuffer = null;
+      if (ticket.barcode) {
+        try {
+          barcodeBuffer = await bwipjs.toBuffer({
+            bcid: 'ean13',
+            text: ticket.barcode,
+            scale: 2,
+            height: 10,
+            includetext: false,
+            textxalign: 'center'
+          });
+        } catch (error) {
+          console.error('Barcode generation error:', error);
+        }
+      }
+      
+      return {
+        ticket,
+        qrMainBuffer,
+        qrStubBuffer,
+        barcodeBuffer
+      };
+    }));
+    
     // Draw FRONT side tickets with custom template
-    for (let j = 0; j < batch.length; j++) {
-      const ticket = batch[j];
+    for (let j = 0; j < batchWithCodes.length; j++) {
+      const { ticket, qrMainBuffer, barcodeBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (2 columns x N rows)
       const col = j % template.columns;
@@ -525,6 +584,59 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
         height: template.ticketHeight
       });
 
+      // === OVERLAY TICKET NUMBER (PROMINENT, WITH BACKGROUND FOR READABILITY) ===
+      // Add semi-transparent white background box for ticket number
+      const padding = 8;
+      doc.rect(x + 10, y + 30, template.ticketWidth - 20, 25)
+         .fillOpacity(0.85)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+      
+      // Ticket number text
+      doc.fontSize(16)
+         .font('Helvetica-Bold')
+         .fillColor('#000000')
+         .text(`Ticket #: ${ticket.ticket_number}`, x + 15, y + 37, {
+           width: template.ticketWidth - 30,
+           align: 'center'
+         });
+      
+      // Add barcode (bottom center)
+      if (barcodeBuffer) {
+        const barcodeWidth = 120;
+        const barcodeHeight = 40;
+        const barcodeX = x + (template.ticketWidth - barcodeWidth) / 2;
+        const barcodeY = y + template.ticketHeight - barcodeHeight - 25;
+        
+        doc.image(barcodeBuffer, barcodeX, barcodeY, {
+          width: barcodeWidth,
+          height: barcodeHeight
+        });
+        
+        // Barcode number below
+        if (ticket.barcode) {
+          doc.fontSize(7)
+             .font('Helvetica')
+             .fillColor('#000000')
+             .text(ticket.barcode, x, barcodeY + barcodeHeight + 2, {
+               width: template.ticketWidth,
+               align: 'center'
+             });
+        }
+      }
+      
+      // Add QR code (top right corner)
+      if (qrMainBuffer) {
+        const qrSize = 60;
+        const qrX = x + template.ticketWidth - qrSize - 10;
+        const qrY = y + 10;
+        
+        doc.image(qrMainBuffer, qrX, qrY, {
+          width: qrSize,
+          height: qrSize
+        });
+      }
+
       // Draw tear-off line
       drawTearOffLine(doc, x, y, template.ticketWidth, template.ticketHeight);
     }
@@ -533,8 +645,8 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
     doc.addPage();
     
     // Draw BACK side stubs with custom template
-    for (let j = 0; j < batch.length; j++) {
-      const ticket = batch[j];
+    for (let j = 0; j < batchWithCodes.length; j++) {
+      const { ticket, qrStubBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (same as front)
       const col = j % template.columns;
@@ -548,6 +660,35 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
         width: template.ticketWidth,
         height: template.ticketHeight
       });
+
+      // === OVERLAY TICKET NUMBER ON BACK SIDE ===
+      // Add background box
+      const padding = 8;
+      doc.rect(x + 10, y + 25, template.ticketWidth - 70, 22)
+         .fillOpacity(0.85)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+      
+      // Ticket number
+      doc.fontSize(14)
+         .font('Helvetica-Bold')
+         .fillColor('#000000')
+         .text(`Ticket #: ${ticket.ticket_number}`, x + 15, y + 30, {
+           width: template.ticketWidth - 80,
+           align: 'left'
+         });
+      
+      // Small QR code (top right)
+      if (qrStubBuffer) {
+        const qrSize = 50;
+        const qrX = x + template.ticketWidth - qrSize - 10;
+        const qrY = y + 10;
+        
+        doc.image(qrStubBuffer, qrX, qrY, {
+          width: qrSize,
+          height: qrSize
+        });
+      }
 
       // Draw tear-off line
       drawTearOffLine(doc, x, y, template.ticketWidth, template.ticketHeight);
