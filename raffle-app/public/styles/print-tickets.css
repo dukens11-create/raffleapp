@@ -1,0 +1,271 @@
+/**
+ * Print Ticket Styles - Avery 16145 Paper Specifications
+ * Paper Size: 8.5" x 11" (Letter)
+ * Tickets per Sheet: 10 tickets (2 columns x 5 rows)
+ * Ticket Size: 5.5" x 1.75" each (landscape)
+ */
+
+/* Screen styles */
+@media screen {
+  .print-preview {
+    background: #f5f5f5;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  
+  .print-page {
+    background: white;
+    width: 8.5in;
+    max-width: 100%;
+    margin: 0 auto 20px;
+    padding: 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .no-print {
+    display: block;
+  }
+}
+
+/* Print styles */
+@media print {
+  /* Page setup for Avery 16145 */
+  @page {
+    size: 8.5in 11in;
+    margin: 0.5in 0.1875in; /* Top/Bottom: 0.5", Left/Right: 0.1875" */
+  }
+  
+  /* Hide non-printable elements */
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+  
+  .no-print,
+  header,
+  footer,
+  nav,
+  .nav-links,
+  button,
+  .btn,
+  form,
+  .print-controls,
+  .alert {
+    display: none !important;
+  }
+  
+  /* Ticket container */
+  .ticket-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 5.5in);
+    grid-template-rows: repeat(5, 1.75in);
+    gap: 0;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+  }
+  
+  /* Individual ticket */
+  .ticket {
+    width: 5.5in;
+    height: 1.75in;
+    page-break-inside: avoid;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    padding: 0.1in;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  /* Ticket front side */
+  .ticket-front {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .ticket-front .ticket-header {
+    text-align: center;
+    font-size: 12pt;
+    font-weight: bold;
+    margin-bottom: 8pt;
+  }
+  
+  .ticket-front .ticket-number {
+    font-size: 16pt;
+    font-weight: bold;
+    margin-bottom: 4pt;
+  }
+  
+  .ticket-front .ticket-category {
+    font-size: 9pt;
+    margin-bottom: 2pt;
+  }
+  
+  .ticket-front .ticket-price {
+    font-size: 10pt;
+    font-weight: bold;
+    margin-bottom: 8pt;
+  }
+  
+  .ticket-front .qr-code {
+    position: absolute;
+    top: 0.15in;
+    right: 0.15in;
+    width: 1in;
+    height: 1in;
+  }
+  
+  .ticket-front .buyer-info {
+    font-size: 8pt;
+    margin-top: 10pt;
+  }
+  
+  .ticket-front .buyer-info input,
+  .ticket-front .buyer-info .field {
+    border: none;
+    border-bottom: 1px solid #333;
+    width: 100%;
+    margin-bottom: 4pt;
+    font-size: 8pt;
+  }
+  
+  .ticket-front .footer {
+    position: absolute;
+    bottom: 0.1in;
+    left: 0.1in;
+    right: 0.1in;
+    text-align: center;
+    font-size: 7pt;
+  }
+  
+  /* Ticket back side (seller stub) */
+  .ticket-back {
+    width: 100%;
+    height: 100%;
+  }
+  
+  .ticket-back .stub-header {
+    font-size: 12pt;
+    font-weight: bold;
+    margin-bottom: 6pt;
+  }
+  
+  .ticket-back .stub-qr {
+    position: absolute;
+    top: 0.1in;
+    right: 0.1in;
+    width: 0.6in;
+    height: 0.6in;
+  }
+  
+  .ticket-back .stub-ticket-number {
+    font-size: 11pt;
+    font-weight: bold;
+    margin-bottom: 6pt;
+  }
+  
+  .ticket-back .stub-category {
+    font-size: 9pt;
+    margin-bottom: 8pt;
+  }
+  
+  .ticket-back .seller-info {
+    font-size: 8pt;
+  }
+  
+  .ticket-back .seller-info input,
+  .ticket-back .seller-info .field {
+    border: none;
+    border-bottom: 1px solid #333;
+    width: 100%;
+    margin-bottom: 4pt;
+    font-size: 8pt;
+  }
+  
+  .ticket-back .stub-footer {
+    position: absolute;
+    bottom: 0.1in;
+    left: 0.1in;
+    right: 0.1in;
+    text-align: center;
+    font-size: 7pt;
+    font-weight: bold;
+  }
+  
+  /* Page break handling */
+  .page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+  
+  /* Prevent orphans and widows */
+  .ticket-grid {
+    orphans: 5;
+    widows: 5;
+  }
+  
+  /* Perforation line indicator (dashed border) */
+  .ticket.perforated {
+    border-style: dashed;
+    border-width: 1px;
+    border-color: #999;
+  }
+  
+  /* Print quality */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
+
+/* Common styles for both screen and print */
+.ticket-title {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.ticket-barcode {
+  text-align: center;
+  margin: 8pt 0;
+}
+
+.qr-code img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Alignment guides (optional - can be toggled) */
+.alignment-marks {
+  position: absolute;
+  width: 0.1in;
+  height: 0.1in;
+  border: 1px solid #f00;
+}
+
+@media print {
+  .alignment-marks {
+    display: none; /* Hide in final print */
+  }
+}
+
+.alignment-marks.top-left {
+  top: 0;
+  left: 0;
+}
+
+.alignment-marks.top-right {
+  top: 0;
+  right: 0;
+}
+
+.alignment-marks.bottom-left {
+  bottom: 0;
+  left: 0;
+}
+
+.alignment-marks.bottom-right {
+  bottom: 0;
+  right: 0;
+}

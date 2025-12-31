@@ -124,7 +124,7 @@ async function markAsPrinted(ticketNumber) {
   try {
     await db.run(
       `UPDATE tickets 
-       SET printed = TRUE, 
+       SET printed = ${db.USE_POSTGRES ? 'TRUE' : '1'}, 
            printed_at = ${db.getCurrentTimestamp()},
            print_count = print_count + 1
        WHERE ticket_number = ?`,
