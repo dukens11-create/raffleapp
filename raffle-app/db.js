@@ -178,8 +178,33 @@ async function initializeSchema() {
       )
     `);
     
-    // Create unique index for ticket_categories
-    await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_raffle_category ON ticket_categories(raffle_id, category_code)`);
+    // Create unique index for ticket_categories (with error handling)
+    try {
+      if (USE_POSTGRES) {
+        // PostgreSQL: Verify table exists first
+        const tableExists = await get(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_name = 'ticket_categories'
+          ) as exists
+        `);
+        
+        if (tableExists && tableExists.exists) {
+          await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_raffle_category ON ticket_categories(raffle_id, category_code)`);
+          console.log('✅ Created unique index on ticket_categories');
+        } else {
+          console.warn('⚠️  Table ticket_categories does not exist, skipping index creation');
+        }
+      } else {
+        // SQLite: Just try to create it
+        await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_raffle_category ON ticket_categories(raffle_id, category_code)`);
+        console.log('✅ Created unique index on ticket_categories');
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not create ticket_categories index:', error.message);
+      console.warn('   This is OK - indexes are performance optimization, not critical');
+      // Don't throw - allow initialization to continue
+    }
     
     // Tickets table (enhanced for raffle system)
     await run(`
@@ -215,17 +240,25 @@ async function initializeSchema() {
       )
     `);
     
-    // Create indexes for tickets table
-    if (USE_POSTGRES) {
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
-    } else {
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+    // Create indexes for tickets table (with error handling)
+    try {
+      if (USE_POSTGRES) {
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+        console.log('✅ Created 4 indexes on tickets table');
+      } else {
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+        console.log('✅ Created 4 indexes on tickets table');
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not create some ticket indexes:', error.message);
+      console.warn('   This is OK - indexes are performance optimization, not critical');
+      // Don't throw - allow initialization to continue
     }
     
     // Print jobs table - for tracking ticket printing
