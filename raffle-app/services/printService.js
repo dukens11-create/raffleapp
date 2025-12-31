@@ -512,6 +512,10 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
   const frontImageBuffer = fs.readFileSync(customTemplate.front_image_path);
   const backImageBuffer = fs.readFileSync(customTemplate.back_image_path);
 
+  // Pre-load required modules (avoid repeated require in loop)
+  const ticketService = require('./ticketService');
+  const bwipjs = require('bwip-js');
+
   // Process tickets in batches per page
   for (let i = 0; i < tickets.length; i += template.ticketsPerPage) {
     const batch = tickets.slice(i, i + template.ticketsPerPage);
@@ -522,8 +526,6 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
     // Pre-generate all codes for the batch to avoid redundant generation
     const batchWithCodes = await Promise.all(batch.map(async (ticket) => {
       // Generate codes if not already generated
-      const ticketService = require('./ticketService');
-      const barcodeGenerator = require('./barcodeGenerator');
       if (!ticket.barcode || !ticket.qr_code_data) {
         const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
         ticket.barcode = codes.barcode;
@@ -542,7 +544,6 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       });
       
       // Generate EAN-13 barcode image (using bwip-js)
-      const bwipjs = require('bwip-js');
       let barcodeBuffer = null;
       if (ticket.barcode) {
         try {
@@ -586,7 +587,6 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
 
       // === OVERLAY TICKET NUMBER (PROMINENT, WITH BACKGROUND FOR READABILITY) ===
       // Add semi-transparent white background box for ticket number
-      const padding = 8;
       doc.rect(x + 10, y + 30, template.ticketWidth - 20, 25)
          .fillOpacity(0.85)
          .fill('#FFFFFF')
@@ -663,7 +663,6 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
 
       // === OVERLAY TICKET NUMBER ON BACK SIDE ===
       // Add background box
-      const padding = 8;
       doc.rect(x + 10, y + 25, template.ticketWidth - 70, 22)
          .fillOpacity(0.85)
          .fill('#FFFFFF')
