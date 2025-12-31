@@ -255,19 +255,11 @@ async function initializeSchema() {
     
     // Create indexes for tickets table (with error handling)
     try {
-      if (USE_POSTGRES) {
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
-        console.log('✅ Created 4 indexes on tickets table');
-      } else {
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
-        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
-        console.log('✅ Created 4 indexes on tickets table');
-      }
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+      console.log('✅ Created 4 indexes on tickets table');
     } catch (error) {
       console.warn('⚠️  Could not create some ticket indexes:', error.message);
       console.warn('   This is OK - indexes are performance optimization, not critical');
