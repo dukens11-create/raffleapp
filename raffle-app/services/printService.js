@@ -132,8 +132,9 @@ async function updatePrintJobStatus(jobId, status, progress = 0) {
  * @param {number} x - X position
  * @param {number} y - Y position
  * @param {Buffer} qrMainImage - Main QR code image buffer
+ * @param {Buffer} barcodeImage - Barcode image buffer
  */
-function drawTicketFront(doc, ticket, template, x, y, qrMainImage) {
+async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage) {
   const { ticketWidth, ticketHeight } = template;
   const padding = 8;
   
@@ -179,8 +180,30 @@ function drawTicketFront(doc, ticket, template, x, y, qrMainImage) {
     });
   }
 
+  // EAN-13 Barcode (center-bottom area)
+  if (barcodeImage) {
+    const barcodeWidth = 120;
+    const barcodeHeight = 40;
+    const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
+    const barcodeY = y + padding + 68;
+    doc.image(barcodeImage, barcodeX, barcodeY, {
+      width: barcodeWidth,
+      height: barcodeHeight
+    });
+    
+    // Display barcode number below the barcode
+    if (ticket.barcode) {
+      doc.fontSize(7)
+         .font('Helvetica')
+         .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 2, {
+           width: ticketWidth - (padding * 2),
+           align: 'center'
+         });
+    }
+  }
+
   // Buyer information fields
-  const fieldsY = y + padding + 95;
+  const fieldsY = y + ticketHeight - 35;
   doc.fontSize(8)
      .font('Helvetica')
      .text('Date: ___________________', x + padding, fieldsY)
@@ -301,24 +324,53 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
     const batchWithCodes = await Promise.all(batch.map(async (ticket) => {
       // Generate codes if not already generated
       const ticketService = require('./ticketService');
+      const barcodeGenerator = require('./barcodeGenerator');
       if (!ticket.barcode || !ticket.qr_code_data) {
         const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
         ticket.barcode = codes.barcode;
         ticket.qr_code_data = codes.qrCodeData;
       }
 
-      // Generate QR code images once for both sides
-      const qrCodes = await qrcodeService.generateTicketQRCode(ticket.ticket_number);
+      // Generate QR code images with full ticket data
+      const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+        size: 96, // 1 inch at 96 DPI
+        errorCorrectionLevel: 'M'
+      });
+      
+      const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+        size: 50, // Smaller for stub
+        errorCorrectionLevel: 'M'
+      });
+      
+      // Generate EAN-13 barcode image (using bwip-js)
+      const bwipjs = require('bwip-js');
+      let barcodeBuffer = null;
+      if (ticket.barcode) {
+        try {
+          barcodeBuffer = await bwipjs.toBuffer({
+            bcid: 'ean13',
+            text: ticket.barcode,
+            scale: 2,
+            height: 10,
+            includetext: false,
+            textxalign: 'center'
+          });
+        } catch (error) {
+          console.error('Barcode generation error:', error);
+        }
+      }
       
       return {
         ticket,
-        qrCodes
+        qrMainBuffer,
+        qrStubBuffer,
+        barcodeBuffer
       };
     }));
     
     // Draw FRONT side tickets in grid layout
     for (let j = 0; j < batchWithCodes.length; j++) {
-      const { ticket, qrCodes } = batchWithCodes[j];
+      const { ticket, qrMainBuffer, barcodeBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (2 columns x N rows)
       const col = j % template.columns;
@@ -327,8 +379,8 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
       const x = template.leftMargin + (col * template.ticketWidth) + (col * template.spacing);
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
-      // Draw FRONT side
-      drawTicketFront(doc, ticket, template, x, y, qrCodes.mainQRCode);
+      // Draw FRONT side with barcode
+      await drawTicketFront(doc, ticket, template, x, y, qrMainBuffer, barcodeBuffer);
     }
     
     // Add page for BACK side (seller stubs) - for duplex printing
@@ -336,7 +388,7 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
     
     // Draw BACK side stubs in same layout (will be on back when printed duplex)
     for (let j = 0; j < batchWithCodes.length; j++) {
-      const { ticket, qrCodes } = batchWithCodes[j];
+      const { ticket, qrStubBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (same as front)
       const col = j % template.columns;
@@ -346,7 +398,7 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
       // Draw BACK side
-      drawTicketBack(doc, ticket, template, x, y, qrCodes.stubQRCode);
+      drawTicketBack(doc, ticket, template, x, y, qrStubBuffer);
       
       // Mark ticket as printed after processing both sides
       const ticketService = require('./ticketService');
