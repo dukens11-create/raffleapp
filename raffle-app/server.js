@@ -2108,6 +2108,133 @@ app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (re
 });
 
 // ============================================================================
+// BULK TICKET GENERATION ENDPOINTS
+// ============================================================================
+
+// Track generation progress globally
+let generationProgress = {
+  total: 1500000,
+  completed: 0,
+  abc: 0,
+  efg: 0,
+  jkl: 0,
+  xyz: 0,
+  inProgress: false
+};
+
+// POST /api/admin/tickets/generate-all - Generate all 1.5M tickets with barcodes and QR codes
+app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (req, res) => {
+  if (generationProgress.inProgress) {
+    return res.status(400).json({ 
+      error: 'Generation already in progress',
+      progress: generationProgress
+    });
+  }
+  
+  const ticketService = require('./services/ticketService');
+  
+  // Reset progress
+  generationProgress.inProgress = true;
+  generationProgress.completed = 0;
+  generationProgress.abc = 0;
+  generationProgress.efg = 0;
+  generationProgress.jkl = 0;
+  generationProgress.xyz = 0;
+  
+  res.json({ 
+    success: true,
+    message: 'Generation started', 
+    total: 1500000 
+  });
+  
+  // Run generation in background
+  generateAllTicketsBackground();
+});
+
+// GET /api/admin/tickets/generation-progress - Get current generation progress
+app.get('/api/admin/tickets/generation-progress', requireAuth, requireAdmin, (req, res) => {
+  res.json(generationProgress);
+});
+
+/**
+ * Background task to generate all tickets for all categories
+ */
+async function generateAllTicketsBackground() {
+  const ticketService = require('./services/ticketService');
+  
+  try {
+    console.log('🚀 Starting bulk ticket generation...');
+    
+    // Check if raffle exists, create if not
+    let raffle = await db.get('SELECT id FROM raffles WHERE id = 1');
+    if (!raffle) {
+      console.log('Creating default raffle...');
+      await db.run(
+        `INSERT INTO raffles (id, name, description, draw_date, status, created_at)
+         VALUES (1, 'Main Raffle', 'Main raffle event', ${db.getCurrentTimestamp()}, 'active', ${db.getCurrentTimestamp()})`
+      );
+      raffle = { id: 1 };
+    }
+    
+    // Define categories with prices
+    const categories = [
+      { code: 'ABC', price: 100, count: 375000 },
+      { code: 'EFG', price: 50, count: 375000 },
+      { code: 'JKL', price: 20, count: 375000 },
+      { code: 'XYZ', price: 10, count: 375000 }
+    ];
+    
+    for (const category of categories) {
+      console.log(`\n📝 Generating ${category.code} tickets...`);
+      
+      // Get or create category
+      let categoryRecord = await db.get(
+        'SELECT id FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [raffle.id, category.code]
+      );
+      
+      if (!categoryRecord) {
+        const result = await db.run(
+          `INSERT INTO ticket_categories (raffle_id, category_code, category_name, price, total_tickets, created_at)
+           VALUES (?, ?, ?, ?, ?, ${db.getCurrentTimestamp()})`,
+          [raffle.id, category.code, `${category.code} Category`, category.price, category.count]
+        );
+        categoryRecord = { id: result.lastID };
+      }
+      
+      // Generate tickets with progress callback
+      await ticketService.generateTickets({
+        raffle_id: raffle.id,
+        category_id: categoryRecord.id,
+        category: category.code,
+        startNum: 1,
+        endNum: category.count,
+        price: category.price,
+        progressCallback: (progress) => {
+          // Update global progress
+          generationProgress[category.code.toLowerCase()] = progress.created;
+          generationProgress.completed = 
+            generationProgress.abc + 
+            generationProgress.efg + 
+            generationProgress.jkl + 
+            generationProgress.xyz;
+        }
+      });
+      
+      console.log(`✅ Completed ${category.code}: ${category.count.toLocaleString()} tickets`);
+    }
+    
+    generationProgress.inProgress = false;
+    console.log('\n🎉 All 1.5M tickets generated successfully!');
+    
+  } catch (error) {
+    console.error('❌ Ticket generation error:', error);
+    generationProgress.inProgress = false;
+    generationProgress.error = error.message;
+  }
+}
+
+// ============================================================================
 // TEMPLATE MANAGEMENT ENDPOINTS
 // ============================================================================
 
