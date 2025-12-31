@@ -2192,56 +2192,90 @@ app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (r
   try {
     const ticketService = require('./services/ticketService');
     
-    // Create raffle if needed
-    let raffle = await db.get('SELECT id FROM raffles WHERE id = 1');
+    // Use raffle ID 1
+    const raffleId = 1;
+    
+    // Step 1: Check if raffle exists
+    let raffle = await db.get('SELECT id FROM raffles WHERE id = ?', [raffleId]);
     if (!raffle) {
-      await db.run(
-        `INSERT INTO raffles (id, name, description, status, created_at)
-         VALUES (1, 'Main Raffle', 'Test raffle', 'active', ${db.getCurrentTimestamp()})`
-      );
-      raffle = { id: 1 };
+      return res.status(404).json({ 
+        error: 'Raffle not found. Please run full generation first to create raffle and categories.' 
+      });
     }
+    console.log('✅ Raffle found:', raffle.id);
     
-    // Create test category
-    let category = await db.get(
-      'SELECT id FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
-      [raffle.id, 'TEST']
-    );
+    // Step 2: Use ABC category for testing (250 tickets per category = 1,000 total)
+    const testCategories = [
+      { code: 'ABC', price: 100 },
+      { code: 'EFG', price: 50 },
+      { code: 'JKL', price: 20 },
+      { code: 'XYZ', price: 10 }
+    ];
     
-    if (!category) {
-      const result = await db.run(
-        `INSERT INTO ticket_categories (raffle_id, category_code, category_name, price, total_tickets, created_at)
-         VALUES (?, 'TEST', 'Test Category', 10, 1000, ${db.getCurrentTimestamp()})`,
-        [raffle.id]
+    let totalCreated = 0;
+    
+    // Generate 250 tickets for each category
+    for (const cat of testCategories) {
+      // Get category record
+      const category = await db.get(
+        'SELECT id FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [raffleId, cat.code]
       );
-      category = { id: result.lastID };
-    }
-    
-    // Generate 1,000 test tickets
-    const result = await ticketService.generateTickets({
-      raffle_id: raffle.id,
-      category_id: category.id,
-      category: 'TEST',
-      startNum: 1,
-      endNum: 1000,
-      price: 10,
-      progressCallback: (progress) => {
-        console.log(`TEST: ${progress.created} / 1000 tickets (${progress.percent}%)`);
+      
+      if (!category) {
+        console.log(`⚠️ Category ${cat.code} not found, skipping...`);
+        continue;
       }
-    });
+      
+      console.log(`🎫 Generating 250 test tickets for ${cat.code}...`);
+      
+      // Get last ticket number for this category
+      const lastTicket = await db.get(
+        'SELECT ticket_number FROM tickets WHERE raffle_id = ? AND category_id = ? ORDER BY id DESC LIMIT 1',
+        [raffleId, category.id]
+      );
+      
+      let startNum = 1;
+      if (lastTicket) {
+        // Extract number from ticket like "ABC-000123"
+        const match = lastTicket.ticket_number.match(/(\d+)$/);
+        if (match) {
+          startNum = parseInt(match[1]) + 1;
+        }
+      }
+      
+      // Generate 250 tickets for this category
+      const result = await ticketService.generateTickets({
+        raffle_id: raffleId,
+        category_id: category.id,
+        category: cat.code,
+        startNum: startNum,
+        endNum: startNum + 249, // 250 tickets
+        price: cat.price,
+        progressCallback: (progress) => {
+          console.log(`  ${cat.code}: ${progress.created} / 250 tickets`);
+        }
+      });
+      
+      totalCreated += result.created;
+      console.log(`✅ ${cat.code}: Generated ${result.created} tickets`);
+    }
     
-    console.log('✅ TEST COMPLETE: Generated', result.created, 'tickets');
+    console.log('✅ TEST COMPLETE: Generated', totalCreated, 'total tickets');
     
     res.json({
       success: true,
-      created: result.created,
-      message: 'Test generation completed successfully'
+      created: totalCreated,
+      message: `Test generation completed successfully! Generated ${totalCreated} tickets across all categories.`
     });
     
   } catch (error) {
     console.error('❌ TEST FAILED:', error.message);
     console.error('❌ Stack:', error.stack);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      error: error.message,
+      details: 'Check server logs for full error details'
+    });
   }
 });
 
