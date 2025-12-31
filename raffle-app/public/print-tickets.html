@@ -345,28 +345,32 @@
         </select>
       </div>
       
-      <div class="form-group" style="margin-top: 24px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px solid #e2e8f0;">
-        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600; color: #1e293b;">🎨 Design Options</h3>
+      <!-- Template Selection Section -->
+      <div style="margin-bottom: 24px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px solid #e2e8f0;">
+        <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px;">🎨 Ticket Design</h3>
         
-        <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
-          <input type="radio" name="templateMode" value="default" checked style="width: auto; margin-right: 8px;">
-          <span>Use Default Template (Standard Design)</span>
-        </label>
-        
-        <label style="display: flex; align-items: center; margin-bottom: 12px; cursor: pointer;">
-          <input type="radio" name="templateMode" value="custom" style="width: auto; margin-right: 8px;">
-          <span>Use Custom Uploaded Template</span>
-        </label>
-        
-        <div id="customTemplateOptions" style="display: none; margin-top: 16px; padding: 16px; background: white; border-radius: 8px; border: 2px solid #667eea;">
-          <label for="templateSelect">Select Template:</label>
-          <select id="templateSelect" style="margin-top: 8px;">
-            <option value="">-- Choose Template --</option>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #475569;">
+            Select Template:
+          </label>
+          <select id="templateSelector" style="width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 8px; font-size: 16px; background: white;">
+            <option value="default">Default Template (Built-in Design)</option>
+            <option value="custom" disabled>Custom Templates (loading...)</option>
           </select>
-          
-          <button type="button" class="btn btn-secondary" style="margin-top: 12px;" onclick="window.location='/upload-template.html'">
-            ➕ Upload New Template
-          </button>
+        </div>
+        
+        <div id="templatePreview" style="display: none; margin-top: 16px; padding: 16px; background: white; border-radius: 8px; border: 2px solid #cbd5e1;">
+          <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 14px;">Template Preview:</h4>
+          <div style="display: flex; gap: 16px; justify-content: center;">
+            <div>
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #64748b; text-align: center;">Front</p>
+              <img id="previewFront" src="" alt="Front preview" style="max-width: 200px; height: auto; border: 1px solid #e2e8f0; border-radius: 4px;">
+            </div>
+            <div>
+              <p style="margin: 0 0 8px 0; font-size: 12px; color: #64748b; text-align: center;">Back</p>
+              <img id="previewBack" src="" alt="Back preview" style="max-width: 200px; height: auto; border: 1px solid #e2e8f0; border-radius: 4px;">
+            </div>
+          </div>
         </div>
       </div>
       
@@ -474,47 +478,65 @@
   <script>
     let currentPreviewData = null;
     
-    // Template management
-    document.addEventListener('DOMContentLoaded', () => {
-      // Load templates on page load
-      loadTemplates();
-      
-      // Template mode toggle
-      document.querySelectorAll('[name="templateMode"]').forEach(radio => {
-        radio.addEventListener('change', (e) => {
-          const customOptions = document.getElementById('customTemplateOptions');
-          if (e.target.value === 'custom') {
-            customOptions.style.display = 'block';
-            loadTemplates();
-          } else {
-            customOptions.style.display = 'none';
-          }
-        });
-      });
-    });
-    
+    // Load available templates on page load
     async function loadTemplates() {
       try {
         const response = await fetch('/api/admin/templates');
         const { templates } = await response.json();
         
-        const select = document.getElementById('templateSelect');
-        select.innerHTML = '<option value="">-- Choose Template --</option>';
+        const selector = document.getElementById('templateSelector');
         
-        templates.forEach(template => {
-          const option = document.createElement('option');
-          option.value = template.id;
-          option.textContent = template.name;
-          if (template.is_active === 1 || template.is_active === true) {
-            option.textContent += ' (Active)';
-            option.selected = true;
-          }
-          select.appendChild(option);
-        });
+        // Remove loading option
+        const loadingOption = selector.querySelector('option[value="custom"]');
+        if (loadingOption) loadingOption.remove();
+        
+        // Add custom templates
+        if (templates && templates.length > 0) {
+          templates.forEach(template => {
+            if (template.is_active === 1 || template.is_active === true) {
+              const option = document.createElement('option');
+              option.value = template.id;
+              option.textContent = `${template.name} (Custom)`;
+              option.dataset.frontImage = template.front_image_path;
+              option.dataset.backImage = template.back_image_path;
+              option.dataset.fitMode = template.fit_mode;
+              selector.appendChild(option);
+            }
+          });
+        }
+        
+        // Show template info when selected
+        selector.addEventListener('change', showTemplatePreview);
+        
       } catch (error) {
         console.error('Error loading templates:', error);
       }
     }
+    
+    // Show preview of selected template
+    function showTemplatePreview() {
+      const selector = document.getElementById('templateSelector');
+      const preview = document.getElementById('templatePreview');
+      const selectedOption = selector.options[selector.selectedIndex];
+      
+      if (selectedOption.value === 'default') {
+        preview.style.display = 'none';
+        return;
+      }
+      
+      // Show preview for custom template
+      const frontImage = selectedOption.dataset.frontImage;
+      const backImage = selectedOption.dataset.backImage;
+      
+      if (frontImage && backImage) {
+        document.getElementById('previewFront').src = `/uploads/templates/${frontImage}`;
+        document.getElementById('previewBack').src = `/uploads/templates/${backImage}`;
+        preview.style.display = 'block';
+      }
+    }
+    
+    // Call on page load
+    window.addEventListener('load', loadTemplates);
     
     // Calculate sheets when ticket range changes
     function updateSheetCount() {
@@ -632,9 +654,9 @@
       const start = document.getElementById('start-ticket').value;
       const end = document.getElementById('end-ticket').value;
       
-      // Get template mode and selection
-      const templateMode = document.querySelector('[name="templateMode"]:checked').value;
-      const templateId = document.getElementById('templateSelect').value;
+      // Get template selection
+      const templateSelector = document.getElementById('templateSelector');
+      const templateId = templateSelector.value;
       
       // Build ticket range
       const startPadded = String(start).padStart(9, '0');
@@ -652,10 +674,10 @@
           paper_type: 'AVERY_16145'
         };
         
-        // Add custom template info if using custom mode
-        if (templateMode === 'custom' && templateId) {
+        // Add custom template info if using custom template
+        if (templateId && templateId !== 'default') {
           requestBody.use_custom_template = true;
-          requestBody.template_id = templateId;
+          requestBody.template_id = parseInt(templateId);
         }
         
         const response = await fetch('/api/admin/tickets/print/generate', {

@@ -475,6 +475,7 @@ async function getPrintJob(jobId) {
 /**
  * Generate PDF for ticket printing with custom template
  * Uses uploaded custom images instead of default template design
+ * Overlays barcodes and QR codes on top of custom template
  * 
  * @param {Array} tickets - Array of ticket objects
  * @param {Object} customTemplate - Custom template object from database
@@ -496,10 +497,19 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
 
   let ticketCount = 0;
   const totalTickets = tickets.length;
+  const path = require('path');
 
-  // Load custom template images
-  const frontImageBuffer = fs.readFileSync(customTemplate.front_image_path);
-  const backImageBuffer = fs.readFileSync(customTemplate.back_image_path);
+  // Resolve absolute paths for custom template images
+  const frontImagePath = path.join(__dirname, '..', customTemplate.front_image_path);
+  const backImagePath = path.join(__dirname, '..', customTemplate.back_image_path);
+
+  // Check if images exist
+  if (!fs.existsSync(frontImagePath)) {
+    throw new Error(`Front template image not found: ${frontImagePath}`);
+  }
+  if (!fs.existsSync(backImagePath)) {
+    throw new Error(`Back template image not found: ${backImagePath}`);
+  }
 
   // Process tickets in batches per page
   for (let i = 0; i < tickets.length; i += template.ticketsPerPage) {
@@ -508,9 +518,56 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
     // Add page for FRONT side (buyer tickets)
     if (i > 0) doc.addPage();
     
+    // Pre-generate all codes for the batch
+    const batchWithCodes = await Promise.all(batch.map(async (ticket) => {
+      // Generate codes if not already generated
+      const ticketService = require('./ticketService');
+      if (!ticket.barcode || !ticket.qr_code_data) {
+        const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+        ticket.barcode = codes.barcode;
+        ticket.qr_code_data = codes.qrCodeData;
+      }
+
+      // Generate QR code images with full ticket data
+      const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+        size: 96,
+        errorCorrectionLevel: 'M'
+      });
+      
+      const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+        size: 50,
+        errorCorrectionLevel: 'M'
+      });
+      
+      // Generate EAN-13 barcode image
+      const bwipjs = require('bwip-js');
+      let barcodeBuffer = null;
+      if (ticket.barcode) {
+        try {
+          barcodeBuffer = await bwipjs.toBuffer({
+            bcid: 'ean13',
+            text: ticket.barcode,
+            scale: 2,
+            height: 10,
+            includetext: false,
+            textxalign: 'center'
+          });
+        } catch (error) {
+          console.error('Barcode generation error:', error);
+        }
+      }
+      
+      return {
+        ticket,
+        qrMainBuffer,
+        qrStubBuffer,
+        barcodeBuffer
+      };
+    }));
+    
     // Draw FRONT side tickets with custom template
-    for (let j = 0; j < batch.length; j++) {
-      const ticket = batch[j];
+    for (let j = 0; j < batchWithCodes.length; j++) {
+      const { ticket, qrMainBuffer, barcodeBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (2 columns x N rows)
       const col = j % template.columns;
@@ -519,22 +576,62 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       const x = template.leftMargin + (col * template.ticketWidth) + (col * template.spacing);
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
-      // Draw custom template image
-      doc.image(frontImageBuffer, x, y, {
-        width: template.ticketWidth,
-        height: template.ticketHeight
-      });
+      // Draw custom template image as background
+      try {
+        doc.image(frontImagePath, x, y, {
+          width: template.ticketWidth,
+          height: template.ticketHeight,
+          fit: customTemplate.fit_mode || 'cover'
+        });
+      } catch (error) {
+        console.error('Error drawing front template image:', error);
+        // Fallback to default template
+        await drawTicketFront(doc, ticket, template, x, y, qrMainBuffer, barcodeBuffer);
+        continue;
+      }
 
-      // Draw tear-off line
-      drawTearOffLine(doc, x, y, template.ticketWidth, template.ticketHeight);
+      // Overlay QR code (top right corner)
+      if (qrMainBuffer) {
+        const qrSize = 60;
+        const qrX = x + template.ticketWidth - qrSize - 10;
+        const qrY = y + 10;
+        doc.image(qrMainBuffer, qrX, qrY, {
+          width: qrSize,
+          height: qrSize
+        });
+      }
+
+      // Overlay barcode (bottom center)
+      if (barcodeBuffer) {
+        const barcodeWidth = 120;
+        const barcodeHeight = 40;
+        const barcodeX = x + (template.ticketWidth - barcodeWidth) / 2;
+        const barcodeY = y + template.ticketHeight - barcodeHeight - 15;
+        
+        doc.image(barcodeBuffer, barcodeX, barcodeY, {
+          width: barcodeWidth,
+          height: barcodeHeight
+        });
+        
+        // Barcode number below
+        if (ticket.barcode) {
+          doc.fontSize(7)
+             .font('Helvetica')
+             .fillColor('#000000')
+             .text(ticket.barcode, x, barcodeY + barcodeHeight + 2, {
+               width: template.ticketWidth,
+               align: 'center'
+             });
+        }
+      }
     }
     
     // Add page for BACK side (seller stubs)
     doc.addPage();
     
     // Draw BACK side stubs with custom template
-    for (let j = 0; j < batch.length; j++) {
-      const ticket = batch[j];
+    for (let j = 0; j < batchWithCodes.length; j++) {
+      const { ticket, qrStubBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (same as front)
       const col = j % template.columns;
@@ -543,14 +640,30 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       const x = template.leftMargin + (col * template.ticketWidth) + (col * template.spacing);
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
-      // Draw custom template image
-      doc.image(backImageBuffer, x, y, {
-        width: template.ticketWidth,
-        height: template.ticketHeight
-      });
+      // Draw custom template image as background
+      try {
+        doc.image(backImagePath, x, y, {
+          width: template.ticketWidth,
+          height: template.ticketHeight,
+          fit: customTemplate.fit_mode || 'cover'
+        });
+      } catch (error) {
+        console.error('Error drawing back template image:', error);
+        // Fallback to default template
+        drawTicketBack(doc, ticket, template, x, y, qrStubBuffer);
+        continue;
+      }
 
-      // Draw tear-off line
-      drawTearOffLine(doc, x, y, template.ticketWidth, template.ticketHeight);
+      // Overlay small QR code (top right corner)
+      if (qrStubBuffer) {
+        const qrSize = 50;
+        const qrX = x + template.ticketWidth - qrSize - 10;
+        const qrY = y + 10;
+        doc.image(qrStubBuffer, qrX, qrY, {
+          width: qrSize,
+          height: qrSize
+        });
+      }
       
       // Mark ticket as printed after processing both sides
       const ticketService = require('./ticketService');
