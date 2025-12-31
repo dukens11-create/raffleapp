@@ -250,11 +250,22 @@
   </style>
 </head>
 <body>
+  <div style="position: fixed; top: 10px; right: 10px; z-index: 9999;">
+    <a href="/debug-tickets.html" class="btn" style="background: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+      🔍 Debug Page
+    </a>
+  </div>
+  
   <header>
     <h1>
       🎫 Generate 1.5 Million Tickets
     </h1>
-    <a href="/admin.html" class="back-btn">← Back to Admin</a>
+    <div style="display: flex; gap: 12px; align-items: center;">
+      <a href="/debug-tickets.html" class="back-btn" style="background: #3b82f6;">
+        🔍 Open Debug Page
+      </a>
+      <a href="/admin.html" class="back-btn">← Back to Admin</a>
+    </div>
   </header>
   
   <div class="container">
