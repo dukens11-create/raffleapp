@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generate 1.5M Tickets - Raffle App</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    
+    header {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      padding: 24px 32px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 32px;
+      justify-content: space-between;
+    }
+    
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .back-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.3s;
+    }
+    
+    .back-btn:hover {
+      background: #5568d3;
+    }
+    
+    .container {
+      max-width: 900px;
+      width: 90%;
+      margin: 0 auto 40px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+    }
+    
+    h2 {
+      color: #1e293b;
+      font-size: 24px;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
+    
+    .info-list {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    
+    .info-list ul {
+      margin: 0;
+      padding-left: 20px;
+    }
+    
+    .info-list li {
+      margin: 8px 0;
+      color: #475569;
+    }
+    
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      margin: 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .alert-warning {
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      color: #92400e;
+    }
+    
+    .alert-success {
+      background: #d1fae5;
+      border: 1px solid #34d399;
+      color: #065f46;
+    }
+    
+    .alert-danger {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+    }
+    
+    .alert-info {
+      background: #dbeafe;
+      border: 1px solid #3b82f6;
+      color: #1e40af;
+    }
+    
+    .btn {
+      padding: 14px 28px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .progress-section {
+      display: none;
+      margin-top: 24px;
+    }
+    
+    .progress-bar-container {
+      background: #e2e8f0;
+      border-radius: 8px;
+      height: 32px;
+      overflow: hidden;
+      margin: 16px 0;
+      position: relative;
+    }
+    
+    .progress-bar {
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .progress-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 12px 0;
+    }
+    
+    .category-progress {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    
+    .category-card {
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 16px;
+      border: 2px solid #e2e8f0;
+    }
+    
+    .category-card h4 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      color: #1e293b;
+    }
+    
+    .category-card .count {
+      font-size: 24px;
+      font-weight: 700;
+      color: #667eea;
+    }
+    
+    .category-card .total {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>
+      🎫 Generate 1.5 Million Tickets
+    </h1>
+    <a href="/admin.html" class="back-btn">← Back to Admin</a>
+  </header>
+  
+  <div class="container">
+    <div class="card">
+      <h2>Automatic Ticket Generation with Barcodes & QR Codes</h2>
+      
+      <p>This will generate 1,500,000 unique raffle tickets with:</p>
+      
+      <div class="info-list">
+        <ul>
+          <li><strong>ABC Category:</strong> 375,000 tickets at $100 each</li>
+          <li><strong>EFG Category:</strong> 375,000 tickets at $50 each</li>
+          <li><strong>JKL Category:</strong> 375,000 tickets at $20 each</li>
+          <li><strong>XYZ Category:</strong> 375,000 tickets at $10 each</li>
+        </ul>
+      </div>
+      
+      <div class="alert alert-info">
+        ℹ️ Each ticket will have a unique EAN-13 barcode and QR code containing full ticket information.
+      </div>
+      
+      <div class="alert alert-warning">
+        ⚠️ <strong>Important:</strong> This process will take 10-15 minutes. Do not close this page during generation.
+      </div>
+      
+      <button id="generateBtn" class="btn btn-primary" onclick="generateAllTickets()">
+        <span>🚀 Generate All 1.5M Tickets</span>
+      </button>
+      
+      <div id="progress" class="progress-section">
+        <h3>Generation Progress:</h3>
+        <div class="progress-bar-container">
+          <div id="progressBar" class="progress-bar">0%</div>
+        </div>
+        <p id="progressText" class="progress-text">0 / 1,500,000 tickets (0%)</p>
+        <div id="categoryProgress" class="category-progress"></div>
+      </div>
+      
+      <div id="result"></div>
+    </div>
+  </div>
+  
+  <script>
+    let pollingInterval = null;
+    
+    async function generateAllTickets() {
+      const btn = document.getElementById('generateBtn');
+      const progress = document.getElementById('progress');
+      const result = document.getElementById('result');
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Starting...';
+      progress.style.display = 'block';
+      result.innerHTML = '';
+      
+      try {
+        const response = await fetch('/api/admin/tickets/generate-all', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ raffle_id: 1 })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Generation failed');
+        }
+        
+        const data = await response.json();
+        console.log('Generation started:', data);
+        
+        btn.innerHTML = '<span class="spinner"></span> Generating...';
+        
+        // Poll for progress
+        pollProgress();
+        
+      } catch (error) {
+        result.innerHTML = `<div class="alert alert-danger">❌ Error: ${error.message}</div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<span>🚀 Generate All 1.5M Tickets</span>';
+        progress.style.display = 'none';
+      }
+    }
+    
+    async function pollProgress() {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+      
+      pollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/admin/tickets/generation-progress');
+          const data = await response.json();
+          
+          const percent = (data.completed / data.total * 100).toFixed(1);
+          const progressBar = document.getElementById('progressBar');
+          progressBar.style.width = percent + '%';
+          progressBar.textContent = percent + '%';
+          
+          document.getElementById('progressText').textContent = 
+            `${data.completed.toLocaleString()} / ${data.total.toLocaleString()} tickets (${percent}%)`;
+          
+          document.getElementById('categoryProgress').innerHTML = `
+            <div class="category-card">
+              <h4>ABC</h4>
+              <div class="count">${data.abc.toLocaleString()}</div>
+              <div class="total">/ 375,000</div>
+            </div>
+            <div class="category-card">
+              <h4>EFG</h4>
+              <div class="count">${data.efg.toLocaleString()}</div>
+              <div class="total">/ 375,000</div>
+            </div>
+            <div class="category-card">
+              <h4>JKL</h4>
+              <div class="count">${data.jkl.toLocaleString()}</div>
+              <div class="total">/ 375,000</div>
+            </div>
+            <div class="category-card">
+              <h4>XYZ</h4>
+              <div class="count">${data.xyz.toLocaleString()}</div>
+              <div class="total">/ 375,000</div>
+            </div>
+          `;
+          
+          if (data.completed >= data.total) {
+            clearInterval(pollingInterval);
+            document.getElementById('result').innerHTML = 
+              '<div class="alert alert-success">✅ All 1.5M tickets generated successfully with barcodes and QR codes!</div>';
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span>✓ Generation Complete</span>';
+          }
+        } catch (error) {
+          console.error('Error polling progress:', error);
+        }
+      }, 2000); // Poll every 2 seconds
+    }
+    
+    // Check if generation is already in progress on page load
+    window.addEventListener('load', async () => {
+      try {
+        const response = await fetch('/api/admin/tickets/generation-progress');
+        const data = await response.json();
+        
+        if (data.inProgress) {
+          document.getElementById('progress').style.display = 'block';
+          document.getElementById('generateBtn').disabled = true;
+          document.getElementById('generateBtn').innerHTML = '<span class="spinner"></span> Generating...';
+          pollProgress();
+        }
+      } catch (error) {
+        console.error('Error checking generation status:', error);
+      }
+    });
+  </script>
+</body>
+</html>

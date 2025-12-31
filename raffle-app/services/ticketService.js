@@ -6,15 +6,16 @@
 const db = require('../db');
 const barcodeService = require('./barcodeService');
 const qrcodeService = require('./qrcodeService');
+const barcodeGenerator = require('./barcodeGenerator');
 
 /**
- * Create a single ticket
+ * Create a single ticket with auto-generated barcode and QR code
  * 
  * @param {Object} ticketData - Ticket information
  * @param {number} ticketData.raffle_id - Raffle ID
  * @param {number} ticketData.category_id - Category ID
  * @param {string} ticketData.category - Category code (ABC, EFG, JKL, XYZ)
- * @param {string} ticketData.ticket_number - Ticket number
+ * @param {string} ticketData.ticket_number - Ticket number (e.g., "ABC-000001")
  * @param {number} ticketData.price - Ticket price
  * @returns {Promise<Object>} - Created ticket
  */
@@ -28,15 +29,33 @@ async function createTicket(ticketData) {
   } = ticketData;
 
   try {
+    // Extract sequence number from ticket_number (e.g., "ABC-000001" -> 1)
+    const parts = ticket_number.split('-');
+    const sequenceNum = parseInt(parts[1], 10);
+    
+    // Generate EAN-13 barcode
+    const barcode = barcodeGenerator.generateBarcode(category, sequenceNum);
+    
+    // Generate QR code data (JSON string)
+    const qrCodeData = qrcodeService.generateQRCodeData({
+      ticket_number,
+      barcode,
+      category,
+      price,
+      raffle_id
+    });
+
     const result = await db.run(
-      `INSERT INTO tickets (raffle_id, category_id, category, ticket_number, price, status, created_at)
-       VALUES (?, ?, ?, ?, ?, 'AVAILABLE', ${db.getCurrentTimestamp()})`,
-      [raffle_id, category_id, category, ticket_number, price]
+      `INSERT INTO tickets (raffle_id, category_id, category, ticket_number, barcode, qr_code_data, price, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', ${db.getCurrentTimestamp()})`,
+      [raffle_id, category_id, category, ticket_number, barcode, qrCodeData, price]
     );
 
     return {
       id: result.lastID,
       ...ticketData,
+      barcode,
+      qr_code_data: qrCodeData,
       status: 'AVAILABLE',
       printed: false
     };
@@ -248,6 +267,116 @@ async function createTicketsForRange(params) {
 }
 
 /**
+ * Generate tickets with barcodes and QR codes in bulk (optimized for large-scale generation)
+ * 
+ * @param {Object} params - Parameters
+ * @param {number} params.raffle_id - Raffle ID
+ * @param {number} params.category_id - Category ID
+ * @param {string} params.category - Category code (ABC, EFG, JKL, XYZ)
+ * @param {number} params.startNum - Start sequence number (e.g., 1)
+ * @param {number} params.endNum - End sequence number (e.g., 375000)
+ * @param {number} params.price - Ticket price
+ * @param {Function} params.progressCallback - Optional callback for progress updates
+ * @returns {Promise<Object>} - { created, total }
+ */
+async function generateTickets(params) {
+  const { raffle_id, category_id, category, startNum, endNum, price, progressCallback } = params;
+  
+  console.log(`🎫 Generating tickets for ${category}: ${startNum} to ${endNum}`);
+  
+  const batchSize = 1000;
+  const totalTickets = endNum - startNum + 1;
+  let created = 0;
+  
+  for (let i = startNum; i <= endNum; i += batchSize) {
+    const batchEnd = Math.min(i + batchSize - 1, endNum);
+    const tickets = [];
+    
+    // Generate batch of tickets with barcodes and QR codes
+    for (let ticketNum = i; ticketNum <= batchEnd; ticketNum++) {
+      const paddedNum = String(ticketNum).padStart(6, '0');
+      const ticket_number = `${category}-${paddedNum}`;
+      
+      // Generate EAN-13 barcode
+      const barcode = barcodeGenerator.generateBarcode(category, ticketNum);
+      
+      // Generate QR code data (JSON string)
+      const qr_code_data = qrcodeService.generateQRCodeData({
+        ticket_number,
+        barcode,
+        category,
+        price,
+        raffle_id
+      });
+      
+      tickets.push({
+        raffle_id,
+        category_id,
+        category,
+        ticket_number,
+        barcode,
+        qr_code_data,
+        price
+      });
+    }
+    
+    // Batch insert
+    await batchInsertTickets(tickets);
+    created += tickets.length;
+    
+    // Report progress
+    if (progressCallback) {
+      progressCallback({
+        category,
+        created,
+        total: totalTickets,
+        percent: ((created / totalTickets) * 100).toFixed(1)
+      });
+    }
+    
+    console.log(`✅ ${category}: ${created.toLocaleString()} / ${totalTickets.toLocaleString()} tickets`);
+  }
+  
+  return {
+    created,
+    total: totalTickets
+  };
+}
+
+/**
+ * Batch insert tickets into database (optimized for performance)
+ * 
+ * @param {Array<Object>} tickets - Array of ticket objects
+ * @returns {Promise<void>}
+ */
+async function batchInsertTickets(tickets) {
+  if (!tickets || tickets.length === 0) {
+    return;
+  }
+  
+  const placeholders = tickets.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ${db.getCurrentTimestamp()})').join(',');
+  const values = tickets.flatMap(t => [
+    t.raffle_id,
+    t.category_id,
+    t.category,
+    t.ticket_number,
+    t.barcode,
+    t.qr_code_data,
+    t.price,
+    'AVAILABLE'
+  ]);
+  
+  const sql = `
+    INSERT INTO tickets (
+      raffle_id, category_id, category, ticket_number, 
+      barcode, qr_code_data, price, status, created_at
+    ) VALUES ${placeholders}
+  `.replace(/\$\{db\.getCurrentTimestamp\(\)\}/g, db.getCurrentTimestamp());
+  
+  await db.run(sql, values);
+}
+
+/**
  * Sell a ticket (basic function)
  * 
  * @param {string} ticketNumber - Ticket number
@@ -348,6 +477,8 @@ module.exports = {
   getTicketsByRange,
   generateTicketNumbers,
   createTicketsForRange,
+  generateTickets,
+  batchInsertTickets,
   sellTicket,
   getTicketsByCategory,
   getTicketStats

@@ -146,6 +146,99 @@ function extractTicketNumberFromURL(url) {
   return parts[parts.length - 1];
 }
 
+/**
+ * Generate QR code data with full ticket information
+ * Creates JSON data containing all ticket details
+ * 
+ * @param {Object} ticket - Ticket object
+ * @param {string} ticket.ticket_number - Ticket number
+ * @param {string} ticket.barcode - Barcode number
+ * @param {string} ticket.category - Category code
+ * @param {number} ticket.price - Ticket price
+ * @param {number} ticket.raffle_id - Raffle ID
+ * @returns {string} - JSON string with ticket data
+ */
+function generateQRCodeData(ticket) {
+  const qrData = {
+    ticket_number: ticket.ticket_number,
+    barcode: ticket.barcode,
+    category: ticket.category,
+    price: ticket.price,
+    raffle_id: ticket.raffle_id,
+    generated_at: new Date().toISOString()
+  };
+  
+  return JSON.stringify(qrData);
+}
+
+/**
+ * Generate QR code buffer for printing with full ticket data
+ * 
+ * @param {Object} ticket - Ticket object with all details
+ * @param {Object} options - QR code options
+ * @param {number} options.size - Size in pixels (default: 150)
+ * @returns {Promise<Buffer>} - PNG buffer
+ */
+async function generateQRCodeBuffer(ticket, options = {}) {
+  const {
+    size = 150,
+    errorCorrectionLevel = 'M'
+  } = options;
+
+  const qrString = generateQRCodeData(ticket);
+  
+  try {
+    const buffer = await QRCode.toBuffer(qrString, {
+      errorCorrectionLevel: errorCorrectionLevel,
+      type: 'png',
+      width: size,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    
+    return buffer;
+  } catch (error) {
+    console.error('QR code buffer generation error:', error);
+    throw new Error(`Failed to generate QR code buffer: ${error.message}`);
+  }
+}
+
+/**
+ * Generate QR code as data URL with full ticket data
+ * 
+ * @param {Object} ticket - Ticket object with all details
+ * @param {Object} options - QR code options
+ * @returns {Promise<string>} - Data URL
+ */
+async function generateQRCode(ticket, options = {}) {
+  const {
+    size = 200,
+    errorCorrectionLevel = 'M'
+  } = options;
+
+  const qrString = generateQRCodeData(ticket);
+  
+  try {
+    const dataURL = await QRCode.toDataURL(qrString, {
+      errorCorrectionLevel: errorCorrectionLevel,
+      width: size,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    
+    return dataURL;
+  } catch (error) {
+    console.error('QR code data URL generation error:', error);
+    throw new Error(`Failed to generate QR code: ${error.message}`);
+  }
+}
+
 module.exports = {
   generateVerificationURL,
   generateQRCodeImage,
@@ -153,5 +246,8 @@ module.exports = {
   generateQRCodeDataURL,
   validateVerificationURL,
   extractTicketNumberFromURL,
+  generateQRCodeData,
+  generateQRCodeBuffer,
+  generateQRCode,
   VERIFICATION_BASE_URL
 };
