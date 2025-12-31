@@ -223,7 +223,7 @@ async function initializeSchema() {
     await run(`
       CREATE TABLE IF NOT EXISTS tickets (
         id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        raffle_id INTEGER,
+        raffle_id INTEGER NOT NULL ${USE_POSTGRES ? 'REFERENCES raffles(id) ON DELETE CASCADE' : ''},
         category_id INTEGER,
         ticket_number TEXT UNIQUE NOT NULL,
         buyer_name TEXT,
