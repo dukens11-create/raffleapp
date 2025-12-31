@@ -72,8 +72,38 @@ async function validateDatabaseSetup() {
   }
 }
 
-// Initialize database schema and validate setup
+/**
+ * Run database migrations
+ */
+async function runMigrations() {
+  console.log('🔄 Running database migrations...');
+  
+  // Only run migrations for PostgreSQL
+  if (!db.USE_POSTGRES) {
+    console.log('⚠️  Skipping migrations - SQLite database detected');
+    return;
+  }
+  
+  const migrationFile = path.join(__dirname, 'migrations', 'add_raffle_id_to_tickets.sql');
+  
+  if (fs.existsSync(migrationFile)) {
+    const sql = fs.readFileSync(migrationFile, 'utf8');
+    try {
+      await db.run(sql);
+      console.log('✅ Migrations completed successfully');
+    } catch (error) {
+      console.error('❌ Migration failed:', error.message);
+      // Don't crash the server, just log the error
+      // The migration is idempotent, so it's safe to continue
+    }
+  } else {
+    console.log('⚠️  No migration file found at:', migrationFile);
+  }
+}
+
+// Initialize database schema, run migrations, and validate setup
 db.initializeSchema()
+  .then(() => runMigrations())
   .then(() => validateDatabaseSetup())
   .catch(err => {
     console.error('Failed to initialize database:', err);
