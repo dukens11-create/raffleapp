@@ -1643,7 +1643,7 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req,
 const ticketService = require('./services/ticketService');
 const printService = require('./services/printService');
 const importExportService = require('./services/importExportService');
-const multer = require('multer');
+// Note: multer is already imported at the top of the file
 
 // Configure multer for file uploads
 const upload = multer({ 
