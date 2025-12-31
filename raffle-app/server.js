@@ -2194,6 +2194,7 @@ app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (r
     
     // Use raffle ID 1
     const raffleId = 1;
+    const TICKETS_PER_CATEGORY = 250;
     
     // Step 1: Check if raffle exists
     let raffle = await db.get('SELECT id FROM raffles WHERE id = ?', [raffleId]);
@@ -2204,7 +2205,7 @@ app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (r
     }
     console.log('✅ Raffle found:', raffle.id);
     
-    // Step 2: Use ABC category for testing (250 tickets per category = 1,000 total)
+    // Step 2: Use all valid categories for testing (250 tickets per category = 1,000 total)
     const testCategories = [
       { code: 'ABC', price: 100 },
       { code: 'EFG', price: 50 },
@@ -2214,7 +2215,7 @@ app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (r
     
     let totalCreated = 0;
     
-    // Generate 250 tickets for each category
+    // Generate tickets for each category
     for (const cat of testCategories) {
       // Get category record
       const category = await db.get(
@@ -2227,7 +2228,7 @@ app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (r
         continue;
       }
       
-      console.log(`🎫 Generating 250 test tickets for ${cat.code}...`);
+      console.log(`🎫 Generating ${TICKETS_PER_CATEGORY} test tickets for ${cat.code}...`);
       
       // Get last ticket number for this category
       const lastTicket = await db.get(
@@ -2237,23 +2238,23 @@ app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (r
       
       let startNum = 1;
       if (lastTicket) {
-        // Extract number from ticket like "ABC-000123"
-        const match = lastTicket.ticket_number.match(/(\d+)$/);
+        // Extract number from ticket like "ABC-000123" (6-digit format)
+        const match = lastTicket.ticket_number.match(/-(\d+)$/);
         if (match) {
-          startNum = parseInt(match[1]) + 1;
+          startNum = parseInt(match[1], 10) + 1;
         }
       }
       
-      // Generate 250 tickets for this category
+      // Generate tickets for this category
       const result = await ticketService.generateTickets({
         raffle_id: raffleId,
         category_id: category.id,
         category: cat.code,
         startNum: startNum,
-        endNum: startNum + 249, // 250 tickets
+        endNum: startNum + TICKETS_PER_CATEGORY - 1,
         price: cat.price,
         progressCallback: (progress) => {
-          console.log(`  ${cat.code}: ${progress.created} / 250 tickets`);
+          console.log(`  ${cat.code}: ${progress.created} / ${TICKETS_PER_CATEGORY} tickets`);
         }
       });
       
