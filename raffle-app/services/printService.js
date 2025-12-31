@@ -8,6 +8,14 @@ const barcodeService = require('./barcodeService');
 const qrcodeService = require('./qrcodeService');
 const db = require('../db');
 
+// Category display names mapping
+const CATEGORY_NAMES = {
+  'ABC': { full: 'ABC - Regular', short: 'ABC ($50)' },
+  'EFG': { full: 'EFG - Silver', short: 'EFG ($100)' },
+  'JKL': { full: 'JKL - Gold', short: 'JKL ($250)' },
+  'XYZ': { full: 'XYZ - Platinum', short: 'XYZ ($500)' }
+};
+
 // Paper templates configuration
 const TEMPLATES = {
   AVERY_16145: {
@@ -147,17 +155,9 @@ function drawTicketFront(doc, ticket, template, x, y, qrMainImage) {
        align: 'left'
      });
 
-  // Category and price
-  const categoryMap = {
-    'ABC': 'ABC - Regular',
-    'EFG': 'EFG - Silver',
-    'JKL': 'JKL - Gold',
-    'XYZ': 'XYZ - Platinum'
-  };
-  
   doc.fontSize(9)
      .font('Helvetica')
-     .text(`Category: ${categoryMap[ticket.category] || ticket.category}`, x + padding, y + padding + 38, {
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, y + padding + 38, {
        width: ticketWidth - 120 - (padding * 2)
      });
   
@@ -238,17 +238,9 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
      .font('Helvetica-Bold')
      .text(`Ticket #: ${ticket.ticket_number}`, x + padding, y + padding + 20);
 
-  // Category
-  const categoryMap = {
-    'ABC': 'ABC ($50)',
-    'EFG': 'EFG ($100)',
-    'JKL': 'JKL ($250)',
-    'XYZ': 'XYZ ($500)'
-  };
-  
   doc.fontSize(9)
      .font('Helvetica')
-     .text(`Category: ${categoryMap[ticket.category] || ticket.category}`, x + padding, y + padding + 35);
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.short || ticket.category}`, x + padding, y + padding + 35);
 
   // Seller information fields
   const fieldsY = y + padding + 55;
@@ -301,13 +293,11 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
   for (let i = 0; i < tickets.length; i += template.ticketsPerPage) {
     const batch = tickets.slice(i, i + template.ticketsPerPage);
     
-    // Add page for FRONT side (buyer tickets)
+    // Add page for FRONT side (buyer tickets) - always add page (even for first batch)
     if (i > 0) doc.addPage();
     
-    // Draw tickets in grid layout (2 columns x 5 rows for Avery 16145)
-    for (let j = 0; j < batch.length; j++) {
-      const ticket = batch[j];
-      
+    // Pre-generate all codes for the batch to avoid redundant generation
+    const batchWithCodes = await Promise.all(batch.map(async (ticket) => {
       // Generate codes if not already generated
       const ticketService = require('./ticketService');
       if (!ticket.barcode || !ticket.qr_code_data) {
@@ -316,8 +306,18 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
         ticket.qr_code_data = codes.qrCodeData;
       }
 
-      // Generate QR code images
+      // Generate QR code images once for both sides
       const qrCodes = await qrcodeService.generateTicketQRCode(ticket.ticket_number);
+      
+      return {
+        ticket,
+        qrCodes
+      };
+    }));
+    
+    // Draw FRONT side tickets in grid layout
+    for (let j = 0; j < batchWithCodes.length; j++) {
+      const { ticket, qrCodes } = batchWithCodes[j];
 
       // Calculate position in grid (2 columns x N rows)
       const col = j % template.columns;
@@ -333,12 +333,9 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
     // Add page for BACK side (seller stubs) - for duplex printing
     doc.addPage();
     
-    // Draw stubs in same layout (will be on back when printed duplex)
-    for (let j = 0; j < batch.length; j++) {
-      const ticket = batch[j];
-      
-      // Generate QR code images (reuse if already generated)
-      const qrCodes = await qrcodeService.generateTicketQRCode(ticket.ticket_number);
+    // Draw BACK side stubs in same layout (will be on back when printed duplex)
+    for (let j = 0; j < batchWithCodes.length; j++) {
+      const { ticket, qrCodes } = batchWithCodes[j];
 
       // Calculate position in grid (same as front)
       const col = j % template.columns;
@@ -351,6 +348,7 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
       drawTicketBack(doc, ticket, template, x, y, qrCodes.stubQRCode);
       
       // Mark ticket as printed after processing both sides
+      const ticketService = require('./ticketService');
       await ticketService.markAsPrinted(ticket.ticket_number);
       
       ticketCount++;
