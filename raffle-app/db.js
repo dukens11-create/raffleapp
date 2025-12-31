@@ -207,6 +207,7 @@ async function initializeSchema() {
       } else {
         // SQLite - simpler approach
         await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_raffle_category ON ticket_categories(raffle_id, category_code)`);
+        console.log('✅ Created unique index on ticket_categories');
       }
     } catch (error) {
       console.warn('⚠️  Could not create ticket_categories index (table may need to be recreated):', error.message);
@@ -260,6 +261,7 @@ async function initializeSchema() {
         await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
         await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
         await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+        console.log('✅ Created indexes on tickets table');
       }
     } catch (error) {
       console.warn('⚠️  Could not create some ticket indexes:', error.message);
