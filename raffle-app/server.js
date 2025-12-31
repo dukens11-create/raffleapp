@@ -1895,7 +1895,9 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       category,
       start_ticket,
       end_ticket,
-      paper_type
+      paper_type,
+      use_custom_template,
+      template_id
     } = req.body;
     
     // Validate input
@@ -1959,8 +1961,22 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       paper_type
     });
     
-    // Generate PDF and stream to response
-    const doc = await printService.generatePrintPDF(tickets, paper_type, printJobId);
+    let doc;
+    
+    // Check if using custom template
+    if (use_custom_template && template_id) {
+      const customTemplate = await db.get('SELECT * FROM ticket_templates WHERE id = ?', [template_id]);
+      
+      if (!customTemplate) {
+        return res.status(404).json({ error: 'Custom template not found' });
+      }
+      
+      // Generate PDF with custom template
+      doc = await printService.generateCustomTemplatePDF(tickets, customTemplate, paper_type, printJobId);
+    } else {
+      // Generate PDF with default template
+      doc = await printService.generatePrintPDF(tickets, paper_type, printJobId);
+    }
     
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=tickets-${category}-${start_ticket}-to-${end_ticket}.pdf`);

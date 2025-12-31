@@ -632,6 +632,10 @@
       const start = document.getElementById('start-ticket').value;
       const end = document.getElementById('end-ticket').value;
       
+      // Get template mode and selection
+      const templateMode = document.querySelector('[name="templateMode"]:checked').value;
+      const templateId = document.getElementById('templateSelect').value;
+      
       // Build ticket range
       const startPadded = String(start).padStart(9, '0');
       const endPadded = String(end).padStart(9, '0');
@@ -640,18 +644,26 @@
         showAlert('Generating PDF...', 'info');
         document.getElementById('print-btn').disabled = true;
         
+        const requestBody = {
+          raffle_id: 1,
+          category: category,
+          start_ticket: `${category}-${startPadded}`,
+          end_ticket: `${category}-${endPadded}`,
+          paper_type: 'AVERY_16145'
+        };
+        
+        // Add custom template info if using custom mode
+        if (templateMode === 'custom' && templateId) {
+          requestBody.use_custom_template = true;
+          requestBody.template_id = templateId;
+        }
+        
         const response = await fetch('/api/admin/tickets/print/generate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            raffle_id: 1,
-            category: category,
-            start_ticket: `${category}-${startPadded}`,
-            end_ticket: `${category}-${endPadded}`,
-            paper_type: 'AVERY_16145'
-          })
+          body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {
