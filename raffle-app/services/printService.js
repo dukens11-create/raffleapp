@@ -8,6 +8,7 @@ const barcodeService = require('./barcodeService');
 const qrcodeService = require('./qrcodeService');
 const db = require('../db');
 const fs = require('fs');
+const path = require('path');
 
 // Category display names mapping
 const CATEGORY_NAMES = {
@@ -497,18 +498,43 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
 
   let ticketCount = 0;
   const totalTickets = tickets.length;
-  const path = require('path');
 
-  // Resolve absolute paths for custom template images
-  const frontImagePath = path.join(__dirname, '..', customTemplate.front_image_path);
-  const backImagePath = path.join(__dirname, '..', customTemplate.back_image_path);
+  // Validate and resolve paths for custom template images
+  // Security: Ensure paths don't contain traversal attempts and only reference files in uploads/templates
+  const validateTemplatePath = (filePath) => {
+    if (!filePath || typeof filePath !== 'string') {
+      throw new Error('Invalid template path');
+    }
+    // Remove any path traversal attempts
+    const normalized = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, '');
+    // Ensure the path is within uploads/templates directory
+    if (normalized.includes('..') || path.isAbsolute(normalized)) {
+      throw new Error('Invalid template path - path traversal not allowed');
+    }
+    return normalized;
+  };
+
+  const frontImageFile = validateTemplatePath(customTemplate.front_image_path);
+  const backImageFile = validateTemplatePath(customTemplate.back_image_path);
+  
+  const frontImagePath = path.join(__dirname, '..', 'uploads', 'templates', path.basename(frontImageFile));
+  const backImagePath = path.join(__dirname, '..', 'uploads', 'templates', path.basename(backImageFile));
 
   // Check if images exist
   if (!fs.existsSync(frontImagePath)) {
-    throw new Error(`Front template image not found: ${frontImagePath}`);
+    throw new Error(`Front template image not found: ${path.basename(frontImageFile)}`);
   }
   if (!fs.existsSync(backImagePath)) {
-    throw new Error(`Back template image not found: ${backImagePath}`);
+    throw new Error(`Back template image not found: ${path.basename(backImageFile)}`);
+  }
+
+  // Load template images once for reuse (performance optimization)
+  let frontImageBuffer, backImageBuffer;
+  try {
+    frontImageBuffer = fs.readFileSync(frontImagePath);
+    backImageBuffer = fs.readFileSync(backImagePath);
+  } catch (error) {
+    throw new Error(`Failed to load template images: ${error.message}`);
   }
 
   // Process tickets in batches per page
@@ -576,9 +602,9 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       const x = template.leftMargin + (col * template.ticketWidth) + (col * template.spacing);
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
-      // Draw custom template image as background
+      // Draw custom template image as background (using pre-loaded buffer)
       try {
-        doc.image(frontImagePath, x, y, {
+        doc.image(frontImageBuffer, x, y, {
           width: template.ticketWidth,
           height: template.ticketHeight,
           fit: customTemplate.fit_mode || 'cover'
@@ -640,9 +666,9 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       const x = template.leftMargin + (col * template.ticketWidth) + (col * template.spacing);
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
-      // Draw custom template image as background
+      // Draw custom template image as background (using pre-loaded buffer)
       try {
-        doc.image(backImagePath, x, y, {
+        doc.image(backImageBuffer, x, y, {
           width: template.ticketWidth,
           height: template.ticketHeight,
           fit: customTemplate.fit_mode || 'cover'
