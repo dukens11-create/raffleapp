@@ -326,7 +326,8 @@
         
         const data = await response.json();
         result.innerHTML = `<div class="alert alert-success">✅ Test successful! Generated ${data.created} tickets. Check server logs for details.</div>`;
-        btn.innerHTML = '<span>✅ Test Passed</span>';
+        btn.disabled = false;
+        btn.innerHTML = '<span>🧪 Test Generate (1,000 tickets)</span>';
         
       } catch (error) {
         result.innerHTML = `<div class="alert alert-danger">❌ Test failed: ${error.message}<br><br>Check server logs for details.</div>`;

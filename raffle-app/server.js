@@ -2119,7 +2119,8 @@ let generationProgress = {
   efg: 0,
   jkl: 0,
   xyz: 0,
-  inProgress: false
+  inProgress: false,
+  error: null
 };
 
 // POST /api/admin/tickets/generate-all - Generate all 1.5M tickets with barcodes and QR codes
