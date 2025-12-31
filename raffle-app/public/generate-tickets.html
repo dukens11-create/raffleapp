@@ -153,6 +153,17 @@
       box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
     
+    .btn-secondary {
+      background: #64748b;
+      color: white;
+    }
+    
+    .btn-secondary:hover:not(:disabled) {
+      background: #475569;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(100, 116, 139, 0.4);
+    }
+    
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
@@ -269,6 +280,10 @@
         ⚠️ <strong>Important:</strong> This process will take 10-15 minutes. Do not close this page during generation.
       </div>
       
+      <button id="testBtn" class="btn btn-secondary" onclick="generateTestTickets()" style="margin-right: 12px;">
+        <span>🧪 Test Generate (1,000 tickets)</span>
+      </button>
+      
       <button id="generateBtn" class="btn btn-primary" onclick="generateAllTickets()">
         <span>🚀 Generate All 1.5M Tickets</span>
       </button>
@@ -288,6 +303,38 @@
   
   <script>
     let pollingInterval = null;
+    
+    async function generateTestTickets() {
+      const btn = document.getElementById('testBtn');
+      const result = document.getElementById('result');
+      
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Testing...';
+      result.innerHTML = '';
+      
+      try {
+        const response = await fetch('/api/admin/tickets/generate-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ raffle_id: 1, count: 1000 })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Test generation failed');
+        }
+        
+        const data = await response.json();
+        result.innerHTML = `<div class="alert alert-success">✅ Test successful! Generated ${data.created} tickets. Check server logs for details.</div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<span>🧪 Test Generate (1,000 tickets)</span>';
+        
+      } catch (error) {
+        result.innerHTML = `<div class="alert alert-danger">❌ Test failed: ${error.message}<br><br>Check server logs for details.</div>`;
+        btn.disabled = false;
+        btn.innerHTML = '<span>🧪 Try Again</span>';
+      }
+    }
     
     async function generateAllTickets() {
       const btn = document.getElementById('generateBtn');
@@ -338,6 +385,21 @@
         try {
           const response = await fetch('/api/admin/tickets/generation-progress');
           const data = await response.json();
+          
+          // Check for errors
+          if (data.error) {
+            clearInterval(pollingInterval);
+            document.getElementById('result').innerHTML = 
+              `<div class="alert alert-danger">
+                ❌ Generation failed: ${data.error}
+                <br><br>
+                <strong>Check server logs for details.</strong>
+              </div>`;
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀 Try Again</span>';
+            return;
+          }
           
           const percent = (data.completed / data.total * 100).toFixed(1);
           const progressBar = document.getElementById('progressBar');
