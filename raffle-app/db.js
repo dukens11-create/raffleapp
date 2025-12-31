@@ -131,6 +131,17 @@ async function initializeSchema() {
   console.log('🔧 Initializing database schema...');
   
   try {
+    // Helper function to safely create indexes
+    const safeCreateIndex = async (indexSQL, indexName) => {
+      try {
+        await run(indexSQL);
+        console.log(`✅ Created index: ${indexName}`);
+      } catch (error) {
+        console.warn(`⚠️  Could not create index ${indexName}:`, error.message);
+        // Continue - indexes are not critical for basic operation
+      }
+    };
+    
     // Users table
     await run(`
       CREATE TABLE IF NOT EXISTS users (
@@ -178,8 +189,29 @@ async function initializeSchema() {
       )
     `);
     
-    // Create unique index for ticket_categories
-    await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_raffle_category ON ticket_categories(raffle_id, category_code)`);
+    // Create unique index for ticket_categories (with error handling)
+    try {
+      // First verify the table exists and has the required columns
+      if (USE_POSTGRES) {
+        const tableExists = await get(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_name = 'ticket_categories'
+          ) as exists
+        `);
+        
+        if (tableExists && tableExists.exists) {
+          await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_raffle_category ON ticket_categories(raffle_id, category_code)`);
+          console.log('✅ Created unique index on ticket_categories');
+        }
+      } else {
+        // SQLite - simpler approach
+        await run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_ticket_categories_raffle_category ON ticket_categories(raffle_id, category_code)`);
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not create ticket_categories index (table may need to be recreated):', error.message);
+      // Don't throw - allow initialization to continue
+    }
     
     // Tickets table (enhanced for raffle system)
     await run(`
@@ -215,17 +247,23 @@ async function initializeSchema() {
       )
     `);
     
-    // Create indexes for tickets table
-    if (USE_POSTGRES) {
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
-    } else {
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
-      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+    // Create indexes for tickets table (with error handling)
+    try {
+      if (USE_POSTGRES) {
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+        console.log('✅ Created indexes on tickets table');
+      } else {
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_barcode ON tickets(barcode)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
+      }
+    } catch (error) {
+      console.warn('⚠️  Could not create some ticket indexes:', error.message);
+      // Don't throw - indexes are performance optimization, not critical
     }
     
     // Print jobs table - for tracking ticket printing
