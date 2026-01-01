@@ -311,8 +311,8 @@ const corsOptions = {
     }
     
     // Check if origin matches Render domain pattern (secure check using endsWith)
-    // Only allow subdomains of onrender.com, not the base domain itself
-    if (origin.endsWith('.onrender.com')) {
+    // Only allow HTTPS subdomains of onrender.com, not the base domain itself
+    if (origin.startsWith('https://') && origin.endsWith('.onrender.com')) {
       if (DEBUG_MODE) {
         console.log('✅ CORS: Render domain allowed:', origin);
       }
