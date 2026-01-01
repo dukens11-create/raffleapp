@@ -61,60 +61,125 @@ const ticketGenerationMutex = new Mutex();
 // Load environment variables
 require('dotenv').config();
 
-// Validate critical environment variables on startup
+// ============================================
+// Environment Variable Validation (Flexible)
+// ============================================
+
 function validateEnvironment() {
-  const requiredVars = {
-    SESSION_SECRET: process.env.SESSION_SECRET,
-    ADMIN_SETUP_TOKEN: process.env.ADMIN_SETUP_TOKEN
-  };
-  
-  const missing = [];
+  const errors = [];
   const warnings = [];
   
-  // Check required variables
-  if (!requiredVars.SESSION_SECRET || requiredVars.SESSION_SECRET === 'raffle-secret-key-2024') {
-    warnings.push('SESSION_SECRET: Using default value - INSECURE for production!');
+  console.log('🔍 Validating environment variables...\n');
+  
+  // ============================================
+  // CRITICAL VARIABLES (Server won't start without these)
+  // ============================================
+  
+  // Database URL is absolutely required
+  if (!process.env.DATABASE_URL) {
+    errors.push('DATABASE_URL - Database connection string is required');
+    errors.push('  Set to: postgresql://user:pass@host:port/db or sqlite:./raffle.db');
   }
   
-  if (!requiredVars.ADMIN_SETUP_TOKEN) {
-    missing.push('ADMIN_SETUP_TOKEN: Required to secure admin setup endpoint');
+  // ============================================
+  // AUTO-GENERATE SESSION_SECRET IF MISSING
+  // ============================================
+  
+  if (!process.env.SESSION_SECRET) {
+    const crypto = require('crypto');
+    process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+    warnings.push('SESSION_SECRET was auto-generated for this session');
+    warnings.push('  ⚠️  PRODUCTION WARNING: Set a persistent SESSION_SECRET in environment variables');
+    warnings.push('  ⚠️  Current sessions will be lost on restart');
+    warnings.push(`  Generated value: ${process.env.SESSION_SECRET.substring(0, 16)}...`);
+  } else if (process.env.SESSION_SECRET.length < 32) {
+    warnings.push('SESSION_SECRET should be at least 32 characters for security');
+    warnings.push(`  Current length: ${process.env.SESSION_SECRET.length} characters`);
   }
   
-  // Check optional but recommended variables
-  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-    warnings.push('DATABASE_URL: Missing - data will be lost on restart!');
+  // ============================================
+  // OPTIONAL BUT RECOMMENDED VARIABLES
+  // ============================================
+  
+  // Node environment
+  if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = 'production';
+    warnings.push('NODE_ENV not set - defaulting to: production');
   }
   
+  // Port
+  if (!process.env.PORT) {
+    process.env.PORT = '10000';
+    warnings.push('PORT not set - defaulting to: 10000');
+  }
+  
+  // Admin setup token
+  if (!process.env.ADMIN_SETUP_TOKEN) {
+    warnings.push('ADMIN_SETUP_TOKEN not set - /api/setup-admin endpoint will be DISABLED');
+    warnings.push('  To enable: Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  }
+  
+  // CORS configuration
+  if (!process.env.ALLOWED_ORIGINS) {
+    if (process.env.NODE_ENV === 'production') {
+      process.env.ALLOWED_ORIGINS = '';
+      warnings.push('ALLOWED_ORIGINS not set - CORS will allow same-origin only (secure default)');
+    } else {
+      process.env.ALLOWED_ORIGINS = '*';
+      warnings.push('ALLOWED_ORIGINS not set - allowing all origins in development mode');
+    }
+  }
+  
+  // Email configuration
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    warnings.push('EMAIL_USER/EMAIL_PASS: Missing - email notifications disabled');
+    warnings.push('EMAIL_USER or EMAIL_PASS not set - email notifications will be DISABLED');
   }
   
-  // Log results
-  console.log('');
-  console.log('═══════════════════════════════════════');
-  console.log('🔍 ENVIRONMENT VALIDATION');
-  console.log('═══════════════════════════════════════');
+  if (!process.env.SMTP_HOST) {
+    process.env.SMTP_HOST = 'smtp.gmail.com';
+    warnings.push('SMTP_HOST not set - defaulting to: smtp.gmail.com');
+  }
   
-  if (missing.length > 0) {
-    console.error('❌ CRITICAL: Missing required environment variables:');
-    missing.forEach(msg => console.error(`   - ${msg}`));
-    console.error('');
-    console.error('Server will not start. Please configure these variables.');
-    console.error('See .env.example for reference.');
-    console.error('═══════════════════════════════════════');
+  if (!process.env.SMTP_PORT) {
+    process.env.SMTP_PORT = '587';
+    warnings.push('SMTP_PORT not set - defaulting to: 587');
+  }
+  
+  // Application URL
+  if (!process.env.APP_URL) {
+    if (process.env.RENDER_EXTERNAL_URL) {
+      process.env.APP_URL = process.env.RENDER_EXTERNAL_URL;
+      warnings.push(`APP_URL not set - using Render URL: ${process.env.APP_URL}`);
+    } else {
+      process.env.APP_URL = 'http://localhost:10000';
+      warnings.push('APP_URL not set - defaulting to: http://localhost:10000');
+    }
+  }
+  
+  // ============================================
+  // DISPLAY RESULTS
+  // ============================================
+  
+  if (errors.length > 0) {
+    console.error('\n❌ CRITICAL: Missing required environment variables:\n');
+    errors.forEach(err => console.error(`   ${err}`));
+    console.error('\n⚠️  Server cannot start. Set the required variables and restart.\n');
+    console.error('💡 Quick fix for Render:');
+    console.error('   1. Go to Dashboard → Your Service → Environment');
+    console.error('   2. Add: DATABASE_URL=<your_postgres_url>');
+    console.error('   3. Click "Save Changes"\n');
     process.exit(1);
   }
   
   if (warnings.length > 0) {
-    console.warn('⚠️  WARNINGS:');
-    warnings.forEach(msg => console.warn(`   - ${msg}`));
+    console.warn('\n⚠️  Environment configuration warnings:\n');
+    warnings.forEach(warn => console.warn(`   ${warn}`));
     console.warn('');
-  } else {
-    console.log('✅ All required environment variables configured');
   }
   
-  console.log('═══════════════════════════════════════');
-  console.log('');
+  console.log('✅ Environment validation passed');
+  console.log(`✅ Server will start in ${process.env.NODE_ENV} mode`);
+  console.log(`✅ Listening on port ${process.env.PORT}\n`);
 }
 
 // Run environment validation
@@ -569,18 +634,31 @@ app.use((req, res, next) => {
 // ===== PUBLIC ENDPOINTS (NO RATE LIMITING) =====
 
 // Admin Setup Endpoint - SECURED with token authentication
+// POST /api/setup-admin - Create admin user (requires ADMIN_SETUP_TOKEN)
 app.post('/api/setup-admin', async (req, res) => {
   console.log('=== SETUP ADMIN ENDPOINT CALLED ===');
   console.log('IP:', req.ip);
   console.log('User-Agent:', req.headers['user-agent']);
   
   try {
+    // Check if endpoint is enabled
+    if (!process.env.ADMIN_SETUP_TOKEN) {
+      console.warn('⚠️  /api/setup-admin called but ADMIN_SETUP_TOKEN not set');
+      return res.status(503).json({ 
+        success: false,
+        error: 'Admin setup endpoint is disabled',
+        message: 'Set ADMIN_SETUP_TOKEN environment variable to enable this endpoint',
+        hint: 'Generate token with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+      });
+    }
+    
     const { token } = req.body;
     
     // Validate token
     if (!token || token !== process.env.ADMIN_SETUP_TOKEN) {
       console.warn('❌ Unauthorized admin setup attempt from IP:', req.ip);
       return res.status(403).json({ 
+        success: false,
         error: 'Forbidden - Invalid or missing setup token',
         timestamp: new Date().toISOString()
       });
@@ -612,9 +690,10 @@ app.post('/api/setup-admin', async (req, res) => {
   } catch (error) {
     console.error('=== SETUP ADMIN ERROR ===');
     console.error('Setup admin error:', error);
-    res.status(500).json({ 
-      error: 'Failed to setup admin account',
-      details: error.message,
+    res.status(500).json({
+      success: false,
+      error: 'Failed to set up admin user',
+      message: error.message,
       timestamp: new Date().toISOString()
     });
   }
