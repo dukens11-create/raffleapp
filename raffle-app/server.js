@@ -203,10 +203,56 @@ async function runMigrations() {
   }
 }
 
-// Initialize database schema, run migrations, and validate setup
+/**
+ * Check and create admin user if missing
+ */
+async function ensureAdminUser() {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('🔍 CHECKING ADMIN USER');
+  console.log('═══════════════════════════════════════');
+  
+  try {
+    // Check if admin exists
+    const adminExists = await db.get(
+      'SELECT * FROM users WHERE role = ?',
+      ['admin']
+    );
+    
+    if (adminExists) {
+      console.log('✅ Admin user exists:', adminExists.phone);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return;
+    }
+    
+    console.log('⚠️  No admin user found');
+    console.log('');
+    console.log('To create an admin user, use one of these methods:');
+    console.log('');
+    console.log('1. Via API (requires ADMIN_SETUP_TOKEN):');
+    console.log('   POST /api/setup-admin');
+    console.log('   Body: { "token": "YOUR_ADMIN_SETUP_TOKEN" }');
+    console.log('');
+    console.log('2. Default credentials will be:');
+    console.log('   Phone: 1234567890');
+    console.log('   Password: admin123');
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+  } catch (error) {
+    console.error('❌ Error checking admin user:', error);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  }
+}
+
+// Initialize database schema, run migrations, validate setup, and check admin user
 db.initializeSchema()
   .then(() => runMigrations())
   .then(() => validateDatabaseSetup())
+  .then(() => ensureAdminUser())
   .catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
@@ -862,23 +908,28 @@ app.get('/', (req, res) => {
   }
 });
 
-// Login
-app.post('/login', authLimiter, async (req, res) => {
+// Shared login handler function
+async function handleLogin(req, res) {
   try {
     const { phone, password } = req.body;
     
+    console.log('🔐 Login attempt:', { phone, endpoint: req.path });
+    
     // Validate inputs
     if (!phone || !password) {
+      console.log('❌ Validation failed: Missing credentials');
       return res.status(400).json({ 
-        error: 'Phone and password are required',
+        success: false,
+        error: 'Phone number and password are required',
         timestamp: new Date().toISOString()
       });
     }
     
     // Check brute force protection
     if (checkBruteForce(phone)) {
-      console.warn(`Brute force detected for phone: ${phone}`);
+      console.warn(`❌ Brute force detected for phone: ${phone}`);
       return res.status(429).json({ 
+        success: false,
         error: 'Too many failed attempts. Please try again later.',
         timestamp: new Date().toISOString()
       });
@@ -893,87 +944,107 @@ app.post('/login', authLimiter, async (req, res) => {
       });
     }
     
+    // Find user by phone
     const user = await db.get("SELECT * FROM users WHERE phone = ?", [phone]);
     
     if (!user) {
       recordFailedAttempt(phone);
-      if (DEBUG_MODE) {
-        console.log('User not found:', phone);
-      }
+      console.log('❌ User not found:', phone);
       return res.status(401).json({ 
+        success: false,
         error: 'Invalid phone number or password',
         timestamp: new Date().toISOString()
       });
     }
     
     // Debug logging
-    if (DEBUG_MODE) {
-      console.log('User found:', {
-        phone: user.phone,
-        role: user.role,
-        hasPassword: !!user.password
-      });
-    }
+    console.log('✅ User found:', {
+      phone: user.phone,
+      role: user.role,
+      hasPassword: !!user.password
+    });
     
     try {
-      const result = await bcrypt.compare(password, user.password);
+      // Verify password
+      const passwordMatch = await bcrypt.compare(password, user.password);
       
-      if (result) {
-        // Clear failed attempts on successful login
-        clearFailedAttempts(phone);
-        
-        req.session.user = {
-          id: user.id,
-          name: user.name,
-          phone: user.phone,
-          role: user.role
-        };
-        
-        req.session.lastActivity = Date.now();
-        
-        console.log(`Successful login: ${user.phone} (${user.role})`);
-        
-        // Explicitly save session before sending response
-        req.session.save((err) => {
-          if (err) {
-            console.error('Session save error:', err);
-            return res.status(500).json({ 
-              error: 'Failed to create session',
-              timestamp: new Date().toISOString()
-            });
-          }
-          
-          console.log('Session saved successfully for user:', user.phone);
-          
-          if (user.role === 'admin') {
-            res.json({ redirect: '/admin', role: 'admin' });
-          } else {
-            res.json({ redirect: '/seller?name=' + encodeURIComponent(user.name), role: 'seller', name: user.name });
-          }
-        });
-      } else {
+      if (!passwordMatch) {
         recordFailedAttempt(phone);
-        res.status(401).json({ 
+        console.log('❌ Invalid password for:', phone);
+        return res.status(401).json({ 
+          success: false,
           error: 'Invalid phone number or password',
           timestamp: new Date().toISOString()
         });
       }
+      
+      // Clear failed attempts on successful login
+      clearFailedAttempts(phone);
+      
+      // Create session
+      req.session.user = {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role
+      };
+      
+      req.session.lastActivity = Date.now();
+      
+      console.log(`✅ Login successful: ${user.phone} (${user.role})`);
+      
+      // Explicitly save session before sending response
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('❌ Session save error:', err);
+            reject(err);
+          } else {
+            console.log('✅ Session saved successfully for user:', user.phone);
+            resolve();
+          }
+        });
+      });
+      
+      // Return success with user data (NO PASSWORD)
+      const redirectUrl = user.role === 'admin' 
+        ? '/admin.html' 
+        : '/seller.html';
+      
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          role: user.role
+        },
+        redirect: redirectUrl,
+        timestamp: new Date().toISOString()
+      });
+      
     } catch (bcryptError) {
-      console.error('Bcrypt error:', bcryptError);
+      console.error('❌ Bcrypt error:', bcryptError);
       recordFailedAttempt(phone);
       return res.status(500).json({ 
+        success: false,
         error: 'Authentication error',
         timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ 
-      error: 'An error occurred during login',
+      success: false,
+      error: 'Login failed. Please try again.',
       timestamp: new Date().toISOString()
     });
   }
-});
+}
+
+// Login endpoints (both /login and /api/login for compatibility)
+app.post('/login', authLimiter, handleLogin);
+app.post('/api/login', authLimiter, handleLogin);
 
 // Logout
 app.get('/logout', (req, res) => {
