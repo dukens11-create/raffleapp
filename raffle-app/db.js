@@ -409,6 +409,35 @@ async function initializeSchema() {
       console.log('Note: fit_mode column already exists or could not be added');
     }
     
+    // Add performance indexes
+    console.log('📊 Creating performance indexes...');
+
+    const indexes = [
+      // Tickets table indexes
+      'CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
+      
+      // Seller requests indexes
+      'CREATE INDEX IF NOT EXISTS idx_seller_requests_status ON seller_requests(status)',
+      
+      // Draws indexes
+      'CREATE INDEX IF NOT EXISTS idx_draws_date ON draws(drawn_at)'
+    ];
+
+    for (const indexQuery of indexes) {
+      try {
+        await run(indexQuery);
+      } catch (error) {
+        // Index might already exist, that's okay
+        if (!error.message.includes('already exists')) {
+          console.warn('Index creation warning:', error.message);
+        }
+      }
+    }
+
+    console.log('✅ Performance indexes created');
+    
     console.log('✅ Database schema initialized successfully');
     
     // Check if admin exists, create if not

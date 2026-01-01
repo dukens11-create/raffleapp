@@ -370,6 +370,8 @@ const corsOptions = {
     const allowedOrigins = [
       process.env.FRONTEND_URL,           // Your production domain
       process.env.RENDER_EXTERNAL_URL,    // Render's auto-generated URL
+      'https://www.enejipamticket.com',   // Custom domain with www
+      'https://enejipamticket.com',       // Custom domain without www
       'http://localhost:3000',            // Local development
       'http://localhost:5000',
       'http://127.0.0.1:3000',
@@ -1982,11 +1984,13 @@ app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
   try {
+    // Add LIMIT to prevent loading all sellers
     const rows = await db.all(`
       SELECT seller_name as sold_by, COUNT(*) as count
       FROM tickets
       GROUP BY seller_name
       ORDER BY count DESC
+      LIMIT 50
     `);
     res.json(rows);
   } catch (err) {
@@ -1996,11 +2000,13 @@ app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
 
 app.get('/seller-leaderboard', requireAuth, requireAdmin, async (req, res) => {
   try {
+    // Add LIMIT to prevent loading all sellers
     const rows = await db.all(`
       SELECT seller_name as sold_by, COUNT(*) as tickets_sold
       FROM tickets
       GROUP BY seller_name
       ORDER BY tickets_sold DESC
+      LIMIT 50
     `);
     res.json(rows);
   } catch (err) {
@@ -2015,15 +2021,25 @@ app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const rows = await db.all(`
-      SELECT DATE(created_at) as day, COUNT(*) as count
-      FROM tickets
-      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-      GROUP BY DATE(created_at)
-      ORDER BY day
-    `);
+    // Limit to last 30 days only to reduce memory usage
+    const query = db.USE_POSTGRES
+      ? `SELECT DATE(created_at) as day, COUNT(*) as count
+         FROM tickets
+         WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+         GROUP BY DATE(created_at)
+         ORDER BY day ASC
+         LIMIT 30`
+      : `SELECT DATE(created_at) as day, COUNT(*) as count
+         FROM tickets
+         WHERE created_at >= date('now', '-30 days')
+         GROUP BY DATE(created_at)
+         ORDER BY day ASC
+         LIMIT 30`;
+    
+    const rows = await db.all(query);
     res.json(rows);
   } catch (err) {
+    console.error('Error in sales-by-day:', err);
     return res.status(500).json({ error: 'Database error' });
   }
 });
