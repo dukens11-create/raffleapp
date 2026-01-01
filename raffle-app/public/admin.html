@@ -1457,14 +1457,23 @@
             
             // Button loading state utility
             function setButtonLoading(button, isLoading) {
+              if (!button) return;
+              
               if (isLoading) {
-                button.dataset.originalText = button.textContent;
+                // Store original text only if not already stored
+                if (!button.dataset.originalText) {
+                  button.dataset.originalText = button.textContent;
+                }
                 button.textContent = '⏳ Loading...';
                 button.disabled = true;
                 button.style.opacity = '0.6';
                 button.style.cursor = 'not-allowed';
               } else {
-                button.textContent = button.dataset.originalText || button.textContent;
+                // Restore original text and clean up
+                if (button.dataset.originalText) {
+                  button.textContent = button.dataset.originalText;
+                  delete button.dataset.originalText;
+                }
                 button.disabled = false;
                 button.style.opacity = '1';
                 button.style.cursor = 'pointer';
