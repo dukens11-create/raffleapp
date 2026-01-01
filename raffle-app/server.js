@@ -1817,9 +1817,29 @@ app.post('/api/admin/tickets/import', requireAuth, requireAdmin, upload.single('
   }
 });
 
+// GET /api/admin/tickets/count - Get ticket count for diagnostics
+app.get('/api/admin/tickets/count', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffleId = req.query.raffle_id || 1;
+    const count = await db.get(
+      'SELECT COUNT(*) as total FROM tickets WHERE raffle_id = ?',
+      [raffleId]
+    );
+    res.json({ 
+      raffle_id: raffleId,
+      total_tickets: count.total,
+      message: count.total === 0 ? 'No tickets found - generate tickets first' : 'Tickets available'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET /api/admin/tickets/export - Export tickets to Excel
 app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res) => {
   try {
+    console.log('📥 Export request received:', req.query);
+    
     const filters = {
       raffle_id: req.query.raffle_id || 1,
       category: req.query.category,
@@ -1827,14 +1847,35 @@ app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res)
       printed: req.query.printed === 'true' ? true : req.query.printed === 'false' ? false : undefined
     };
     
+    console.log('📊 Fetching tickets with filters:', filters);
+    
     const buffer = await importExportService.exportTickets(filters);
     
+    if (!buffer || buffer.length === 0) {
+      console.warn('⚠️ No tickets found or empty buffer returned');
+      return res.status(404).json({ 
+        error: 'No tickets found to export',
+        filters: filters
+      });
+    }
+    
+    console.log(`✅ Export successful: ${buffer.length} bytes`);
+    
+    const filename = `raffle-tickets-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+    
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=tickets-export-${Date.now()}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
     res.send(buffer);
+    
   } catch (error) {
-    console.error('Error exporting tickets:', error);
-    res.status(500).json({ error: 'Failed to export tickets' });
+    console.error('❌ Error exporting tickets:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to export tickets',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
