@@ -590,6 +590,15 @@ app.post('/api/setup-admin', async (req, res) => {
   console.log('User-Agent:', req.headers['user-agent']);
   
   try {
+    // Check if ADMIN_SETUP_TOKEN is configured
+    if (!process.env.ADMIN_SETUP_TOKEN) {
+      console.warn('❌ Admin setup endpoint is disabled - ADMIN_SETUP_TOKEN not configured');
+      return res.status(403).json({ 
+        error: 'Forbidden - Admin setup endpoint is disabled. Configure ADMIN_SETUP_TOKEN to enable.',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     const { token } = req.body;
     
     // Validate token
