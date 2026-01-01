@@ -251,21 +251,29 @@ async function runMigrations() {
     return;
   }
   
-  const migrationFile = path.join(__dirname, 'migrations', 'add_raffle_id_to_tickets.sql');
+  const migrations = [
+    'add_raffle_id_to_tickets.sql',
+    'add_print_count_column.sql'
+  ];
   
-  if (fs.existsSync(migrationFile)) {
-    const sql = fs.readFileSync(migrationFile, 'utf8');
-    try {
-      await db.run(sql);
-      console.log('✅ Migrations completed successfully');
-    } catch (error) {
-      console.error('❌ Migration failed:', error.message);
-      // Don't crash the server, just log the error
-      // The migration is idempotent, so it's safe to continue
+  for (const migrationFile of migrations) {
+    const filePath = path.join(__dirname, 'migrations', migrationFile);
+    
+    if (fs.existsSync(filePath)) {
+      const sql = fs.readFileSync(filePath, 'utf8');
+      try {
+        await db.run(sql);
+        console.log(`✅ Migration completed: ${migrationFile}`);
+      } catch (error) {
+        console.error(`❌ Migration failed (${migrationFile}):`, error.message);
+        // Don't crash - migrations are idempotent
+      }
+    } else {
+      console.log(`⚠️  Migration file not found: ${filePath}`);
     }
-  } else {
-    console.log('⚠️  No migration file found at:', migrationFile);
   }
+  
+  console.log('✅ All migrations completed');
 }
 
 /**
@@ -2536,11 +2544,12 @@ app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (re
     let marked = 0;
     for (const ticketId of ticket_ids) {
       try {
+        // Use COALESCE to safely handle NULL values in print_count
         await db.run(
           `UPDATE tickets 
            SET printed = ${db.USE_POSTGRES ? 'TRUE' : '1'}, 
                printed_at = ${db.getCurrentTimestamp()},
-               print_count = print_count + 1
+               print_count = COALESCE(print_count, 0) + 1
            WHERE id = ?`,
           [ticketId]
         );
