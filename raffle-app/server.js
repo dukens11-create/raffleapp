@@ -351,8 +351,11 @@ const corsOptions = {
     
     // Define allowed origins
     const allowedOrigins = [
+      'https://www.enejipamticket.com',   // Custom domain
+      'https://enejipamticket.com',       // Custom domain without www
       process.env.FRONTEND_URL,           // Your production domain
       process.env.RENDER_EXTERNAL_URL,    // Render's auto-generated URL
+      'https://raffleapp-e4ev.onrender.com', // Render deployment URL
       'http://localhost:3000',            // Local development
       'http://localhost:5000',
       'http://127.0.0.1:3000',
@@ -1965,11 +1968,14 @@ app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
   try {
+    // Optimize query with LIMIT and date filter for last 30 days
     const rows = await db.all(`
       SELECT seller_name as sold_by, COUNT(*) as count
       FROM tickets
+      WHERE created_at >= ${db.USE_POSTGRES ? "CURRENT_DATE - INTERVAL '30 days'" : "datetime('now', '-30 days')"}
       GROUP BY seller_name
       ORDER BY count DESC
+      LIMIT 50
     `);
     res.json(rows);
   } catch (err) {
@@ -1979,11 +1985,14 @@ app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
 
 app.get('/seller-leaderboard', requireAuth, requireAdmin, async (req, res) => {
   try {
+    // Optimize query with LIMIT and date filter for last 30 days
     const rows = await db.all(`
       SELECT seller_name as sold_by, COUNT(*) as tickets_sold
       FROM tickets
+      WHERE created_at >= ${db.USE_POSTGRES ? "CURRENT_DATE - INTERVAL '30 days'" : "datetime('now', '-30 days')"}
       GROUP BY seller_name
       ORDER BY tickets_sold DESC
+      LIMIT 50
     `);
     res.json(rows);
   } catch (err) {
@@ -1998,11 +2007,12 @@ app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
   try {
+    // Optimize query with database-specific date functions
     const rows = await db.all(`
-      SELECT DATE(created_at) as day, COUNT(*) as count
+      SELECT ${db.USE_POSTGRES ? 'DATE(created_at)' : "date(created_at)"} as day, COUNT(*) as count
       FROM tickets
-      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
-      GROUP BY DATE(created_at)
+      WHERE created_at >= ${db.USE_POSTGRES ? "CURRENT_DATE - INTERVAL '30 days'" : "datetime('now', '-30 days')"}
+      GROUP BY ${db.USE_POSTGRES ? 'DATE(created_at)' : "date(created_at)"}
       ORDER BY day
     `);
     res.json(rows);
@@ -2013,12 +2023,14 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
 
 app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req, res) => {
   try {
+    // Optimize query with LIMIT
     const rows = await db.all(`
       SELECT category, COUNT(*) as count
       FROM tickets
       WHERE category IS NOT NULL
       GROUP BY category
       ORDER BY count DESC
+      LIMIT 50
     `);
     res.json(rows);
   } catch (err) {

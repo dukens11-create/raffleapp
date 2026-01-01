@@ -259,7 +259,11 @@ async function initializeSchema() {
       await run(`CREATE INDEX IF NOT EXISTS idx_tickets_ticket_number ON tickets(ticket_number)`);
       await run(`CREATE INDEX IF NOT EXISTS idx_tickets_raffle_id ON tickets(raffle_id)`);
       await run(`CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)`);
-      console.log('✅ Created 4 indexes on tickets table');
+      // Add performance indexes for analytics queries
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_seller_created ON tickets(seller_name, created_at)`);
+      console.log('✅ Created 7 indexes on tickets table for optimized analytics');
     } catch (error) {
       console.warn('⚠️  Could not create some ticket indexes:', error.message);
       console.warn('   This is OK - indexes are performance optimization, not critical');

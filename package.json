@@ -1,7 +1,7 @@
 {
   "main": "raffle-app/server.js",
   "scripts": {
-    "start": "node raffle-app/server.js"
+    "start": "node --max-old-space-size=1024 raffle-app/server.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
