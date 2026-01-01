@@ -450,6 +450,17 @@
       transform: none;
     }
     
+    #download-tickets-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(16, 185, 129, 0.4);
+    }
+    
+    #download-tickets-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
     .barcode-img {
       max-width: 120px;
       height: auto;
@@ -728,6 +739,15 @@
     </div>
     
     <h2 data-translate="allTickets">All Tickets</h2>
+    
+    <!-- Download Tickets Button -->
+    <div style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+      <button id="download-tickets-btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); transition: all 0.3s;">
+        📥 Download Tickets
+      </button>
+      <span id="download-status" style="color: #64748b; font-size: 14px; align-self: center; display: none;"></span>
+    </div>
+    
     <table id="tickets-table">
       <thead>
         <tr>
@@ -2536,6 +2556,75 @@
       const modal = document.getElementById('editSellerModal');
       if (e.target === modal) {
         closeEditSellerModal();
+      }
+    });
+    
+    // ==================== DOWNLOAD TICKETS FUNCTIONALITY ====================
+    
+    // Download tickets button
+    document.getElementById('download-tickets-btn').addEventListener('click', async () => {
+      const downloadBtn = document.getElementById('download-tickets-btn');
+      const downloadStatus = document.getElementById('download-status');
+      
+      // Disable button and show loading state
+      downloadBtn.disabled = true;
+      downloadBtn.innerHTML = '⏳ Preparing download...';
+      downloadStatus.style.display = 'inline';
+      downloadStatus.textContent = 'Fetching tickets...';
+      
+      try {
+        // Build query parameters for export
+        const params = new URLSearchParams({
+          raffle_id: 1  // Default raffle ID
+        });
+        
+        // Make request to export endpoint
+        const response = await fetch(`/api/admin/tickets/export?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error('Failed to download tickets');
+        }
+        
+        // Get the blob
+        const blob = await response.blob();
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `raffle-tickets-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        // Show success message
+        downloadStatus.textContent = '✅ Download complete!';
+        downloadStatus.style.color = '#10b981';
+        showNotify('✅ Tickets downloaded successfully! File includes ticket numbers and barcodes.', '#10b981', 3000);
+        
+        // Reset status after 3 seconds
+        setTimeout(() => {
+          downloadStatus.style.display = 'none';
+          downloadStatus.style.color = '#64748b';
+        }, 3000);
+        
+      } catch (error) {
+        console.error('Download error:', error);
+        downloadStatus.textContent = '❌ Download failed';
+        downloadStatus.style.color = '#ef4444';
+        showNotify('❌ Failed to download tickets: ' + error.message, '#ef4444', 4000);
+        
+        setTimeout(() => {
+          downloadStatus.style.display = 'none';
+          downloadStatus.style.color = '#64748b';
+        }, 4000);
+      } finally {
+        // Re-enable button
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '📥 Download Tickets';
       }
     });
     
