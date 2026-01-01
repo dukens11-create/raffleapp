@@ -1454,6 +1454,28 @@
               notify.style.display = 'block';
               setTimeout(() => { notify.style.display = 'none'; }, timeout);
             }
+            
+            // Button loading state utilities
+            function setButtonLoading(button, isLoading) {
+              if (isLoading) {
+                button.dataset.originalText = button.textContent;
+                button.textContent = '⏳ Loading...';
+                button.disabled = true;
+                button.style.opacity = '0.6';
+                button.style.cursor = 'not-allowed';
+              } else {
+                button.textContent = button.dataset.originalText || button.textContent;
+                button.disabled = false;
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+              }
+            }
+            
+            function findButtonByOnclick(element, onclickString) {
+              return Array.from(element.querySelectorAll('button')).find(
+                btn => btn.getAttribute('onclick')?.includes(onclickString)
+              );
+            }
         // Load inventory
         async function loadInventory() {
           const res = await fetch('/tickets');
@@ -2101,6 +2123,9 @@
     async function approveRequest(id) {
       if (!confirm('Approve this seller and send login credentials?')) return;
       
+      const button = event?.target || findButtonByOnclick(document, `approveRequest(${id})`);
+      if (button) setButtonLoading(button, true);
+      
       try {
         const response = await fetch(`/api/seller-requests/${id}/approve`, {
           method: 'POST',
@@ -2120,6 +2145,8 @@
         }
       } catch (error) {
         showNotify('❌ Error approving request: ' + error.message, '#ef4444');
+      } finally {
+        if (button) setButtonLoading(button, false);
       }
     }
     
@@ -2127,6 +2154,9 @@
     async function rejectRequest(id) {
       const reason = prompt('Reason for rejection (optional):');
       if (reason === null) return; // Cancelled
+      
+      const button = event?.target || findButtonByOnclick(document, `rejectRequest(${id})`);
+      if (button) setButtonLoading(button, true);
       
       try {
         const response = await fetch(`/api/seller-requests/${id}/reject`, {
@@ -2145,6 +2175,8 @@
         }
       } catch (error) {
         showNotify('❌ Error rejecting request: ' + error.message, '#ef4444');
+      } finally {
+        if (button) setButtonLoading(button, false);
       }
     }
     
@@ -2240,6 +2272,9 @@
     document.getElementById('resolveConcernForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
+      const submitButton = e.target.querySelector('button[type="submit"]');
+      if (submitButton) setButtonLoading(submitButton, true);
+      
       const id = document.getElementById('resolveConcernId').value;
       const adminNotes = document.getElementById('adminNotes').value;
       
@@ -2261,6 +2296,8 @@
         }
       } catch (error) {
         showNotify('❌ Error resolving concern: ' + error.message, '#ef4444');
+      } finally {
+        if (submitButton) setButtonLoading(submitButton, false);
       }
     });
     
