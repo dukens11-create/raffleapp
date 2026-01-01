@@ -36,6 +36,12 @@ async function loadExistingDesigns() {
       return; // No existing designs yet
     }
 
+    // Check if response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return; // Not JSON response
+    }
+
     const data = await response.json();
     
     if (data.designs && data.designs.length > 0) {
@@ -342,8 +348,14 @@ async function saveProcessedImage(category, side, imageBase64, fitMode) {
     });
     
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to process image');
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to process image');
+      } else {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
     }
     
     const result = await response.json();
@@ -418,8 +430,14 @@ async function saveDesign(category) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to save design');
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save design');
+      } else {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
     }
 
     const result = await response.json();

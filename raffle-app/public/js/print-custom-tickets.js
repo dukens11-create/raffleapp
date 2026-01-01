@@ -51,8 +51,14 @@ async function loadPreview() {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to load preview');
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to load preview');
+      } else {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
     }
 
     const data = await response.json();
@@ -138,8 +144,14 @@ async function generatePDF() {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to generate PDF');
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
+      } else {
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
     }
 
     // Download PDF

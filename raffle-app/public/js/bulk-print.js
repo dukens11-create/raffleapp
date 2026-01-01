@@ -138,8 +138,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to generate PDF');
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to generate PDF');
+      } else {
+        // If not JSON, it might be HTML error page
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
     }
     
     // Check if response supports streaming for progress

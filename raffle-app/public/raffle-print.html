@@ -451,8 +451,14 @@
         });
         
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to generate PDF');
+          // Check if response is JSON before parsing
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to generate PDF');
+          } else {
+            throw new Error(`Server error: ${response.status} ${response.statusText}`);
+          }
         }
         
         updateProgress(50, 'Generating PDF with barcodes and QR codes...');
