@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const db = require('./db');
 const path = require('path');
 const fs = require('fs');
@@ -86,7 +87,6 @@ function validateEnvironment() {
   // ============================================
   
   if (!process.env.SESSION_SECRET) {
-    const crypto = require('crypto');
     process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
     warnings.push('SESSION_SECRET was auto-generated for this session');
     warnings.push('  ⚠️  PRODUCTION WARNING: Set a persistent SESSION_SECRET in environment variables');
