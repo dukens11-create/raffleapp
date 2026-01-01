@@ -1954,7 +1954,12 @@ app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const days = parseInt(req.query.days) || 30;  // Default 30 days
+    // Validate and sanitize days parameter to prevent SQL injection
+    let days = parseInt(req.query.days);
+    if (isNaN(days) || days < 1 || days > 365) {
+      days = 30;  // Default 30 days
+    }
+    
     const query = db.USE_POSTGRES ? `
       SELECT 
         DATE(created_at) as sale_date,
@@ -1963,7 +1968,7 @@ app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
         COUNT(DISTINCT seller_phone) as active_sellers
       FROM tickets
       WHERE status = 'sold'
-        AND created_at > CURRENT_TIMESTAMP - INTERVAL '${days} days'
+        AND created_at > CURRENT_TIMESTAMP - ($1 || ' days')::INTERVAL
       GROUP BY DATE(created_at)
       ORDER BY sale_date DESC
     ` : `
@@ -1974,11 +1979,11 @@ app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
         COUNT(DISTINCT seller_phone) as active_sellers
       FROM tickets
       WHERE status = 'sold'
-        AND created_at > datetime('now', '-${days} days')
+        AND created_at > datetime('now', '-' || ? || ' days')
       GROUP BY DATE(created_at)
       ORDER BY sale_date DESC
     `;
-    const rows = await db.all(query);
+    const rows = await db.all(query, [days]);
     res.json(rows);
   } catch (err) {
     console.error('Sales report error:', err);
@@ -1988,7 +1993,12 @@ app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
 
 app.get('/seller-leaderboard', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;  // Default top 50
+    // Validate and sanitize limit parameter to prevent SQL injection
+    let limit = parseInt(req.query.limit);
+    if (isNaN(limit) || limit < 1 || limit > 1000) {
+      limit = 50;  // Default top 50
+    }
+    
     const query = db.USE_POSTGRES ? `
       SELECT 
         seller_name,
@@ -2031,7 +2041,12 @@ app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const days = parseInt(req.query.days) || 30;  // Limit to 30 days
+    // Validate and sanitize days parameter to prevent SQL injection
+    let days = parseInt(req.query.days);
+    if (isNaN(days) || days < 1 || days > 365) {
+      days = 30;  // Limit to 30 days
+    }
+    
     const query = db.USE_POSTGRES ? `
       SELECT 
         DATE(created_at) as date,
@@ -2039,10 +2054,10 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
         SUM(amount) as revenue
       FROM tickets
       WHERE status = 'sold'
-        AND created_at > CURRENT_TIMESTAMP - INTERVAL '${days} days'
+        AND created_at > CURRENT_TIMESTAMP - ($1 || ' days')::INTERVAL
       GROUP BY DATE(created_at)
       ORDER BY date DESC
-      LIMIT ${days}
+      LIMIT $2
     ` : `
       SELECT 
         DATE(created_at) as date,
@@ -2050,12 +2065,12 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
         SUM(amount) as revenue
       FROM tickets
       WHERE status = 'sold'
-        AND created_at > datetime('now', '-${days} days')
+        AND created_at > datetime('now', '-' || ? || ' days')
       GROUP BY DATE(created_at)
       ORDER BY date DESC
-      LIMIT ${days}
+      LIMIT ?
     `;
-    const rows = await db.all(query);
+    const rows = await db.all(query, [days, days]);
     res.json(rows);
   } catch (err) {
     console.error('Sales by day error:', err);
