@@ -2568,18 +2568,52 @@
       
       // Disable button and show loading state
       downloadBtn.disabled = true;
-      downloadBtn.innerHTML = '⏳ Preparing download...';
+      downloadBtn.innerHTML = '⏳ Checking ticket count...';
       downloadStatus.style.display = 'inline';
-      downloadStatus.textContent = 'Fetching all tickets...';
+      downloadStatus.textContent = 'Checking database...';
       downloadStatus.style.color = '#64748b';
       
       try {
-        // Build query parameters for export - downloads ALL tickets
+        // First, check ticket count to warn about large exports
+        const countResponse = await fetch('/api/admin/tickets/count?raffle_id=1');
+        if (countResponse.ok) {
+          const countData = await countResponse.json();
+          const ticketCount = countData.total_tickets || 0;
+          
+          console.log(`📊 Total tickets in database: ${ticketCount}`);
+          
+          // Show warning for large exports (>10,000 tickets)
+          if (ticketCount > 10000) {
+            const proceed = confirm(
+              `⚠️ Large Export Warning\n\n` +
+              `This database contains ${ticketCount.toLocaleString()} tickets.\n\n` +
+              `Only the first 10,000 will be exported to prevent server crashes.\n\n` +
+              `To export specific tickets:\n` +
+              `• Use the filter options above (Category, Status, etc.)\n` +
+              `• Or contact support for a full database export\n\n` +
+              `Do you want to continue with the limited export?`
+            );
+            
+            if (!proceed) {
+              downloadBtn.disabled = false;
+              downloadBtn.innerHTML = '📥 Download Tickets';
+              downloadStatus.style.display = 'none';
+              return;
+            }
+          }
+        }
+        
+        // Update status
+        downloadBtn.innerHTML = '⏳ Preparing download...';
+        downloadStatus.textContent = 'Fetching tickets...';
+        
+        // Build query parameters for export - downloads with limit
         const params = new URLSearchParams({
-          raffle_id: 1  // Default raffle ID - will export ALL tickets in this raffle
+          raffle_id: 1,  // Default raffle ID
+          limit: 10000   // Default limit to prevent OOM
         });
         
-        console.log('📥 Fetching ALL tickets from:', `/api/admin/tickets/export?${params.toString()}`);
+        console.log('📥 Fetching tickets from:', `/api/admin/tickets/export?${params.toString()}`);
         
         // Make request to export endpoint
         const response = await fetch(`/api/admin/tickets/export?${params.toString()}`);
@@ -2645,7 +2679,7 @@
         // Show success message
         downloadStatus.textContent = '✅ Download complete!';
         downloadStatus.style.color = '#10b981';
-        showNotify('✅ All tickets downloaded successfully! File includes ticket numbers and barcodes.', '#10b981', 3000);
+        showNotify('✅ Tickets downloaded successfully! File includes ticket numbers and barcodes.', '#10b981', 3000);
         
         // Reset status after 3 seconds
         setTimeout(() => {

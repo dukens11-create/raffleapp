@@ -1840,11 +1840,34 @@ app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res)
   try {
     console.log('📥 Export request received:', req.query);
     
+    // Parse limit and offset parameters
+    const limit = parseInt(req.query.limit) || 10000;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    // Validate limit to prevent OOM
+    if (limit > 50000) {
+      return res.status(400).json({ 
+        error: 'Export limit cannot exceed 50,000 tickets. Please use filters to narrow your export.',
+        maxLimit: 50000,
+        requestedLimit: limit
+      });
+    }
+    
+    // Validate offset
+    if (offset < 0) {
+      return res.status(400).json({ 
+        error: 'Offset cannot be negative',
+        requestedOffset: offset
+      });
+    }
+    
     const filters = {
       raffle_id: req.query.raffle_id || 1,
       category: req.query.category,
       status: req.query.status,
-      printed: req.query.printed === 'true' ? true : req.query.printed === 'false' ? false : undefined
+      printed: req.query.printed === 'true' ? true : req.query.printed === 'false' ? false : undefined,
+      limit: limit,
+      offset: offset
     };
     
     console.log('📊 Fetching tickets with filters:', filters);
