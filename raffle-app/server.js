@@ -258,6 +258,7 @@ async function runMigrations() {
   
   let successCount = 0;
   let failCount = 0;
+  let skippedCount = 0;
   
   for (const migrationFile of migrations) {
     const filePath = path.join(__dirname, 'migrations', migrationFile);
@@ -275,11 +276,12 @@ async function runMigrations() {
       }
     } else {
       console.warn(`⚠️  Migration file not found: ${filePath}`);
+      skippedCount++;
     }
   }
   
-  if (failCount > 0) {
-    console.log(`⚠️  Migrations completed: ${successCount} successful, ${failCount} failed`);
+  if (failCount > 0 || skippedCount > 0) {
+    console.log(`⚠️  Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);
   } else {
     console.log(`✅ All ${successCount} migration(s) completed successfully`);
   }
