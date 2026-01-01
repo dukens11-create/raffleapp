@@ -1155,49 +1155,112 @@
                               });
                             });
                             
-                            // Chart.js analytics
+                            // Global error handler
+                            window.addEventListener('error', function(event) {
+                              console.error('Global error:', event.error);
+                              // Don't show alert for every error, just log it
+                            });
+
+                            // Catch unhandled promise rejections
+                            window.addEventListener('unhandledrejection', function(event) {
+                              console.error('Unhandled promise rejection:', event.reason);
+                              event.preventDefault(); // Prevent default browser behavior
+                            });
+
+                            // Add timeout to fetch requests
+                            async function fetchWithTimeout(url, options = {}, timeout = 30000) {
+                              const controller = new AbortController();
+                              const id = setTimeout(() => controller.abort(), timeout);
+                              
+                              try {
+                                const response = await fetch(url, {
+                                  ...options,
+                                  signal: controller.signal
+                                });
+                                clearTimeout(id);
+                                return response;
+                              } catch (error) {
+                                clearTimeout(id);
+                                if (error.name === 'AbortError') {
+                                  throw new Error('Request timeout - server took too long to respond');
+                                }
+                                throw error;
+                              }
+                            }
+
+                            // Add loading state helper for buttons
+                            function withLoadingState(button, asyncFunction) {
+                              return async function(...args) {
+                                // Prevent double-clicks
+                                if (button.disabled) return;
+                                
+                                const originalText = button.textContent;
+                                button.disabled = true;
+                                button.textContent = '⏳ Loading...';
+                                
+                                try {
+                                  await asyncFunction.apply(this, args);
+                                } catch (error) {
+                                  console.error('Error:', error);
+                                  alert('An error occurred: ' + error.message);
+                                } finally {
+                                  button.disabled = false;
+                                  button.textContent = originalText;
+                                }
+                              };
+                            }
+                            
+                            // Chart.js analytics - lazy load with timeout to improve initial page load
                             document.addEventListener('DOMContentLoaded', function() {
-                              // Sales by day
-                              fetch('/analytics/sales-by-day').then(res => res.json()).then(data => {
-                                const ctx = document.getElementById('salesChart').getContext('2d');
-                                new Chart(ctx, {
-                                  type: 'line',
-                                  data: {
-                                    labels: data.map(row => row.day),
-                                    datasets: [{
-                                      label: 'Tickets Sold',
-                                      data: data.map(row => row.count),
-                                      backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                                      borderColor: '#667eea',
-                                      borderWidth: 2,
-                                      fill: true
-                                    }]
-                                  },
-                                  options: {
-                                    scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Tickets Sold' }, beginAtZero: true } },
-                                    plugins: { legend: { display: false } }
+                              // Load analytics in background after a delay to prioritize critical content
+                              setTimeout(() => {
+                                // Sales by day
+                                fetch('/analytics/sales-by-day').then(res => res.json()).then(data => {
+                                  const ctx = document.getElementById('salesChart')?.getContext('2d');
+                                  if (ctx) {
+                                    new Chart(ctx, {
+                                      type: 'line',
+                                      data: {
+                                        labels: data.map(row => row.day),
+                                        datasets: [{
+                                          label: 'Tickets Sold',
+                                          data: data.map(row => row.count),
+                                          backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                                          borderColor: '#667eea',
+                                          borderWidth: 2,
+                                          fill: true
+                                        }]
+                                      },
+                                      options: {
+                                        scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Tickets Sold' }, beginAtZero: true } },
+                                        plugins: { legend: { display: false } }
+                                      }
+                                    });
                                   }
-                                });
-                              });
-                              // Tickets by category
-                              fetch('/analytics/tickets-by-category').then(res => res.json()).then(data => {
-                                const ctx = document.getElementById('categoryChart').getContext('2d');
-                                new Chart(ctx, {
-                                  type: 'bar',
-                                  data: {
-                                    labels: data.map(row => row.category),
-                                    datasets: [{
-                                      label: 'Tickets',
-                                      data: data.map(row => row.count),
-                                      backgroundColor: ['#667eea','#764ba2','#9f7aea','#b794f4'],
-                                    }]
-                                  },
-                                  options: {
-                                    scales: { x: { title: { display: true, text: 'Category' } }, y: { title: { display: true, text: 'Tickets' }, beginAtZero: true } },
-                                    plugins: { legend: { display: false } }
+                                }).catch(err => console.error('Error loading sales chart:', err));
+                                
+                                // Tickets by category
+                                fetch('/analytics/tickets-by-category').then(res => res.json()).then(data => {
+                                  const ctx = document.getElementById('categoryChart')?.getContext('2d');
+                                  if (ctx) {
+                                    new Chart(ctx, {
+                                      type: 'bar',
+                                      data: {
+                                        labels: data.map(row => row.category),
+                                        datasets: [{
+                                          label: 'Tickets',
+                                          data: data.map(row => row.count),
+                                          backgroundColor: ['#667eea','#764ba2','#9f7aea','#b794f4'],
+                                        }]
+                                      },
+                                      options: {
+                                        scales: { x: { title: { display: true, text: 'Category' } }, y: { title: { display: true, text: 'Tickets' }, beginAtZero: true } },
+                                        plugins: { legend: { display: false } }
+                                      }
+                                    });
                                   }
-                                });
-                              });
+                                }).catch(err => console.error('Error loading category chart:', err));
+                              }, 1000); // 1 second delay to prioritize other content
                             });
                             // Bulk delete tickets and users
                             document.addEventListener('DOMContentLoaded', function() {
