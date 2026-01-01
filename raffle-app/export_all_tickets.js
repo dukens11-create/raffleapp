@@ -44,12 +44,15 @@ async function exportAllTickets() {
     process.exit(1);
   }
   
-  // Open database connection
-  const db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READONLY, (err) => {
-    if (err) {
-      console.error('❌ Error opening database:', err.message);
-      process.exit(1);
-    }
+  // Open database connection with Promise
+  const db = await new Promise((resolve, reject) => {
+    const database = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READONLY, (err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(database);
+      }
+    });
   });
   
   try {
@@ -120,15 +123,29 @@ async function exportAllTickets() {
     
   } catch (error) {
     console.error('❌ Error during export:', error.message);
+    // Close database connection before exit
+    await new Promise((resolve) => {
+      db.close((err) => {
+        if (err) {
+          console.error('Error closing database:', err.message);
+        }
+        resolve();
+      });
+    });
     process.exit(1);
-  } finally {
-    // Close database connection
+  }
+  
+  // Close database connection
+  await new Promise((resolve, reject) => {
     db.close((err) => {
       if (err) {
         console.error('Error closing database:', err.message);
+        reject(err);
+      } else {
+        resolve();
       }
     });
-  }
+  });
 }
 
 // ============================================================================
