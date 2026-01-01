@@ -350,69 +350,63 @@ app.use(helmet({
   },
 }));
 
-// CORS configuration - FIXED to allow all origins in development
+// CORS Configuration with hardcoded custom domain support
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : [
+      // ✅ HARDCODE custom domains as fallback
+      'https://www.enejipamticket.com',
+      'https://enejipamticket.com',
+      'https://raffleapp-e4ev.onrender.com'
+    ];
+
+// Also add environment URL if available
+if (process.env.RENDER_EXTERNAL_URL && !allowedOrigins.includes(process.env.RENDER_EXTERNAL_URL)) {
+  allowedOrigins.push(process.env.RENDER_EXTERNAL_URL);
+}
+
+if (process.env.APP_URL && !allowedOrigins.includes(process.env.APP_URL)) {
+  allowedOrigins.push(process.env.APP_URL);
+}
+
+// Development origins
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:3000');
+  allowedOrigins.push('http://localhost:5000');
+  allowedOrigins.push('http://127.0.0.1:3000');
+  allowedOrigins.push('http://127.0.0.1:5000');
+}
+
+console.log('✅ CORS allowed origins:', allowedOrigins);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Only log CORS checks in debug mode to avoid log flooding
-    if (DEBUG_MODE) {
-      console.log('🌐 CORS check - Origin:', origin);
-    }
-    
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Allowing request with no origin');
-      }
-      return callback(null, true);
-    }
-    
-    // Define allowed origins
-    const allowedOrigins = [
-      process.env.FRONTEND_URL,           // Your production domain
-      process.env.RENDER_EXTERNAL_URL,    // Render's auto-generated URL
-      'https://www.enejipamticket.com',   // Custom domain with www
-      'https://enejipamticket.com',       // Custom domain without www
-      'http://localhost:3000',            // Local development
-      'http://localhost:5000',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5000'
-    ].filter(Boolean); // Remove undefined values
-    
-    // In development, allow all origins
-    if (process.env.NODE_ENV !== 'production') {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Development mode - allowing all origins');
-      }
       return callback(null, true);
     }
     
     // Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Origin allowed:', origin);
-      }
       return callback(null, true);
     }
     
-    // Check if origin matches Render domain pattern (secure check using endsWith)
-    // Only allow HTTPS subdomains of onrender.com, not the base domain itself
+    // Allow any *.onrender.com subdomain (HTTPS only for security)
     if (origin.startsWith('https://') && origin.endsWith('.onrender.com')) {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Render domain allowed:', origin);
-      }
       return callback(null, true);
     }
     
-    // Reject unknown origins in production
-    console.error('❌ CORS: Origin rejected:', origin);
-    console.error('❌ Allowed origins:', allowedOrigins);
+    // Log rejection for debugging
+    console.warn('❌ CORS: Origin rejected:', origin);
+    console.warn('❌ Allowed origins:', allowedOrigins);
+    
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400, // 24 hours
+  maxAge: 600, // 10 minutes
   optionsSuccessStatus: 200
 };
 
