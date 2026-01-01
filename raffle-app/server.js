@@ -17,6 +17,7 @@ const multer = require('multer');
 const sharp = require('sharp');
 
 // Simple Mutex class for preventing race conditions
+// Note: For high-concurrency scenarios, consider using a production-grade mutex library
 class Mutex {
   constructor() {
     this.locked = false;
@@ -25,22 +26,28 @@ class Mutex {
 
   async lock() {
     return new Promise((resolve) => {
-      if (!this.locked) {
-        this.locked = true;
-        resolve();
-      } else {
-        this.queue.push(resolve);
-      }
+      // Use setImmediate to ensure atomicity in the event loop
+      setImmediate(() => {
+        if (!this.locked) {
+          this.locked = true;
+          resolve();
+        } else {
+          this.queue.push(resolve);
+        }
+      });
     });
   }
 
   unlock() {
-    if (this.queue.length > 0) {
-      const resolve = this.queue.shift();
-      resolve();
-    } else {
-      this.locked = false;
-    }
+    setImmediate(() => {
+      if (this.queue.length > 0) {
+        const resolve = this.queue.shift();
+        this.locked = true; // Keep locked for next in queue
+        resolve();
+      } else {
+        this.locked = false;
+      }
+    });
   }
 
   isLocked() {
@@ -2397,6 +2404,7 @@ app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (re
     console.log('⚠️ Generation already in progress (mutex locked), rejecting request');
     return res.status(409).json({ 
       error: 'Generation already in progress. Please wait for current operation to complete.',
+      message: 'Use /api/admin/tickets/generation-progress to monitor status.',
       progress: generationProgress,
       timestamp: new Date().toISOString()
     });
