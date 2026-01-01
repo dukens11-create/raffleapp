@@ -3,3 +3,4 @@ node_modules
 *.db
 .env
 raffle-app/uploads/
+raffle-app/ticket_exports/
