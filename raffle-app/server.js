@@ -1966,13 +1966,28 @@ app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
   res.json([]);
 });
 
+// Helper function for database-specific date filtering (30 days)
+function getLast30DaysFilter() {
+  return db.USE_POSTGRES 
+    ? "created_at >= CURRENT_DATE - INTERVAL '30 days'"
+    : "created_at >= datetime('now', '-30 days')";
+}
+
+// Helper function for database-specific date formatting
+function getDateFormat(column) {
+  return db.USE_POSTGRES 
+    ? `DATE(${column})`
+    : `date(${column})`;
+}
+
 app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Optimize query with LIMIT and date filter for last 30 days
+    const dateFilter = getLast30DaysFilter();
     const rows = await db.all(`
       SELECT seller_name as sold_by, COUNT(*) as count
       FROM tickets
-      WHERE created_at >= ${db.USE_POSTGRES ? "CURRENT_DATE - INTERVAL '30 days'" : "datetime('now', '-30 days')"}
+      WHERE ${dateFilter}
       GROUP BY seller_name
       ORDER BY count DESC
       LIMIT 50
@@ -1986,10 +2001,11 @@ app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
 app.get('/seller-leaderboard', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Optimize query with LIMIT and date filter for last 30 days
+    const dateFilter = getLast30DaysFilter();
     const rows = await db.all(`
       SELECT seller_name as sold_by, COUNT(*) as tickets_sold
       FROM tickets
-      WHERE created_at >= ${db.USE_POSTGRES ? "CURRENT_DATE - INTERVAL '30 days'" : "datetime('now', '-30 days')"}
+      WHERE ${dateFilter}
       GROUP BY seller_name
       ORDER BY tickets_sold DESC
       LIMIT 50
@@ -2008,11 +2024,13 @@ app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
 app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Optimize query with database-specific date functions
+    const dateFormat = getDateFormat('created_at');
+    const dateFilter = getLast30DaysFilter();
     const rows = await db.all(`
-      SELECT ${db.USE_POSTGRES ? 'DATE(created_at)' : "date(created_at)"} as day, COUNT(*) as count
+      SELECT ${dateFormat} as day, COUNT(*) as count
       FROM tickets
-      WHERE created_at >= ${db.USE_POSTGRES ? "CURRENT_DATE - INTERVAL '30 days'" : "datetime('now', '-30 days')"}
-      GROUP BY ${db.USE_POSTGRES ? 'DATE(created_at)' : "date(created_at)"}
+      WHERE ${dateFilter}
+      GROUP BY ${dateFormat}
       ORDER BY day
     `);
     res.json(rows);
