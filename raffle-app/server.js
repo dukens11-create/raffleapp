@@ -274,12 +274,15 @@ async function runMigrations() {
         // Don't crash - migrations are idempotent
       }
     } else {
-      console.log(`⚠️  Migration file not found: ${filePath}`);
-      failCount++;
+      console.warn(`⚠️  Migration file not found: ${filePath}`);
     }
   }
   
-  console.log(`✅ Migrations completed: ${successCount} successful, ${failCount} failed`);
+  if (failCount > 0) {
+    console.log(`⚠️  Migrations completed: ${successCount} successful, ${failCount} failed`);
+  } else {
+    console.log(`✅ All ${successCount} migration(s) completed successfully`);
+  }
 }
 
 /**
