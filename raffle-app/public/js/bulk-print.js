@@ -145,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(error.error || 'Failed to generate PDF');
       } else {
         // If not JSON, it might be HTML error page
-        const text = await response.text();
         throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
     }
