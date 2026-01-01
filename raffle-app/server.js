@@ -2719,6 +2719,221 @@ app.delete('/api/admin/templates/:id', requireAuth, requireAdmin, async (req, re
 // Serve uploaded template images
 app.use('/uploads/templates', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'templates')));
 
+// Serve uploaded design images
+app.use('/uploads/designs', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'designs')));
+
+// ============================================================================
+// CUSTOM TICKET DESIGNS ENDPOINTS (Category-specific)
+// ============================================================================
+
+// POST /api/admin/ticket-designs/upload - Upload category-specific design
+app.post('/api/admin/ticket-designs/upload', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, front_image_base64, back_image_base64 } = req.body;
+
+    // Validate category
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category. Must be ABC, EFG, JKL, or XYZ' });
+    }
+
+    // Validate images
+    if (!front_image_base64 || !back_image_base64) {
+      return res.status(400).json({ error: 'Both front and back images are required' });
+    }
+
+    // Check if design already exists for this category
+    const existing = await db.get('SELECT * FROM ticket_designs WHERE category = ?', [category]);
+
+    if (existing) {
+      // Update existing design
+      await db.run(
+        `UPDATE ticket_designs 
+         SET front_image_base64 = ?, back_image_base64 = ?, updated_at = ${db.getCurrentTimestamp()}
+         WHERE category = ?`,
+        [front_image_base64, back_image_base64, category]
+      );
+      
+      res.json({
+        success: true,
+        message: `${category} design updated successfully`,
+        designId: existing.id
+      });
+    } else {
+      // Insert new design
+      const result = await db.run(
+        `INSERT INTO ticket_designs (category, front_image_base64, back_image_base64) 
+         VALUES (?, ?, ?)`,
+        [category, front_image_base64, back_image_base64]
+      );
+      
+      res.json({
+        success: true,
+        message: `${category} design saved successfully`,
+        designId: result.lastID
+      });
+    }
+  } catch (error) {
+    console.error('Design upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/ticket-designs - Get all category designs
+app.get('/api/admin/ticket-designs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const designs = await db.all('SELECT * FROM ticket_designs ORDER BY category');
+    res.json({ designs });
+  } catch (error) {
+    console.error('Error fetching designs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/ticket-designs/:category - Get design for specific category
+app.get('/api/admin/ticket-designs/:category', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const category = req.params.category.toUpperCase();
+    
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    const design = await db.get('SELECT * FROM ticket_designs WHERE category = ?', [category]);
+    
+    if (!design) {
+      return res.status(404).json({ error: 'Design not found for this category' });
+    }
+
+    res.json({ design });
+  } catch (error) {
+    console.error('Error fetching design:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/admin/ticket-designs/:category - Delete category design
+app.delete('/api/admin/ticket-designs/:category', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const category = req.params.category.toUpperCase();
+    
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    await db.run('DELETE FROM ticket_designs WHERE category = ?', [category]);
+    res.json({ success: true, message: `${category} design deleted successfully` });
+  } catch (error) {
+    console.error('Error deleting design:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/admin/tickets/preview-custom - Preview custom tickets before printing
+app.post('/api/admin/tickets/preview-custom', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, startNum, endNum } = req.body;
+
+    // Validate category
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    // Validate range
+    if (endNum - startNum + 1 !== 8) {
+      return res.status(400).json({ error: 'Must select exactly 8 tickets for one sheet' });
+    }
+
+    // Generate ticket numbers and barcodes
+    const tickets = [];
+    const prices = { ABC: 100, EFG: 50, JKL: 20, XYZ: 10 };
+    
+    for (let i = startNum; i <= endNum; i++) {
+      const ticketNumber = `${category}-${String(i).padStart(6, '0')}`;
+      const barcode = barcodeService.generateBarcodeNumber(ticketNumber);
+      const qrCode = qrcodeService.generateVerificationURL(ticketNumber);
+      
+      tickets.push({
+        ticket_number: ticketNumber,
+        barcode: barcode,
+        qr_code_data: qrCode,
+        category: category,
+        price: prices[category]
+      });
+    }
+
+    // Get custom design for category
+    const design = await db.get(
+      'SELECT * FROM ticket_designs WHERE category = ?',
+      [category]
+    );
+
+    res.json({ 
+      tickets, 
+      design: design || {} 
+    });
+  } catch (error) {
+    console.error('Preview error:', error);
+    res.status(500).json({ error: 'Failed to generate preview' });
+  }
+});
+
+// POST /api/admin/tickets/print-custom - Generate PDF with custom design
+app.post('/api/admin/tickets/print-custom', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, start_number, end_number, paper_type } = req.body;
+
+    // Validate category
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    // Validate paper type
+    if (paper_type !== 'LETTER_8_TICKETS') {
+      return res.status(400).json({ error: 'Only LETTER_8_TICKETS paper type is supported for custom designs' });
+    }
+
+    // Validate range
+    if (end_number - start_number + 1 !== 8) {
+      return res.status(400).json({ error: 'Must select exactly 8 tickets for one sheet' });
+    }
+
+    // Generate tickets array
+    const tickets = [];
+    const prices = { ABC: 100, EFG: 50, JKL: 20, XYZ: 10 };
+    
+    for (let i = start_number; i <= end_number; i++) {
+      const ticketNumber = `${category}-${String(i).padStart(6, '0')}`;
+      const barcode = barcodeService.generateBarcodeNumber(ticketNumber);
+      const qrCode = qrcodeService.generateVerificationURL(ticketNumber);
+      
+      tickets.push({
+        ticket_number: ticketNumber,
+        barcode: barcode,
+        qr_code_data: qrCode,
+        category: category,
+        price: prices[category],
+        raffle_id: 1 // Default raffle
+      });
+    }
+
+    // Get custom design
+    const design = await db.get(
+      'SELECT * FROM ticket_designs WHERE category = ?',
+      [category]
+    );
+
+    // Generate PDF using the new category-specific function
+    const pdfBuffer = await printService.generateCategoryCustomPDF(tickets, design);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="custom-tickets-${category}-${String(start_number).padStart(6, '0')}-${String(end_number).padStart(6, '0')}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Print error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
 // ============================================================================
 // REPORTS ENDPOINTS
 // ============================================================================

@@ -374,6 +374,20 @@ async function initializeSchema() {
       )
     `);
     
+    // Ticket designs table - for category-specific custom designs
+    await run(`
+      CREATE TABLE IF NOT EXISTS ticket_designs (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        category TEXT NOT NULL UNIQUE,
+        front_image_path TEXT,
+        back_image_path TEXT,
+        front_image_base64 TEXT,
+        back_image_base64 TEXT,
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        updated_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    
     console.log('✅ Database schema initialized successfully');
     
     // Check if admin exists, create if not
