@@ -1,8 +1,10 @@
 /**
- * Print Ticket Styles - Avery 16145 Paper Specifications
- * Paper Size: 8.5" x 11" (Letter)
- * Tickets per Sheet: 10 tickets (2 columns x 5 rows)
- * Ticket Size: 5.5" x 1.75" each (landscape)
+ * Print Ticket Styles
+ * 
+ * Supported Paper Types:
+ * - Avery 16145: 8.5" x 11", 10 tickets (2 columns x 5 rows), 5.5" x 1.75" each (landscape)
+ * - PrintWorks: 8.5" x 11", 8 tickets (2 columns x 4 rows), 5.5" x 2.125" each (landscape)
+ * - Letter 8 Tickets: 8.5" x 11", 8 tickets (4 columns x 2 rows), 2.125" x 5.5" each (portrait)
  */
 
 /* Screen styles */
