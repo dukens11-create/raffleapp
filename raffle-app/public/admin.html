@@ -2561,7 +2561,7 @@
     
     // ==================== DOWNLOAD TICKETS FUNCTIONALITY ====================
     
-    // Download tickets button
+    // Download tickets button - Downloads ALL tickets without requiring selection
     document.getElementById('download-tickets-btn').addEventListener('click', async () => {
       const downloadBtn = document.getElementById('download-tickets-btn');
       const downloadStatus = document.getElementById('download-status');
@@ -2570,16 +2570,16 @@
       downloadBtn.disabled = true;
       downloadBtn.innerHTML = '⏳ Preparing download...';
       downloadStatus.style.display = 'inline';
-      downloadStatus.textContent = 'Fetching tickets...';
+      downloadStatus.textContent = 'Fetching all tickets...';
       downloadStatus.style.color = '#64748b';
       
       try {
-        // Build query parameters for export
+        // Build query parameters for export - downloads ALL tickets
         const params = new URLSearchParams({
-          raffle_id: 1  // Default raffle ID
+          raffle_id: 1  // Default raffle ID - will export ALL tickets in this raffle
         });
         
-        console.log('📥 Fetching tickets from:', `/api/admin/tickets/export?${params.toString()}`);
+        console.log('📥 Fetching ALL tickets from:', `/api/admin/tickets/export?${params.toString()}`);
         
         // Make request to export endpoint
         const response = await fetch(`/api/admin/tickets/export?${params.toString()}`);
@@ -2595,6 +2595,11 @@
             const errorData = await response.json();
             errorMessage = errorData.error || errorData.message || errorMessage;
             console.error('❌ Server error:', errorData);
+            
+            // Provide helpful message if no tickets exist
+            if (errorMessage.includes('No tickets found') || response.status === 404) {
+              errorMessage = 'No tickets found in database. Please generate tickets first or import tickets via Excel.';
+            }
           } catch (jsonError) {
             // Not JSON, get as text
             const errorText = await response.text();
@@ -2620,7 +2625,7 @@
         console.log('📦 Blob size:', blob.size, 'bytes');
         
         if (blob.size === 0) {
-          throw new Error('Downloaded file is empty - no tickets found');
+          throw new Error('Downloaded file is empty - no tickets found in database');
         }
         
         // Create download link
@@ -2640,7 +2645,7 @@
         // Show success message
         downloadStatus.textContent = '✅ Download complete!';
         downloadStatus.style.color = '#10b981';
-        showNotify('✅ Tickets downloaded successfully! File includes ticket numbers and barcodes.', '#10b981', 3000);
+        showNotify('✅ All tickets downloaded successfully! File includes ticket numbers and barcodes.', '#10b981', 3000);
         
         // Reset status after 3 seconds
         setTimeout(() => {
