@@ -256,6 +256,9 @@ async function runMigrations() {
     'add_print_count_column.sql'
   ];
   
+  let successCount = 0;
+  let failCount = 0;
+  
   for (const migrationFile of migrations) {
     const filePath = path.join(__dirname, 'migrations', migrationFile);
     
@@ -264,16 +267,19 @@ async function runMigrations() {
       try {
         await db.run(sql);
         console.log(`✅ Migration completed: ${migrationFile}`);
+        successCount++;
       } catch (error) {
         console.error(`❌ Migration failed (${migrationFile}):`, error.message);
+        failCount++;
         // Don't crash - migrations are idempotent
       }
     } else {
       console.log(`⚠️  Migration file not found: ${filePath}`);
+      failCount++;
     }
   }
   
-  console.log('✅ All migrations completed');
+  console.log(`✅ Migrations completed: ${successCount} successful, ${failCount} failed`);
 }
 
 /**

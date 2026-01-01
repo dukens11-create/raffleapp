@@ -11,9 +11,6 @@ BEGIN
         ALTER TABLE tickets 
         ADD COLUMN print_count INTEGER DEFAULT 0 NOT NULL;
         
-        -- Add index for performance (optional but recommended)
-        CREATE INDEX idx_tickets_print_count ON tickets(print_count);
-        
         RAISE NOTICE 'Added print_count column to tickets table';
     ELSE
         RAISE NOTICE 'print_count column already exists';
