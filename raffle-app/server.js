@@ -271,11 +271,16 @@ app.use(helmet({
 // CORS configuration - FIXED to allow all origins in development
 const corsOptions = {
   origin: function (origin, callback) {
-    console.log('🌐 CORS check - Origin:', origin);
+    // Only log CORS checks in debug mode to avoid log flooding
+    if (DEBUG_MODE) {
+      console.log('🌐 CORS check - Origin:', origin);
+    }
     
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) {
-      console.log('✅ CORS: Allowing request with no origin');
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Allowing request with no origin');
+      }
       return callback(null, true);
     }
     
@@ -291,19 +296,25 @@ const corsOptions = {
     
     // In development, allow all origins
     if (process.env.NODE_ENV !== 'production') {
-      console.log('✅ CORS: Development mode - allowing all origins');
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Development mode - allowing all origins');
+      }
       return callback(null, true);
     }
     
     // Check if origin is allowed
     if (allowedOrigins.includes(origin)) {
-      console.log('✅ CORS: Origin allowed:', origin);
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Origin allowed:', origin);
+      }
       return callback(null, true);
     }
     
-    // Check if origin matches Render domain pattern
-    if (origin.includes('.onrender.com')) {
-      console.log('✅ CORS: Render domain allowed:', origin);
+    // Check if origin matches Render domain pattern (secure check using endsWith)
+    if (origin.endsWith('.onrender.com') || origin === 'https://onrender.com') {
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Render domain allowed:', origin);
+      }
       return callback(null, true);
     }
     
