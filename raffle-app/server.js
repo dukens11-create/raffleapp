@@ -3253,6 +3253,298 @@ app.post('/api/admin/tickets/print-custom', requireAuth, requireAdmin, async (re
   }
 });
 
+// POST /api/admin/tickets/print-bulk - Generate bulk PDF with up to 1000 tickets
+app.post('/api/admin/tickets/print-bulk', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, start_number, count, paper_type } = req.body;
+    
+    // Validation
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+    
+    if (!start_number || start_number < 1 || start_number > 375000) {
+      return res.status(400).json({ error: 'Invalid start number (must be 1-375000)' });
+    }
+    
+    if (!count || count < 8 || count > 1000) {
+      return res.status(400).json({ error: 'Invalid count (must be 8-1000)' });
+    }
+    
+    if (count % 8 !== 0) {
+      return res.status(400).json({ error: 'Count must be multiple of 8' });
+    }
+    
+    if (start_number + count - 1 > 375000) {
+      return res.status(400).json({ error: 'Ticket range exceeds category limit (375,000)' });
+    }
+    
+    console.log(`📄 Bulk print request: ${category}, tickets ${start_number} to ${start_number + count - 1}`);
+    
+    // Helper function to get price by category
+    const getCategoryPrice = (cat) => {
+      const prices = { 'ABC': 100, 'EFG': 50, 'JKL': 20, 'XYZ': 10 };
+      return prices[cat] || 0;
+    };
+    
+    // Calculate ticket numbers
+    const tickets = [];
+    for (let i = 0; i < count; i++) {
+      const ticketNum = start_number + i;
+      const ticketNumber = `${category}-${String(ticketNum).padStart(6, '0')}`;
+      
+      // Generate barcode and QR code
+      const barcode = barcodeService.generateBarcodeNumber(ticketNumber);
+      const qrCodeData = qrcodeService.generateVerificationURL(ticketNumber);
+      
+      tickets.push({
+        ticket_number: ticketNumber,
+        category,
+        price: getCategoryPrice(category),
+        barcode,
+        qr_code_data: qrCodeData,
+        status: 'AVAILABLE'
+      });
+    }
+    
+    console.log(`✅ Generated ${tickets.length} ticket records`);
+    
+    // Set response headers
+    const filename = `bulk-tickets-${category}-${start_number}-to-${start_number + count - 1}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Generate PDF in batches to manage memory
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ 
+      size: 'LETTER',
+      margin: 0,
+      bufferPages: true, // Enable page buffering for large documents
+      compress: true // Enable compression for smaller file size
+    });
+    
+    // Stream PDF directly to response
+    doc.pipe(res);
+    
+    // Pre-generate all QR codes and barcodes
+    console.log('🔄 Pre-generating QR codes and barcodes...');
+    const bwipjs = require('bwip-js');
+    const ticketsWithImages = await Promise.all(
+      tickets.map(async (ticket) => {
+        const qrImage = await qrcodeService.generateQRCodeBuffer(ticket, { 
+          size: 67, // 0.7" at 96 DPI for LETTER_8_TICKETS format
+          errorCorrectionLevel: 'M'
+        });
+        
+        let barcodeImage = null;
+        try {
+          barcodeImage = await bwipjs.toBuffer({
+            bcid: 'ean13',
+            text: ticket.barcode,
+            scale: 1.5,
+            height: 8,
+            includetext: false,
+            textxalign: 'center'
+          });
+        } catch (error) {
+          console.error('Barcode generation error:', error);
+        }
+        
+        return { ...ticket, qrImage, barcodeImage };
+      })
+    );
+    
+    console.log('✅ Images generated, starting PDF generation...');
+    
+    // Generate pages (8 tickets per page in LETTER_8_TICKETS format: 4 columns × 2 rows)
+    const template = printService.TEMPLATES.LETTER_8_TICKETS;
+    let ticketIndex = 0;
+    let pageCount = 0;
+    
+    while (ticketIndex < ticketsWithImages.length) {
+      // Draw 8 tickets per page (4 columns × 2 rows)
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 4; col++) {
+          if (ticketIndex >= ticketsWithImages.length) break;
+          
+          const ticket = ticketsWithImages[ticketIndex];
+          const x = col * template.ticketWidth;
+          const y = row * template.ticketHeight;
+          
+          // Draw ticket front (using internal function from printService)
+          await drawTicketFrontForBulk(doc, ticket, template, x, y, ticket.qrImage, ticket.barcodeImage);
+          
+          ticketIndex++;
+        }
+      }
+      
+      pageCount++;
+      
+      // Add new page if more tickets remaining
+      if (ticketIndex < ticketsWithImages.length) {
+        doc.addPage();
+      }
+      
+      // Log progress every 10 pages
+      if (pageCount % 10 === 0) {
+        console.log(`📄 Generated ${pageCount} pages (${ticketIndex} tickets)...`);
+      }
+      
+      // Allow garbage collection every 25 pages
+      if (pageCount % 25 === 0 && global.gc) {
+        global.gc();
+      }
+    }
+    
+    console.log(`✅ PDF complete: ${pageCount} pages, ${ticketsWithImages.length} tickets`);
+    
+    // Finalize PDF
+    doc.end();
+    
+  } catch (error) {
+    console.error('❌ Bulk print error:', error);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to generate bulk PDF',
+        message: error.message 
+      });
+    }
+  }
+});
+
+// Helper function to draw ticket front for bulk printing
+// This duplicates some logic from printService.drawTicketFront but is necessary
+// to avoid circular dependencies and maintain encapsulation
+async function drawTicketFrontForBulk(doc, ticket, template, x, y, qrMainImage, barcodeImage) {
+  const { ticketWidth, ticketHeight, perforationLine } = template;
+  
+  const isSmallFormat = ticketWidth < 200;
+  const padding = isSmallFormat ? 4 : 8;
+  const titleSize = isSmallFormat ? 8 : 12;
+  const ticketNumSize = isSmallFormat ? 11 : 16;
+  const bodySize = isSmallFormat ? 7 : 9;
+  const priceSize = isSmallFormat ? 8 : 10;
+  const fieldSize = isSmallFormat ? 6 : 8;
+  const footerSize = isSmallFormat ? 6 : 7;
+  const qrSize = isSmallFormat ? 50 : 80;
+  const barcodeWidth = isSmallFormat ? 90 : 120;
+  const barcodeHeight = isSmallFormat ? 30 : 40;
+  
+  // Category display names
+  const CATEGORY_NAMES = {
+    'ABC': { full: 'ABC - Regular', short: 'ABC ($100)' },
+    'EFG': { full: 'EFG - Silver', short: 'EFG ($50)' },
+    'JKL': { full: 'JKL - Gold', short: 'JKL ($20)' },
+    'XYZ': { full: 'XYZ - Platinum', short: 'XYZ ($10)' }
+  };
+  
+  // Draw border (dashed for tear-off if specified)
+  if (perforationLine) {
+    doc.save();
+    doc.strokeColor('#999999');
+    doc.lineWidth(1);
+    doc.dash(5, { space: 5 });
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+    doc.restore();
+  } else {
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+  }
+
+  // Title with emoji
+  doc.fontSize(titleSize)
+     .font('Helvetica-Bold')
+     .text('🎫 RAFFLE TICKET', x + padding, y + padding, {
+       width: ticketWidth - (padding * 2),
+       align: 'center'
+     });
+
+  // Ticket number (prominent)
+  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
+  doc.fontSize(ticketNumSize)
+     .font('Helvetica-Bold')
+     .text(ticket.ticket_number, x + padding, ticketNumY, {
+       width: ticketWidth - qrSize - (padding * 3),
+       align: 'left'
+     });
+
+  const categoryY = ticketNumY + (isSmallFormat ? 16 : 18);
+  doc.fontSize(bodySize)
+     .font('Helvetica')
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, categoryY, {
+       width: ticketWidth - qrSize - (padding * 3)
+     });
+  
+  const priceY = categoryY + (isSmallFormat ? 12 : 14);
+  doc.fontSize(priceSize)
+     .font('Helvetica-Bold')
+     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, priceY, {
+       width: ticketWidth - qrSize - (padding * 3)
+     });
+
+  // QR Code (right side)
+  if (qrMainImage) {
+    const qrX = x + ticketWidth - qrSize - padding;
+    const qrY = y + padding + (isSmallFormat ? 8 : 10);
+    doc.image(qrMainImage, qrX, qrY, {
+      width: qrSize,
+      height: qrSize
+    });
+  }
+
+  // EAN-13 Barcode (center area)
+  if (barcodeImage) {
+    const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
+    const barcodeY = y + priceY + (isSmallFormat ? 20 : 30);
+    doc.image(barcodeImage, barcodeX, barcodeY, {
+      width: barcodeWidth,
+      height: barcodeHeight
+    });
+    
+    // Display barcode number below the barcode
+    if (ticket.barcode) {
+      doc.fontSize(footerSize)
+         .font('Helvetica')
+         .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 2, {
+           width: ticketWidth - (padding * 2),
+           align: 'center'
+         });
+    }
+  }
+
+  // Buyer information fields
+  const fieldsStartY = y + ticketHeight - (isSmallFormat ? 28 : 35);
+  doc.fontSize(fieldSize)
+     .font('Helvetica');
+  
+  if (isSmallFormat) {
+    // Compact layout for small tickets
+    doc.text('Date: _____________', x + padding, fieldsStartY, {
+      width: ticketWidth - (padding * 2)
+    });
+    doc.text('Name: _____________', x + padding, fieldsStartY + 8, {
+      width: ticketWidth - (padding * 2)
+    });
+    doc.text('Phone: ____________', x + padding, fieldsStartY + 16, {
+      width: ticketWidth - (padding * 2)
+    });
+  } else {
+    // Original layout for larger tickets
+    doc.text('Date: ___________________', x + padding, fieldsStartY)
+       .text('Name: ___________________', x + padding + 140, fieldsStartY);
+    doc.text('Phone: __________________', x + padding, fieldsStartY + 12)
+       .text('Draw Date: [INSERT DATE]', x + padding + 140, fieldsStartY + 12);
+  }
+
+  // Footer
+  doc.fontSize(footerSize)
+     .font('Helvetica')
+     .text('Keep this ticket for entry', x + padding, y + ticketHeight - (isSmallFormat ? 8 : 15), {
+       width: ticketWidth - (padding * 2),
+       align: 'center'
+     });
+}
+
 // ============================================================================
 // REPORTS ENDPOINTS
 // ============================================================================
