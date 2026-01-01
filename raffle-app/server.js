@@ -61,32 +61,45 @@ const ticketGenerationMutex = new Mutex();
 // Load environment variables
 require('dotenv').config();
 
-// Validate critical environment variables on startup
+// Environment variable validation with flexible handling
 function validateEnvironment() {
-  const requiredVars = {
-    SESSION_SECRET: process.env.SESSION_SECRET,
-    ADMIN_SETUP_TOKEN: process.env.ADMIN_SETUP_TOKEN
-  };
-  
-  const missing = [];
+  const errors = [];
   const warnings = [];
   
-  // Check required variables
-  if (!requiredVars.SESSION_SECRET || requiredVars.SESSION_SECRET === 'raffle-secret-key-2024') {
-    warnings.push('SESSION_SECRET: Using default value - INSECURE for production!');
+  // Critical variables (must exist)
+  if (!process.env.DATABASE_URL) {
+    errors.push('DATABASE_URL - Database connection string is required');
   }
   
-  if (!requiredVars.ADMIN_SETUP_TOKEN) {
-    missing.push('ADMIN_SETUP_TOKEN: Required to secure admin setup endpoint');
+  // Session secret - auto-generate if missing (with warning)
+  if (!process.env.SESSION_SECRET) {
+    const crypto = require('crypto');
+    process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+    warnings.push('SESSION_SECRET was auto-generated. For production, set a persistent value in environment variables.');
+  } else if (process.env.SESSION_SECRET.length < 32) {
+    warnings.push('SESSION_SECRET should be at least 32 characters for security');
   }
   
-  // Check optional but recommended variables
-  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
-    warnings.push('DATABASE_URL: Missing - data will be lost on restart!');
+  // Optional but recommended variables
+  if (!process.env.ADMIN_SETUP_TOKEN) {
+    warnings.push('ADMIN_SETUP_TOKEN not set - admin setup endpoint will be disabled');
+  }
+  
+  if (!process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS = process.env.NODE_ENV === 'production' 
+      ? '' // Empty = no CORS in production (same-origin only)
+      : '*'; // Allow all in development
+    warnings.push(`ALLOWED_ORIGINS not set - using default: ${process.env.ALLOWED_ORIGINS}`);
   }
   
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    warnings.push('EMAIL_USER/EMAIL_PASS: Missing - email notifications disabled');
+    warnings.push('EMAIL_USER or EMAIL_PASS not set - email notifications will be disabled');
+  }
+  
+  if (!process.env.SMTP_HOST || !process.env.SMTP_PORT) {
+    warnings.push('SMTP_HOST or SMTP_PORT not set - using defaults (smtp.gmail.com:587)');
+    process.env.SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+    process.env.SMTP_PORT = process.env.SMTP_PORT || '587';
   }
   
   // Log results
@@ -95,24 +108,26 @@ function validateEnvironment() {
   console.log('🔍 ENVIRONMENT VALIDATION');
   console.log('═══════════════════════════════════════');
   
-  if (missing.length > 0) {
-    console.error('❌ CRITICAL: Missing required environment variables:');
-    missing.forEach(msg => console.error(`   - ${msg}`));
+  if (errors.length > 0) {
     console.error('');
-    console.error('Server will not start. Please configure these variables.');
+    console.error('❌ CRITICAL: Missing required environment variables:');
+    errors.forEach(err => console.error(`   - ${err}`));
+    console.error('');
+    console.error('⚠️  Server cannot start. Please set the required variables and restart.');
+    console.error('');
     console.error('See .env.example for reference.');
     console.error('═══════════════════════════════════════');
     process.exit(1);
   }
   
   if (warnings.length > 0) {
-    console.warn('⚠️  WARNINGS:');
-    warnings.forEach(msg => console.warn(`   - ${msg}`));
     console.warn('');
-  } else {
-    console.log('✅ All required environment variables configured');
+    console.warn('⚠️  Environment variable warnings:');
+    warnings.forEach(warn => console.warn(`   - ${warn}`));
+    console.warn('');
   }
   
+  console.log('✅ Environment validation passed');
   console.log('═══════════════════════════════════════');
   console.log('');
 }

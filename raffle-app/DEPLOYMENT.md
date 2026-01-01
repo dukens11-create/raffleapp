@@ -3,12 +3,52 @@
 This guide covers deploying the Raffle App to production environments.
 
 ## Table of Contents
+- [Minimal Required Configuration](#minimal-required-configuration)
 - [Prerequisites](#prerequisites)
 - [Environment Configuration](#environment-configuration)
 - [Database Setup](#database-setup)
 - [Deployment Platforms](#deployment-platforms)
 - [Security Checklist](#security-checklist)
 - [Post-Deployment](#post-deployment)
+
+## Minimal Required Configuration
+
+To get the app running quickly, you only need to set **one critical variable**:
+
+### On Render.com:
+
+1. Go to your service → Environment tab
+2. Add this variable:
+
+```bash
+DATABASE_URL=<your-postgresql-internal-url>
+```
+
+**That's it!** The server will:
+- ✅ Auto-generate a SESSION_SECRET (you should set a persistent one later)
+- ✅ Start successfully and be accessible
+- ⚠️  Display warnings for optional configurations
+
+### Optional but Recommended:
+
+For production use, also set:
+
+```bash
+SESSION_SECRET=<generate-with-crypto.randomBytes>
+ADMIN_SETUP_TOKEN=<your-secure-token>
+ALLOWED_ORIGINS=https://yourapp.com
+EMAIL_USER=your-email@example.com
+EMAIL_PASS=your-app-password
+```
+
+**Generate secure values:**
+```bash
+# Generate SESSION_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Generate ADMIN_SETUP_TOKEN
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
 ## Prerequisites
 
@@ -22,26 +62,24 @@ Before deploying, ensure you have:
 
 ### Required Environment Variables
 
-Create a `.env` file based on `.env.example`:
+Only **DATABASE_URL** is strictly required. Other variables have sensible defaults:
 
 ```bash
-# Server Configuration
-PORT=3000
-NODE_ENV=production
-
-# Security - CRITICAL: Change these values!
-SESSION_SECRET=your-random-secret-minimum-32-characters
-ADMIN_SETUP_TOKEN=your-secure-admin-setup-token-keep-this-secret
-
-# Database - REQUIRED for production
+# REQUIRED - Server won't start without this
 DATABASE_URL=postgresql://user:password@host:5432/database
 
-# Email Configuration (for seller notifications)
+# RECOMMENDED - Will be auto-generated if missing
+SESSION_SECRET=your-random-secret-minimum-32-characters
+
+# OPTIONAL - Server will work without these
+ADMIN_SETUP_TOKEN=your-secure-admin-setup-token-keep-this-secret
+ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
 EMAIL_USER=your-email@example.com
 EMAIL_PASS=your-email-app-password
 
-# CORS Configuration
-ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+# Server Configuration (optional)
+NODE_ENV=production
+PORT=3000
 
 # Rate Limiting (optional - defaults provided)
 RATE_LIMIT_WINDOW_MS=900000
