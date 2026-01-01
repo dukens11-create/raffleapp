@@ -1455,7 +1455,7 @@
               setTimeout(() => { notify.style.display = 'none'; }, timeout);
             }
             
-            // Button loading state utilities
+            // Button loading state utility
             function setButtonLoading(button, isLoading) {
               if (isLoading) {
                 button.dataset.originalText = button.textContent;
@@ -1469,12 +1469,6 @@
                 button.style.opacity = '1';
                 button.style.cursor = 'pointer';
               }
-            }
-            
-            function findButtonByOnclick(element, onclickString) {
-              return Array.from(element.querySelectorAll('button')).find(
-                btn => btn.getAttribute('onclick')?.includes(onclickString)
-              );
             }
         // Load inventory
         async function loadInventory() {
@@ -2094,8 +2088,8 @@
           let actionsHtml = '';
           if (request.status === 'pending') {
             actionsHtml = `
-              <button onclick="approveRequest(${request.id})" class="btn-success btn-sm">✅ Approve</button>
-              <button onclick="rejectRequest(${request.id})" class="btn-danger btn-sm">❌ Reject</button>
+              <button onclick="approveRequest(${request.id}, this)" class="btn-success btn-sm">✅ Approve</button>
+              <button onclick="rejectRequest(${request.id}, this)" class="btn-danger btn-sm">❌ Reject</button>
             `;
           } else {
             const reviewedDate = request.reviewed_date ? new Date(request.reviewed_date).toLocaleDateString() : '';
@@ -2120,10 +2114,10 @@
     }
     
     // Approve seller request
-    async function approveRequest(id) {
+    async function approveRequest(id, buttonElement) {
       if (!confirm('Approve this seller and send login credentials?')) return;
       
-      const button = event?.target || findButtonByOnclick(document, `approveRequest(${id})`);
+      const button = buttonElement;
       if (button) setButtonLoading(button, true);
       
       try {
@@ -2151,11 +2145,11 @@
     }
     
     // Reject seller request
-    async function rejectRequest(id) {
+    async function rejectRequest(id, buttonElement) {
       const reason = prompt('Reason for rejection (optional):');
       if (reason === null) return; // Cancelled
       
-      const button = event?.target || findButtonByOnclick(document, `rejectRequest(${id})`);
+      const button = buttonElement;
       if (button) setButtonLoading(button, true);
       
       try {
