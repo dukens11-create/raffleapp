@@ -1933,7 +1933,7 @@ app.post('/api/admin/tickets/print', requireAuth, requireAdmin, async (req, res)
       return res.status(400).json({ error: 'Missing required parameters' });
     }
     
-    if (!['AVERY_16145', 'PRINTWORKS'].includes(paper_type)) {
+    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS'].includes(paper_type)) {
       return res.status(400).json({ error: 'Invalid paper type' });
     }
     
@@ -1998,7 +1998,7 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       return res.status(400).json({ error: 'Missing required parameters' });
     }
     
-    if (!['AVERY_16145', 'PRINTWORKS'].includes(paper_type)) {
+    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS'].includes(paper_type)) {
       return res.status(400).json({ error: 'Invalid paper type' });
     }
     

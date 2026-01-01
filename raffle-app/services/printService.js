@@ -55,6 +55,24 @@ const TEMPLATES = {
     spacing: 0.05 * 72,
     pageWidth: 8.5 * 72,
     pageHeight: 11 * 72
+  },
+  LETTER_8_TICKETS: {
+    name: 'Letter 8.5" x 11" - 8 Tickets',
+    ticketWidth: 2.125 * 72,     // 2.125 inches in points - PORTRAIT
+    ticketHeight: 5.5 * 72,      // 5.5 inches in points - PORTRAIT
+    mainHeight: 5.5 * 72,        // Full height for ticket
+    stubHeight: 0,               // No stub section (front/back design)
+    perforationLine: true,       // Dashed borders for tear-off
+    ticketsPerPage: 8,           // 4 columns x 2 rows
+    columns: 4,
+    rows: 2,
+    topMargin: 0,
+    leftMargin: 0,
+    rightMargin: 0,
+    bottomMargin: 0,
+    spacing: 0,
+    pageWidth: 8.5 * 72,
+    pageHeight: 11 * 72
   }
 };
 
@@ -136,14 +154,37 @@ async function updatePrintJobStatus(jobId, status, progress = 0) {
  * @param {Buffer} barcodeImage - Barcode image buffer
  */
 async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage) {
-  const { ticketWidth, ticketHeight } = template;
-  const padding = 8;
+  const { ticketWidth, ticketHeight, perforationLine } = template;
   
-  // Draw border
-  doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+  // Detect if this is the smaller LETTER_8_TICKETS format
+  const isSmallFormat = ticketWidth < 200; // 2.125" * 72 = 153 points
+  
+  // Scale down content for smaller tickets
+  const padding = isSmallFormat ? 4 : 8;
+  const titleSize = isSmallFormat ? 8 : 12;
+  const ticketNumSize = isSmallFormat ? 11 : 16;
+  const bodySize = isSmallFormat ? 7 : 9;
+  const priceSize = isSmallFormat ? 8 : 10;
+  const fieldSize = isSmallFormat ? 6 : 8;
+  const footerSize = isSmallFormat ? 6 : 7;
+  const qrSize = isSmallFormat ? 50 : 80;
+  const barcodeWidth = isSmallFormat ? 90 : 120;
+  const barcodeHeight = isSmallFormat ? 30 : 40;
+  
+  // Draw border (dashed for tear-off if specified)
+  if (perforationLine) {
+    doc.save();
+    doc.strokeColor('#999999');
+    doc.lineWidth(1);
+    doc.dash(5, { space: 5 });
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+    doc.restore();
+  } else {
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+  }
 
   // Title with emoji
-  doc.fontSize(12)
+  doc.fontSize(titleSize)
      .font('Helvetica-Bold')
      .text('🎫 RAFFLE TICKET', x + padding, y + padding, {
        width: ticketWidth - (padding * 2),
@@ -151,42 +192,42 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
      });
 
   // Ticket number (prominent)
-  doc.fontSize(16)
+  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
+  doc.fontSize(ticketNumSize)
      .font('Helvetica-Bold')
-     .text(ticket.ticket_number, x + padding, y + padding + 20, {
-       width: ticketWidth - 120 - (padding * 2),
+     .text(ticket.ticket_number, x + padding, ticketNumY, {
+       width: ticketWidth - qrSize - (padding * 3),
        align: 'left'
      });
 
-  doc.fontSize(9)
+  const categoryY = ticketNumY + (isSmallFormat ? 16 : 18);
+  doc.fontSize(bodySize)
      .font('Helvetica')
-     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, y + padding + 38, {
-       width: ticketWidth - 120 - (padding * 2)
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, categoryY, {
+       width: ticketWidth - qrSize - (padding * 3)
      });
   
-  doc.fontSize(10)
+  const priceY = categoryY + (isSmallFormat ? 12 : 14);
+  doc.fontSize(priceSize)
      .font('Helvetica-Bold')
-     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, y + padding + 52, {
-       width: ticketWidth - 120 - (padding * 2)
+     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, priceY, {
+       width: ticketWidth - qrSize - (padding * 3)
      });
 
   // QR Code (right side)
   if (qrMainImage) {
-    const qrSize = 80;
     const qrX = x + ticketWidth - qrSize - padding;
-    const qrY = y + padding + 10;
+    const qrY = y + padding + (isSmallFormat ? 8 : 10);
     doc.image(qrMainImage, qrX, qrY, {
       width: qrSize,
       height: qrSize
     });
   }
 
-  // EAN-13 Barcode (center-bottom area)
+  // EAN-13 Barcode (center area)
   if (barcodeImage) {
-    const barcodeWidth = 120;
-    const barcodeHeight = 40;
     const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
-    const barcodeY = y + padding + 68;
+    const barcodeY = y + priceY + (isSmallFormat ? 20 : 30);
     doc.image(barcodeImage, barcodeX, barcodeY, {
       width: barcodeWidth,
       height: barcodeHeight
@@ -194,7 +235,7 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
     
     // Display barcode number below the barcode
     if (ticket.barcode) {
-      doc.fontSize(7)
+      doc.fontSize(footerSize)
          .font('Helvetica')
          .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 2, {
            width: ticketWidth - (padding * 2),
@@ -204,19 +245,33 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   }
 
   // Buyer information fields
-  const fieldsY = y + ticketHeight - 35;
-  doc.fontSize(8)
-     .font('Helvetica')
-     .text('Date: ___________________', x + padding, fieldsY)
-     .text('Name: ___________________', x + padding + 140, fieldsY);
+  const fieldsStartY = y + ticketHeight - (isSmallFormat ? 28 : 35);
+  doc.fontSize(fieldSize)
+     .font('Helvetica');
   
-  doc.text('Phone: __________________', x + padding, fieldsY + 12)
-     .text('Draw Date: [INSERT DATE]', x + padding + 140, fieldsY + 12);
+  if (isSmallFormat) {
+    // Compact layout for small tickets
+    doc.text('Date: _____________', x + padding, fieldsStartY, {
+      width: ticketWidth - (padding * 2)
+    });
+    doc.text('Name: _____________', x + padding, fieldsStartY + 8, {
+      width: ticketWidth - (padding * 2)
+    });
+    doc.text('Phone: ____________', x + padding, fieldsStartY + 16, {
+      width: ticketWidth - (padding * 2)
+    });
+  } else {
+    // Original layout for larger tickets
+    doc.text('Date: ___________________', x + padding, fieldsStartY)
+       .text('Name: ___________________', x + padding + 140, fieldsStartY);
+    doc.text('Phone: __________________', x + padding, fieldsStartY + 12)
+       .text('Draw Date: [INSERT DATE]', x + padding + 140, fieldsStartY + 12);
+  }
 
   // Footer
-  doc.fontSize(7)
+  doc.fontSize(footerSize)
      .font('Helvetica')
-     .text('Keep this ticket for entry', x + padding, y + ticketHeight - 15, {
+     .text('Keep this ticket for entry', x + padding, y + ticketHeight - (isSmallFormat ? 8 : 15), {
        width: ticketWidth - (padding * 2),
        align: 'center'
      });
@@ -233,23 +288,42 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
  * @param {Buffer} qrStubImage - Stub QR code image buffer
  */
 function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
-  const { ticketWidth, ticketHeight } = template;
-  const padding = 8;
+  const { ticketWidth, ticketHeight, perforationLine } = template;
   
-  // Draw border
-  doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+  // Detect if this is the smaller LETTER_8_TICKETS format
+  const isSmallFormat = ticketWidth < 200;
+  
+  // Scale down content for smaller tickets
+  const padding = isSmallFormat ? 4 : 8;
+  const titleSize = isSmallFormat ? 8 : 12;
+  const ticketNumSize = isSmallFormat ? 9 : 11;
+  const bodySize = isSmallFormat ? 7 : 9;
+  const fieldSize = isSmallFormat ? 6 : 8;
+  const footerSize = isSmallFormat ? 6 : 7;
+  const qrSize = isSmallFormat ? 36 : 50;
+  
+  // Draw border (dashed for tear-off if specified)
+  if (perforationLine) {
+    doc.save();
+    doc.strokeColor('#999999');
+    doc.lineWidth(1);
+    doc.dash(5, { space: 5 });
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+    doc.restore();
+  } else {
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+  }
 
   // Title with emoji
-  doc.fontSize(12)
+  doc.fontSize(titleSize)
      .font('Helvetica-Bold')
      .text('📋 SELLER STUB', x + padding, y + padding, {
-       width: ticketWidth - 70 - (padding * 2),
+       width: ticketWidth - qrSize - (padding * 3),
        align: 'left'
      });
 
   // Small QR code (top right)
   if (qrStubImage) {
-    const qrSize = 50;
     const qrX = x + ticketWidth - qrSize - padding;
     const qrY = y + padding;
     doc.image(qrStubImage, qrX, qrY, {
@@ -259,31 +333,43 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
   }
 
   // Ticket number
-  doc.fontSize(11)
+  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
+  doc.fontSize(ticketNumSize)
      .font('Helvetica-Bold')
-     .text(`Ticket #: ${ticket.ticket_number}`, x + padding, y + padding + 20);
+     .text(`Ticket #: ${ticket.ticket_number}`, x + padding, ticketNumY);
 
-  doc.fontSize(9)
+  const categoryY = ticketNumY + (isSmallFormat ? 12 : 15);
+  doc.fontSize(bodySize)
      .font('Helvetica')
-     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.short || ticket.category}`, x + padding, y + padding + 35);
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.short || ticket.category}`, x + padding, categoryY);
 
   // Seller information fields
-  const fieldsY = y + padding + 55;
-  doc.fontSize(8)
-     .font('Helvetica')
-     .text('Sold By: __________________', x + padding, fieldsY)
-     .text('Seller ID: _____________', x + padding + 140, fieldsY);
+  const fieldsStartY = categoryY + (isSmallFormat ? 18 : 20);
+  doc.fontSize(fieldSize)
+     .font('Helvetica');
   
-  doc.text('Buyer Name: _______________', x + padding, fieldsY + 12)
-     .text('Buyer Phone: ______________', x + padding + 140, fieldsY + 12);
-  
-  doc.text('Date Sold: ________________', x + padding, fieldsY + 24)
-     .text('Payment: [Cash/Check/Card]', x + padding + 140, fieldsY + 24);
+  if (isSmallFormat) {
+    // Compact layout for small tickets
+    doc.text('Sold By: ___________', x + padding, fieldsStartY);
+    doc.text('Seller ID: _________', x + padding, fieldsStartY + 10);
+    doc.text('Buyer Name: ________', x + padding, fieldsStartY + 20);
+    doc.text('Buyer Phone: _______', x + padding, fieldsStartY + 30);
+    doc.text('Date Sold: _________', x + padding, fieldsStartY + 40);
+    doc.text('Payment: [Cash/Check/Card]', x + padding, fieldsStartY + 50);
+  } else {
+    // Original layout for larger tickets
+    doc.text('Sold By: __________________', x + padding, fieldsStartY)
+       .text('Seller ID: _____________', x + padding + 140, fieldsStartY);
+    doc.text('Buyer Name: _______________', x + padding, fieldsStartY + 12)
+       .text('Buyer Phone: ______________', x + padding + 140, fieldsStartY + 12);
+    doc.text('Date Sold: ________________', x + padding, fieldsStartY + 24)
+       .text('Payment: [Cash/Check/Card]', x + padding + 140, fieldsStartY + 24);
+  }
 
   // Footer
-  doc.fontSize(7)
+  doc.fontSize(footerSize)
      .font('Helvetica-Bold')
-     .text('Office Use Only - Keep Record', x + padding, y + ticketHeight - 15, {
+     .text('Office Use Only - Keep Record', x + padding, y + ticketHeight - (isSmallFormat ? 8 : 15), {
        width: ticketWidth - (padding * 2),
        align: 'center'
      });
@@ -332,14 +418,17 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
         ticket.qr_code_data = codes.qrCodeData;
       }
 
-      // Generate QR code images with full ticket data
+      // Detect if this is the smaller LETTER_8_TICKETS format
+      const isSmallFormat = template.ticketWidth < 200;
+      
+      // Generate QR code images with full ticket data (scaled for format)
       const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: 96, // 1 inch at 96 DPI
+        size: isSmallFormat ? 67 : 96, // 0.7" at 96 DPI for small format, 1" for regular
         errorCorrectionLevel: 'M'
       });
       
       const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: 50, // Smaller for stub
+        size: isSmallFormat ? 48 : 50, // 0.5" at 96 DPI for small format
         errorCorrectionLevel: 'M'
       });
       
@@ -351,8 +440,8 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
           barcodeBuffer = await bwipjs.toBuffer({
             bcid: 'ean13',
             text: ticket.barcode,
-            scale: 2,
-            height: 10,
+            scale: isSmallFormat ? 1.5 : 2,
+            height: isSmallFormat ? 8 : 10,
             includetext: false,
             textxalign: 'center'
           });
@@ -554,14 +643,17 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
         ticket.qr_code_data = codes.qrCodeData;
       }
 
+      // Detect if this is the smaller LETTER_8_TICKETS format
+      const isSmallFormat = template.ticketWidth < 200;
+
       // Generate QR code images with full ticket data
       const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: 96,
+        size: isSmallFormat ? 67 : 96,
         errorCorrectionLevel: 'M'
       });
       
       const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: 50,
+        size: isSmallFormat ? 48 : 50,
         errorCorrectionLevel: 'M'
       });
       
@@ -573,8 +665,8 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
           barcodeBuffer = await bwipjs.toBuffer({
             bcid: 'ean13',
             text: ticket.barcode,
-            scale: 2,
-            height: 10,
+            scale: isSmallFormat ? 1.5 : 2,
+            height: isSmallFormat ? 8 : 10,
             includetext: false,
             textxalign: 'center'
           });
