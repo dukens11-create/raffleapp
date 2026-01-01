@@ -2783,6 +2783,191 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
 });
 
 // ============================================================================
+// TICKET VERIFICATION ENDPOINTS
+// ============================================================================
+
+// GET /api/admin/tickets/verify-list - Get tickets with search, filter, and pagination
+app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      search = '',
+      category = '',
+      status = '',
+      page = 1,
+      limit = 50,
+      export: isExport = false
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Build WHERE clause dynamically
+    const conditions = [];
+    const params = [];
+    
+    // Search by ticket number or barcode
+    if (search) {
+      conditions.push('(t.ticket_number LIKE ? OR t.barcode LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    // Filter by category
+    if (category) {
+      conditions.push('t.category = ?');
+      params.push(category);
+    }
+    
+    // Filter by status
+    if (status) {
+      conditions.push('t.status = ?');
+      params.push(status);
+    }
+    
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM tickets t ${whereClause}`;
+    const countResult = await db.get(countQuery, params);
+    const total = countResult.total;
+    
+    // Get tickets
+    let ticketsQuery = `
+      SELECT 
+        t.ticket_number,
+        t.barcode,
+        t.category,
+        t.price,
+        t.status,
+        t.qr_code_data,
+        t.buyer_name,
+        t.seller_name,
+        t.created_at
+      FROM tickets t
+      ${whereClause}
+      ORDER BY t.ticket_number
+    `;
+    
+    // Add pagination unless export
+    if (!isExport || isExport === 'false') {
+      ticketsQuery += ` LIMIT ? OFFSET ?`;
+      params.push(parseInt(limit), offset);
+    }
+    
+    const tickets = await db.all(ticketsQuery, params);
+    
+    // Get stats
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'AVAILABLE' THEN 1 ELSE 0 END) as available,
+        SUM(CASE WHEN status = 'SOLD' THEN 1 ELSE 0 END) as sold,
+        SUM(CASE WHEN category = 'ABC' THEN 1 ELSE 0 END) as abc_count,
+        SUM(CASE WHEN category = 'EFG' THEN 1 ELSE 0 END) as efg_count,
+        SUM(CASE WHEN category = 'JKL' THEN 1 ELSE 0 END) as jkl_count,
+        SUM(CASE WHEN category = 'XYZ' THEN 1 ELSE 0 END) as xyz_count
+      FROM tickets
+    `;
+    const stats = await db.get(statsQuery);
+    
+    const response = {
+      tickets,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+      stats: {
+        total: stats.total || 0,
+        available: stats.available || 0,
+        sold: stats.sold || 0,
+        by_category: {
+          ABC: stats.abc_count || 0,
+          EFG: stats.efg_count || 0,
+          JKL: stats.jkl_count || 0,
+          XYZ: stats.xyz_count || 0
+        }
+      }
+    };
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching verification list:', error);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// GET /api/admin/tickets/export-csv - Export tickets to CSV
+app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      search = '',
+      category = '',
+      status = ''
+    } = req.query;
+    
+    // Build WHERE clause dynamically
+    const conditions = [];
+    const params = [];
+    
+    if (search) {
+      conditions.push('(ticket_number LIKE ? OR barcode LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    if (category) {
+      conditions.push('category = ?');
+      params.push(category);
+    }
+    
+    if (status) {
+      conditions.push('status = ?');
+      params.push(status);
+    }
+    
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    
+    const query = `
+      SELECT 
+        ticket_number,
+        barcode,
+        category,
+        price,
+        status,
+        buyer_name,
+        seller_name,
+        created_at
+      FROM tickets
+      ${whereClause}
+      ORDER BY ticket_number
+    `;
+    
+    const tickets = await db.all(query, params);
+    
+    // Generate CSV
+    const csvHeader = 'Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Created At\n';
+    const csvRows = tickets.map(ticket => {
+      return [
+        ticket.ticket_number || '',
+        ticket.barcode || '',
+        ticket.category || '',
+        ticket.price || '',
+        ticket.status || '',
+        ticket.buyer_name || '',
+        ticket.seller_name || '',
+        ticket.created_at || ''
+      ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
+    }).join('\n');
+    
+    const csv = csvHeader + csvRows;
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="tickets-export-${Date.now()}.csv"`);
+    res.send(csv);
+  } catch (error) {
+    console.error('Error exporting CSV:', error);
+    res.status(500).json({ error: 'Failed to export CSV' });
+  }
+});
+
+// ============================================================================
 // END RAFFLE TICKET SYSTEM API ENDPOINTS
 // ============================================================================
 
