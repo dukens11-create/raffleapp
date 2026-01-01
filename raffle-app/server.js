@@ -2010,13 +2010,13 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
          FROM tickets
          WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
          GROUP BY DATE(created_at)
-         ORDER BY day DESC
+         ORDER BY day ASC
          LIMIT 30`
       : `SELECT DATE(created_at) as day, COUNT(*) as count
          FROM tickets
          WHERE created_at >= date('now', '-30 days')
          GROUP BY DATE(created_at)
-         ORDER BY day DESC
+         ORDER BY day ASC
          LIMIT 30`;
     
     const rows = await db.all(query);
