@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
+const crypto = require('crypto');
 const db = require('./db');
 const path = require('path');
 const fs = require('fs');
@@ -73,7 +74,6 @@ function validateEnvironment() {
   
   // Session secret - auto-generate if missing (with warning)
   if (!process.env.SESSION_SECRET) {
-    const crypto = require('crypto');
     process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
     warnings.push('SESSION_SECRET was auto-generated. For production, set a persistent value in environment variables.');
   } else if (process.env.SESSION_SECRET.length < 32) {
@@ -86,10 +86,11 @@ function validateEnvironment() {
   }
   
   if (!process.env.ALLOWED_ORIGINS) {
+    // More restrictive defaults for development
     process.env.ALLOWED_ORIGINS = process.env.NODE_ENV === 'production' 
       ? '' // Empty = no CORS in production (same-origin only)
-      : '*'; // Allow all in development
-    warnings.push(`ALLOWED_ORIGINS not set - using default: ${process.env.ALLOWED_ORIGINS}`);
+      : 'http://localhost:3000,http://localhost:5173,http://localhost:5000'; // Common dev ports
+    warnings.push(`ALLOWED_ORIGINS not set - using default: ${process.env.ALLOWED_ORIGINS || '(same-origin only)'}`);
   }
   
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
