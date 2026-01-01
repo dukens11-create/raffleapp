@@ -280,11 +280,9 @@ async function runMigrations() {
     }
   }
   
-  if (failCount > 0 || skippedCount > 0) {
-    console.log(`⚠️  Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);
-  } else {
-    console.log(`✅ All ${successCount} migration(s) completed successfully`);
-  }
+  // Log summary with appropriate status
+  const status = failCount > 0 ? '❌' : (skippedCount > 0 ? '⚠️' : '✅');
+  console.log(`${status} Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);
 }
 
 /**
