@@ -383,10 +383,31 @@ async function initializeSchema() {
         back_image_path TEXT,
         front_image_base64 TEXT,
         back_image_base64 TEXT,
+        fit_mode TEXT DEFAULT 'contain',
         created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
         updated_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
       )
     `);
+    
+    // Add fit_mode column if it doesn't exist (for existing databases)
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE ticket_designs 
+          ADD COLUMN IF NOT EXISTS fit_mode TEXT DEFAULT 'contain'
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(ticket_designs)`);
+        const hasFitMode = columns.some(col => col.name === 'fit_mode');
+        if (!hasFitMode) {
+          await run(`ALTER TABLE ticket_designs ADD COLUMN fit_mode TEXT DEFAULT 'contain'`);
+        }
+      }
+    } catch (error) {
+      // Column might already exist, ignore error
+      console.log('Note: fit_mode column already exists or could not be added');
+    }
     
     console.log('✅ Database schema initialized successfully');
     
