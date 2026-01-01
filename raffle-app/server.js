@@ -268,41 +268,72 @@ app.use(helmet({
   },
 }));
 
-// CORS Configuration
+// CORS configuration - FIXED to allow all origins in development
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, postman)
-    if (!origin) return callback(null, true);
-    
-    // In production, restrict to specific domains
-    if (process.env.NODE_ENV === 'production') {
-      const allowedOrigins = process.env.ALLOWED_ORIGINS 
-        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-        : [];
-      
-      // Add current domain if running on Render
-      if (process.env.RENDER) {
-        allowedOrigins.push(`https://${process.env.RENDER_EXTERNAL_HOSTNAME}`);
-      }
-      
-      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    } else {
-      // In development, allow all origins
-      callback(null, true);
+    // Only log CORS checks in debug mode to avoid log flooding
+    if (DEBUG_MODE) {
+      console.log('🌐 CORS check - Origin:', origin);
     }
+    
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) {
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Allowing request with no origin');
+      }
+      return callback(null, true);
+    }
+    
+    // Define allowed origins
+    const allowedOrigins = [
+      process.env.FRONTEND_URL,           // Your production domain
+      process.env.RENDER_EXTERNAL_URL,    // Render's auto-generated URL
+      'http://localhost:3000',            // Local development
+      'http://localhost:5000',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:5000'
+    ].filter(Boolean); // Remove undefined values
+    
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Development mode - allowing all origins');
+      }
+      return callback(null, true);
+    }
+    
+    // Check if origin is allowed
+    if (allowedOrigins.includes(origin)) {
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Origin allowed:', origin);
+      }
+      return callback(null, true);
+    }
+    
+    // Check if origin matches Render domain pattern (secure check using endsWith)
+    // Only allow HTTPS subdomains of onrender.com, not the base domain itself
+    if (origin.startsWith('https://') && origin.endsWith('.onrender.com')) {
+      if (DEBUG_MODE) {
+        console.log('✅ CORS: Render domain allowed:', origin);
+      }
+      return callback(null, true);
+    }
+    
+    // Reject unknown origins in production
+    console.error('❌ CORS: Origin rejected:', origin);
+    console.error('❌ Allowed origins:', allowedOrigins);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400, // 24 hours
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
+console.log('✅ CORS middleware configured');
 
 // Rate limiting - General API limiter
 const apiLimiter = rateLimit({
