@@ -1873,8 +1873,7 @@ app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res)
     console.error('Stack:', error.stack);
     res.status(500).json({ 
       error: 'Failed to export tickets',
-      message: error.message,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error.message
     });
   }
 });
