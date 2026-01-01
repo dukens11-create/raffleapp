@@ -391,8 +391,8 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    // Allow any *.onrender.com subdomain
-    if (origin.endsWith('.onrender.com')) {
+    // Allow any *.onrender.com subdomain (HTTPS only for security)
+    if (origin.startsWith('https://') && origin.endsWith('.onrender.com')) {
       return callback(null, true);
     }
     
