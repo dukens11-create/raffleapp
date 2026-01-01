@@ -495,7 +495,7 @@ if (process.env.DATABASE_URL) {
 // Session configuration with enhanced security
 app.use(session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET || 'raffle-secret-key-2024',
+  secret: process.env.SESSION_SECRET, // validateEnvironment() ensures this is always set
   resave: false,
   saveUninitialized: false,
   name: 'sessionId', // Rename session cookie to prevent fingerprinting
