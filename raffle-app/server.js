@@ -251,21 +251,38 @@ async function runMigrations() {
     return;
   }
   
-  const migrationFile = path.join(__dirname, 'migrations', 'add_raffle_id_to_tickets.sql');
+  const migrations = [
+    'add_raffle_id_to_tickets.sql',
+    'add_print_count_column.sql'
+  ];
   
-  if (fs.existsSync(migrationFile)) {
-    const sql = fs.readFileSync(migrationFile, 'utf8');
-    try {
-      await db.run(sql);
-      console.log('✅ Migrations completed successfully');
-    } catch (error) {
-      console.error('❌ Migration failed:', error.message);
-      // Don't crash the server, just log the error
-      // The migration is idempotent, so it's safe to continue
+  let successCount = 0;
+  let failCount = 0;
+  let skippedCount = 0;
+  
+  for (const migrationFile of migrations) {
+    const filePath = path.join(__dirname, 'migrations', migrationFile);
+    
+    if (fs.existsSync(filePath)) {
+      const sql = fs.readFileSync(filePath, 'utf8');
+      try {
+        await db.run(sql);
+        console.log(`✅ Migration completed: ${migrationFile}`);
+        successCount++;
+      } catch (error) {
+        console.error(`❌ Migration failed (${migrationFile}):`, error.message);
+        failCount++;
+        // Don't crash - migrations are idempotent
+      }
+    } else {
+      console.warn(`⚠️  Migration file not found: ${filePath}`);
+      skippedCount++;
     }
-  } else {
-    console.log('⚠️  No migration file found at:', migrationFile);
   }
+  
+  // Log summary with appropriate status
+  const status = failCount > 0 ? '❌' : (skippedCount > 0 ? '⚠️' : '✅');
+  console.log(`${status} Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);
 }
 
 /**
@@ -2536,11 +2553,12 @@ app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (re
     let marked = 0;
     for (const ticketId of ticket_ids) {
       try {
+        // Use COALESCE to safely handle NULL values in print_count
         await db.run(
           `UPDATE tickets 
            SET printed = ${db.USE_POSTGRES ? 'TRUE' : '1'}, 
                printed_at = ${db.getCurrentTimestamp()},
-               print_count = print_count + 1
+               print_count = COALESCE(print_count, 0) + 1
            WHERE id = ?`,
           [ticketId]
         );
