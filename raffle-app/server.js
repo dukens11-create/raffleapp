@@ -93,8 +93,8 @@ function validateEnvironment() {
     warnings.push(`ALLOWED_ORIGINS not set - using default: ${process.env.ALLOWED_ORIGINS || '(same-origin only)'}`);
   }
   
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    warnings.push('EMAIL_USER or EMAIL_PASS not set - email notifications will be disabled');
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+    warnings.push('EMAIL_USER or EMAIL_PASSWORD not set - email notifications will be disabled');
   }
   
   if (!process.env.SMTP_HOST || !process.env.SMTP_PORT) {
