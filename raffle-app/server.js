@@ -10,13 +10,115 @@ const helmet = require('helmet');
 const { body, validationResult } = require('express-validator');
 const cookieParser = require('cookie-parser');
 const csrf = require('csurf');
+const cors = require('cors');
 const pgSession = require('connect-pg-simple')(session);
 const emailService = require('./services/emailService');
 const multer = require('multer');
 const sharp = require('sharp');
 
+// Simple Mutex class for preventing race conditions
+// Note: For high-concurrency scenarios, consider using a production-grade mutex library
+class Mutex {
+  constructor() {
+    this.locked = false;
+    this.queue = [];
+  }
+
+  async lock() {
+    return new Promise((resolve) => {
+      // Use setImmediate to ensure atomicity in the event loop
+      setImmediate(() => {
+        if (!this.locked) {
+          this.locked = true;
+          resolve();
+        } else {
+          this.queue.push(resolve);
+        }
+      });
+    });
+  }
+
+  unlock() {
+    setImmediate(() => {
+      if (this.queue.length > 0) {
+        const resolve = this.queue.shift();
+        this.locked = true; // Keep locked for next in queue
+        resolve();
+      } else {
+        this.locked = false;
+      }
+    });
+  }
+
+  isLocked() {
+    return this.locked;
+  }
+}
+
+// Create mutex for ticket generation to prevent race conditions
+const ticketGenerationMutex = new Mutex();
+
 // Load environment variables
 require('dotenv').config();
+
+// Validate critical environment variables on startup
+function validateEnvironment() {
+  const requiredVars = {
+    SESSION_SECRET: process.env.SESSION_SECRET,
+    ADMIN_SETUP_TOKEN: process.env.ADMIN_SETUP_TOKEN
+  };
+  
+  const missing = [];
+  const warnings = [];
+  
+  // Check required variables
+  if (!requiredVars.SESSION_SECRET || requiredVars.SESSION_SECRET === 'raffle-secret-key-2024') {
+    warnings.push('SESSION_SECRET: Using default value - INSECURE for production!');
+  }
+  
+  if (!requiredVars.ADMIN_SETUP_TOKEN) {
+    missing.push('ADMIN_SETUP_TOKEN: Required to secure admin setup endpoint');
+  }
+  
+  // Check optional but recommended variables
+  if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+    warnings.push('DATABASE_URL: Missing - data will be lost on restart!');
+  }
+  
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    warnings.push('EMAIL_USER/EMAIL_PASS: Missing - email notifications disabled');
+  }
+  
+  // Log results
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('🔍 ENVIRONMENT VALIDATION');
+  console.log('═══════════════════════════════════════');
+  
+  if (missing.length > 0) {
+    console.error('❌ CRITICAL: Missing required environment variables:');
+    missing.forEach(msg => console.error(`   - ${msg}`));
+    console.error('');
+    console.error('Server will not start. Please configure these variables.');
+    console.error('See .env.example for reference.');
+    console.error('═══════════════════════════════════════');
+    process.exit(1);
+  }
+  
+  if (warnings.length > 0) {
+    console.warn('⚠️  WARNINGS:');
+    warnings.forEach(msg => console.warn(`   - ${msg}`));
+    console.warn('');
+  } else {
+    console.log('✅ All required environment variables configured');
+  }
+  
+  console.log('═══════════════════════════════════════');
+  console.log('');
+}
+
+// Run environment validation
+validateEnvironment();
 
 const app = express();
 
@@ -119,6 +221,42 @@ app.use(helmet({
     preload: true,
   },
 }));
+
+// CORS Configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, postman)
+    if (!origin) return callback(null, true);
+    
+    // In production, restrict to specific domains
+    if (process.env.NODE_ENV === 'production') {
+      const allowedOrigins = process.env.ALLOWED_ORIGINS 
+        ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+        : [];
+      
+      // Add current domain if running on Render
+      if (process.env.RENDER) {
+        allowedOrigins.push(`https://${process.env.RENDER_EXTERNAL_HOSTNAME}`);
+      }
+      
+      if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    } else {
+      // In development, allow all origins
+      callback(null, true);
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
 
 // Rate limiting - General API limiter
 const apiLimiter = rateLimit({
@@ -353,13 +491,25 @@ app.use((req, res, next) => {
 
 // ===== PUBLIC ENDPOINTS (NO RATE LIMITING) =====
 
-// Admin Setup Endpoint - Must be BEFORE rate limiting
+// Admin Setup Endpoint - SECURED with token authentication
 app.post('/api/setup-admin', async (req, res) => {
   console.log('=== SETUP ADMIN ENDPOINT CALLED ===');
   console.log('IP:', req.ip);
   console.log('User-Agent:', req.headers['user-agent']);
   
   try {
+    const { token } = req.body;
+    
+    // Validate token
+    if (!token || token !== process.env.ADMIN_SETUP_TOKEN) {
+      console.warn('❌ Unauthorized admin setup attempt from IP:', req.ip);
+      return res.status(403).json({ 
+        error: 'Forbidden - Invalid or missing setup token',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log('✅ Valid token provided');
     console.log('Setup admin endpoint called');
     
     // Delete existing admin
@@ -372,15 +522,14 @@ app.post('/api/setup-admin', async (req, res) => {
       ['Admin', '1234567890', hashedPassword, 'admin']
     );
     
-    console.log('Admin account created/reset - Phone: 1234567890, Password: admin123');
+    console.log('✅ Admin account created/reset - Phone: 1234567890');
+    console.log('⚠️  Default password set - CHANGE IMMEDIATELY after first login');
     
+    // DO NOT return credentials in response for security
     res.json({ 
       success: true, 
-      message: 'Admin account created successfully',
-      credentials: {
-        phone: '1234567890',
-        password: 'admin123'
-      }
+      message: 'Admin account created successfully. Use default credentials to login and change password immediately.',
+      defaultPhone: '1234567890'
     });
     
   } catch (error) {
@@ -388,7 +537,8 @@ app.post('/api/setup-admin', async (req, res) => {
     console.error('Setup admin error:', error);
     res.status(500).json({ 
       error: 'Failed to setup admin account',
-      details: error.message 
+      details: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -609,6 +759,35 @@ app.use('/api/', apiLimiter);
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Standardized error response helper
+function sendErrorResponse(res, statusCode, message, details = null) {
+  const response = {
+    error: message,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (details && process.env.DEBUG_MODE === 'true') {
+    response.details = details;
+  }
+  
+  return res.status(statusCode).json(response);
+}
+
+// Standardized success response helper
+function sendSuccessResponse(res, data, message = null) {
+  const response = {
+    success: true,
+    timestamp: new Date().toISOString(),
+    ...data
+  };
+  
+  if (message) {
+    response.message = message;
+  }
+  
+  return res.json(response);
+}
+
 // Authentication middleware
 function requireAuth(req, res, next) {
   if (req.session.user) {
@@ -626,7 +805,7 @@ function requireAdmin(req, res, next) {
     next();
   } else {
     console.log(`Admin check failed. User: ${req.session.user?.phone || 'none'}, Role: ${req.session.user?.role || 'none'}`);
-    res.status(403).send('Access denied');
+    return sendErrorResponse(res, 403, 'Access denied - Admin privileges required');
   }
 }
 
@@ -2220,16 +2399,21 @@ let generationProgress = {
 app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (req, res) => {
   console.log('📥 POST /api/admin/tickets/generate-all received');
   
-  if (generationProgress.inProgress) {
-    console.log('⚠️ Generation already in progress, rejecting request');
-    return res.status(400).json({ 
-      error: 'Generation already in progress',
-      progress: generationProgress
+  // Check if generation is already in progress using mutex
+  if (ticketGenerationMutex.isLocked()) {
+    console.log('⚠️ Generation already in progress (mutex locked), rejecting request');
+    return res.status(409).json({ 
+      error: 'Generation already in progress. Please wait for current operation to complete.',
+      message: 'Use /api/admin/tickets/generation-progress to monitor status.',
+      progress: generationProgress,
+      timestamp: new Date().toISOString()
     });
   }
   
   try {
-    console.log('✅ Starting ticket generation process...');
+    console.log('✅ Acquiring lock for ticket generation...');
+    await ticketGenerationMutex.lock();
+    console.log('✅ Lock acquired, starting ticket generation process...');
     
     // Reset progress
     generationProgress.inProgress = true;
@@ -2244,20 +2428,28 @@ app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (re
     
     res.json({ 
       success: true,
-      message: 'Generation started', 
-      total: 1500000 
+      message: 'Generation started. Use /api/admin/tickets/generation-progress to monitor progress.', 
+      total: 1500000,
+      timestamp: new Date().toISOString()
     });
     
     console.log('🚀 Launching background generation task...');
     
     // Run generation in background with error handling
     setImmediate(() => {
-      generateAllTicketsBackground().catch(error => {
-        console.error('❌ CRITICAL: Background generation crashed:', error);
-        console.error('❌ Stack trace:', error.stack);
-        generationProgress.inProgress = false;
-        generationProgress.error = error.message;
-      });
+      generateAllTicketsBackground()
+        .catch(error => {
+          console.error('❌ CRITICAL: Background generation crashed:', error);
+          console.error('❌ Stack trace:', error.stack);
+          generationProgress.inProgress = false;
+          generationProgress.error = error.message;
+        })
+        .finally(() => {
+          // Always release the mutex when done
+          console.log('🔓 Releasing ticket generation mutex...');
+          ticketGenerationMutex.unlock();
+          console.log('✅ Mutex released');
+        });
     });
     
   } catch (error) {
@@ -2266,9 +2458,13 @@ app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (re
     generationProgress.inProgress = false;
     generationProgress.error = error.message;
     
+    // Release mutex on error
+    ticketGenerationMutex.unlock();
+    
     return res.status(500).json({ 
       error: 'Failed to start generation', 
-      details: error.message 
+      details: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
