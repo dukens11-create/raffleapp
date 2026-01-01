@@ -2559,9 +2559,9 @@
       }
     });
     
-    // ==================== DOWNLOAD TICKETS FUNCTIONALITY ====================
+        // ==================== DOWNLOAD TICKETS FUNCTIONALITY ====================
     
-    // Download tickets button
+    // Download tickets button - Downloads ALL tickets (with limit to prevent server crashes)
     const downloadTicketsBtn = document.getElementById('download-tickets-btn');
     if (downloadTicketsBtn) {
       downloadTicketsBtn.addEventListener('click', async () => {
@@ -2571,24 +2571,92 @@
       
       // Disable button and show loading state
       downloadBtn.disabled = true;
-      downloadBtn.innerHTML = '⏳ Preparing download...';
+      downloadBtn.innerHTML = '⏳ Checking ticket count...';
       downloadStatus.style.display = 'inline';
-      downloadStatus.textContent = 'Fetching tickets...';
+      downloadStatus.textContent = 'Checking database...';
+      downloadStatus.style.color = '#64748b';
       
       try {
+        console.log('📡 Checking ticket count...');
+        // First, check ticket count to warn about large exports
+        const countResponse = await fetch('/api/admin/tickets/count?raffle_id=1');
+        if (countResponse.ok) {
+          const countData = await countResponse.json();
+          const ticketCount = countData.total_tickets || 0;
+          
+          console.log(`📊 Total tickets in database: ${ticketCount}`);
+          
+          // Show warning for large exports (>10,000 tickets)
+          if (ticketCount > 10000) {
+            const proceed = confirm(
+              `⚠️ Large Export Warning\n\n` +
+              `This database contains ${ticketCount.toLocaleString()} tickets.\n\n` +
+              `Only the first 10,000 will be exported to prevent server crashes.\n\n` +
+              `To export specific tickets:\n` +
+              `• Use the filter options above (Category, Status, etc.)\n` +
+              `• Or contact support for a full database export\n\n` +
+              `Do you want to continue with the limited export?`
+            );
+            
+            if (!proceed) {
+              downloadBtn.disabled = false;
+              downloadBtn.innerHTML = '📥 Download Tickets';
+              downloadStatus.style.display = 'none';
+              return;
+            }
+          }
+        }
+        
+        // Update status
         console.log('📡 Fetching tickets from /api/admin/tickets/export...');
-        // Build query parameters for export
+        downloadBtn.innerHTML = '⏳ Preparing download...';
+        downloadStatus.textContent = 'Fetching tickets...';
+        
+        // Build query parameters for export - downloads with limit
         const params = new URLSearchParams({
-          raffle_id: 1  // Default raffle ID
+          raffle_id: 1,  // Default raffle ID
+          limit: 10000   // Default limit to prevent OOM
         });
+        
+        console.log('📥 Fetching tickets from:', `/api/admin/tickets/export?${params.toString()}`);
         
         // Make request to export endpoint
         const response = await fetch(`/api/admin/tickets/export?${params.toString()}`);
         console.log('📥 Response received:', response.status, response.statusText);
+        console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()));
         
+        // Check if response is OK
         if (!response.ok) {
           console.error('❌ Export failed with status:', response.status);
-          throw new Error(`Failed to download tickets: ${response.status} ${response.statusText}`);
+          // Try to parse error as JSON
+          let errorMessage = 'Failed to download tickets';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+            console.error('❌ Server error:', errorData);
+            
+            // Provide helpful message if no tickets exist
+            if (errorMessage.includes('No tickets found') || response.status === 404) {
+              errorMessage = 'No tickets found in database. Please generate tickets first or import tickets via Excel.';
+            }
+          } catch (jsonError) {
+            // Not JSON, get as text
+            const errorText = await response.text();
+            console.error('❌ Server response:', errorText);
+            if (errorText) errorMessage = errorText;
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        // Verify we got an Excel file
+        const contentType = response.headers.get('Content-Type');
+        console.log('📄 Content-Type:', contentType);
+        
+        if (!contentType || !contentType.includes('spreadsheet')) {
+          console.warn('⚠️ Unexpected content-type:', contentType);
+          // Invalid content type - likely an error response
+          throw new Error('Server returned invalid file format (expected Excel file)');
         }
         
         // Get the blob
@@ -2597,6 +2665,7 @@
         
         if (blob.size === 0) {
           console.warn('⚠️ Warning: Downloaded file is empty (0 bytes)');
+          throw new Error('Downloaded file is empty - no tickets found in database');
         }
         
         // Create download link
@@ -2628,9 +2697,11 @@
       } catch (error) {
         console.error('❌ Download error:', error);
         console.error('Error details:', error.message, error.stack);
-        downloadStatus.textContent = '❌ Download failed';
+        
+        // Show error message
+        downloadStatus.textContent = `❌ ${error.message}`;
         downloadStatus.style.color = '#ef4444';
-        showNotify('❌ Failed to download tickets: ' + error.message, '#ef4444', 4000);
+        showNotify(`❌ Download failed: ${error.message}`, '#ef4444', 5000);
         
         // Log additional debugging info
         console.log('Debug info:');
@@ -2638,10 +2709,11 @@
         console.log('- Current URL:', window.location.href);
         console.log('- Download button found:', !!downloadBtn);
         
+        // Keep error visible longer
         setTimeout(() => {
           downloadStatus.style.display = 'none';
           downloadStatus.style.color = '#64748b';
-        }, 4000);
+        }, 5000);
       } finally {
         // Re-enable button
         downloadBtn.disabled = false;
@@ -2651,8 +2723,7 @@
   } else {
     console.error('Download Tickets button not found! Element with id "download-tickets-btn" does not exist.');
   }
-    
-  </script>
+      </script>
   
   <!-- Service Worker Registration -->
   <script>

@@ -7,6 +7,13 @@ const XLSX = require('xlsx');
 const db = require('../db');
 const ticketService = require('./ticketService');
 
+// Maximum number of tickets that can be exported in a single request
+const MAX_EXPORT_LIMIT = 50000;
+// Default export limit if not specified
+const DEFAULT_EXPORT_LIMIT = 10000;
+// Batch size for processing tickets to prevent memory issues
+const BATCH_SIZE = 5000;
+
 /**
  * Generate Excel template for ticket import
  * 
@@ -235,6 +242,15 @@ async function importTickets(tickets, raffle_id) {
  */
 async function exportTickets(filters = {}) {
   try {
+    // Apply default and maximum limits to prevent memory issues
+    const limit = Math.min(
+      filters.limit || DEFAULT_EXPORT_LIMIT,
+      MAX_EXPORT_LIMIT
+    );
+    const offset = filters.offset || 0;
+    
+    console.log(`📊 Export request - limit: ${limit}, offset: ${offset}`);
+    
     let query = `
       SELECT 
         t.ticket_number as 'Ticket Number',
@@ -278,27 +294,54 @@ async function exportTickets(filters = {}) {
 
     query += ' ORDER BY t.ticket_number ASC';
 
-    if (filters.limit) {
-      query += ' LIMIT ?';
-      params.push(filters.limit);
+    // Process tickets in batches to prevent memory issues
+    const allTickets = [];
+    let currentOffset = offset;
+    const totalToFetch = limit;
+    
+    console.log(`📦 Starting batch processing - total to fetch: ${totalToFetch}`);
+    
+    while (currentOffset < offset + totalToFetch) {
+      const batchLimit = Math.min(BATCH_SIZE, offset + totalToFetch - currentOffset);
+      const batchQuery = query + ' LIMIT ? OFFSET ?';
+      const batchParams = [...params, batchLimit, currentOffset];
+      
+      console.log(`🔄 Fetching batch - offset: ${currentOffset}, limit: ${batchLimit}`);
+      
+      const batch = await db.all(batchQuery, batchParams);
+      
+      if (batch.length === 0) {
+        console.log('✅ No more tickets to fetch');
+        break;
+      }
+      
+      // Transform batch and add to results
+      const transformedBatch = batch.map(ticket => ({
+        ...ticket,
+        'Printed': ticket['Printed'] ? 'Yes' : 'No'
+      }));
+      
+      allTickets.push(...transformedBatch);
+      currentOffset += batch.length;
+      
+      console.log(`📈 Progress: ${allTickets.length} tickets processed`);
+      
+      // Allow garbage collection between batches
+      if (global.gc) {
+        global.gc();
+      }
     }
+    
+    console.log(`✅ Batch processing complete - total tickets: ${allTickets.length}`);
 
-    const tickets = await db.all(query, params);
-
-    // Convert boolean values for Excel
-    const exportData = tickets.map(ticket => ({
-      ...ticket,
-      'Printed': ticket['Printed'] ? 'Yes' : 'No'
-    }));
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const worksheet = XLSX.utils.json_to_sheet(allTickets);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Tickets');
 
     // Auto-size columns
     const maxWidth = 30;
     const colWidths = {};
-    exportData.forEach(row => {
+    allTickets.forEach(row => {
       Object.keys(row).forEach(key => {
         const value = String(row[key] || '');
         colWidths[key] = Math.max(colWidths[key] || 10, Math.min(value.length, maxWidth));
@@ -308,6 +351,9 @@ async function exportTickets(filters = {}) {
     worksheet['!cols'] = Object.keys(colWidths).map(key => ({ wch: colWidths[key] }));
 
     const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    
+    console.log(`📄 Excel file generated - size: ${buffer.length} bytes`);
+    
     return buffer;
   } catch (error) {
     console.error('Error exporting tickets:', error);
