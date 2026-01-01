@@ -1155,15 +1155,45 @@
                               });
                             });
                             
-                            // Chart.js analytics
-                            document.addEventListener('DOMContentLoaded', function() {
-                              // Sales by day
-                              fetch('/analytics/sales-by-day').then(res => res.json()).then(data => {
-                                const ctx = document.getElementById('salesChart').getContext('2d');
+                            // Chart.js analytics - Lazy loaded
+                            document.addEventListener('DOMContentLoaded', async function() {
+                              await loadDashboard();
+                            });
+                            
+                            // Lazy load dashboard data
+                            async function loadDashboard() {
+                              const widgets = [
+                                { id: 'salesChart', endpoint: '/analytics/sales-by-day?days=30', type: 'sales-by-day' },
+                                { id: 'categoryChart', endpoint: '/analytics/tickets-by-category', type: 'tickets-by-category' }
+                              ];
+                              
+                              // Load widgets sequentially with delays
+                              for (const widget of widgets) {
+                                try {
+                                  const response = await fetch(widget.endpoint, { credentials: 'include' });
+                                  if (!response.ok) throw new Error(`Failed to load ${widget.id}`);
+                                  const data = await response.json();
+                                  renderWidget(widget.id, widget.type, data);
+                                } catch (error) {
+                                  console.error(`Failed to load ${widget.id}:`, error);
+                                  showWidgetError(widget.id);
+                                }
+                                
+                                // Small delay between requests to avoid overwhelming server
+                                await new Promise(resolve => setTimeout(resolve, 200));
+                              }
+                            }
+                            
+                            // Render widget based on type
+                            function renderWidget(canvasId, type, data) {
+                              const ctx = document.getElementById(canvasId)?.getContext('2d');
+                              if (!ctx) return;
+                              
+                              if (type === 'sales-by-day') {
                                 new Chart(ctx, {
                                   type: 'line',
                                   data: {
-                                    labels: data.map(row => row.day),
+                                    labels: data.map(row => row.date || row.day),
                                     datasets: [{
                                       label: 'Tickets Sold',
                                       data: data.map(row => row.count),
@@ -1178,17 +1208,14 @@
                                     plugins: { legend: { display: false } }
                                   }
                                 });
-                              });
-                              // Tickets by category
-                              fetch('/analytics/tickets-by-category').then(res => res.json()).then(data => {
-                                const ctx = document.getElementById('categoryChart').getContext('2d');
+                              } else if (type === 'tickets-by-category') {
                                 new Chart(ctx, {
                                   type: 'bar',
                                   data: {
                                     labels: data.map(row => row.category),
                                     datasets: [{
                                       label: 'Tickets',
-                                      data: data.map(row => row.count),
+                                      data: data.map(row => row.total || row.count),
                                       backgroundColor: ['#667eea','#764ba2','#9f7aea','#b794f4'],
                                     }]
                                   },
@@ -1197,8 +1224,24 @@
                                     plugins: { legend: { display: false } }
                                   }
                                 });
-                              });
-                            });
+                              }
+                            }
+                            
+                            // Show error for widget
+                            function showWidgetError(canvasId) {
+                              const canvas = document.getElementById(canvasId);
+                              if (canvas) {
+                                canvas.style.display = 'none';
+                                const parent = canvas.parentElement;
+                                if (parent) {
+                                  const errorDiv = document.createElement('div');
+                                  errorDiv.style.cssText = 'padding: 20px; text-align: center; color: #ef4444;';
+                                  errorDiv.textContent = `Failed to load ${canvasId}`;
+                                  parent.appendChild(errorDiv);
+                                }
+                              }
+                            }
+                            
                             // Bulk delete tickets and users
                             document.addEventListener('DOMContentLoaded', function() {
                               if (document.getElementById('select-all-tickets')) {
@@ -1618,7 +1661,7 @@
     // Load sales report
     async function loadSalesReport() {
       try {
-        const res = await fetch('/sales-report');
+        const res = await fetch('/sales-report?days=30');
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
@@ -1627,7 +1670,7 @@
         tbody.innerHTML = '';
         data.forEach(row => {
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${row.sold_by}</td><td>${row.count}</td>`;
+          tr.innerHTML = `<td>${row.sale_date}</td><td>${row.tickets_sold || row.count || 0}</td><td>$${(row.revenue || 0).toFixed(2)}</td>`;
           tbody.appendChild(tr);
         });
       } catch (error) {
@@ -1676,13 +1719,13 @@
     document.getElementById('refresh-backups-btn').addEventListener('click', loadBackups);
     document.addEventListener('DOMContentLoaded', loadBackups);
     async function loadLeaderboard() {
-      const res = await fetch('/seller-leaderboard');
+      const res = await fetch('/seller-leaderboard?limit=10');
       const data = await res.json();
       const tbody = document.getElementById('leaderboard-table').querySelector('tbody');
       tbody.innerHTML = '';
       data.forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${row.sold_by}</td><td>${row.tickets_sold}</td>`;
+        tr.innerHTML = `<td>${row.seller_name || row.sold_by || 'Unknown'}</td><td>${row.tickets_sold || 0}</td><td>$${(row.total_sales || 0).toFixed(2)}</td>`;
         tbody.appendChild(tr);
       });
     }
@@ -2744,6 +2787,38 @@
         downloadBtn.innerHTML = '📥 Download Tickets';
       }
     });
+    
+    // Global button loading state handler
+    function handleButtonClick(button, asyncFunction) {
+      if (button.disabled) return;  // Prevent double-click
+      
+      const originalText = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '⏳ Loading...';
+      button.style.opacity = '0.6';
+      button.style.cursor = 'not-allowed';
+      
+      asyncFunction()
+        .then(() => {
+          button.innerHTML = '✅ Success!';
+          setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+          }, 1500);
+        })
+        .catch((error) => {
+          button.innerHTML = '❌ Error';
+          console.error('Button action failed:', error);
+          setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            button.style.opacity = '1';
+            button.style.cursor = 'pointer';
+          }, 2000);
+        });
+    }
     
   </script>
   

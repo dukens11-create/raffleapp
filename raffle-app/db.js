@@ -468,6 +468,32 @@ async function initializeSchema() {
 }
 
 /**
+ * Optimize database with performance indexes
+ */
+async function optimizeDatabase() {
+  console.log('🚀 Optimizing database indexes...');
+  
+  const indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
+    'CREATE INDEX IF NOT EXISTS idx_tickets_category ON tickets(category)',
+    'CREATE INDEX IF NOT EXISTS idx_tickets_seller_phone ON tickets(seller_phone)',
+    'CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at)',
+    'CREATE INDEX IF NOT EXISTS idx_tickets_status_created ON tickets(status, created_at)',
+    'CREATE INDEX IF NOT EXISTS idx_tickets_seller_status ON tickets(seller_phone, status)',
+  ];
+  
+  for (const indexQuery of indexes) {
+    try {
+      await run(indexQuery);
+    } catch (error) {
+      console.error('Index creation error:', error.message);
+    }
+  }
+  
+  console.log('✅ Database optimization complete');
+}
+
+/**
  * Close database connection
  */
 function close() {
@@ -517,6 +543,7 @@ module.exports = {
   run,
   all,
   initializeSchema,
+  optimizeDatabase,
   close,
   serialize,
   USE_POSTGRES,

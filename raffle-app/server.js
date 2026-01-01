@@ -315,6 +315,7 @@ async function ensureAdminUser() {
 
 // Initialize database schema, run migrations, validate setup, and check admin user
 db.initializeSchema()
+  .then(() => db.optimizeDatabase())
   .then(() => runMigrations())
   .then(() => validateDatabaseSetup())
   .then(() => ensureAdminUser())
@@ -333,67 +334,55 @@ app.use(helmet({
   },
 }));
 
-// CORS configuration - FIXED to allow all origins in development
+// CORS configuration with custom domain support
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.RENDER_EXTERNAL_URL,
+  process.env.APP_URL,
+  'https://www.enejipamticket.com',      // Custom domain
+  'https://enejipamticket.com',          // Custom domain (without www)
+  'https://raffleapp-e4ev.onrender.com', // Render default URL
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000'
+].filter(Boolean);
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Only log CORS checks in debug mode to avoid log flooding
-    if (DEBUG_MODE) {
-      console.log('🌐 CORS check - Origin:', origin);
-    }
-    
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+    // Allow requests with no origin (mobile apps, API clients)
     if (!origin) {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Allowing request with no origin');
-      }
       return callback(null, true);
     }
     
-    // Define allowed origins
-    const allowedOrigins = [
-      process.env.FRONTEND_URL,           // Your production domain
-      process.env.RENDER_EXTERNAL_URL,    // Render's auto-generated URL
-      'http://localhost:3000',            // Local development
-      'http://localhost:5000',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5000'
-    ].filter(Boolean); // Remove undefined values
-    
-    // In development, allow all origins
+    // Development mode - allow all
     if (process.env.NODE_ENV !== 'production') {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Development mode - allowing all origins');
-      }
       return callback(null, true);
     }
     
-    // Check if origin is allowed
+    // Check allowed origins
     if (allowedOrigins.includes(origin)) {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Origin allowed:', origin);
-      }
       return callback(null, true);
     }
     
-    // Check if origin matches Render domain pattern (secure check using endsWith)
-    // Only allow HTTPS subdomains of onrender.com, not the base domain itself
+    // Allow any *.onrender.com subdomain
     if (origin.startsWith('https://') && origin.endsWith('.onrender.com')) {
-      if (DEBUG_MODE) {
-        console.log('✅ CORS: Render domain allowed:', origin);
-      }
       return callback(null, true);
     }
     
-    // Reject unknown origins in production
-    console.error('❌ CORS: Origin rejected:', origin);
-    console.error('❌ Allowed origins:', allowedOrigins);
+    // Log rejection for debugging
+    if (process.env.DEBUG_MODE === 'true') {
+      console.error('❌ CORS: Origin rejected:', origin);
+      console.error('❌ Allowed origins:', allowedOrigins);
+    }
+    
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 86400, // 24 hours
+  maxAge: 600,
   optionsSuccessStatus: 200
 };
 
@@ -1965,29 +1954,73 @@ app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const rows = await db.all(`
-      SELECT seller_name as sold_by, COUNT(*) as count
+    const days = parseInt(req.query.days) || 30;  // Default 30 days
+    const query = db.USE_POSTGRES ? `
+      SELECT 
+        DATE(created_at) as sale_date,
+        COUNT(*) as tickets_sold,
+        SUM(amount) as revenue,
+        COUNT(DISTINCT seller_phone) as active_sellers
       FROM tickets
-      GROUP BY seller_name
-      ORDER BY count DESC
-    `);
+      WHERE status = 'sold'
+        AND created_at > CURRENT_TIMESTAMP - INTERVAL '${days} days'
+      GROUP BY DATE(created_at)
+      ORDER BY sale_date DESC
+    ` : `
+      SELECT 
+        DATE(created_at) as sale_date,
+        COUNT(*) as tickets_sold,
+        SUM(amount) as revenue,
+        COUNT(DISTINCT seller_phone) as active_sellers
+      FROM tickets
+      WHERE status = 'sold'
+        AND created_at > datetime('now', '-${days} days')
+      GROUP BY DATE(created_at)
+      ORDER BY sale_date DESC
+    `;
+    const rows = await db.all(query);
     res.json(rows);
   } catch (err) {
-    return res.status(500).json({ error: 'Database error' });
+    console.error('Sales report error:', err);
+    return res.status(500).json({ error: 'Failed to generate sales report' });
   }
 });
 
 app.get('/seller-leaderboard', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const rows = await db.all(`
-      SELECT seller_name as sold_by, COUNT(*) as tickets_sold
+    const limit = parseInt(req.query.limit) || 50;  // Default top 50
+    const query = db.USE_POSTGRES ? `
+      SELECT 
+        seller_name,
+        seller_phone,
+        COUNT(*) as tickets_sold,
+        SUM(amount) as total_sales
       FROM tickets
-      GROUP BY seller_name
-      ORDER BY tickets_sold DESC
-    `);
+      WHERE seller_name IS NOT NULL
+        AND status = 'sold'
+        AND created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
+      GROUP BY seller_name, seller_phone
+      ORDER BY total_sales DESC
+      LIMIT $1
+    ` : `
+      SELECT 
+        seller_name,
+        seller_phone,
+        COUNT(*) as tickets_sold,
+        SUM(amount) as total_sales
+      FROM tickets
+      WHERE seller_name IS NOT NULL
+        AND status = 'sold'
+        AND created_at > datetime('now', '-30 days')
+      GROUP BY seller_name, seller_phone
+      ORDER BY total_sales DESC
+      LIMIT ?
+    `;
+    const rows = await db.all(query, [limit]);
     res.json(rows);
   } catch (err) {
-    return res.status(500).json({ error: 'Database error' });
+    console.error('Leaderboard error:', err);
+    return res.status(500).json({ error: 'Failed to fetch leaderboard' });
   }
 });
 
@@ -1998,31 +2031,66 @@ app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
 
 app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const rows = await db.all(`
-      SELECT DATE(created_at) as day, COUNT(*) as count
+    const days = parseInt(req.query.days) || 30;  // Limit to 30 days
+    const query = db.USE_POSTGRES ? `
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as count,
+        SUM(amount) as revenue
       FROM tickets
-      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      WHERE status = 'sold'
+        AND created_at > CURRENT_TIMESTAMP - INTERVAL '${days} days'
       GROUP BY DATE(created_at)
-      ORDER BY day
-    `);
+      ORDER BY date DESC
+      LIMIT ${days}
+    ` : `
+      SELECT 
+        DATE(created_at) as date,
+        COUNT(*) as count,
+        SUM(amount) as revenue
+      FROM tickets
+      WHERE status = 'sold'
+        AND created_at > datetime('now', '-${days} days')
+      GROUP BY DATE(created_at)
+      ORDER BY date DESC
+      LIMIT ${days}
+    `;
+    const rows = await db.all(query);
     res.json(rows);
   } catch (err) {
-    return res.status(500).json({ error: 'Database error' });
+    console.error('Sales by day error:', err);
+    return res.status(500).json({ error: 'Failed to fetch sales data' });
   }
 });
 
 app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const rows = await db.all(`
-      SELECT category, COUNT(*) as count
+    const query = db.USE_POSTGRES ? `
+      SELECT 
+        category, 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as sold,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as available
       FROM tickets
-      WHERE category IS NOT NULL
+      WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '90 days'
       GROUP BY category
-      ORDER BY count DESC
-    `);
+      ORDER BY total DESC
+    ` : `
+      SELECT 
+        category, 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as sold,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as available
+      FROM tickets
+      WHERE created_at > datetime('now', '-90 days')
+      GROUP BY category
+      ORDER BY total DESC
+    `;
+    const rows = await db.all(query);
     res.json(rows);
   } catch (err) {
-    return res.status(500).json({ error: 'Database error' });
+    console.error('Analytics error:', err);
+    return res.status(500).json({ error: 'Failed to fetch analytics' });
   }
 });
 
