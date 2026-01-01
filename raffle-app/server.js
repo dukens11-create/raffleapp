@@ -1968,7 +1968,7 @@ app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
         COUNT(DISTINCT seller_phone) as active_sellers
       FROM tickets
       WHERE status = 'sold'
-        AND created_at > CURRENT_TIMESTAMP - ($1 || ' days')::INTERVAL
+        AND created_at > CURRENT_TIMESTAMP - (INTERVAL '1 day' * $1)
       GROUP BY DATE(created_at)
       ORDER BY sale_date DESC
     ` : `
@@ -2054,10 +2054,10 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
         SUM(amount) as revenue
       FROM tickets
       WHERE status = 'sold'
-        AND created_at > CURRENT_TIMESTAMP - ($1 || ' days')::INTERVAL
+        AND created_at > CURRENT_TIMESTAMP - (INTERVAL '1 day' * $1)
       GROUP BY DATE(created_at)
       ORDER BY date DESC
-      LIMIT $2
+      LIMIT $1
     ` : `
       SELECT 
         DATE(created_at) as date,
@@ -2070,7 +2070,7 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
       ORDER BY date DESC
       LIMIT ?
     `;
-    const rows = await db.all(query, [days, days]);
+    const rows = await db.all(query, [days]);
     res.json(rows);
   } catch (err) {
     console.error('Sales by day error:', err);
