@@ -3024,6 +3024,129 @@ app.delete('/api/admin/ticket-designs/:category', requireAuth, requireAdmin, asy
   }
 });
 
+// POST /api/admin/ticket-designs/process - Process and resize image
+app.post('/api/admin/ticket-designs/process', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, side, image, fitMode, targetWidth, targetHeight } = req.body;
+    
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+    
+    if (!['front', 'back'].includes(side)) {
+      return res.status(400).json({ error: 'Invalid side' });
+    }
+    
+    if (!image) {
+      return res.status(400).json({ error: 'Image data is required' });
+    }
+    
+    // Convert base64 to buffer
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Process with Sharp based on fit mode
+    let processedBuffer;
+    const width = targetWidth || 153;
+    const height = targetHeight || 396;
+    
+    switch(fitMode) {
+      case 'contain':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      case 'cover':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'cover'
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      case 'fill':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'fill'
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      case 'none':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'inside',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      default:
+        // Default to contain
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+          })
+          .png()
+          .toBuffer();
+    }
+    
+    // Convert back to base64
+    const processedBase64 = `data:image/png;base64,${processedBuffer.toString('base64')}`;
+    
+    // Update database
+    const field = side === 'front' ? 'front_image_base64' : 'back_image_base64';
+    
+    // Check if design exists
+    const existing = await db.get('SELECT * FROM ticket_designs WHERE category = ?', [category]);
+    
+    if (existing) {
+      // Update existing design
+      await db.run(
+        `UPDATE ticket_designs 
+         SET ${field} = ?, fit_mode = ?, updated_at = ${db.getCurrentTimestamp()}
+         WHERE category = ?`,
+        [processedBase64, fitMode, category]
+      );
+    } else {
+      // Insert new design
+      if (side === 'front') {
+        await db.run(
+          `INSERT INTO ticket_designs (category, front_image_base64, fit_mode) 
+           VALUES (?, ?, ?)`,
+          [category, processedBase64, fitMode]
+        );
+      } else {
+        await db.run(
+          `INSERT INTO ticket_designs (category, back_image_base64, fit_mode) 
+           VALUES (?, ?, ?)`,
+          [category, processedBase64, fitMode]
+        );
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `${category} ${side} image processed successfully`,
+      dimensions: { width, height },
+      fitMode
+    });
+    
+  } catch (error) {
+    console.error('Image processing error:', error);
+    res.status(500).json({ error: 'Failed to process image: ' + error.message });
+  }
+});
+
 // POST /api/admin/tickets/preview-custom - Preview custom tickets before printing
 app.post('/api/admin/tickets/preview-custom', requireAuth, requireAdmin, async (req, res) => {
   try {
