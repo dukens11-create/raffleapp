@@ -454,38 +454,61 @@
             submitButton.disabled = true;
             submitButton.textContent = 'Logging in...';
             
-            console.log('Sending request to /login');
+            console.log('📤 Sending login request to /api/login');
             console.log('Request body:', { phone, password: '***' });
             
             try {
-                const response = await fetch('/login', {
+                const response = await fetch('/api/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
                     body: JSON.stringify({ phone, password })
                 });
                 
-                console.log('Response status:', response.status);
-                console.log('Response ok:', response.ok);
+                console.log('📥 Response status:', response.status);
+                console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                const contentType = response.headers.get('content-type');
+                console.log('📄 Content-Type:', contentType);
+                
+                // Check if response is JSON
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.error('❌ Expected JSON but got:', contentType);
+                    const text = await response.text();
+                    console.error('Response body:', text.substring(0, 500));
+                    
+                    // Re-enable button
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Login';
+                    
+                    messageDiv.textContent = 'Server returned invalid response. Please check server logs.';
+                    messageDiv.style.color = 'red';
+                    return;
+                }
                 
                 const data = await response.json();
-                console.log('Response data:', data);
+                console.log('📦 Response data:', data);
                 
                 // Re-enable button
                 submitButton.disabled = false;
                 submitButton.textContent = 'Login';
                 
-                // Check if there's an error
-                if (data.error) {
-                    console.error('Login error from server:', data.error);
-                    let errorMessage = data.error;
+                // Check if there's an error (non-2xx status or error field)
+                if (!response.ok || data.error || !data.success) {
+                    console.error('❌ Login error from server:', data.error || 'Unknown error');
+                    let errorMessage = data.error || 'Login failed. Please try again.';
                     
                     // Add helpful hints based on error type
                     if (errorMessage.includes('Too many')) {
-                        errorMessage += '\n\nToo many failed attempts. Wait 60 minutes or use the Reset Admin Account link below.';
+                        errorMessage += '\n\nToo many failed attempts. Wait 60 minutes or contact support.';
                     } else if (errorMessage.includes('Invalid')) {
-                        errorMessage += '\n\nTry the Diagnostics page to check system status.';
+                        errorMessage += '\n\nDouble-check your phone number and password.';
                     } else if (errorMessage.includes('Session expired')) {
                         errorMessage += '\n\nYour session has expired. Please login again.';
+                    } else if (errorMessage.includes('required')) {
+                        errorMessage += '\n\nBoth phone number and password are required.';
                     }
                     
                     messageDiv.textContent = errorMessage;
@@ -494,8 +517,8 @@
                 }
                 
                 // Check if there's a redirect URL
-                if (data.redirect) {
-                    console.log('Login successful! Redirecting to:', data.redirect);
+                if (data.success && data.redirect) {
+                    console.log('✅ Login successful! Redirecting to:', data.redirect);
                     
                     // Validate redirect URL to prevent XSS
                     const redirectUrl = data.redirect;
