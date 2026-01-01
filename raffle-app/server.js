@@ -2015,7 +2015,7 @@ app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) =
       : `SELECT DATE(created_at) as day, COUNT(*) as count
          FROM tickets
          WHERE created_at >= date('now', '-30 days')
-         GROUP BY day
+         GROUP BY DATE(created_at)
          ORDER BY day DESC
          LIMIT 30`;
     
