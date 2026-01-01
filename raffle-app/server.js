@@ -311,7 +311,8 @@ const corsOptions = {
     }
     
     // Check if origin matches Render domain pattern (secure check using endsWith)
-    if (origin.endsWith('.onrender.com') || origin === 'https://onrender.com') {
+    // Only allow subdomains of onrender.com, not the base domain itself
+    if (origin.endsWith('.onrender.com')) {
       if (DEBUG_MODE) {
         console.log('✅ CORS: Render domain allowed:', origin);
       }
@@ -324,8 +325,10 @@ const corsOptions = {
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400, // 24 hours
   optionsSuccessStatus: 200
 };
 
