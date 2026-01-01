@@ -826,11 +826,377 @@ function drawTearOffLine(doc, x, y, width, height) {
   doc.restore();
 }
 
+/**
+ * Generate PDF with category-specific custom designs (new system)
+ * Uses ticket_designs table for category-specific backgrounds
+ * Optimized for LETTER_8_TICKETS format (4x2 grid)
+ * 
+ * @param {Array} tickets - Array of ticket objects
+ * @param {Object} categoryDesign - Design object from ticket_designs table
+ * @returns {Promise<Buffer>} - PDF buffer
+ */
+async function generateCategoryCustomPDF(tickets, categoryDesign) {
+  const paperType = TEMPLATES.LETTER_8_TICKETS;
+  
+  // Create PDF document
+  const doc = new PDFDocument({
+    size: [paperType.pageWidth, paperType.pageHeight],
+    margin: 0
+  });
+
+  // Collect PDF chunks
+  const chunks = [];
+  doc.on('data', chunk => chunks.push(chunk));
+  
+  const pdfPromise = new Promise((resolve, reject) => {
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+  });
+
+  let frontImageBuffer = null;
+  let backImageBuffer = null;
+
+  // Load custom design images if available
+  if (categoryDesign) {
+    // Try to load from file path first
+    if (categoryDesign.front_image_path) {
+      try {
+        const frontPath = path.join(__dirname, '..', 'uploads', 'designs', path.basename(categoryDesign.front_image_path));
+        if (fs.existsSync(frontPath)) {
+          frontImageBuffer = fs.readFileSync(frontPath);
+        }
+      } catch (error) {
+        console.warn('Could not load front image from path:', error.message);
+      }
+    }
+    
+    // Try to load from base64 if no file buffer
+    if (!frontImageBuffer && categoryDesign.front_image_base64) {
+      try {
+        const base64Data = categoryDesign.front_image_base64.replace(/^data:image\/\w+;base64,/, '');
+        frontImageBuffer = Buffer.from(base64Data, 'base64');
+      } catch (error) {
+        console.warn('Could not decode front image base64:', error.message);
+      }
+    }
+
+    // Same for back image
+    if (categoryDesign.back_image_path) {
+      try {
+        const backPath = path.join(__dirname, '..', 'uploads', 'designs', path.basename(categoryDesign.back_image_path));
+        if (fs.existsSync(backPath)) {
+          backImageBuffer = fs.readFileSync(backPath);
+        }
+      } catch (error) {
+        console.warn('Could not load back image from path:', error.message);
+      }
+    }
+    
+    if (!backImageBuffer && categoryDesign.back_image_base64) {
+      try {
+        const base64Data = categoryDesign.back_image_base64.replace(/^data:image\/\w+;base64,/, '');
+        backImageBuffer = Buffer.from(base64Data, 'base64');
+      } catch (error) {
+        console.warn('Could not decode back image base64:', error.message);
+      }
+    }
+  }
+
+  // Pre-generate all codes for all tickets
+  const ticketsWithCodes = await Promise.all(tickets.map(async (ticket) => {
+    // Generate codes if not already generated
+    const ticketService = require('./ticketService');
+    if (!ticket.barcode || !ticket.qr_code_data) {
+      const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+      ticket.barcode = codes.barcode;
+      ticket.qr_code_data = codes.qrCodeData;
+    }
+
+    // Generate QR code and barcode images (smaller for LETTER_8_TICKETS)
+    const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+      size: 67, // 0.7" at 96 DPI
+      errorCorrectionLevel: 'M'
+    });
+    
+    const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+      size: 48, // 0.5" at 96 DPI
+      errorCorrectionLevel: 'M'
+    });
+    
+    // Generate EAN-13 barcode
+    const bwipjs = require('bwip-js');
+    let barcodeBuffer = null;
+    if (ticket.barcode) {
+      try {
+        barcodeBuffer = await bwipjs.toBuffer({
+          bcid: 'ean13',
+          text: ticket.barcode,
+          scale: 1.5,
+          height: 8,
+          includetext: false,
+          textxalign: 'center'
+        });
+      } catch (error) {
+        console.error('Barcode generation error:', error);
+      }
+    }
+    
+    return {
+      ticket,
+      qrMainBuffer,
+      qrStubBuffer,
+      barcodeBuffer
+    };
+  }));
+
+  // Process tickets in batches of 8 per page
+  for (let i = 0; i < ticketsWithCodes.length; i += paperType.ticketsPerPage) {
+    const batch = ticketsWithCodes.slice(i, i + paperType.ticketsPerPage);
+    
+    // Add page for FRONT side
+    if (i > 0) doc.addPage();
+    
+    // Draw FRONT side tickets in 4x2 grid
+    for (let j = 0; j < batch.length; j++) {
+      const { ticket, qrMainBuffer, barcodeBuffer } = batch[j];
+      
+      const col = j % paperType.columns;
+      const row = Math.floor(j / paperType.columns);
+      
+      const x = col * paperType.ticketWidth;
+      const y = row * paperType.ticketHeight;
+      
+      // Draw custom background if available
+      if (frontImageBuffer) {
+        try {
+          doc.image(frontImageBuffer, x, y, {
+            width: paperType.ticketWidth,
+            height: paperType.ticketHeight,
+            align: 'center',
+            valign: 'center'
+          });
+        } catch (error) {
+          console.error('Error drawing front background:', error);
+        }
+      }
+      
+      // Draw ticket content with semi-transparent backgrounds
+      drawCustomTicketContent(doc, ticket, x, y, paperType.ticketWidth, paperType.ticketHeight, qrMainBuffer, barcodeBuffer);
+      
+      // Draw dashed border for tear-off line
+      doc.save()
+         .strokeColor('#999999')
+         .lineWidth(0.5)
+         .dash(3, 3)
+         .rect(x, y, paperType.ticketWidth, paperType.ticketHeight)
+         .stroke()
+         .restore();
+    }
+    
+    // Add page for BACK side
+    doc.addPage();
+    
+    // Draw BACK side stubs in same layout
+    for (let j = 0; j < batch.length; j++) {
+      const { ticket, qrStubBuffer } = batch[j];
+      
+      const col = j % paperType.columns;
+      const row = Math.floor(j / paperType.columns);
+      
+      const x = col * paperType.ticketWidth;
+      const y = row * paperType.ticketHeight;
+      
+      // Draw custom background if available
+      if (backImageBuffer) {
+        try {
+          doc.image(backImageBuffer, x, y, {
+            width: paperType.ticketWidth,
+            height: paperType.ticketHeight,
+            align: 'center',
+            valign: 'center'
+          });
+        } catch (error) {
+          console.error('Error drawing back background:', error);
+        }
+      }
+      
+      // Draw ticket stub content
+      drawCustomTicketBackContent(doc, ticket, x, y, paperType.ticketWidth, paperType.ticketHeight, qrStubBuffer);
+      
+      // Draw dashed border
+      doc.save()
+         .strokeColor('#999999')
+         .lineWidth(0.5)
+         .dash(3, 3)
+         .rect(x, y, paperType.ticketWidth, paperType.ticketHeight)
+         .stroke()
+         .restore();
+    }
+  }
+
+  doc.end();
+  return pdfPromise;
+}
+
+/**
+ * Draw ticket content with semi-transparent backgrounds for readability
+ * Optimized for LETTER_8_TICKETS format (2.125" × 5.5")
+ */
+function drawCustomTicketContent(doc, ticket, x, y, width, height, qrBuffer, barcodeBuffer) {
+  const padding = 4;
+
+  // Semi-transparent white background for ticket number area
+  doc.rect(x + 10, y + 10, width - 20, 30)
+     .fillOpacity(0.85)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+
+  // Ticket number (large, centered)
+  doc.fontSize(14)
+     .font('Helvetica-Bold')
+     .fillColor('#000000')
+     .text(`Ticket: ${ticket.ticket_number}`, x + 15, y + 18, {
+       width: width - 30,
+       align: 'center'
+     });
+
+  // Category badge with background
+  doc.rect(x + 10, y + 45, 60, 20)
+     .fillOpacity(0.85)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+  
+  doc.fontSize(10)
+     .fillColor('#000000')
+     .text(ticket.category, x + 15, y + 50, { width: 50, align: 'center' });
+
+  // Price
+  doc.fontSize(10)
+     .text(`$${parseFloat(ticket.price).toFixed(2)}`, x + 80, y + 50);
+
+  // Barcode (bottom center)
+  if (barcodeBuffer) {
+    const barcodeWidth = 70;
+    const barcodeHeight = 25;
+    const barcodeX = x + (width - barcodeWidth) / 2;
+    const barcodeY = y + height - barcodeHeight - 35;
+
+    // White background for barcode
+    doc.rect(barcodeX - 5, barcodeY - 5, barcodeWidth + 10, barcodeHeight + 15)
+       .fillOpacity(0.9)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+
+    doc.image(barcodeBuffer, barcodeX, barcodeY, {
+      width: barcodeWidth,
+      height: barcodeHeight
+    });
+
+    // Barcode number text
+    doc.fontSize(6)
+       .fillColor('#000000')
+       .text(ticket.barcode, barcodeX, barcodeY + barcodeHeight + 2, {
+         width: barcodeWidth,
+         align: 'center'
+       });
+  }
+
+  // QR code (top right)
+  if (qrBuffer) {
+    const qrSize = 45;
+    const qrX = x + width - qrSize - 10;
+    const qrY = y + 10;
+
+    // White background for QR code
+    doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6)
+       .fillOpacity(0.9)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+
+    doc.image(qrBuffer, qrX, qrY, {
+      width: qrSize,
+      height: qrSize
+    });
+  }
+}
+
+/**
+ * Draw ticket back/stub content with semi-transparent backgrounds
+ */
+function drawCustomTicketBackContent(doc, ticket, x, y, width, height, qrBuffer) {
+  const padding = 4;
+
+  // Semi-transparent background for title
+  doc.rect(x + 10, y + 10, width - 20, 25)
+     .fillOpacity(0.85)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+
+  // Title
+  doc.fontSize(10)
+     .font('Helvetica-Bold')
+     .fillColor('#000000')
+     .text('📋 SELLER STUB', x + 15, y + 17, {
+       width: width - 30,
+       align: 'center'
+     });
+
+  // Ticket info background
+  doc.rect(x + 10, y + 40, width - 20, 60)
+     .fillOpacity(0.85)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+
+  // Ticket information
+  doc.fontSize(9)
+     .font('Helvetica-Bold')
+     .text(`Ticket: ${ticket.ticket_number}`, x + 15, y + 45);
+  
+  doc.fontSize(8)
+     .font('Helvetica')
+     .text(`Category: ${ticket.category}`, x + 15, y + 60)
+     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + 15, y + 72);
+
+  // QR code (top right)
+  if (qrBuffer) {
+    const qrSize = 36;
+    const qrX = x + width - qrSize - 10;
+    const qrY = y + 10;
+
+    doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6)
+       .fillOpacity(0.9)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+
+    doc.image(qrBuffer, qrX, qrY, {
+      width: qrSize,
+      height: qrSize
+    });
+  }
+
+  // Seller info fields background
+  doc.rect(x + 10, y + 105, width - 20, 85)
+     .fillOpacity(0.85)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+
+  // Seller fields
+  doc.fontSize(6)
+     .font('Helvetica')
+     .fillColor('#000000')
+     .text('Sold By: ___________', x + 15, y + 110)
+     .text('Seller ID: _________', x + 15, y + 125)
+     .text('Buyer: _____________', x + 15, y + 140)
+     .text('Phone: _____________', x + 15, y + 155)
+     .text('Date: ______________', x + 15, y + 170);
+}
+
 module.exports = {
   createPrintJob,
   updatePrintJobStatus,
   generatePrintPDF,
   generateCustomTemplatePDF,
+  generateCategoryCustomPDF,
   getPrintJobs,
   getPrintJob,
   TEMPLATES

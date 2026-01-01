@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Custom Ticket Designs - Raffle App</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    }
+
+    h1 {
+      color: #1e293b;
+      font-size: 32px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .subtitle {
+      color: #64748b;
+      font-size: 16px;
+      margin-bottom: 30px;
+    }
+
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .category-card {
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      background: #f8fafc;
+    }
+
+    .category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .category-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .category-price {
+      font-size: 16px;
+      color: #64748b;
+      background: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .upload-section {
+      margin-bottom: 15px;
+    }
+
+    .upload-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 100%;
+    }
+
+    .file-input-wrapper input[type=file] {
+      position: absolute;
+      left: -9999px;
+    }
+
+    .file-input-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: white;
+      border: 2px dashed #cbd5e1;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .file-input-label:hover {
+      border-color: #667eea;
+      color: #667eea;
+      background: #f1f5ff;
+    }
+
+    .preview-container {
+      margin-top: 10px;
+      min-height: 150px;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      max-height: 150px;
+      object-fit: contain;
+    }
+
+    .preview-placeholder {
+      color: #94a3b8;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    .btn-save {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+
+    .btn-save:hover {
+      background: #5568d3;
+    }
+
+    .btn-save:disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+    }
+
+    .success-message, .error-message {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .success-message {
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      color: #166534;
+    }
+
+    .error-message {
+      background: #fee2e2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .info-box {
+      background: #dbeafe;
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 30px;
+    }
+
+    .info-box h3 {
+      color: #1e40af;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .info-box ul {
+      color: #1e40af;
+      font-size: 14px;
+      margin-left: 20px;
+    }
+
+    .info-box ul li {
+      margin-bottom: 4px;
+    }
+
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/admin.html" class="back-link">
+      ← Back to Admin Dashboard
+    </a>
+
+    <h1>🎨 Custom Ticket Designs</h1>
+    <p class="subtitle">Upload custom background images for each ticket category</p>
+
+    <div class="info-box">
+      <h3>📐 Design Requirements</h3>
+      <ul>
+        <li><strong>Ticket Size:</strong> 2.125" × 5.5" (portrait orientation)</li>
+        <li><strong>Recommended Resolution:</strong> 638px × 1650px (300 DPI)</li>
+        <li><strong>File Format:</strong> JPG, PNG, or WebP</li>
+        <li><strong>Note:</strong> Text areas will have semi-transparent white backgrounds for readability</li>
+        <li><strong>Layout:</strong> 8 tickets per 8.5" × 11" sheet (4 columns × 2 rows)</li>
+      </ul>
+    </div>
+
+    <div id="successMessage" class="success-message"></div>
+    <div id="errorMessage" class="error-message"></div>
+
+    <div class="categories-grid">
+      <!-- ABC Category -->
+      <div class="category-card">
+        <div class="category-header">
+          <span class="category-title">ABC</span>
+          <span class="category-price">$100</span>
+        </div>
+        
+        <div class="upload-section">
+          <label class="upload-label">Front Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="abc-front" accept="image/*">
+            <label for="abc-front" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="abc-front-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <div class="upload-section">
+          <label class="upload-label">Back Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="abc-back" accept="image/*">
+            <label for="abc-back" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="abc-back-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <button class="btn-save" onclick="saveDesign('ABC')">Save ABC Design</button>
+      </div>
+
+      <!-- EFG Category -->
+      <div class="category-card">
+        <div class="category-header">
+          <span class="category-title">EFG</span>
+          <span class="category-price">$50</span>
+        </div>
+        
+        <div class="upload-section">
+          <label class="upload-label">Front Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="efg-front" accept="image/*">
+            <label for="efg-front" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="efg-front-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <div class="upload-section">
+          <label class="upload-label">Back Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="efg-back" accept="image/*">
+            <label for="efg-back" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="efg-back-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <button class="btn-save" onclick="saveDesign('EFG')">Save EFG Design</button>
+      </div>
+
+      <!-- JKL Category -->
+      <div class="category-card">
+        <div class="category-header">
+          <span class="category-title">JKL</span>
+          <span class="category-price">$20</span>
+        </div>
+        
+        <div class="upload-section">
+          <label class="upload-label">Front Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="jkl-front" accept="image/*">
+            <label for="jkl-front" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="jkl-front-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <div class="upload-section">
+          <label class="upload-label">Back Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="jkl-back" accept="image/*">
+            <label for="jkl-back" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="jkl-back-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <button class="btn-save" onclick="saveDesign('JKL')">Save JKL Design</button>
+      </div>
+
+      <!-- XYZ Category -->
+      <div class="category-card">
+        <div class="category-header">
+          <span class="category-title">XYZ</span>
+          <span class="category-price">$10</span>
+        </div>
+        
+        <div class="upload-section">
+          <label class="upload-label">Front Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="xyz-front" accept="image/*">
+            <label for="xyz-front" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="xyz-front-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <div class="upload-section">
+          <label class="upload-label">Back Design</label>
+          <div class="file-input-wrapper">
+            <input type="file" id="xyz-back" accept="image/*">
+            <label for="xyz-back" class="file-input-label">
+              📁 Choose Image
+            </label>
+          </div>
+          <div class="preview-container" id="xyz-back-preview">
+            <span class="preview-placeholder">No image selected</span>
+          </div>
+        </div>
+
+        <button class="btn-save" onclick="saveDesign('XYZ')">Save XYZ Design</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/custom-ticket-design.js"></script>
+</body>
+</html>
