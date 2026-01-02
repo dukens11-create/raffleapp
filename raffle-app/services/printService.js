@@ -20,6 +20,14 @@ const CATEGORY_NAMES = {
   'XYZ': { full: 'XYZ - Platinum', short: 'XYZ ($500)' }
 };
 
+// Barcode generation constants for BWIP-JS
+// EAN-13 barcode standard width is approximately 60 modules (bars)
+// Scale factor is calculated relative to this baseline for proportional sizing
+const BARCODE_BASE_WIDTH = 60;
+// BWIP-JS uses millimeters for height while PDFKit uses points (1 point ≈ 0.35mm)
+// Height ratio converts from points to approximate mm scale for consistent rendering
+const BARCODE_HEIGHT_RATIO = 2;
+
 // Paper templates configuration
 const TEMPLATES = {
   AVERY_16145: {
@@ -447,8 +455,7 @@ async function drawTicketFrontWithTearoff(doc, ticket, template, x, y, qrMainIma
         x + (customDesign.offset_x || 0), 
         y + (customDesign.offset_y || 0), {
         width: ticketWidth * scaleW,
-        height: mainTicketHeight * scaleH,
-        fit: [ticketWidth * scaleW, mainTicketHeight * scaleH]
+        height: mainTicketHeight * scaleH
       });
       
       doc.restore();
@@ -513,8 +520,7 @@ async function drawTicketFrontWithTearoff(doc, ticket, template, x, y, qrMainIma
       doc.rect(x, stubY, ticketWidth, tearOffHeight - 2).clip();
       doc.image(imagePath, x, stubY, {
         width: ticketWidth,
-        height: tearOffHeight - 2,
-        fit: [ticketWidth, tearOffHeight - 2]
+        height: tearOffHeight - 2
       });
       doc.restore();
     }
@@ -644,13 +650,13 @@ async function drawTicketBackWithTearoff(doc, ticket, template, x, y, qrStubImag
          .fillOpacity(0.95).fill('#FFFFFF').fillOpacity(1);
     }
     
-    // Generate barcode with adjustable size
+    // Generate barcode with adjustable size using module-level constants
     try {
       const barcodeBuffer = await bwipjs.toBuffer({
         bcid: 'ean13',
         text: ticket.barcode,
-        scale: barcodeWidth / 60, // Scale based on desired width
-        height: Math.floor(barcodeHeight / 2),
+        scale: barcodeWidth / BARCODE_BASE_WIDTH, // Scale proportionally from base width
+        height: Math.floor(barcodeHeight / BARCODE_HEIGHT_RATIO), // Convert points to mm for bwip-js
         includetext: false
       });
       
