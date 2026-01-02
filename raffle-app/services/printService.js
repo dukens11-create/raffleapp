@@ -9,6 +9,8 @@ const qrcodeService = require('./qrcodeService');
 const db = require('../db');
 const fs = require('fs');
 const path = require('path');
+const bwipjs = require('bwip-js');
+const ticketService = require('./ticketService');
 
 // Category display names mapping
 const CATEGORY_NAMES = {
@@ -73,6 +75,24 @@ const TEMPLATES = {
     spacing: 0,
     pageWidth: 8.5 * 72,
     pageHeight: 11 * 72
+  },
+  GRID_20_TICKETS: {
+    name: 'Grid Layout - 20 Tickets (4×5)',
+    ticketWidth: 2 * 72,         // 2 inches in points (144 points)
+    ticketHeight: 2.1 * 72,      // 2.1 inches in points (151.2 points)
+    mainHeight: 0,               // Not used in grid layout
+    stubHeight: 0,               // Not used in grid layout
+    perforationLine: true,       // Dashed perforation line
+    ticketsPerPage: 20,          // 4 columns x 5 rows
+    columns: 4,
+    rows: 5,
+    topMargin: 0.25 * 72,        // 0.25 inch margin (18 points)
+    leftMargin: 0.25 * 72,       // 0.25 inch margin (18 points)
+    rightMargin: 0.25 * 72,      // 0.25 inch margin (18 points)
+    bottomMargin: 0.25 * 72,     // 0.25 inch margin (18 points)
+    spacing: 0,                  // No gap between tickets
+    pageWidth: 8.5 * 72,         // Letter width (612 points)
+    pageHeight: 11 * 72          // Letter height (792 points)
   }
 };
 
@@ -1121,6 +1141,180 @@ function drawCustomTicketContent(doc, ticket, x, y, width, height, qrBuffer, bar
 }
 
 /**
+ * Draw ticket in grid layout with borders
+ * Compact design for 2" × 2.1" tickets
+ * 
+ * @param {PDFDocument} doc - PDF document
+ * @param {Object} ticket - Ticket data
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {number} width - Ticket width
+ * @param {number} height - Ticket height
+ * @param {Buffer} qrImage - QR code image buffer
+ * @param {Buffer} barcodeImage - Barcode image buffer
+ */
+async function drawGridTicket(doc, ticket, x, y, width, height, qrImage, barcodeImage) {
+  const padding = 4;
+  
+  // Draw border
+  doc.save();
+  doc.strokeColor('#000000');
+  doc.lineWidth(1);
+  doc.rect(x, y, width, height).stroke();
+  doc.restore();
+  
+  // Background
+  doc.rect(x, y, width, height).fillOpacity(1).fill('#FFFFFF');
+  
+  // Ticket number (large, top)
+  doc.fontSize(14)
+     .font('Helvetica-Bold')
+     .fillColor('#000000')
+     .text(ticket.ticket_number, x + padding, y + padding + 2, {
+       width: width - (padding * 2),
+       align: 'center'
+     });
+  
+  // Category badge (small, colored)
+  const categoryColors = {
+    'ABC': '#FF6B6B',
+    'EFG': '#4ECDC4',
+    'JKL': '#45B7D1',
+    'XYZ': '#F7DC6F'
+  };
+  
+  const badgeY = y + padding + 20;
+  const badgeWidth = 35;
+  const badgeHeight = 15;
+  const badgeX = x + padding;
+  
+  doc.rect(badgeX, badgeY, badgeWidth, badgeHeight)
+     .fillAndStroke(categoryColors[ticket.category] || '#95a5a6', '#000000');
+  
+  doc.fontSize(9)
+     .fillColor('#FFFFFF')
+     .font('Helvetica-Bold')
+     .text(ticket.category, badgeX, badgeY + 3, {
+       width: badgeWidth,
+       align: 'center'
+     });
+  
+  // Price (next to badge)
+  doc.fontSize(10)
+     .fillColor('#000000')
+     .font('Helvetica-Bold')
+     .text(`$${parseFloat(ticket.price).toFixed(0)}`, badgeX + badgeWidth + 5, badgeY + 2);
+  
+  // QR Code (top right, small)
+  if (qrImage) {
+    const qrSize = 35;
+    doc.image(qrImage, x + width - qrSize - padding, y + padding, {
+      width: qrSize,
+      height: qrSize
+    });
+  }
+  
+  // ===== TEAR-OFF PERFORATION LINE =====
+  const perforationY = y + height * 0.60; // 60% down
+  
+  doc.save();
+  doc.strokeColor('#999999')
+     .lineWidth(0.5)
+     .dash(3, 2);
+  
+  doc.moveTo(x + 5, perforationY)
+     .lineTo(x + width - 5, perforationY)
+     .stroke();
+  
+  doc.restore();
+  
+  // Scissors icon
+  doc.fontSize(8)
+     .fillColor('#999999')
+     .text('✂', x + 2, perforationY - 4);
+  
+  // ===== MAIN TICKET SECTION (Above perforation) =====
+  
+  // Barcode #1 (center, above perforation)
+  if (barcodeImage) {
+    const barcodeWidth = 70;
+    const barcodeHeight = 20;
+    const barcodeX = x + (width - barcodeWidth) / 2;
+    const barcodeY = perforationY - barcodeHeight - 5;
+    
+    doc.image(barcodeImage, barcodeX, barcodeY, {
+      width: barcodeWidth,
+      height: barcodeHeight
+    });
+    
+    // Barcode number
+    if (ticket.barcode) {
+      doc.fontSize(5)
+         .font('Helvetica')
+         .fillColor('#000000')
+         .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 1, {
+           width: width - (padding * 2),
+           align: 'center'
+         });
+    }
+  }
+  
+  // ===== SELLER STUB SECTION (Below perforation) =====
+  
+  const stubY = perforationY + 3;
+  
+  // "STUB" label
+  doc.fontSize(7)
+     .font('Helvetica-Bold')
+     .fillColor('#666666')
+     .text('STUB', x + padding, stubY + 2, {
+       width: width - (padding * 2),
+       align: 'center'
+     });
+  
+  // Ticket number on stub
+  doc.fontSize(8)
+     .font('Helvetica')
+     .fillColor('#000000')
+     .text(`#${ticket.ticket_number}`, x + padding, stubY + 12);
+  
+  // Barcode #2 (duplicate on stub)
+  if (barcodeImage) {
+    const barcodeWidthStub = 60;
+    const barcodeHeightStub = 18;
+    const barcodeXStub = x + (width - barcodeWidthStub) / 2;
+    const barcodeYStub = y + height - barcodeHeightStub - padding - 5;
+    
+    doc.image(barcodeImage, barcodeXStub, barcodeYStub, {
+      width: barcodeWidthStub,
+      height: barcodeHeightStub
+    });
+    
+    // Barcode number
+    if (ticket.barcode) {
+      doc.fontSize(5)
+         .font('Helvetica')
+         .fillColor('#000000')
+         .text(ticket.barcode, x + padding, barcodeYStub + barcodeHeightStub + 1, {
+           width: width - (padding * 2),
+           align: 'center'
+         });
+    }
+  }
+  
+  // Seller info (very small)
+  if (ticket.seller_name) {
+    doc.fontSize(6)
+       .font('Helvetica')
+       .fillColor('#666666')
+       .text(`Seller: ${ticket.seller_name.substring(0, 12)}`, x + padding, stubY + 23, {
+         width: width - (padding * 2),
+         ellipsis: true
+       });
+  }
+}
+
+/**
  * Draw ticket back/stub content with semi-transparent backgrounds
  */
 function drawCustomTicketBackContent(doc, ticket, x, y, width, height, qrBuffer) {
@@ -1191,12 +1385,104 @@ function drawCustomTicketBackContent(doc, ticket, x, y, width, height, qrBuffer)
      .text('Date: ______________', x + 15, y + 170);
 }
 
+/**
+ * Generate PDF with grid layout (4 columns × 5 rows)
+ * 20 tickets per page, each ticket 2" × 2.1"
+ * 
+ * @param {Array} tickets - Array of ticket objects
+ * @param {Object} customDesign - Optional custom design object
+ * @returns {Promise<Buffer>} - PDF buffer
+ */
+async function generateGridPDF(tickets, customDesign = null) {
+  const template = TEMPLATES.GRID_20_TICKETS;
+  
+  const doc = new PDFDocument({
+    size: 'LETTER',
+    margin: template.topMargin,
+    bufferPages: true
+  });
+  
+  const buffers = [];
+  doc.on('data', (chunk) => buffers.push(chunk));
+  
+  const pdfPromise = new Promise((resolve, reject) => {
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', reject);
+  });
+  
+  const ticketsPerPage = template.columns * template.rows; // 20
+  let ticketCount = 0;
+  
+  for (const ticket of tickets) {
+    const positionOnPage = ticketCount % ticketsPerPage;
+    const row = Math.floor(positionOnPage / template.columns);
+    const col = positionOnPage % template.columns;
+    
+    // Calculate position
+    const x = template.leftMargin + (col * template.ticketWidth);
+    const y = template.topMargin + (row * template.ticketHeight);
+    
+    // Generate codes if not already generated
+    if (!ticket.barcode || !ticket.qr_code_data) {
+      const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+      ticket.barcode = codes.barcode;
+      ticket.qr_code_data = codes.qrCodeData;
+    }
+    
+    // Generate QR code image
+    const qrImage = await qrcodeService.generateQRCodeBuffer(ticket, {
+      size: 48, // 0.5" at 96 DPI for small format
+      errorCorrectionLevel: 'M'
+    });
+    
+    // Generate EAN-13 barcode image
+    let barcodeImage = null;
+    if (ticket.barcode) {
+      try {
+        barcodeImage = await bwipjs.toBuffer({
+          bcid: 'ean13',
+          text: ticket.barcode,
+          scale: 1.5,
+          height: 6,
+          includetext: false,
+          textxalign: 'center'
+        });
+      } catch (error) {
+        console.error('Barcode generation error:', error);
+      }
+    }
+    
+    // Draw ticket in grid
+    await drawGridTicket(
+      doc, 
+      ticket, 
+      x, 
+      y, 
+      template.ticketWidth, 
+      template.ticketHeight,
+      qrImage,
+      barcodeImage
+    );
+    
+    ticketCount++;
+    
+    // Add new page if needed
+    if (ticketCount % ticketsPerPage === 0 && ticketCount < tickets.length) {
+      doc.addPage();
+    }
+  }
+  
+  doc.end();
+  return pdfPromise;
+}
+
 module.exports = {
   createPrintJob,
   updatePrintJobStatus,
   generatePrintPDF,
   generateCustomTemplatePDF,
   generateCategoryCustomPDF,
+  generateGridPDF,
   getPrintJobs,
   getPrintJob,
   TEMPLATES

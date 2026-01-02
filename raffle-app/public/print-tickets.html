@@ -354,6 +354,18 @@
         </select>
       </div>
       
+      <div class="form-group">
+        <label for="layoutSelect">Print Layout</label>
+        <select id="layoutSelect" name="layout" required>
+          <option value="default">Standard (Full Size Tickets)</option>
+          <option value="grid_20" selected>Grid Layout (20 Tickets - 4×5)</option>
+        </select>
+        <div class="info-box" style="margin-top: 8px;">
+          <strong>Grid Layout (4×5):</strong>
+          20 tickets per page (2" × 2.1" each). Ideal for high-volume printing with tear-off stubs.
+        </div>
+      </div>
+      
       <!-- Template Selection Section -->
       <div style="margin-bottom: 24px; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px solid #e2e8f0;">
         <h3 style="margin: 0 0 16px 0; color: #1e293b; font-size: 18px;">🎨 Ticket Design</h3>
@@ -552,10 +564,14 @@
       const start = parseInt(document.getElementById('start-ticket').value) || 0;
       const end = parseInt(document.getElementById('end-ticket').value) || 0;
       const paperType = document.getElementById('paper-type').value;
+      const layout = document.getElementById('layoutSelect').value;
       
-      // Determine tickets per sheet based on paper type
+      // Determine tickets per sheet based on layout or paper type
       let ticketsPerSheet = 10; // default AVERY_16145
-      if (paperType === 'PRINTWORKS' || paperType === 'LETTER_8_TICKETS') {
+      
+      if (layout === 'grid_20' || layout === 'grid') {
+        ticketsPerSheet = 20; // Grid layout: 4×5 = 20 tickets per page
+      } else if (paperType === 'PRINTWORKS' || paperType === 'LETTER_8_TICKETS') {
         ticketsPerSheet = 8;
       }
       
@@ -571,6 +587,7 @@
     document.getElementById('start-ticket').addEventListener('input', updateSheetCount);
     document.getElementById('end-ticket').addEventListener('input', updateSheetCount);
     document.getElementById('paper-type').addEventListener('change', updateSheetCount);
+    document.getElementById('layoutSelect').addEventListener('change', updateSheetCount);
     
     // Show alert
     function showAlert(message, type = 'info') {
@@ -592,6 +609,7 @@
       const start = document.getElementById('start-ticket').value;
       const end = document.getElementById('end-ticket').value;
       const paperType = document.getElementById('paper-type').value;
+      const layout = document.getElementById('layoutSelect').value;
       
       if (!category || !start || !end) {
         showAlert('Please fill in all fields', 'error');
@@ -616,9 +634,12 @@
         const data = await response.json();
         currentPreviewData = data;
         
-        // Determine tickets per sheet based on paper type
+        // Determine tickets per sheet based on layout or paper type
         let ticketsPerSheet = 10;
-        if (paperType === 'PRINTWORKS' || paperType === 'LETTER_8_TICKETS') {
+        
+        if (layout === 'grid_20' || layout === 'grid') {
+          ticketsPerSheet = 20; // Grid layout: 4×5 = 20 tickets per page
+        } else if (paperType === 'PRINTWORKS' || paperType === 'LETTER_8_TICKETS') {
           ticketsPerSheet = 8;
         }
         
@@ -681,6 +702,7 @@
       const start = document.getElementById('start-ticket').value;
       const end = document.getElementById('end-ticket').value;
       const paperType = document.getElementById('paper-type').value;
+      const layout = document.getElementById('layoutSelect').value;
       
       // Get template selection
       const templateSelector = document.getElementById('templateSelector');
@@ -699,7 +721,8 @@
           category: category,
           start_ticket: `${category}-${startPadded}`,
           end_ticket: `${category}-${endPadded}`,
-          paper_type: paperType || 'AVERY_16145'
+          paper_type: paperType || 'AVERY_16145',
+          layout: layout  // Add layout parameter
         };
         
         // Add custom template info if using custom template

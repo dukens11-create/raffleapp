@@ -2377,7 +2377,8 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       end_ticket,
       paper_type,
       use_custom_template,
-      template_id
+      template_id,
+      layout
     } = req.body;
     
     // Validate input
@@ -2430,7 +2431,9 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       tickets = await ticketService.getTicketsByRange(start_ticket, end_ticket);
     }
     
-    // Create print job
+    // Create print job - use GRID_20_TICKETS paper type if grid layout is selected
+    const effectivePaperType = (layout === 'grid' || layout === 'grid_20') ? 'GRID_20_TICKETS' : paper_type;
+    
     const printJobId = await printService.createPrintJob({
       admin_id: req.session.user.id,
       raffle_id: raffle_id || 1,
@@ -2438,10 +2441,27 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       ticket_range_start: start_ticket,
       ticket_range_end: end_ticket,
       total_tickets: tickets.length,
-      paper_type
+      paper_type: effectivePaperType
     });
     
     let doc;
+    
+    // Check if using grid layout
+    if (layout === 'grid' || layout === 'grid_20') {
+      // Generate PDF with grid layout: 4 columns × 5 rows = 20 tickets per page
+      const pdfBuffer = await printService.generateGridPDF(tickets);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=tickets-grid-${category}-${start_ticket}-to-${end_ticket}.pdf`);
+      res.send(pdfBuffer);
+      
+      // Mark tickets as printed
+      for (const ticket of tickets) {
+        await ticketService.markAsPrinted(ticket.ticket_number);
+      }
+      
+      return;
+    }
     
     // Check if using custom template
     if (use_custom_template && template_id) {
