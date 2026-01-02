@@ -2326,21 +2326,25 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
     
     console.log(`✅ Found ${tickets.length} tickets for CSV export`);
     
+    // Helper function to format CSV field (escape and quote if needed)
+    const formatCsvField = (value) => {
+      const stringValue = String(value || '');
+      // Escape double quotes by doubling them
+      const escapedValue = stringValue.replace(/"/g, '""');
+      // Wrap in quotes if contains comma, newline, or quote
+      const needsQuotes = /[",\n]/.test(stringValue);
+      return needsQuotes ? `"${escapedValue}"` : escapedValue;
+    };
+    
     // Generate CSV content
     // Start with header row
     let csvContent = 'ticket_number,barcode\n';
     
     // Add each ticket as a row
     tickets.forEach(ticket => {
-      // Escape fields if they contain commas or quotes
-      const ticketNumber = String(ticket.ticket_number || '').replace(/"/g, '""');
-      const barcode = String(ticket.barcode || '').replace(/"/g, '""');
-      
-      // Wrap in quotes if contains comma, newline, or quote
-      const needsQuotesTicket = /[",\n]/.test(ticketNumber);
-      const needsQuotesBarcode = /[",\n]/.test(barcode);
-      
-      csvContent += `${needsQuotesTicket ? '"' + ticketNumber + '"' : ticketNumber},${needsQuotesBarcode ? '"' + barcode + '"' : barcode}\n`;
+      const ticketNumber = formatCsvField(ticket.ticket_number);
+      const barcode = formatCsvField(ticket.barcode);
+      csvContent += `${ticketNumber},${barcode}\n`;
     });
     
     // Set response headers for CSV download
