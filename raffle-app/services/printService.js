@@ -18,6 +18,24 @@ const CATEGORY_NAMES = {
   'XYZ': { full: 'XYZ - Platinum', short: 'XYZ ($500)' }
 };
 
+// Standard raffle ticket size: 5.5" x 2.125" with tear-off
+const DEFAULT_TEMPLATE = {
+  ticketWidth: 396,      // 5.5 inches * 72 DPI = 396 points
+  ticketHeight: 153,     // 2.125 inches * 72 DPI = 153 points
+  mainTicketHeight: 95,  // Main ticket section (top 62%)
+  tearOffHeight: 58,     // Tear-off stub section (bottom 38%)
+  tearOffY: 95,          // Y position where tear-off starts
+  margin: 10,
+  padding: 8,
+  fontSize: {
+    title: 16,
+    header: 14,
+    body: 11,
+    small: 8,
+    tiny: 7
+  }
+};
+
 // Paper templates configuration
 const TEMPLATES = {
   AVERY_16145: {
@@ -152,12 +170,289 @@ async function updatePrintJobStatus(jobId, status, progress = 0) {
  * @param {number} y - Y position
  * @param {Buffer} qrMainImage - Main QR code image buffer
  * @param {Buffer} barcodeImage - Barcode image buffer
+ * @param {Object} customDesign - Optional custom design
  */
-async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage) {
+async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage, customDesign = null) {
   const { ticketWidth, ticketHeight, perforationLine } = template;
+  
+  // Check if this is the DEFAULT_TEMPLATE with tear-off
+  const hasTearOff = template.mainTicketHeight && template.tearOffHeight && template.tearOffY;
   
   // Detect if this is the smaller LETTER_8_TICKETS format
   const isSmallFormat = ticketWidth < 200; // 2.125" * 72 = 153 points
+  
+  if (hasTearOff) {
+    // New tear-off design with duplicate barcode
+    const { mainTicketHeight, tearOffHeight, tearOffY } = template;
+    const padding = 8;
+    
+    // ========================================
+    // SECTION 1: MAIN TICKET (TOP SECTION)
+    // ========================================
+    
+    // Draw custom background if provided (main ticket area only)
+    if (customDesign && customDesign.front_image_path) {
+      try {
+        const imagePath = path.join(__dirname, '..', 'public', customDesign.front_image_path);
+        if (fs.existsSync(imagePath)) {
+          doc.save();
+          doc.rect(x, y, ticketWidth, mainTicketHeight).clip();
+          doc.image(imagePath, x, y, {
+            width: ticketWidth,
+            height: mainTicketHeight,
+            fit: [ticketWidth, mainTicketHeight],
+            align: 'center',
+            valign: 'center'
+          });
+          doc.restore();
+        }
+      } catch (error) {
+        console.error('Error loading front design image:', error);
+      }
+    } else {
+      // Default white background with border (main ticket only)
+      doc.rect(x, y, ticketWidth, mainTicketHeight).fillAndStroke('#FFFFFF', '#000000');
+    }
+    
+    // Semi-transparent overlay for text readability (main ticket)
+    if (customDesign && customDesign.front_image_path) {
+      doc.rect(x + 10, y + 5, ticketWidth - 20, 35)
+         .fillOpacity(0.85)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
+    // Main ticket header
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#000000');
+    doc.text('RAFFLE TICKET', x + padding, y + 8, {
+      width: ticketWidth - (padding * 2),
+      align: 'center'
+    });
+    
+    // Ticket Number (LARGE, BOLD, CENTERED)
+    doc.fontSize(16)
+       .font('Helvetica-Bold')
+       .fillColor('#000000')
+       .text(`Ticket #: ${ticket.ticket_number}`, x + padding, y + 25, {
+         width: ticketWidth - (padding * 2),
+         align: 'center'
+       });
+    
+    // Category badge and price (on main ticket)
+    const categoryColors = {
+      'ABC': '#FF6B6B',
+      'EFG': '#4ECDC4',
+      'JKL': '#45B7D1',
+      'XYZ': '#F7DC6F'
+    };
+    
+    const categoryY = y + 48;
+    
+    if (customDesign && customDesign.front_image_path) {
+      doc.rect(x + 10, categoryY - 2, 100, 22)
+         .fillOpacity(0.9)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
+    doc.rect(x + 12, categoryY, 70, 20)
+       .fillAndStroke(categoryColors[ticket.category] || '#95a5a6', '#2c3e50');
+    doc.fontSize(12).fillColor('#ffffff').font('Helvetica-Bold');
+    doc.text(ticket.category, x + 17, categoryY + 5, { width: 60, align: 'center' });
+    
+    // Price
+    if (customDesign && customDesign.front_image_path) {
+      doc.rect(x + 90, categoryY - 2, 80, 22)
+         .fillOpacity(0.9)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
+    doc.fontSize(11).fillColor('#000000').font('Helvetica');
+    doc.text('Price:', x + 95, categoryY + 5);
+    doc.font('Helvetica-Bold');
+    doc.text(`$${ticket.price.toFixed(2)}`, x + 125, categoryY + 5);
+    
+    // QR Code on main ticket (top right)
+    if (qrMainImage) {
+      const qrSize = 50;
+      if (customDesign && customDesign.front_image_path) {
+        doc.rect(x + ticketWidth - qrSize - 15, y + 5, qrSize + 10, qrSize + 10)
+           .fillOpacity(0.95)
+           .fill('#FFFFFF')
+           .fillOpacity(1);
+      }
+      doc.image(qrMainImage, x + ticketWidth - qrSize - 10, y + 8, {
+        width: qrSize,
+        height: qrSize
+      });
+    }
+
+    // BARCODE #1 - On main ticket (centered at bottom of main section)
+    if (barcodeImage) {
+      const barcodeWidth = 100;
+      const barcodeHeight = 28;
+      const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
+      const barcodeY = y + mainTicketHeight - barcodeHeight - 8;
+      
+      if (customDesign && customDesign.front_image_path) {
+        doc.rect(barcodeX - 5, barcodeY - 3, barcodeWidth + 10, barcodeHeight + 10)
+           .fillOpacity(0.95)
+           .fill('#FFFFFF')
+           .fillOpacity(1);
+      }
+      
+      doc.image(barcodeImage, barcodeX, barcodeY, {
+        width: barcodeWidth,
+        height: barcodeHeight
+      });
+      
+      if (ticket.barcode) {
+        doc.fontSize(7)
+           .font('Helvetica')
+           .fillColor('#000000')
+           .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 1, {
+             width: ticketWidth - (padding * 2),
+             align: 'center'
+           });
+      }
+    }
+    
+    // ========================================
+    // TEAR-OFF PERFORATION LINE
+    // ========================================
+    
+    const perforationY = y + tearOffY;
+    
+    // Draw scissors icon at the left
+    doc.fontSize(12).fillColor('#666666');
+    doc.text('✂', x + 5, perforationY - 6);
+    
+    // Draw dashed perforation line
+    doc.strokeColor('#999999')
+       .lineWidth(1)
+       .dash(5, 3); // 5 points line, 3 points gap
+    
+    doc.moveTo(x + 20, perforationY)
+       .lineTo(x + ticketWidth - 20, perforationY)
+       .stroke();
+    
+    doc.undash(); // Reset to solid line
+    
+    // "TEAR OFF HERE" text
+    doc.fontSize(7)
+       .font('Helvetica')
+       .fillColor('#999999')
+       .text('TEAR OFF HERE', x + ticketWidth - 70, perforationY - 4);
+    
+    // ========================================
+    // SECTION 2: TEAR-OFF STUB (BOTTOM SECTION)
+    // ========================================
+    
+    const stubY = y + tearOffY + 2;
+    
+    // Draw custom background for stub if provided
+    if (customDesign && customDesign.back_image_path) {
+      try {
+        const imagePath = path.join(__dirname, '..', 'public', customDesign.back_image_path);
+        if (fs.existsSync(imagePath)) {
+          doc.save();
+          doc.rect(x, stubY, ticketWidth, tearOffHeight - 2).clip();
+          doc.image(imagePath, x, stubY, {
+            width: ticketWidth,
+            height: tearOffHeight - 2,
+            fit: [ticketWidth, tearOffHeight - 2],
+            align: 'center',
+            valign: 'center'
+          });
+          doc.restore();
+        }
+      } catch (error) {
+        console.error('Error loading stub design image:', error);
+      }
+    } else {
+      // Default light gray background for stub
+      doc.rect(x, stubY, ticketWidth, tearOffHeight - 2)
+         .fillAndStroke('#F8F9FA', '#000000');
+    }
+    
+    // Border around entire ticket
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke('#000000');
+    
+    // Stub header with semi-transparent background
+    if (customDesign && customDesign.back_image_path) {
+      doc.rect(x + 5, stubY + 3, ticketWidth - 10, 30)
+         .fillOpacity(0.9)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000');
+    doc.text('SELLER STUB', x + padding, stubY + 5, {
+      width: ticketWidth - (padding * 2),
+      align: 'center'
+    });
+    
+    // Ticket number on stub
+    doc.fontSize(11).font('Helvetica-Bold');
+    doc.text(`#${ticket.ticket_number}`, x + padding, stubY + 18, {
+      width: ticketWidth - 60,
+      align: 'left'
+    });
+    
+    // Small QR code on stub (top right)
+    if (qrMainImage) {
+      const qrSizeStub = 35;
+      if (customDesign && customDesign.back_image_path) {
+        doc.rect(x + ticketWidth - qrSizeStub - 12, stubY + 3, qrSizeStub + 7, qrSizeStub + 7)
+           .fillOpacity(0.95)
+           .fill('#FFFFFF')
+           .fillOpacity(1);
+      }
+      doc.image(qrMainImage, x + ticketWidth - qrSizeStub - 8, stubY + 5, {
+        width: qrSizeStub,
+        height: qrSizeStub
+      });
+    }
+    
+    // BARCODE #2 - On tear-off stub (SAME BARCODE - DUPLICATE)
+    if (barcodeImage) {
+      const barcodeWidthStub = 90;
+      const barcodeHeightStub = 20;
+      const barcodeXStub = x + (ticketWidth - barcodeWidthStub) / 2;
+      const barcodeYStub = stubY + tearOffHeight - barcodeHeightStub - 10;
+      
+      if (customDesign && customDesign.back_image_path) {
+        doc.rect(barcodeXStub - 5, barcodeYStub - 3, barcodeWidthStub + 10, barcodeHeightStub + 8)
+           .fillOpacity(0.95)
+           .fill('#FFFFFF')
+           .fillOpacity(1);
+      }
+      
+      // Draw SAME barcode on stub
+      doc.image(barcodeImage, barcodeXStub, barcodeYStub, {
+        width: barcodeWidthStub,
+        height: barcodeHeightStub
+      });
+      
+      // Barcode number below
+      if (ticket.barcode) {
+        doc.fontSize(6)
+           .font('Helvetica')
+           .fillColor('#000000')
+           .text(ticket.barcode, x + padding, barcodeYStub + barcodeHeightStub + 1, {
+             width: ticketWidth - (padding * 2),
+             align: 'center'
+           });
+      }
+    }
+    
+    return; // Exit early for tear-off template
+  }
+  
+  // ========================================
+  // ORIGINAL DESIGN (for other templates)
+  // ========================================
   
   // Scale down content for smaller tickets
   const padding = isSmallFormat ? 4 : 8;
@@ -286,12 +581,168 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
  * @param {number} x - X position
  * @param {number} y - Y position
  * @param {Buffer} qrStubImage - Stub QR code image buffer
+ * @param {Object} customDesign - Optional custom design
  */
-function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
+function drawTicketBack(doc, ticket, template, x, y, qrStubImage, customDesign = null) {
   const { ticketWidth, ticketHeight, perforationLine } = template;
+  
+  // Check if this is the DEFAULT_TEMPLATE with tear-off
+  const hasTearOff = template.mainTicketHeight && template.tearOffHeight && template.tearOffY;
   
   // Detect if this is the smaller LETTER_8_TICKETS format
   const isSmallFormat = ticketWidth < 200;
+  
+  if (hasTearOff) {
+    // New tear-off design
+    const { mainTicketHeight, tearOffY, tearOffHeight } = template;
+    const padding = 8;
+    
+    // ========================================
+    // MAIN TICKET BACK (TOP SECTION)
+    // ========================================
+    
+    // Draw custom background for main back if provided
+    if (customDesign && customDesign.back_image_path) {
+      try {
+        const imagePath = path.join(__dirname, '..', 'public', customDesign.back_image_path);
+        if (fs.existsSync(imagePath)) {
+          doc.save();
+          doc.rect(x, y, ticketWidth, mainTicketHeight).clip();
+          doc.image(imagePath, x, y, {
+            width: ticketWidth,
+            height: mainTicketHeight,
+            fit: [ticketWidth, mainTicketHeight],
+            align: 'center',
+            valign: 'center'
+          });
+          doc.restore();
+        }
+      } catch (error) {
+        console.error('Error loading back design image:', error);
+      }
+    } else {
+      // Default background
+      doc.rect(x, y, ticketWidth, mainTicketHeight).fillAndStroke('#F8F9FA', '#000000');
+    }
+    
+    // Terms and conditions area on main back
+    if (customDesign && customDesign.back_image_path) {
+      doc.rect(x + 10, y + 10, ticketWidth - 20, mainTicketHeight - 20)
+         .fillOpacity(0.9)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000');
+    doc.text('RAFFLE TERMS', x + padding, y + 12, {
+      width: ticketWidth - (padding * 2),
+      align: 'center'
+    });
+    
+    doc.fontSize(7).font('Helvetica').fillColor('#333333');
+    const termsY = y + 25;
+    doc.text('• Ticket is non-refundable', x + padding + 5, termsY);
+    doc.text('• Winner will be notified by phone', x + padding + 5, termsY + 10);
+    doc.text('• Prize must be claimed within 30 days', x + padding + 5, termsY + 20);
+    doc.text('• Valid for draw date only', x + padding + 5, termsY + 30);
+    
+    doc.fontSize(8).font('Helvetica-Bold');
+    doc.text('KEEP THIS TICKET SAFE', x + padding, y + mainTicketHeight - 15, {
+      width: ticketWidth - (padding * 2),
+      align: 'center'
+    });
+    
+    // ========================================
+    // TEAR-OFF PERFORATION LINE (BACK SIDE)
+    // ========================================
+    
+    const perforationY = y + tearOffY;
+    
+    doc.fontSize(12).fillColor('#666666');
+    doc.text('✂', x + 5, perforationY - 6);
+    
+    doc.strokeColor('#999999')
+       .lineWidth(1)
+       .dash(5, 3);
+    
+    doc.moveTo(x + 20, perforationY)
+       .lineTo(x + ticketWidth - 20, perforationY)
+       .stroke();
+    
+    doc.undash();
+    
+    doc.fontSize(7)
+       .font('Helvetica')
+       .fillColor('#999999')
+       .text('TEAR OFF HERE', x + ticketWidth - 70, perforationY - 4);
+    
+    // ========================================
+    // TEAR-OFF STUB BACK (BOTTOM SECTION)
+    // ========================================
+    
+    const stubY = y + tearOffY + 2;
+    
+    if (customDesign && customDesign.back_image_path) {
+      try {
+        const imagePath = path.join(__dirname, '..', 'public', customDesign.back_image_path);
+        if (fs.existsSync(imagePath)) {
+          doc.save();
+          doc.rect(x, stubY, ticketWidth, tearOffHeight - 2).clip();
+          doc.image(imagePath, x, stubY, {
+            width: ticketWidth,
+            height: tearOffHeight - 2,
+            fit: [ticketWidth, tearOffHeight - 2],
+            align: 'center',
+            valign: 'center'
+          });
+          doc.restore();
+        }
+      } catch (error) {
+        console.error('Error loading stub back design:', error);
+      }
+    } else {
+      doc.rect(x, stubY, ticketWidth, tearOffHeight - 2)
+         .fillAndStroke('#FFFFFF', '#000000');
+    }
+    
+    // Border around entire ticket
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke('#000000');
+    
+    // Seller information on stub back
+    if (customDesign && customDesign.back_image_path) {
+      doc.rect(x + 5, stubY + 3, ticketWidth - 10, tearOffHeight - 8)
+         .fillOpacity(0.9)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#000000');
+    doc.text('SELLER RECORD', x + padding, stubY + 5, {
+      width: ticketWidth - (padding * 2),
+      align: 'center'
+    });
+    
+    doc.fontSize(8).font('Helvetica');
+    let infoY = stubY + 18;
+    
+    doc.text(`Ticket: ${ticket.ticket_number}`, x + padding + 5, infoY);
+    infoY += 10;
+    
+    if (ticket.seller_name) {
+      doc.text(`Seller: ${ticket.seller_name}`, x + padding + 5, infoY);
+      infoY += 10;
+    }
+    
+    if (ticket.seller_phone) {
+      doc.text(`Phone: ${ticket.seller_phone}`, x + padding + 5, infoY);
+    }
+    
+    return; // Exit early for tear-off template
+  }
+  
+  // ========================================
+  // ORIGINAL DESIGN (for other templates)
+  // ========================================
   
   // Scale down content for smaller tickets
   const padding = isSmallFormat ? 4 : 8;
@@ -1191,13 +1642,126 @@ function drawCustomTicketBackContent(doc, ticket, x, y, width, height, qrBuffer)
      .text('Date: ______________', x + 15, y + 170);
 }
 
+/**
+ * Generate PDF for ticket printing with DEFAULT_TEMPLATE and tear-off design
+ * This function creates tickets with tear-off perforation line and duplicate barcodes
+ * 
+ * @param {Array} tickets - Array of ticket objects
+ * @param {Object} customDesign - Optional custom design object
+ * @returns {Promise<Buffer>} - PDF buffer
+ */
+async function generateTicketPDF(tickets, customDesign = null) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'LETTER',
+        margin: 20,
+        bufferPages: true
+      });
+      
+      const buffers = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', reject);
+      
+      const template = DEFAULT_TEMPLATE;
+      const ticketsPerRow = 1; // One ticket per row for 5.5" width
+      const ticketsPerPage = 4; // 4 tickets per letter-size page
+      
+      let ticketCount = 0;
+      
+      for (const ticket of tickets) {
+        const row = Math.floor((ticketCount % ticketsPerPage) / ticketsPerRow);
+        const col = ticketCount % ticketsPerRow;
+        
+        const x = 20 + (col * (template.ticketWidth + 10));
+        const y = 30 + (row * (template.ticketHeight + 15));
+        
+        // Generate codes if not already generated
+        const ticketService = require('./ticketService');
+        if (!ticket.barcode || !ticket.qr_code_data) {
+          const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+          ticket.barcode = codes.barcode;
+          ticket.qr_code_data = codes.qrCodeData;
+        }
+        
+        // Generate QR codes and barcodes
+        const qrMainImage = await qrcodeService.generateQRCodeBuffer(ticket, {
+          size: 96,
+          errorCorrectionLevel: 'M'
+        });
+        
+        const bwipjs = require('bwip-js');
+        let barcodeImage = null;
+        if (ticket.barcode) {
+          try {
+            barcodeImage = await bwipjs.toBuffer({
+              bcid: 'ean13',
+              text: ticket.barcode,
+              scale: 2,
+              height: 10,
+              includetext: false,
+              textxalign: 'center'
+            });
+          } catch (error) {
+            console.error('Barcode generation error:', error);
+          }
+        }
+        
+        // Draw front side with tear-off
+        await drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage, customDesign);
+        
+        ticketCount++;
+        
+        if (ticketCount % ticketsPerPage === 0 && ticketCount < tickets.length) {
+          doc.addPage();
+        }
+      }
+      
+      // Add back sides on separate pages
+      if (tickets.length > 0) {
+        doc.addPage();
+        
+        ticketCount = 0;
+        for (const ticket of tickets) {
+          const row = Math.floor((ticketCount % ticketsPerPage) / ticketsPerRow);
+          const col = ticketCount % ticketsPerRow;
+          
+          const x = 20 + (col * (template.ticketWidth + 10));
+          const y = 30 + (row * (template.ticketHeight + 15));
+          
+          const qrStubImage = await qrcodeService.generateQRCodeBuffer(ticket, {
+            size: 50,
+            errorCorrectionLevel: 'M'
+          });
+          
+          // Draw back side with tear-off
+          drawTicketBack(doc, ticket, template, x, y, qrStubImage, customDesign);
+          
+          ticketCount++;
+          
+          if (ticketCount % ticketsPerPage === 0 && ticketCount < tickets.length) {
+            doc.addPage();
+          }
+        }
+      }
+      
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
 module.exports = {
   createPrintJob,
   updatePrintJobStatus,
   generatePrintPDF,
   generateCustomTemplatePDF,
   generateCategoryCustomPDF,
+  generateTicketPDF,
   getPrintJobs,
   getPrintJob,
-  TEMPLATES
+  TEMPLATES,
+  DEFAULT_TEMPLATE
 };
