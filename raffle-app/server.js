@@ -2395,11 +2395,9 @@ app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (
       return res.status(404).send('No tickets found');
     }
     
-    // Generate TXT content
-    let txtContent = '';
-    tickets.forEach(ticket => {
-      txtContent += `${ticket.ticket_number}  ${ticket.barcode}\n`;
-    });
+    // Generate TXT content efficiently using array join
+    const lines = tickets.map(ticket => `${ticket.ticket_number}  ${ticket.barcode}`);
+    const txtContent = lines.join('\n') + '\n';
     
     // Set headers for file download
     const timestamp = new Date().toISOString().split('T')[0];
