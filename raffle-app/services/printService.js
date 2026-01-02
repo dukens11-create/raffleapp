@@ -258,6 +258,9 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
        align: 'center'
      });
 
+  // Ticket number (prominent)
+  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
+  
   // Semi-transparent overlay for ticket info (if custom design is used)
   if (customDesign) {
     const infoBlockHeight = (isSmallFormat ? 16 : 18) + (isSmallFormat ? 12 : 14) + bodySize + 10;
@@ -267,8 +270,6 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
        .fillOpacity(1);
   }
 
-  // Ticket number (prominent)
-  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
   doc.fontSize(ticketNumSize)
      .font('Helvetica-Bold')
      .fillColor('#000000')
@@ -488,6 +489,9 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage, customDesign =
     });
   }
 
+  // Ticket number
+  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
+  
   // Semi-transparent overlay for ticket info (if custom design is used)
   if (customDesign) {
     const infoBlockHeight = (isSmallFormat ? 12 : 15) + bodySize + 8;
@@ -497,8 +501,6 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage, customDesign =
        .fillOpacity(1);
   }
 
-  // Ticket number
-  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
   doc.fontSize(ticketNumSize)
      .font('Helvetica-Bold')
      .fillColor('#000000')
