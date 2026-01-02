@@ -405,7 +405,7 @@ async function initializeSchema() {
         await run(`ALTER TABLE ticket_designs ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`);
         // Drop UNIQUE constraint on category to allow multiple designs per category
         await run(`ALTER TABLE ticket_designs DROP CONSTRAINT IF EXISTS ticket_designs_category_key`).catch((err) => {
-          console.log('Note: UNIQUE constraint on category may not exist or could not be dropped:', err.message);
+          console.warn('⚠️  UNIQUE constraint on category may not exist or could not be dropped:', err.message);
         });
       } else {
         // SQLite: Check and add columns individually

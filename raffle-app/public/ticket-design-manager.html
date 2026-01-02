@@ -298,25 +298,35 @@
                 return;
             }
             
+            // Helper function to escape HTML to prevent XSS
+            const escapeHtml = (text) => {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            };
+            
             container.innerHTML = designs.map(design => {
-                const previewImage = design.front_image_path || design.back_image_path || '/logo.png';
+                const previewImage = escapeHtml(design.front_image_path || design.back_image_path || '/logo.png');
                 const createdDate = new Date(design.created_at).toLocaleDateString();
+                const designName = escapeHtml(design.name || 'Unnamed Design');
+                const designCategory = escapeHtml(design.category || 'default');
+                const designDescription = design.description ? escapeHtml(design.description) : '';
                 
                 return `
                 <div class="design-card">
                     <img src="${previewImage}" 
-                         alt="${design.name}" 
+                         alt="${designName}" 
                          class="design-preview"
                          onerror="this.src='/logo.png'">
                     <div class="design-info">
-                        <h3>${design.name || 'Unnamed Design'}</h3>
-                        <p><strong>Category:</strong> ${design.category || 'default'}</p>
+                        <h3>${designName}</h3>
+                        <p><strong>Category:</strong> ${designCategory}</p>
                         <p><strong>Created:</strong> ${createdDate}</p>
-                        ${design.description ? `<p>${design.description}</p>` : ''}
+                        ${designDescription ? `<p>${designDescription}</p>` : ''}
                         <p><strong>Active:</strong> ${design.is_active ? 'Yes' : 'No'}</p>
                     </div>
                     <div class="design-actions">
-                        <button onclick="deleteDesign(${design.id})" class="btn-delete">
+                        <button onclick="deleteDesign(${parseInt(design.id)})" class="btn-delete">
                             🗑️ Delete
                         </button>
                     </div>
