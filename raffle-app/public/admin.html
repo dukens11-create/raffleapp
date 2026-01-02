@@ -461,6 +461,17 @@
       transform: none;
     }
     
+    #download-number-barcode-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    }
+    
+    #download-number-barcode-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
     .barcode-img {
       max-width: 120px;
       height: auto;
@@ -785,6 +796,9 @@
     <div style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap;">
       <button id="download-tickets-btn" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); transition: all 0.3s;">
         📥 Download Tickets
+      </button>
+      <button id="download-number-barcode-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3); transition: all 0.3s;">
+        📥 Download Ticket Numbers &amp; Barcodes (CSV)
       </button>
       <span id="download-status" style="color: #64748b; font-size: 14px; align-self: center; display: none;"></span>
     </div>
@@ -2808,6 +2822,101 @@
         // Re-enable button
         downloadBtn.disabled = false;
         downloadBtn.innerHTML = '📥 Download Tickets';
+      }
+    });
+    
+    // ==================== DOWNLOAD TICKET NUMBERS & BARCODES CSV FUNCTIONALITY ====================
+    
+    // Download ticket numbers and barcodes as CSV - minimal export with only two columns
+    document.getElementById('download-number-barcode-btn').addEventListener('click', async () => {
+      const downloadBtn = document.getElementById('download-number-barcode-btn');
+      const downloadStatus = document.getElementById('download-status');
+      
+      // Disable button and show loading state
+      downloadBtn.disabled = true;
+      downloadBtn.innerHTML = '⏳ Preparing CSV...';
+      downloadStatus.style.display = 'inline';
+      downloadStatus.textContent = 'Generating CSV file...';
+      downloadStatus.style.color = '#64748b';
+      
+      try {
+        console.log('📥 Requesting CSV export of ticket numbers and barcodes');
+        
+        // Make request to CSV export endpoint
+        const response = await fetch('/api/admin/tickets/number-barcode');
+        
+        console.log('📊 Response status:', response.status);
+        
+        // Check if response is OK
+        if (!response.ok) {
+          // Try to parse error as JSON
+          let errorMessage = 'Failed to download CSV';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+            console.error('❌ Server error:', errorData);
+            
+            // Provide helpful message if no tickets exist
+            if (errorMessage.includes('No tickets found') || response.status === 404) {
+              errorMessage = 'No tickets found in database. Please generate tickets first or import tickets via Excel.';
+            }
+          } catch (jsonError) {
+            // Not JSON, get as text
+            const errorText = await response.text();
+            console.error('❌ Server response:', errorText);
+            if (errorText) errorMessage = errorText;
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        // Get the CSV content as blob
+        const blob = await response.blob();
+        
+        console.log(`✅ CSV received: ${blob.size} bytes`);
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tickets_number_barcode.csv';
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        console.log('✅ CSV download complete!');
+        
+        // Show success message
+        downloadStatus.textContent = '✅ CSV download complete!';
+        downloadStatus.style.color = '#10b981';
+        showNotify('✅ CSV downloaded successfully! File contains ticket numbers and barcodes only.', '#10b981', 3000);
+        
+        // Reset status after 3 seconds
+        setTimeout(() => {
+          downloadStatus.style.display = 'none';
+          downloadStatus.style.color = '#64748b';
+        }, 3000);
+        
+      } catch (error) {
+        console.error('❌ CSV download error:', error);
+        
+        // Show error message
+        downloadStatus.textContent = `❌ ${error.message}`;
+        downloadStatus.style.color = '#ef4444';
+        showNotify(`❌ CSV download failed: ${error.message}`, '#ef4444', 5000);
+        
+        // Keep error visible longer
+        setTimeout(() => {
+          downloadStatus.style.display = 'none';
+          downloadStatus.style.color = '#64748b';
+        }, 5000);
+      } finally {
+        // Re-enable button
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '📥 Download Ticket Numbers &amp; Barcodes (CSV)';
       }
     });
     

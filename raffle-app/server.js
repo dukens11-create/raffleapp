@@ -2304,6 +2304,67 @@ app.get('/api/admin/tickets/template', requireAuth, requireAdmin, (req, res) => 
   }
 });
 
+// GET /api/admin/tickets/number-barcode - Export ticket numbers and barcodes as CSV
+// Returns a CSV file with only ticket_number and barcode columns, sorted by ticket_number
+app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('📥 CSV export request received for ticket numbers and barcodes');
+    
+    // Fetch all tickets with only ticket_number and barcode, sorted by ticket_number
+    const tickets = await db.query(
+      'SELECT ticket_number, barcode FROM tickets ORDER BY ticket_number ASC'
+    );
+    
+    // Handle case where no tickets exist
+    if (!tickets || tickets.length === 0) {
+      console.warn('⚠️ No tickets found in database');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'There are no tickets in the system. Please generate or import tickets first.'
+      });
+    }
+    
+    console.log(`✅ Found ${tickets.length} tickets for CSV export`);
+    
+    // Helper function to format CSV field (escape and quote if needed)
+    const formatCsvField = (value) => {
+      const stringValue = String(value || '');
+      // Escape double quotes by doubling them
+      const escapedValue = stringValue.replace(/"/g, '""');
+      // Wrap in quotes if contains comma, newline, or quote
+      const needsQuotes = /[",\n]/.test(stringValue);
+      return needsQuotes ? `"${escapedValue}"` : escapedValue;
+    };
+    
+    // Generate CSV content
+    // Start with header row
+    let csvContent = 'ticket_number,barcode\n';
+    
+    // Add each ticket as a row
+    tickets.forEach(ticket => {
+      const ticketNumber = formatCsvField(ticket.ticket_number);
+      const barcode = formatCsvField(ticket.barcode);
+      csvContent += `${ticketNumber},${barcode}\n`;
+    });
+    
+    // Set response headers for CSV download
+    const filename = 'tickets_number_barcode.csv';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvContent);
+    
+    console.log(`✅ CSV export successful: ${tickets.length} tickets exported`);
+    
+  } catch (error) {
+    console.error('❌ Error exporting CSV:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to export CSV',
+      message: error.message
+    });
+  }
+});
+
 // Print Endpoints
 
 // POST /api/admin/tickets/print - Generate and return PDF for printing
