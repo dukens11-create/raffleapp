@@ -16,6 +16,7 @@ const pgSession = require('connect-pg-simple')(session);
 const emailService = require('./services/emailService');
 const multer = require('multer');
 const sharp = require('sharp');
+const PDFDocument = require('pdfkit');
 
 // Simple Mutex class for preventing race conditions
 // Note: For high-concurrency scenarios, consider using a production-grade mutex library
@@ -2327,7 +2328,6 @@ app.post('/api/admin/tickets/print', requireAuth, requireAdmin, async (req, res)
     }
     
     // Generate simple PDF with ticket information
-    const PDFDocument = require('pdfkit');
     const doc = new PDFDocument({
       size: 'LETTER',
       margin: 50
