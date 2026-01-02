@@ -2387,10 +2387,11 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
     }
     
     // Generate simple TXT content: "TICKET-NUMBER  BARCODE"
-    let txtContent = '';
+    const lines = [];
     tickets.forEach(ticket => {
-      txtContent += `${ticket.ticket_number}  ${ticket.barcode}\n`;
+      lines.push(`${ticket.ticket_number}  ${ticket.barcode}`);
     });
+    const txtContent = lines.join('\n') + '\n';
     
     // Set headers for file download
     const timestamp = new Date().toISOString().split('T')[0];
