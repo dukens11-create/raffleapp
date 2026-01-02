@@ -9,6 +9,8 @@ const qrcodeService = require('./qrcodeService');
 const db = require('../db');
 const fs = require('fs');
 const path = require('path');
+const bwipjs = require('bwip-js');
+const ticketService = require('./ticketService');
 
 // Category display names mapping
 const CATEGORY_NAMES = {
@@ -1392,90 +1394,86 @@ function drawCustomTicketBackContent(doc, ticket, x, y, width, height, qrBuffer)
  * @returns {Promise<Buffer>} - PDF buffer
  */
 async function generateGridPDF(tickets, customDesign = null) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const template = TEMPLATES.GRID_20_TICKETS;
-      
-      const doc = new PDFDocument({
-        size: 'LETTER',
-        margin: template.topMargin,
-        bufferPages: true
-      });
-      
-      const buffers = [];
-      doc.on('data', buffers.push.bind(buffers));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-      doc.on('error', reject);
-      
-      const ticketsPerPage = template.columns * template.rows; // 20
-      let ticketCount = 0;
-      
-      for (const ticket of tickets) {
-        const positionOnPage = ticketCount % ticketsPerPage;
-        const row = Math.floor(positionOnPage / template.columns);
-        const col = positionOnPage % template.columns;
-        
-        // Calculate position
-        const x = template.leftMargin + (col * template.ticketWidth);
-        const y = template.topMargin + (row * template.ticketHeight);
-        
-        // Generate codes if not already generated
-        const ticketService = require('./ticketService');
-        if (!ticket.barcode || !ticket.qr_code_data) {
-          const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
-          ticket.barcode = codes.barcode;
-          ticket.qr_code_data = codes.qrCodeData;
-        }
-        
-        // Generate QR code image
-        const qrImage = await qrcodeService.generateQRCodeBuffer(ticket, {
-          size: 48, // 0.5" at 96 DPI for small format
-          errorCorrectionLevel: 'M'
-        });
-        
-        // Generate EAN-13 barcode image
-        const bwipjs = require('bwip-js');
-        let barcodeImage = null;
-        if (ticket.barcode) {
-          try {
-            barcodeImage = await bwipjs.toBuffer({
-              bcid: 'ean13',
-              text: ticket.barcode,
-              scale: 1.5,
-              height: 6,
-              includetext: false,
-              textxalign: 'center'
-            });
-          } catch (error) {
-            console.error('Barcode generation error:', error);
-          }
-        }
-        
-        // Draw ticket in grid
-        await drawGridTicket(
-          doc, 
-          ticket, 
-          x, 
-          y, 
-          template.ticketWidth, 
-          template.ticketHeight,
-          qrImage,
-          barcodeImage
-        );
-        
-        ticketCount++;
-        
-        // Add new page if needed
-        if (ticketCount % ticketsPerPage === 0 && ticketCount < tickets.length) {
-          doc.addPage();
-        }
-      }
-      
-      doc.end();
-    } catch (error) {
-      reject(error);
-    }
+  const template = TEMPLATES.GRID_20_TICKETS;
+  
+  const doc = new PDFDocument({
+    size: 'LETTER',
+    margin: template.topMargin,
+    bufferPages: true
   });
+  
+  const buffers = [];
+  doc.on('data', buffers.push.bind(buffers));
+  
+  const pdfPromise = new Promise((resolve, reject) => {
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', reject);
+  });
+  
+  const ticketsPerPage = template.columns * template.rows; // 20
+  let ticketCount = 0;
+  
+  for (const ticket of tickets) {
+    const positionOnPage = ticketCount % ticketsPerPage;
+    const row = Math.floor(positionOnPage / template.columns);
+    const col = positionOnPage % template.columns;
+    
+    // Calculate position
+    const x = template.leftMargin + (col * template.ticketWidth);
+    const y = template.topMargin + (row * template.ticketHeight);
+    
+    // Generate codes if not already generated
+    if (!ticket.barcode || !ticket.qr_code_data) {
+      const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+      ticket.barcode = codes.barcode;
+      ticket.qr_code_data = codes.qrCodeData;
+    }
+    
+    // Generate QR code image
+    const qrImage = await qrcodeService.generateQRCodeBuffer(ticket, {
+      size: 48, // 0.5" at 96 DPI for small format
+      errorCorrectionLevel: 'M'
+    });
+    
+    // Generate EAN-13 barcode image
+    let barcodeImage = null;
+    if (ticket.barcode) {
+      try {
+        barcodeImage = await bwipjs.toBuffer({
+          bcid: 'ean13',
+          text: ticket.barcode,
+          scale: 1.5,
+          height: 6,
+          includetext: false,
+          textxalign: 'center'
+        });
+      } catch (error) {
+        console.error('Barcode generation error:', error);
+      }
+    }
+    
+    // Draw ticket in grid
+    await drawGridTicket(
+      doc, 
+      ticket, 
+      x, 
+      y, 
+      template.ticketWidth, 
+      template.ticketHeight,
+      qrImage,
+      barcodeImage
+    );
+    
+    ticketCount++;
+    
+    // Add new page if needed
+    if (ticketCount % ticketsPerPage === 0 && ticketCount < tickets.length) {
+      doc.addPage();
+    }
+  }
+  
+  doc.end();
+  return pdfPromise;
 }
 
 module.exports = {
