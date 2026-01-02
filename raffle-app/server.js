@@ -2456,7 +2456,6 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       res.send(pdfBuffer);
       
       // Mark tickets as printed
-      const ticketService = require('./services/ticketService');
       for (const ticket of tickets) {
         await ticketService.markAsPrinted(ticket.ticket_number);
       }
