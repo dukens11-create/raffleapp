@@ -405,6 +405,21 @@ async function saveDesign(category) {
     return;
   }
 
+  // Client-side file size validation (10MB per file)
+  const maxSize = 10 * 1024 * 1024; // 10MB
+  const frontFile = frontInput.files[0];
+  const backFile = backInput.files[0];
+  
+  if (frontFile.size > maxSize) {
+    showError(`Front image is too large (${(frontFile.size / 1024 / 1024).toFixed(2)} MB). Maximum size is 10MB. Try compressing at tinypng.com`);
+    return;
+  }
+  
+  if (backFile.size > maxSize) {
+    showError(`Back image is too large (${(backFile.size / 1024 / 1024).toFixed(2)} MB). Maximum size is 10MB. Try compressing at tinypng.com`);
+    return;
+  }
+
   // Show loading state
   const saveButton = event.target;
   saveButton.disabled = true;
@@ -413,8 +428,11 @@ async function saveDesign(category) {
 
   try {
     // Convert images to base64
-    const frontBase64 = await fileToBase64(frontInput.files[0]);
-    const backBase64 = await fileToBase64(backInput.files[0]);
+    const frontBase64 = await fileToBase64(frontFile);
+    const backBase64 = await fileToBase64(backFile);
+
+    // Log sizes for debugging
+    console.log(`Front image: ${(frontFile.size / 1024 / 1024).toFixed(2)} MB, Back image: ${(backFile.size / 1024 / 1024).toFixed(2)} MB`);
 
     // Send to server
     const response = await fetch('/api/admin/ticket-designs/upload', {
@@ -434,14 +452,22 @@ async function saveDesign(category) {
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to save design');
+        
+        // Handle specific error codes
+        let errorMessage = error.error || 'Failed to save design';
+        
+        if (error.code === 'FILE_TOO_LARGE' || error.code === 'PAYLOAD_TOO_LARGE') {
+          errorMessage = `❌ ${errorMessage}\n\n💡 Tip: Compress your images at tinypng.com to reduce file size.`;
+        }
+        
+        throw new Error(errorMessage);
       } else {
         throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
     }
 
     const result = await response.json();
-    showSuccess(`${category} design saved successfully!`);
+    showSuccess(`✅ ${category} design saved successfully!`);
 
     // Reset button state
     saveButton.disabled = false;

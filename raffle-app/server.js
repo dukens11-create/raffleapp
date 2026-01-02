@@ -530,8 +530,9 @@ function clearFailedAttempts(identifier) {
 }
 
 // Middleware
-app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
-app.use(bodyParser.json({ limit: '10mb' }));
+// Increased body parser limits for file uploads (base64 encoded images)
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(bodyParser.json({ limit: '50mb' }));
 app.use(cookieParser());
 
 // Session store configuration
@@ -3158,13 +3159,42 @@ app.post('/api/admin/ticket-designs/upload', requireAuth, requireAdmin, async (r
 
     // Validate category
     if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
-      return res.status(400).json({ error: 'Invalid category. Must be ABC, EFG, JKL, or XYZ' });
+      return res.status(400).json({ 
+        error: 'Invalid category. Must be ABC, EFG, JKL, or XYZ',
+        code: 'INVALID_CATEGORY'
+      });
     }
 
     // Validate images
     if (!front_image_base64 || !back_image_base64) {
-      return res.status(400).json({ error: 'Both front and back images are required' });
+      return res.status(400).json({ 
+        error: 'Both front and back images are required',
+        code: 'MISSING_IMAGES'
+      });
     }
+
+    // Validate image size (base64 encoded)
+    const maxSize = 50 * 1024 * 1024; // 50MB total payload
+    const frontSize = front_image_base64.length;
+    const backSize = back_image_base64.length;
+    const totalSize = frontSize + backSize;
+    
+    if (totalSize > maxSize) {
+      console.warn(`Payload too large: ${(totalSize / 1024 / 1024).toFixed(2)} MB from IP: ${req.ip}`);
+      return res.status(413).json({ 
+        error: `Images too large. Total size: ${(totalSize / 1024 / 1024).toFixed(2)} MB. Maximum allowed: ${(maxSize / 1024 / 1024).toFixed(0)} MB.`,
+        code: 'FILE_TOO_LARGE',
+        details: {
+          frontSize: `${(frontSize / 1024 / 1024).toFixed(2)} MB`,
+          backSize: `${(backSize / 1024 / 1024).toFixed(2)} MB`,
+          totalSize: `${(totalSize / 1024 / 1024).toFixed(2)} MB`,
+          maxAllowed: `${(maxSize / 1024 / 1024).toFixed(0)} MB`
+        }
+      });
+    }
+    
+    // Log file sizes for debugging
+    console.log(`Uploading ${category} design: Front (${(frontSize / 1024 / 1024).toFixed(2)} MB), Back (${(backSize / 1024 / 1024).toFixed(2)} MB)`);
 
     // Check if design already exists for this category
     const existing = await db.get('SELECT * FROM ticket_designs WHERE category = ?', [category]);
@@ -3178,6 +3208,7 @@ app.post('/api/admin/ticket-designs/upload', requireAuth, requireAdmin, async (r
         [front_image_base64, back_image_base64, category]
       );
       
+      console.log(`✅ ${category} design updated successfully`);
       res.json({
         success: true,
         message: `${category} design updated successfully`,
@@ -3191,6 +3222,7 @@ app.post('/api/admin/ticket-designs/upload', requireAuth, requireAdmin, async (r
         [category, front_image_base64, back_image_base64]
       );
       
+      console.log(`✅ ${category} design saved successfully`);
       res.json({
         success: true,
         message: `${category} design saved successfully`,
@@ -3199,7 +3231,19 @@ app.post('/api/admin/ticket-designs/upload', requireAuth, requireAdmin, async (r
     }
   } catch (error) {
     console.error('Design upload error:', error);
-    res.status(500).json({ error: error.message });
+    
+    // Handle specific error types
+    if (error.message && error.message.includes('payload')) {
+      return res.status(413).json({ 
+        error: 'Payload too large. Please use smaller images or compress them.',
+        code: 'PAYLOAD_TOO_LARGE'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to save design: ' + error.message,
+      code: 'DATABASE_ERROR'
+    });
   }
 });
 
