@@ -16,6 +16,7 @@ const pgSession = require('connect-pg-simple')(session);
 const emailService = require('./services/emailService');
 const multer = require('multer');
 const sharp = require('sharp');
+const PDFDocument = require('pdfkit');
 
 // Simple Mutex class for preventing race conditions
 // Note: For high-concurrency scenarios, consider using a production-grade mutex library
@@ -2305,66 +2306,92 @@ app.get('/api/admin/tickets/template', requireAuth, requireAdmin, (req, res) => 
 
 // Print Endpoints
 
-// POST /api/admin/tickets/print - Generate print job
+// POST /api/admin/tickets/print - Generate and return PDF for printing
 app.post('/api/admin/tickets/print', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const {
-      raffle_id,
-      category,
-      start_ticket,
-      end_ticket,
-      paper_type
-    } = req.body;
+    const { from, to, paperType } = req.body;
     
     // Validate input
-    if (!category || !start_ticket || !end_ticket) {
-      return res.status(400).json({ error: 'Missing required parameters' });
+    if (!from || !to) {
+      return res.status(400).json({ error: 'Missing required parameters: from and to ticket numbers are required' });
     }
     
-    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS'].includes(paper_type)) {
-      return res.status(400).json({ error: 'Invalid paper type' });
+    if (!paperType || !['AVERY_16145', 'PRINTWORKS'].includes(paperType)) {
+      return res.status(400).json({ error: 'Invalid or missing paper type. Must be AVERY_16145 or PRINTWORKS' });
     }
     
-    // Get tickets in range
-    const tickets = await ticketService.getTicketsByRange(start_ticket, end_ticket);
+    // Get tickets in range ordered by ticket_number
+    const tickets = await ticketService.getTicketsByRange(from, to);
     
-    if (tickets.length === 0) {
-      return res.status(404).json({ error: 'No tickets found in range' });
+    if (!tickets || tickets.length === 0) {
+      return res.status(404).json({ error: 'No tickets found in the specified range' });
     }
     
-    // Create print job
-    const printJobId = await printService.createPrintJob({
-      admin_id: req.session.user.id,
-      raffle_id: raffle_id || 1,
-      category,
-      ticket_range_start: start_ticket,
-      ticket_range_end: end_ticket,
-      total_tickets: tickets.length,
-      paper_type
+    // Generate simple PDF with ticket information
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margin: 50
     });
     
-    // Generate PDF asynchronously
-    setTimeout(async () => {
-      try {
-        const doc = await printService.generatePrintPDF(tickets, paper_type, printJobId);
-        // PDF is generated but not streamed to response
-        // In production, you'd save this to a file or cloud storage
-        doc.end();
-      } catch (error) {
-        console.error('Error generating print PDF:', error);
-        await printService.updatePrintJobStatus(printJobId, 'failed', 0);
+    // Set response headers for PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename=tickets.pdf');
+    
+    // Pipe PDF to response
+    doc.pipe(res);
+    
+    // Add title
+    doc.fontSize(20).text('Raffle Tickets Print Preview', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Paper Type: ${paperType}`, { align: 'center' });
+    doc.fontSize(12).text(`Range: ${from} to ${to}`, { align: 'center' });
+    doc.fontSize(12).text(`Total Tickets: ${tickets.length}`, { align: 'center' });
+    doc.moveDown(2);
+    
+    // Add each ticket on a new page
+    tickets.forEach((ticket, index) => {
+      if (index > 0) {
+        doc.addPage();
       }
-    }, 100);
-    
-    res.json({
-      success: true,
-      printJobId,
-      totalTickets: tickets.length,
-      message: 'Print job started'
+      
+      // Draw ticket border
+      doc.rect(50, 50, doc.page.width - 100, doc.page.height - 100).stroke();
+      
+      // Ticket information
+      doc.fontSize(24).font('Helvetica-Bold')
+         .text('RAFFLE TICKET', 70, 70, { align: 'center', width: doc.page.width - 140 });
+      
+      doc.moveDown();
+      doc.fontSize(18).text(`Ticket #: ${ticket.ticket_number}`, 70, 120);
+      doc.fontSize(14).font('Helvetica').text(`Category: ${ticket.category}`, 70, 160);
+      doc.text(`Price: $${parseFloat(ticket.price || 0).toFixed(2)}`, 70, 190);
+      doc.text(`Status: ${ticket.status || 'AVAILABLE'}`, 70, 220);
+      
+      if (ticket.buyer_name) {
+        doc.text(`Buyer: ${ticket.buyer_name}`, 70, 250);
+      }
+      
+      if (ticket.barcode) {
+        doc.fontSize(12).text(`Barcode: ${ticket.barcode}`, 70, 290);
+      }
+      
+      // Add footer
+      doc.fontSize(10).text('Keep this ticket for entry into the raffle', 70, doc.page.height - 100, {
+        align: 'center',
+        width: doc.page.width - 140
+      });
     });
+    
+    // Finalize PDF
+    doc.end();
+    
   } catch (error) {
-    console.error('Error creating print job:', error);
-    res.status(500).json({ error: 'Failed to create print job: ' + error.message });
+    console.error('Error generating print PDF:', error);
+    
+    // If headers not sent yet, send error response
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
   }
 });
 
