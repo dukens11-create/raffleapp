@@ -18,6 +18,20 @@ const CATEGORY_NAMES = {
   'XYZ': { full: 'XYZ - Platinum', short: 'XYZ ($500)' }
 };
 
+// Standard raffle ticket size: 5.5" x 2.125"
+const DEFAULT_TEMPLATE = {
+  ticketWidth: 396,   // 5.5 inches * 72 DPI = 396 points
+  ticketHeight: 153,  // 2.125 inches * 72 DPI = 153 points
+  margin: 10,
+  padding: 8,
+  fontSize: {
+    title: 16,
+    header: 14,
+    body: 11,
+    small: 8
+  }
+};
+
 // Paper templates configuration
 const TEMPLATES = {
   AVERY_16145: {
@@ -152,8 +166,9 @@ async function updatePrintJobStatus(jobId, status, progress = 0) {
  * @param {number} y - Y position
  * @param {Buffer} qrMainImage - Main QR code image buffer
  * @param {Buffer} barcodeImage - Barcode image buffer
+ * @param {Object} customDesign - Optional custom design object with front_image_path
  */
-async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage) {
+async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage, customDesign = null) {
   const { ticketWidth, ticketHeight, perforationLine } = template;
   
   // Detect if this is the smaller LETTER_8_TICKETS format
@@ -171,6 +186,48 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   const barcodeWidth = isSmallFormat ? 90 : 120;
   const barcodeHeight = isSmallFormat ? 30 : 40;
   
+  // Draw custom background if provided
+  if (customDesign) {
+    let frontImageBuffer = null;
+    
+    // Try to load from base64 first
+    if (customDesign.front_image_base64) {
+      try {
+        const base64Data = customDesign.front_image_base64.replace(/^data:image\/\w+;base64,/, '');
+        frontImageBuffer = Buffer.from(base64Data, 'base64');
+      } catch (error) {
+        console.warn('Could not decode front image base64:', error.message);
+      }
+    }
+    
+    // Try to load from file path if base64 failed
+    if (!frontImageBuffer && customDesign.front_image_path) {
+      try {
+        const imagePath = path.join(__dirname, '..', 'public', customDesign.front_image_path);
+        if (fs.existsSync(imagePath)) {
+          frontImageBuffer = fs.readFileSync(imagePath);
+        }
+      } catch (error) {
+        console.warn('Could not load front image from path:', error.message);
+      }
+    }
+    
+    // Draw the background image
+    if (frontImageBuffer) {
+      try {
+        doc.image(frontImageBuffer, x, y, {
+          width: ticketWidth,
+          height: ticketHeight,
+          fit: [ticketWidth, ticketHeight],
+          align: 'center',
+          valign: 'center'
+        });
+      } catch (error) {
+        console.error('Error drawing front background:', error);
+      }
+    }
+  }
+  
   // Draw border (dashed for tear-off if specified)
   if (perforationLine) {
     doc.save();
@@ -182,19 +239,39 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   } else {
     doc.rect(x, y, ticketWidth, ticketHeight).stroke();
   }
+  
+  // Semi-transparent overlay for text readability (if custom design is used)
+  if (customDesign) {
+    // Add semi-transparent white rectangle behind title area
+    doc.rect(x + padding, y + padding, ticketWidth - (padding * 2), titleSize + 6)
+       .fillOpacity(0.85)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+  }
 
   // Title with emoji
   doc.fontSize(titleSize)
      .font('Helvetica-Bold')
+     .fillColor('#000000')
      .text('🎫 RAFFLE TICKET', x + padding, y + padding, {
        width: ticketWidth - (padding * 2),
        align: 'center'
      });
 
+  // Semi-transparent overlay for ticket info (if custom design is used)
+  if (customDesign) {
+    const infoBlockHeight = (isSmallFormat ? 16 : 18) + (isSmallFormat ? 12 : 14) + bodySize + 10;
+    doc.rect(x + padding, ticketNumY - 2, ticketWidth - qrSize - (padding * 3) - 5, infoBlockHeight)
+       .fillOpacity(0.85)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+  }
+
   // Ticket number (prominent)
   const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
   doc.fontSize(ticketNumSize)
      .font('Helvetica-Bold')
+     .fillColor('#000000')
      .text(ticket.ticket_number, x + padding, ticketNumY, {
        width: ticketWidth - qrSize - (padding * 3),
        align: 'left'
@@ -203,6 +280,7 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   const categoryY = ticketNumY + (isSmallFormat ? 16 : 18);
   doc.fontSize(bodySize)
      .font('Helvetica')
+     .fillColor('#000000')
      .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, categoryY, {
        width: ticketWidth - qrSize - (padding * 3)
      });
@@ -210,24 +288,41 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   const priceY = categoryY + (isSmallFormat ? 12 : 14);
   doc.fontSize(priceSize)
      .font('Helvetica-Bold')
+     .fillColor('#000000')
      .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, priceY, {
        width: ticketWidth - qrSize - (padding * 3)
      });
 
-  // QR Code (right side)
+  // QR Code (right side) with white background if custom design
   if (qrMainImage) {
     const qrX = x + ticketWidth - qrSize - padding;
     const qrY = y + padding + (isSmallFormat ? 8 : 10);
+    
+    if (customDesign) {
+      doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6)
+         .fillOpacity(0.95)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
     doc.image(qrMainImage, qrX, qrY, {
       width: qrSize,
       height: qrSize
     });
   }
 
-  // EAN-13 Barcode (center area)
+  // EAN-13 Barcode (center area) with white background if custom design
   if (barcodeImage) {
     const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
     const barcodeY = y + priceY + (isSmallFormat ? 20 : 30);
+    
+    if (customDesign) {
+      doc.rect(barcodeX - 5, barcodeY - 5, barcodeWidth + 10, barcodeHeight + 20)
+         .fillOpacity(0.95)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
     doc.image(barcodeImage, barcodeX, barcodeY, {
       width: barcodeWidth,
       height: barcodeHeight
@@ -237,6 +332,7 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
     if (ticket.barcode) {
       doc.fontSize(footerSize)
          .font('Helvetica')
+         .fillColor('#000000')
          .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 2, {
            width: ticketWidth - (padding * 2),
            align: 'center'
@@ -286,8 +382,9 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
  * @param {number} x - X position
  * @param {number} y - Y position
  * @param {Buffer} qrStubImage - Stub QR code image buffer
+ * @param {Object} customDesign - Optional custom design object with back_image_path
  */
-function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
+function drawTicketBack(doc, ticket, template, x, y, qrStubImage, customDesign = null) {
   const { ticketWidth, ticketHeight, perforationLine } = template;
   
   // Detect if this is the smaller LETTER_8_TICKETS format
@@ -302,6 +399,48 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
   const footerSize = isSmallFormat ? 6 : 7;
   const qrSize = isSmallFormat ? 36 : 50;
   
+  // Draw custom background if provided
+  if (customDesign) {
+    let backImageBuffer = null;
+    
+    // Try to load from base64 first
+    if (customDesign.back_image_base64) {
+      try {
+        const base64Data = customDesign.back_image_base64.replace(/^data:image\/\w+;base64,/, '');
+        backImageBuffer = Buffer.from(base64Data, 'base64');
+      } catch (error) {
+        console.warn('Could not decode back image base64:', error.message);
+      }
+    }
+    
+    // Try to load from file path if base64 failed
+    if (!backImageBuffer && customDesign.back_image_path) {
+      try {
+        const imagePath = path.join(__dirname, '..', 'public', customDesign.back_image_path);
+        if (fs.existsSync(imagePath)) {
+          backImageBuffer = fs.readFileSync(imagePath);
+        }
+      } catch (error) {
+        console.warn('Could not load back image from path:', error.message);
+      }
+    }
+    
+    // Draw the background image
+    if (backImageBuffer) {
+      try {
+        doc.image(backImageBuffer, x, y, {
+          width: ticketWidth,
+          height: ticketHeight,
+          fit: [ticketWidth, ticketHeight],
+          align: 'center',
+          valign: 'center'
+        });
+      } catch (error) {
+        console.error('Error drawing back background:', error);
+      }
+    }
+  }
+  
   // Draw border (dashed for tear-off if specified)
   if (perforationLine) {
     doc.save();
@@ -314,39 +453,78 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
     doc.rect(x, y, ticketWidth, ticketHeight).stroke();
   }
 
+  // Semi-transparent overlay for header (if custom design is used)
+  if (customDesign) {
+    doc.rect(x + padding, y + padding, ticketWidth - qrSize - (padding * 4), titleSize + 6)
+       .fillOpacity(0.9)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+  }
+
   // Title with emoji
   doc.fontSize(titleSize)
      .font('Helvetica-Bold')
+     .fillColor('#000000')
      .text('📋 SELLER STUB', x + padding, y + padding, {
        width: ticketWidth - qrSize - (padding * 3),
        align: 'left'
      });
 
-  // Small QR code (top right)
+  // Small QR code (top right) with white background if custom design
   if (qrStubImage) {
     const qrX = x + ticketWidth - qrSize - padding;
     const qrY = y + padding;
+    
+    if (customDesign) {
+      doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6)
+         .fillOpacity(0.95)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+    
     doc.image(qrStubImage, qrX, qrY, {
       width: qrSize,
       height: qrSize
     });
   }
 
+  // Semi-transparent overlay for ticket info (if custom design is used)
+  if (customDesign) {
+    const infoBlockHeight = (isSmallFormat ? 12 : 15) + bodySize + 8;
+    doc.rect(x + padding, ticketNumY - 2, ticketWidth - qrSize - (padding * 3) - 5, infoBlockHeight)
+       .fillOpacity(0.9)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+  }
+
   // Ticket number
   const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
   doc.fontSize(ticketNumSize)
      .font('Helvetica-Bold')
+     .fillColor('#000000')
      .text(`Ticket #: ${ticket.ticket_number}`, x + padding, ticketNumY);
 
   const categoryY = ticketNumY + (isSmallFormat ? 12 : 15);
   doc.fontSize(bodySize)
      .font('Helvetica')
+     .fillColor('#000000')
      .text(`Category: ${CATEGORY_NAMES[ticket.category]?.short || ticket.category}`, x + padding, categoryY);
 
   // Seller information fields
   const fieldsStartY = categoryY + (isSmallFormat ? 18 : 20);
+  
+  // Semi-transparent overlay for seller fields (if custom design is used)
+  if (customDesign) {
+    const fieldsHeight = isSmallFormat ? 60 : 36;
+    doc.rect(x + padding, fieldsStartY - 2, ticketWidth - (padding * 2), fieldsHeight + 8)
+       .fillOpacity(0.85)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+  }
+  
   doc.fontSize(fieldSize)
-     .font('Helvetica');
+     .font('Helvetica')
+     .fillColor('#000000');
   
   if (isSmallFormat) {
     // Compact layout for small tickets
@@ -369,6 +547,7 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
   // Footer
   doc.fontSize(footerSize)
      .font('Helvetica-Bold')
+     .fillColor('#000000')
      .text('Office Use Only - Keep Record', x + padding, y + ticketHeight - (isSmallFormat ? 8 : 15), {
        width: ticketWidth - (padding * 2),
        align: 'center'
@@ -383,9 +562,10 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
  * @param {Array} tickets - Array of ticket objects
  * @param {string} paperType - Paper type (AVERY_16145 or PRINTWORKS)
  * @param {number} printJobId - Print job ID
+ * @param {Object} customDesign - Optional custom design object
  * @returns {Promise<PDFDocument>} - PDF document stream
  */
-async function generatePrintPDF(tickets, paperType, printJobId) {
+async function generatePrintPDF(tickets, paperType, printJobId, customDesign = null) {
   const template = TEMPLATES[paperType];
   if (!template) {
     throw new Error(`Unknown paper type: ${paperType}`);
@@ -470,7 +650,7 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
       // Draw FRONT side with barcode
-      await drawTicketFront(doc, ticket, template, x, y, qrMainBuffer, barcodeBuffer);
+      await drawTicketFront(doc, ticket, template, x, y, qrMainBuffer, barcodeBuffer, customDesign);
     }
     
     // Add page for BACK side (seller stubs) - for duplex printing
@@ -488,7 +668,7 @@ async function generatePrintPDF(tickets, paperType, printJobId) {
       const y = template.topMargin + (row * template.ticketHeight) + (row * template.spacing);
 
       // Draw BACK side
-      drawTicketBack(doc, ticket, template, x, y, qrStubBuffer);
+      drawTicketBack(doc, ticket, template, x, y, qrStubBuffer, customDesign);
       
       // Mark ticket as printed after processing both sides
       const ticketService = require('./ticketService');

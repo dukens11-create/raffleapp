@@ -378,35 +378,61 @@ async function initializeSchema() {
     await run(`
       CREATE TABLE IF NOT EXISTS ticket_designs (
         id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
-        category TEXT NOT NULL UNIQUE,
+        name VARCHAR(100) NOT NULL,
+        category VARCHAR(50),
+        description TEXT,
         front_image_path TEXT,
         back_image_path TEXT,
         front_image_base64 TEXT,
         back_image_base64 TEXT,
+        width INTEGER DEFAULT 396,
+        height INTEGER DEFAULT 153,
         fit_mode TEXT DEFAULT 'contain',
+        is_active ${USE_POSTGRES ? 'BOOLEAN DEFAULT TRUE' : 'INTEGER DEFAULT 1'},
         created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
         updated_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
       )
     `);
     
-    // Add fit_mode column if it doesn't exist (for existing databases)
+    // Add new columns for existing databases (migration support)
     try {
       if (USE_POSTGRES) {
-        await run(`
-          ALTER TABLE ticket_designs 
-          ADD COLUMN IF NOT EXISTS fit_mode TEXT DEFAULT 'contain'
-        `);
+        await run(`ALTER TABLE ticket_designs ADD COLUMN IF NOT EXISTS name VARCHAR(100)`);
+        await run(`ALTER TABLE ticket_designs ADD COLUMN IF NOT EXISTS description TEXT`);
+        await run(`ALTER TABLE ticket_designs ADD COLUMN IF NOT EXISTS width INTEGER DEFAULT 396`);
+        await run(`ALTER TABLE ticket_designs ADD COLUMN IF NOT EXISTS height INTEGER DEFAULT 153`);
+        await run(`ALTER TABLE ticket_designs ADD COLUMN IF NOT EXISTS fit_mode TEXT DEFAULT 'contain'`);
+        await run(`ALTER TABLE ticket_designs ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE`);
+        // Drop UNIQUE constraint on category to allow multiple designs per category
+        await run(`ALTER TABLE ticket_designs DROP CONSTRAINT IF EXISTS ticket_designs_category_key`).catch(() => {});
       } else {
-        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        // SQLite: Check and add columns individually
         const columns = await all(`PRAGMA table_info(ticket_designs)`);
-        const hasFitMode = columns.some(col => col.name === 'fit_mode');
-        if (!hasFitMode) {
+        const columnNames = columns.map(col => col.name);
+        
+        if (!columnNames.includes('name')) {
+          await run(`ALTER TABLE ticket_designs ADD COLUMN name VARCHAR(100) DEFAULT 'Custom Design'`);
+        }
+        if (!columnNames.includes('description')) {
+          await run(`ALTER TABLE ticket_designs ADD COLUMN description TEXT`);
+        }
+        if (!columnNames.includes('width')) {
+          await run(`ALTER TABLE ticket_designs ADD COLUMN width INTEGER DEFAULT 396`);
+        }
+        if (!columnNames.includes('height')) {
+          await run(`ALTER TABLE ticket_designs ADD COLUMN height INTEGER DEFAULT 153`);
+        }
+        if (!columnNames.includes('fit_mode')) {
           await run(`ALTER TABLE ticket_designs ADD COLUMN fit_mode TEXT DEFAULT 'contain'`);
         }
+        if (!columnNames.includes('is_active')) {
+          await run(`ALTER TABLE ticket_designs ADD COLUMN is_active INTEGER DEFAULT 1`);
+        }
       }
+      console.log('✅ Updated ticket_designs table schema');
     } catch (error) {
-      // Column might already exist, ignore error
-      console.log('Note: fit_mode column already exists or could not be added');
+      console.warn('⚠️  Could not update ticket_designs schema:', error.message);
+      // Continue - columns might already exist
     }
     
     // Add performance indexes

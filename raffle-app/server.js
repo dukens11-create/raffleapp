@@ -2970,6 +2970,37 @@ const templateUpload = multer({
   }
 });
 
+// Configure multer for ticket design uploads
+const ticketDesignStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'public', 'ticket-designs');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'design-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const ticketDesignUpload = multer({
+  storage: ticketDesignStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .png, .jpg and .jpeg format allowed!'));
+    }
+  }
+});
+
 // Image processing function
 async function processTemplateImage(inputPath, width, height, fitMode) {
   const outputPath = inputPath.replace(/\.(jpg|jpeg|png|pdf)$/i, '-processed.png');
@@ -3356,7 +3387,121 @@ app.post('/api/admin/ticket-designs/process', requireAuth, requireAdmin, async (
   }
 });
 
-// POST /api/admin/tickets/preview-custom - Preview custom tickets before printing
+// NEW ENDPOINTS FOR MULTIPLE DESIGN SUPPORT
+
+// POST /api/admin/ticket-designs/upload-files - Upload custom ticket design (file upload)
+app.post('/api/admin/ticket-designs/upload-files', 
+  requireAuth, 
+  requireAdmin, 
+  ticketDesignUpload.fields([
+    { name: 'front', maxCount: 1 },
+    { name: 'back', maxCount: 1 }
+  ]), 
+  async (req, res) => {
+    try {
+      const frontImage = req.files['front'] ? req.files['front'][0].filename : null;
+      const backImage = req.files['back'] ? req.files['back'][0].filename : null;
+      const { name, category, description } = req.body;
+      
+      if (!frontImage && !backImage) {
+        return res.status(400).json({ 
+          error: 'At least one design image (front or back) is required' 
+        });
+      }
+      
+      // Save design to database
+      const result = await db.run(
+        `INSERT INTO ticket_designs (
+          name, 
+          category, 
+          description,
+          front_image_path, 
+          back_image_path,
+          width,
+          height,
+          is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          name || 'Custom Design',
+          category || 'default',
+          description || '',
+          frontImage ? `/ticket-designs/${frontImage}` : null,
+          backImage ? `/ticket-designs/${backImage}` : null,
+          396, // 5.5 inches width
+          153, // 2.125 inches height
+          1    // is_active = true
+        ]
+      );
+      
+      const design = await db.get('SELECT * FROM ticket_designs WHERE id = ?', [result.lastID]);
+      
+      res.json({
+        success: true,
+        message: 'Custom design uploaded successfully',
+        design: design
+      });
+    } catch (error) {
+      console.error('Error uploading ticket design:', error);
+      res.status(500).json({ 
+        error: 'Failed to upload design: ' + error.message 
+      });
+    }
+});
+
+// GET /api/admin/ticket-designs-list - List all custom designs (for new UI)
+app.get('/api/admin/ticket-designs-list', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const designs = await db.all(`
+      SELECT * FROM ticket_designs 
+      ORDER BY created_at DESC
+    `);
+    res.json(designs);
+  } catch (error) {
+    console.error('Error fetching ticket designs:', error);
+    res.status(500).json({ error: 'Failed to fetch designs' });
+  }
+});
+
+// DELETE /api/admin/ticket-designs-by-id/:id - Delete a design by ID
+app.delete('/api/admin/ticket-designs-by-id/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get design info to delete files
+    const design = await db.get('SELECT * FROM ticket_designs WHERE id = ?', [id]);
+    
+    if (!design) {
+      return res.status(404).json({ error: 'Design not found' });
+    }
+    
+    // Delete files if they exist
+    const publicDir = path.join(__dirname, 'public');
+    if (design.front_image_path) {
+      const frontPath = path.join(publicDir, design.front_image_path);
+      if (fs.existsSync(frontPath)) {
+        fs.unlinkSync(frontPath);
+      }
+    }
+    if (design.back_image_path) {
+      const backPath = path.join(publicDir, design.back_image_path);
+      if (fs.existsSync(backPath)) {
+        fs.unlinkSync(backPath);
+      }
+    }
+    
+    // Delete from database
+    await db.run('DELETE FROM ticket_designs WHERE id = ?', [id]);
+    
+    res.json({ success: true, message: 'Design deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting ticket design:', error);
+    res.status(500).json({ error: 'Failed to delete design' });
+  }
+});
+
+// POST /api/admin/tickets/print - Generate PDF with custom design (UPDATED)
+// This will be used by the new UI for printing with selected design
+
 app.post('/api/admin/tickets/preview-custom', requireAuth, requireAdmin, async (req, res) => {
   try {
     const { category, startNum, endNum } = req.body;
