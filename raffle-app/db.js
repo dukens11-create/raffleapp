@@ -409,6 +409,41 @@ async function initializeSchema() {
       console.log('Note: fit_mode column already exists or could not be added');
     }
     
+    // Add new columns for enhanced design system (name, description, dimensions, transformations)
+    const newColumns = [
+      { name: 'name', type: 'VARCHAR(100)', default: null },
+      { name: 'description', type: 'TEXT', default: null },
+      { name: 'width', type: 'INTEGER', default: '396' },
+      { name: 'height', type: 'INTEGER', default: '153' },
+      { name: 'rotation', type: 'INTEGER', default: '0' },
+      { name: 'scale_width', type: 'INTEGER', default: '100' },
+      { name: 'scale_height', type: 'INTEGER', default: '100' },
+      { name: 'offset_x', type: 'INTEGER', default: '0' },
+      { name: 'offset_y', type: 'INTEGER', default: '0' },
+      { name: 'is_active', type: USE_POSTGRES ? 'BOOLEAN' : 'INTEGER', default: USE_POSTGRES ? 'TRUE' : '1' }
+    ];
+    
+    for (const col of newColumns) {
+      try {
+        if (USE_POSTGRES) {
+          await run(`
+            ALTER TABLE ticket_designs 
+            ADD COLUMN IF NOT EXISTS ${col.name} ${col.type} DEFAULT ${col.default}
+          `);
+        } else {
+          // SQLite doesn't support IF NOT EXISTS for columns, so check first
+          const columns = await all(`PRAGMA table_info(ticket_designs)`);
+          const hasColumn = columns.some(c => c.name === col.name);
+          if (!hasColumn) {
+            await run(`ALTER TABLE ticket_designs ADD COLUMN ${col.name} ${col.type} DEFAULT ${col.default}`);
+          }
+        }
+      } catch (error) {
+        // Column might already exist, that's okay
+        console.log(`Note: ${col.name} column already exists or could not be added`);
+      }
+    }
+    
     // Add performance indexes
     console.log('📊 Creating performance indexes...');
 
