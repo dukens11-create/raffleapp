@@ -2365,6 +2365,56 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
   }
 });
 
+// GET /api/admin/tickets/export-barcodes - Export ticket numbers and barcodes as TXT
+app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, status } = req.query;
+    
+    // Build query based on filters
+    let query = 'SELECT ticket_number, barcode FROM tickets WHERE 1=1';
+    const params = [];
+    
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    
+    if (status === 'sold') {
+      query += ' AND status = ?';
+      params.push('sold');
+    } else if (status === 'available') {
+      query += ' AND status = ?';
+      params.push('available');
+    }
+    
+    query += ' ORDER BY ticket_number ASC';
+    
+    const tickets = await db.query(query, params);
+    
+    if (tickets.length === 0) {
+      return res.status(404).send('No tickets found');
+    }
+    
+    // Generate TXT content
+    let txtContent = '';
+    tickets.forEach(ticket => {
+      txtContent += `${ticket.ticket_number}  ${ticket.barcode}\n`;
+    });
+    
+    // Set headers for file download
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `ticket-barcodes-${timestamp}.txt`;
+    
+    res.setHeader('Content-Type', 'text/plain');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(txtContent);
+    
+  } catch (error) {
+    console.error('Error exporting ticket barcodes:', error);
+    res.status(500).send('Failed to export ticket barcodes');
+  }
+});
+
 // Print Endpoints
 
 // POST /api/admin/tickets/print - Generate and return PDF for printing
