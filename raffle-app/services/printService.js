@@ -1403,7 +1403,7 @@ async function generateGridPDF(tickets, customDesign = null) {
   });
   
   const buffers = [];
-  doc.on('data', buffers.push.bind(buffers));
+  doc.on('data', (chunk) => buffers.push(chunk));
   
   const pdfPromise = new Promise((resolve, reject) => {
     doc.on('end', () => resolve(Buffer.concat(buffers)));
