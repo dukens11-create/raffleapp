@@ -2389,23 +2389,47 @@ app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (
     
     query += ' ORDER BY ticket_number ASC';
     
-    const tickets = await db.query(query, params);
-    
-    if (tickets.length === 0) {
-      return res.status(404).send('No tickets found');
-    }
-    
-    // Generate TXT content efficiently using array join
-    const lines = tickets.map(ticket => `${ticket.ticket_number}  ${ticket.barcode}`);
-    const txtContent = lines.join('\n') + '\n';
-    
     // Set headers for file download
     const timestamp = new Date().toISOString().split('T')[0];
     const filename = `ticket-barcodes-${timestamp}.txt`;
     
     res.setHeader('Content-Type', 'text/plain');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(txtContent);
+    
+    // Stream the data in chunks to avoid memory issues with large datasets
+    const CHUNK_SIZE = 10000; // Process 10,000 tickets at a time
+    let offset = 0;
+    let hasData = false;
+    
+    while (true) {
+      // Fetch tickets in chunks
+      const chunkQuery = `${query} LIMIT ${CHUNK_SIZE} OFFSET ${offset}`;
+      const tickets = await db.query(chunkQuery, params);
+      
+      if (tickets.length === 0) {
+        break;
+      }
+      
+      hasData = true;
+      
+      // Stream each chunk
+      for (const ticket of tickets) {
+        res.write(`${ticket.ticket_number}  ${ticket.barcode}\n`);
+      }
+      
+      offset += CHUNK_SIZE;
+      
+      // If we got fewer tickets than CHUNK_SIZE, we've reached the end
+      if (tickets.length < CHUNK_SIZE) {
+        break;
+      }
+    }
+    
+    if (!hasData) {
+      return res.status(404).send('No tickets found');
+    }
+    
+    res.end();
     
   } catch (error) {
     console.error('Error exporting ticket barcodes:', error);
