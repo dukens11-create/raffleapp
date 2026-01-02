@@ -2380,7 +2380,10 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
     console.log(`Found ${tickets.length} tickets to export`);
     
     if (tickets.length === 0) {
-      return res.status(404).send('No tickets found in database');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'There are no tickets in the system. Please generate or import tickets first.'
+      });
     }
     
     // Generate simple TXT content: "TICKET-NUMBER  BARCODE"
@@ -2401,7 +2404,10 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
     
   } catch (error) {
     console.error('Error exporting all ticket barcodes:', error);
-    res.status(500).send('Failed to export ticket barcodes: ' + error.message);
+    res.status(500).json({ 
+      error: 'Failed to export ticket barcodes',
+      message: error.message
+    });
   }
 });
 

@@ -800,7 +800,7 @@
       <button id="download-number-barcode-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3); transition: all 0.3s;">
         📥 Download Ticket Numbers &amp; Barcodes (CSV)
       </button>
-      <button onclick="window.location.href='/api/admin/tickets/export-all-barcodes'" style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3); transition: all 0.3s;">
+      <button id="download-all-barcodes-txt-btn" style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%); color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3); transition: all 0.3s;">
         📄 Download All Tickets &amp; Barcodes (TXT)
       </button>
       <span id="download-status" style="color: #64748b; font-size: 14px; align-self: center; display: none;"></span>
@@ -2921,6 +2921,14 @@
         downloadBtn.disabled = false;
         downloadBtn.innerHTML = '📥 Download Ticket Numbers &amp; Barcodes (CSV)';
       }
+    });
+    
+    // ==================== DOWNLOAD ALL TICKETS & BARCODES TXT FUNCTIONALITY ====================
+    
+    // Download all ticket numbers and barcodes as TXT - simple space-separated format
+    document.getElementById('download-all-barcodes-txt-btn').addEventListener('click', () => {
+      // Direct navigation to endpoint - browser will handle the download
+      window.location.href = '/api/admin/tickets/export-all-barcodes';
     });
     
   </script>
