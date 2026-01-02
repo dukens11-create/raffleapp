@@ -2926,9 +2926,85 @@
     // ==================== DOWNLOAD ALL TICKETS & BARCODES TXT FUNCTIONALITY ====================
     
     // Download all ticket numbers and barcodes as TXT - simple space-separated format
-    document.getElementById('download-all-barcodes-txt-btn').addEventListener('click', () => {
-      // Direct navigation to endpoint - browser will handle the download
-      window.location.href = '/api/admin/tickets/export-all-barcodes';
+    document.getElementById('download-all-barcodes-txt-btn').addEventListener('click', async () => {
+      const downloadBtn = document.getElementById('download-all-barcodes-txt-btn');
+      
+      // Disable button and show loading state
+      downloadBtn.disabled = true;
+      downloadBtn.innerHTML = '⏳ Preparing TXT...';
+      
+      try {
+        console.log('📥 Requesting TXT export of all ticket barcodes');
+        
+        // Make request to TXT export endpoint
+        const response = await fetch('/api/admin/tickets/export-all-barcodes');
+        
+        console.log('📊 Response status:', response.status);
+        
+        // Check if response is OK
+        if (!response.ok) {
+          // Try to parse error as JSON
+          let errorMessage = 'Failed to download TXT file';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+            console.error('❌ Server error:', errorData);
+            
+            // Provide helpful message if no tickets exist
+            if (errorMessage.includes('No tickets found') || response.status === 404) {
+              errorMessage = 'No tickets found in database. Please generate tickets first or import tickets via Excel.';
+            }
+          } catch (jsonError) {
+            // Not JSON, get as text
+            const errorText = await response.text();
+            console.error('❌ Server response:', errorText);
+            if (errorText) errorMessage = errorText;
+          }
+          
+          throw new Error(errorMessage);
+        }
+        
+        // Get the TXT content as blob
+        const blob = await response.blob();
+        
+        console.log(`✅ TXT received: ${blob.size} bytes`);
+        
+        if (blob.size === 0) {
+          throw new Error('Downloaded file is empty - no tickets found in database');
+        }
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Get filename from Content-Disposition header or use default
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let filename = `all-tickets-barcodes-${new Date().toISOString().split('T')[0]}.txt`;
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="?(.+)"?/);
+          if (match) filename = match[1];
+        }
+        
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Cleanup
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        console.log('✅ Download complete!');
+        showNotify('✅ TXT file downloaded successfully!', '#10b981');
+        
+      } catch (error) {
+        console.error('❌ TXT download error:', error);
+        showNotify(`❌ TXT download failed: ${error.message}`, '#ef4444', 5000);
+      } finally {
+        // Re-enable button
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '📄 Download All Tickets &amp; Barcodes (TXT)';
+      }
     });
     
   </script>
