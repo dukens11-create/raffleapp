@@ -2387,9 +2387,7 @@ app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (
       params.push('available');
     }
     
-    query += ' ORDER BY ticket_number ASC';
-    
-    // Set headers for file download
+    // Set headers for file download before streaming
     const timestamp = new Date().toISOString().split('T')[0];
     const filename = `ticket-barcodes-${timestamp}.txt`;
     
@@ -2397,14 +2395,26 @@ app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
     // Stream the data in chunks to avoid memory issues with large datasets
+    // Use cursor-based pagination for better performance
     const CHUNK_SIZE = 10000; // Process 10,000 tickets at a time
-    let offset = 0;
+    let lastTicketNumber = '';
     let hasData = false;
     
     while (true) {
+      // Build chunk query with cursor-based pagination
+      let chunkQuery = query;
+      const chunkParams = [...params];
+      
+      if (lastTicketNumber) {
+        chunkQuery += ' AND ticket_number > ?';
+        chunkParams.push(lastTicketNumber);
+      }
+      
+      chunkQuery += ' ORDER BY ticket_number ASC LIMIT ?';
+      chunkParams.push(CHUNK_SIZE);
+      
       // Fetch tickets in chunks
-      const chunkQuery = `${query} LIMIT ${CHUNK_SIZE} OFFSET ${offset}`;
-      const tickets = await db.query(chunkQuery, params);
+      const tickets = await db.query(chunkQuery, chunkParams);
       
       if (tickets.length === 0) {
         break;
@@ -2417,7 +2427,8 @@ app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (
         res.write(`${ticket.ticket_number}  ${ticket.barcode}\n`);
       }
       
-      offset += CHUNK_SIZE;
+      // Update cursor for next iteration
+      lastTicketNumber = tickets[tickets.length - 1].ticket_number;
       
       // If we got fewer tickets than CHUNK_SIZE, we've reached the end
       if (tickets.length < CHUNK_SIZE) {
@@ -2425,7 +2436,9 @@ app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (
       }
     }
     
+    // Check if any data was found before streaming
     if (!hasData) {
+      // Headers not sent yet, safe to return 404
       return res.status(404).send('No tickets found');
     }
     
@@ -2433,7 +2446,10 @@ app.get('/api/admin/tickets/export-barcodes', requireAuth, requireAdmin, async (
     
   } catch (error) {
     console.error('Error exporting ticket barcodes:', error);
-    res.status(500).send('Failed to export ticket barcodes');
+    // Only try to send error if headers not sent
+    if (!res.headersSent) {
+      res.status(500).send('Failed to export ticket barcodes');
+    }
   }
 });
 
