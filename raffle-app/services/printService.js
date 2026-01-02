@@ -1379,5 +1379,6 @@ module.exports = {
   generateCategoryCustomPDF,
   getPrintJobs,
   getPrintJob,
+  DEFAULT_TEMPLATE,
   TEMPLATES
 };

@@ -2377,7 +2377,8 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       end_ticket,
       paper_type,
       use_custom_template,
-      template_id
+      template_id,
+      design_id
     } = req.body;
     
     // Validate input
@@ -2442,6 +2443,39 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
     });
     
     let doc;
+    let customDesign = null;
+    
+    // Fetch custom design if provided
+    if (design_id) {
+      customDesign = await db.get(
+        'SELECT * FROM ticket_designs WHERE id = ? AND is_active = ?',
+        [design_id, 1]
+      );
+      
+      if (!customDesign) {
+        console.warn('Custom design not found or inactive:', design_id);
+      }
+    } else if (!use_custom_template) {
+      // Auto-select active design for category if no specific design_id provided
+      customDesign = await db.get(
+        `SELECT * FROM ticket_designs 
+         WHERE category = ? AND is_active = ? 
+         ORDER BY created_at DESC 
+         LIMIT 1`,
+        [category, 1]
+      );
+      
+      if (!customDesign) {
+        // Try to get a default design
+        customDesign = await db.get(
+          `SELECT * FROM ticket_designs 
+           WHERE category = 'default' AND is_active = ? 
+           ORDER BY created_at DESC 
+           LIMIT 1`,
+          [1]
+        );
+      }
+    }
     
     // Check if using custom template
     if (use_custom_template && template_id) {
@@ -2454,8 +2488,8 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       // Generate PDF with custom template
       doc = await printService.generateCustomTemplatePDF(tickets, customTemplate, paper_type, printJobId);
     } else {
-      // Generate PDF with default template
-      doc = await printService.generatePrintPDF(tickets, paper_type, printJobId);
+      // Generate PDF with default template (and custom design if available)
+      doc = await printService.generatePrintPDF(tickets, paper_type, printJobId, customDesign);
     }
     
     res.setHeader('Content-Type', 'application/pdf');

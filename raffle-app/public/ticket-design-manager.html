@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Design Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        
+        .upload-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="text"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        
+        .file-upload-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .file-upload-box {
+            border: 2px dashed #ddd;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        .file-upload-box:hover {
+            border-color: #4CAF50;
+            background: #f0f8f0;
+        }
+        
+        .design-requirements {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin-bottom: 20px;
+        }
+        
+        .design-requirements h3 {
+            margin-top: 0;
+            color: #856404;
+        }
+        
+        .design-requirements ul {
+            margin-bottom: 0;
+        }
+        
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .designs-list {
+            margin-top: 30px;
+        }
+        
+        .design-card {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: 150px 1fr auto;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .design-preview {
+            width: 150px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        
+        .design-info h3 {
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+        
+        .design-info p {
+            margin: 3px 0;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .design-actions button {
+            margin-left: 5px;
+            padding: 8px 15px;
+            font-size: 14px;
+        }
+        
+        .btn-delete {
+            background: #f44336;
+        }
+        
+        .btn-delete:hover {
+            background: #da190b;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/admin.html" class="back-link">← Back to Admin Dashboard</a>
+        
+        <h1>🎨 Custom Ticket Design Manager</h1>
+        
+        <div class="design-requirements">
+            <h3>📐 Design Requirements</h3>
+            <ul>
+                <li><strong>Size:</strong> 5.5" x 2.125" (396 x 153 pixels at 72 DPI)</li>
+                <li><strong>Format:</strong> PNG or JPEG</li>
+                <li><strong>Max file size:</strong> 5MB per image</li>
+                <li><strong>Recommendation:</strong> Use lighter colors in areas where text will be overlaid</li>
+                <li><strong>Text overlay areas:</strong> Top-center (ticket number), left-center (category/price), corners (QR codes/barcodes)</li>
+            </ul>
+        </div>
+        
+        <div id="message-container"></div>
+        
+        <div class="upload-section">
+            <h2>Upload New Design</h2>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="designName">Design Name *</label>
+                    <input type="text" id="designName" name="name" required placeholder="e.g., Summer Theme 2026">
+                </div>
+                
+                <div class="form-group">
+                    <label for="designCategory">Category</label>
+                    <select id="designCategory" name="category">
+                        <option value="default">Default (All Categories)</option>
+                        <option value="ABC">ABC</option>
+                        <option value="EFG">EFG</option>
+                        <option value="JKL">JKL</option>
+                        <option value="XYZ">XYZ</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="designDescription">Description</label>
+                    <textarea id="designDescription" name="description" placeholder="Optional description of this design..."></textarea>
+                </div>
+                
+                <div class="file-upload-container">
+                    <div class="file-upload-box">
+                        <label for="frontImage">
+                            <strong>Front Design</strong><br>
+                            (Buyer's ticket)
+                        </label>
+                        <input type="file" id="frontImage" name="front" accept="image/png,image/jpeg">
+                    </div>
+                    
+                    <div class="file-upload-box">
+                        <label for="backImage">
+                            <strong>Back Design</strong><br>
+                            (Seller's stub)
+                        </label>
+                        <input type="file" id="backImage" name="back" accept="image/png,image/jpeg">
+                    </div>
+                </div>
+                
+                <button type="submit" id="uploadBtn" style="margin-top: 20px;">
+                    📤 Upload Design
+                </button>
+            </form>
+        </div>
+        
+        <div class="designs-list">
+            <h2>Existing Designs</h2>
+            <div id="designsList">
+                <p style="text-align: center; color: #999;">Loading designs...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Load existing designs
+        async function loadDesigns() {
+            try {
+                const response = await fetch('/api/admin/ticket-designs-list', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load designs');
+                }
+                
+                const designs = await response.json();
+                displayDesigns(designs);
+            } catch (error) {
+                document.getElementById('designsList').innerHTML = 
+                    `<p style="color: red;">Error loading designs: ${error.message}</p>`;
+            }
+        }
+        
+        function displayDesigns(designs) {
+            const container = document.getElementById('designsList');
+            
+            if (designs.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999;">No designs uploaded yet.</p>';
+                return;
+            }
+            
+            container.innerHTML = designs.map(design => {
+                const previewImage = design.front_image_path || design.back_image_path || '/logo.png';
+                const createdDate = new Date(design.created_at).toLocaleDateString();
+                
+                return `
+                <div class="design-card">
+                    <img src="${previewImage}" 
+                         alt="${design.name}" 
+                         class="design-preview"
+                         onerror="this.src='/logo.png'">
+                    <div class="design-info">
+                        <h3>${design.name || 'Unnamed Design'}</h3>
+                        <p><strong>Category:</strong> ${design.category || 'default'}</p>
+                        <p><strong>Created:</strong> ${createdDate}</p>
+                        ${design.description ? `<p>${design.description}</p>` : ''}
+                        <p><strong>Active:</strong> ${design.is_active ? 'Yes' : 'No'}</p>
+                    </div>
+                    <div class="design-actions">
+                        <button onclick="deleteDesign(${design.id})" class="btn-delete">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+        
+        // Upload form handler
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const uploadBtn = document.getElementById('uploadBtn');
+            
+            // Validate at least one file is selected
+            const frontFile = document.getElementById('frontImage').files[0];
+            const backFile = document.getElementById('backImage').files[0];
+            
+            if (!frontFile && !backFile) {
+                showMessage('Please select at least one design image (front or back)', 'error');
+                return;
+            }
+            
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = '⏳ Uploading...';
+            
+            try {
+                const response = await fetch('/api/admin/ticket-designs/upload-files', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('✅ Design uploaded successfully!', 'success');
+                    e.target.reset();
+                    loadDesigns(); // Reload the list
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+            } catch (error) {
+                showMessage('❌ Upload failed: ' + error.message, 'error');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '📤 Upload Design';
+            }
+        });
+        
+        // Delete design
+        async function deleteDesign(id) {
+            if (!confirm('Are you sure you want to delete this design?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/admin/ticket-designs-by-id/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showMessage('✅ Design deleted successfully', 'success');
+                    loadDesigns();
+                } else {
+                    throw new Error(result.error || 'Delete failed');
+                }
+            } catch (error) {
+                showMessage('❌ Delete failed: ' + error.message, 'error');
+            }
+        }
+        
+        // Show message helper
+        function showMessage(message, type) {
+            const container = document.getElementById('message-container');
+            const className = type === 'success' ? 'success-message' : 'error-message';
+            container.innerHTML = `<div class="${className}">${message}</div>`;
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Load designs on page load
+        loadDesigns();
+    </script>
+</body>
+</html>
