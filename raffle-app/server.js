@@ -2378,7 +2378,10 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       paper_type,
       use_custom_template,
       template_id,
-      layout
+      layout,
+      design_id,
+      barcode_width,
+      barcode_height
     } = req.body;
     
     // Validate input
@@ -2386,7 +2389,7 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       return res.status(400).json({ error: 'Missing required parameters' });
     }
     
-    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS'].includes(paper_type)) {
+    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS', 'DEFAULT_TEAROFF'].includes(paper_type)) {
       return res.status(400).json({ error: 'Invalid paper type' });
     }
     
@@ -2444,6 +2447,18 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       paper_type: effectivePaperType
     });
     
+    // Get custom design if design_id is provided
+    let customDesign = null;
+    if (design_id) {
+      customDesign = await db.get('SELECT * FROM ticket_designs WHERE id = ? AND is_active = 1', [design_id]);
+    }
+    
+    // Prepare barcode settings
+    const barcodeSettings = {
+      width: barcode_width || 90,
+      height: barcode_height || 20
+    };
+    
     let doc;
     
     // Check if using grid layout
@@ -2474,8 +2489,8 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       // Generate PDF with custom template
       doc = await printService.generateCustomTemplatePDF(tickets, customTemplate, paper_type, printJobId);
     } else {
-      // Generate PDF with default template
-      doc = await printService.generatePrintPDF(tickets, paper_type, printJobId);
+      // Generate PDF with default template (passing design and barcode settings)
+      doc = await printService.generatePrintPDF(tickets, paper_type, printJobId, customDesign, barcodeSettings);
     }
     
     res.setHeader('Content-Type', 'application/pdf');
