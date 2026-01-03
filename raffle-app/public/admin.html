@@ -730,6 +730,44 @@
       </a>
     </div>
     
+    <!-- XYZ Portrait Print Section -->
+    <div style="background: linear-gradient(135deg, #F7DC6F 0%, #F39C12 100%); padding: 25px; border-radius: 12px; box-shadow: 0 8px 32px rgba(243, 156, 18, 0.3); margin-bottom: 30px;">
+      <h3 style="color: white; margin: 0 0 15px 0; font-size: 20px;">
+        🎫 Print XYZ Tickets - Portrait (2.1" × 5.5")
+      </h3>
+      
+      <p style="color: rgba(255,255,255,0.95); margin: 0 0 20px 0; font-size: 14px;">
+        Vertical tickets: 4 columns × 2 rows = 8 per page<br>
+        Perfect for standard 8.5" × 11" portrait printing
+      </p>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+        <div>
+          <label style="color: white; font-size: 13px; display: block; margin-bottom: 5px;">Start #</label>
+          <input type="number" id="xyz-portrait-start" min="1" max="375000" value="1" 
+                 style="width: 100%; padding: 10px; border-radius: 6px; border: none;">
+        </div>
+        <div>
+          <label style="color: white; font-size: 13px; display: block; margin-bottom: 5px;">End #</label>
+          <input type="number" id="xyz-portrait-end" min="1" max="375000" value="100" 
+                 style="width: 100%; padding: 10px; border-radius: 6px; border: none;">
+        </div>
+        <div>
+          <label style="color: white; font-size: 13px; display: block; margin-bottom: 5px;">Design</label>
+          <select id="xyz-portrait-design" style="width: 100%; padding: 10px; border-radius: 6px; border: none;">
+            <option value="">Default</option>
+          </select>
+        </div>
+      </div>
+      
+      <button id="gen-xyz-portrait-btn" onclick="generateXYZPortraitPDF()" 
+              style="padding: 14px 28px; background: white; color: #F39C12; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; transition: all 0.3s;">
+        🖨️ Generate Portrait PDF (8-up)
+      </button>
+      
+      <div id="xyz-portrait-status" style="display: none; margin-top: 15px; color: white; font-weight: 500;"></div>
+    </div>
+    
     <!-- Ticket Verification Section -->
     <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
       <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎫 Ticket & Barcode Verification</h3>
@@ -3006,6 +3044,64 @@
         downloadBtn.innerHTML = '📄 Download All Tickets &amp; Barcodes (TXT)';
       }
     });
+    
+    // XYZ Portrait PDF Generation Function
+    async function generateXYZPortraitPDF() {
+      const start = document.getElementById('xyz-portrait-start').value;
+      const end = document.getElementById('xyz-portrait-end').value;
+      const designId = document.getElementById('xyz-portrait-design').value;
+      const button = document.getElementById('gen-xyz-portrait-btn');
+      const status = document.getElementById('xyz-portrait-status');
+      
+      if (!start || !end) {
+        alert('Please enter start and end numbers');
+        return;
+      }
+      
+      const count = parseInt(end) - parseInt(start) + 1;
+      const pages = Math.ceil(count / 8);
+      
+      if (count > 1000 && !confirm(`Generate ${count} tickets (${pages} pages)?`)) {
+        return;
+      }
+      
+      button.disabled = true;
+      button.innerHTML = '⏳ Generating...';
+      status.style.display = 'block';
+      status.textContent = `Generating ${count} tickets...`;
+      
+      try {
+        const response = await fetch('/api/admin/tickets/print-xyz-portrait', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ startNumber: start, endNumber: end, designId })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to generate PDF');
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `XYZ-portrait-${start}-to-${end}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        status.textContent = `✅ Generated ${count} tickets on ${pages} pages!`;
+        setTimeout(() => status.style.display = 'none', 5000);
+        
+      } catch (error) {
+        status.textContent = `❌ Error: ${error.message}`;
+      } finally {
+        button.disabled = false;
+        button.innerHTML = '🖨️ Generate Portrait PDF (8-up)';
+      }
+    }
     
   </script>
   

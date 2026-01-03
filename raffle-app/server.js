@@ -3980,6 +3980,76 @@ app.post('/api/admin/tickets/print-bulk', requireAuth, requireAdmin, async (req,
   }
 });
 
+// POST /api/admin/tickets/print-xyz-portrait - Generate PORTRAIT XYZ tickets
+app.post('/api/admin/tickets/print-xyz-portrait', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { startNumber, endNumber, designId } = req.body;
+
+    // Validate
+    if (!startNumber || !endNumber) {
+      return res.status(400).json({ error: 'Start and end numbers required' });
+    }
+
+    const start = parseInt(startNumber);
+    const end = parseInt(endNumber);
+
+    if (start < 1 || end > 375000 || start > end) {
+      return res.status(400).json({ 
+        error: 'Invalid range. XYZ tickets: 1-375000' 
+      });
+    }
+
+    console.log(`📄 XYZ Portrait print request: tickets ${start} to ${end}`);
+
+    // Get XYZ tickets
+    const tickets = await db.all(`
+      SELECT ticket_number, barcode, category, price
+      FROM tickets
+      WHERE category = 'XYZ'
+        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) >= ?
+        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) <= ?
+      ORDER BY ticket_number ASC
+    `, [start, end]);
+
+    if (tickets.length === 0) {
+      return res.status(404).json({ error: 'No XYZ tickets found in this range' });
+    }
+
+    console.log(`✅ Found ${tickets.length} XYZ tickets`);
+
+    // Get design
+    let customDesign = null;
+    if (designId) {
+      customDesign = await db.get('SELECT * FROM ticket_designs WHERE id = ?', [designId]);
+      if (customDesign) {
+        console.log(`✅ Using custom design: ${customDesign.name}`);
+      }
+    }
+
+    // Generate PDF
+    const pdfBuffer = await printService.generateXYZ8UpPortraitPDF(tickets, customDesign, {
+      barcodeWidth: 100,
+      barcodeHeight: 35
+    });
+
+    console.log(`✅ PDF generated successfully`);
+
+    // Headers
+    const filename = `XYZ-portrait-${start}-to-${end}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('❌ Error generating portrait PDF:', error);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+  }
+});
+
 // Helper function to draw ticket front for bulk printing
 // This duplicates some logic from printService.drawTicketFront but is necessary
 // to avoid circular dependencies and maintain encapsulation
