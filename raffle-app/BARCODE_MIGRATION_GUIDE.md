@@ -1,5 +1,59 @@
 # Barcode Migration Guide
 
+## New Feature: Legacy Barcode Support (January 2026)
+
+### Overview
+
+The system now supports **both new and legacy barcode formats** during scanning! This allows sellers to scan tickets with old barcode formats without requiring physical ticket replacement.
+
+### Supported Formats
+
+#### New Format (8-digit) - Primary
+- **Format**: `[1-4]XXXXXXX` (8 digits total)
+- **Examples**: `10000001`, `20000001`, `30000001`, `40000001`
+- **Mapping**: 1=ABC, 2=EFG, 3=JKL, 4=XYZ
+
+#### Legacy Formats - Now Accepted
+1. **13-digit EAN-13**: `9780000000001`
+2. **Ticket number with dash**: `ABC-000001`
+3. **Ticket number without dash**: `ABC000001`
+4. **Multiple dashes**: `ABC-000-001`
+5. **Pure numeric (6-7 or 9+ digits)**: `000001`, `1000001`
+6. **Other alphanumeric (6+ chars)**: Any combination with letters and numbers
+
+### Testing Scenarios
+
+✅ **Successful Scans**:
+- 8-digit: `10000001` → Finds ABC-000001
+- Legacy 13-digit: `9780000000001` → Finds matching ticket
+- Ticket number: `ABC-000001` or `ABC000001` → Finds ticket
+- Multiple dashes: `ABC-000-001` → Finds ABC-000001
+
+❌ **Rejected Scans**:
+- Empty: `""` → "Barcode is required"
+- Special chars only: `###` → "Barcode format not recognized"
+- Too short: `ABC` → "Barcode format not recognized"
+- Non-existent: `10999999` → "Ticket not found"
+
+### API Changes
+
+**Error Message Update:**
+- Old: "This barcode format is not valid. Please use a ticket with the new 8-digit barcode format."
+- New: "Barcode format not recognized. Please verify the barcode is readable and try again."
+
+### Backward Compatibility
+
+✅ All existing functionality maintained:
+- New 8-digit barcodes work exactly as before
+- Ticket generation still creates 8-digit barcodes
+- All validation logic preserved
+- No database schema changes
+- No breaking API changes
+
+For full technical details, see the complete guide below.
+
+---
+
 ## Issue: Old Format Barcodes Still Showing Up
 
 If you're seeing old format barcodes in your app, it means your existing tickets in the database haven't been migrated to the new 8-digit barcode format yet.

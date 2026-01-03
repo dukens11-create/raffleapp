@@ -103,19 +103,100 @@ async function generateTicketBarcode(ticketNumber, options = {}) {
 }
 
 /**
+ * Check if a barcode is in legacy format
+ * Legacy formats include:
+ * - 13 digits (EAN-13): e.g., 9780000000001
+ * - Ticket number formats: ABC000001, ABC-000001, ABC-000-001
+ * - Pure numeric sequences: 1000001 (7 digits), 000001 (6 digits)
+ * - Any barcode with 6+ characters that doesn't match 8-digit format
+ * 
+ * @param {string} barcode - Barcode to check
+ * @returns {boolean} - True if legacy format
+ */
+function isLegacyBarcode(barcode) {
+  if (!barcode || typeof barcode !== 'string') {
+    return false;
+  }
+
+  // Remove whitespace
+  const cleaned = barcode.trim();
+  
+  // Too short to be valid
+  if (cleaned.length < 6) {
+    return false;
+  }
+
+  // If it matches the 8-digit format, it's not legacy
+  const new8DigitFormat = /^[1-4]\d{7}$/;
+  if (new8DigitFormat.test(cleaned)) {
+    return false;
+  }
+
+  // Check for common legacy patterns
+  // 13 digits (EAN-13)
+  if (/^\d{13}$/.test(cleaned)) {
+    return true;
+  }
+
+  const cleanedUpper = cleaned.toUpperCase();
+
+  // Alphanumeric with optional dashes (ticket number patterns)
+  if (/^[A-Z]{3}-?\d{6}$/.test(cleanedUpper)) {
+    return true;
+  }
+
+  // Alphanumeric with multiple dashes
+  if (/^[A-Z]{3}-\d{3}-\d{3}$/.test(cleanedUpper)) {
+    return true;
+  }
+
+  // Pure numeric sequences (6-7 digits, or 9-13 digits)
+  // Note: 8 digits excluded above, 14+ would be too long for typical barcodes
+  if (/^\d{6,7}$/.test(cleaned) || /^\d{9,13}$/.test(cleaned)) {
+    return true;
+  }
+
+  // Any other alphanumeric pattern with letters and numbers (6+ chars)
+  if (/^[A-Z0-9-]{6,}$/.test(cleanedUpper) && /[A-Z]/.test(cleanedUpper) && /\d/.test(cleaned)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Validate barcode number format
+ * Accepts both new 8-digit format and legacy formats
  * 
  * @param {string} barcodeNumber - Barcode number to validate
- * @returns {boolean} - True if valid
+ * @returns {boolean} - True if valid (either new or legacy format)
  */
 function validateBarcodeNumber(barcodeNumber) {
   if (!barcodeNumber || typeof barcodeNumber !== 'string') {
     return false;
   }
 
-  // Check format: 8 digits, first digit 1-4
-  const regex = /^[1-4]\d{7}$/;
-  return regex.test(barcodeNumber);
+  // Remove whitespace
+  const cleaned = barcodeNumber.trim();
+
+  // Reject empty or whitespace-only strings
+  if (cleaned.length === 0) {
+    return false;
+  }
+
+  // Reject if only special characters (no letters or numbers)
+  if (!/[A-Z0-9]/i.test(cleaned)) {
+    return false;
+  }
+
+  // Check new 8-digit format: 8 digits, first digit 1-4
+  const new8DigitFormat = /^[1-4]\d{7}$/;
+  if (new8DigitFormat.test(cleaned)) {
+    return true;
+  }
+
+  // Check if it's a valid legacy format
+  return isLegacyBarcode(cleaned);
 }
 
 /**
@@ -145,6 +226,7 @@ module.exports = {
   generateBarcodeImage,
   generateTicketBarcode,
   validateBarcodeNumber,
+  isLegacyBarcode,
   getCategoryFromBarcode,
   CATEGORY_PREFIX_MAP
 };
