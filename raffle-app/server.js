@@ -1829,14 +1829,19 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   try {
     const { barcode } = req.body;
     
+    console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
+    
     if (!barcode) {
+      console.log('[SCAN] Error: No barcode provided');
       return res.status(400).json({ error: 'Barcode is required' });
     }
     
     // Validate barcode using new 8-digit validation
+    console.log(`[SCAN] Validating barcode...`);
     const validation = await bulkTicketService.validateTicketForSale(barcode);
     
     if (!validation.valid) {
+      console.log(`[SCAN] Validation failed: ${validation.error} - ${validation.message}`);
       return res.status(400).json({ 
         error: validation.error,
         message: validation.message
@@ -1844,6 +1849,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     }
     
     const ticket = validation.ticket;
+    console.log(`[SCAN] Ticket found: ${ticket.ticket_number}, status: ${ticket.status}`);
     
     // Mark as sold by this seller
     await db.run(
@@ -1851,7 +1857,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       [req.session.user.name, req.session.user.phone, ticket.id]
     );
     
-    console.log(`Ticket ${barcode} scanned and sold by ${req.session.user.name}`);
+    console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name}`);
     
     res.json({ 
       success: true, 
@@ -1859,8 +1865,13 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       ticket: ticket.ticket_number
     });
   } catch (error) {
-    console.error('Scan ticket error:', error);
-    res.status(500).json({ error: 'Failed to process ticket' });
+    console.error('[SCAN] Error processing ticket:', error);
+    console.error('[SCAN] Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to process ticket',
+      message: 'An unexpected error occurred. Please try again or contact support.',
+      hint: 'Check server logs for details'
+    });
   }
 });
 
@@ -4654,6 +4665,58 @@ app.post('/api/tickets/validate-barcode', requireAuth, async (req, res) => {
 // ============================================================================
 // END RAFFLE TICKET SYSTEM API ENDPOINTS
 // ============================================================================
+
+// POST /api/tickets/debug-barcode - Debug ticket lookup (for troubleshooting)
+app.post('/api/tickets/debug-barcode', requireAuth, async (req, res) => {
+  try {
+    const { barcode } = req.body;
+    
+    if (!barcode) {
+      return res.status(400).json({ error: 'Barcode is required' });
+    }
+    
+    // Step 1: Check format validation
+    const formatValid = barcodeService.validateBarcodeNumber(barcode);
+    const isLegacy = barcodeService.isLegacyBarcode(barcode);
+    
+    // Step 2: Try to find ticket
+    const ticket = await ticketService.getTicketByBarcode(barcode);
+    
+    // Step 3: If not found, try direct ticket_number lookup
+    let ticketByNumber = null;
+    if (!ticket) {
+      ticketByNumber = await db.get(
+        'SELECT * FROM tickets WHERE ticket_number = ?',
+        [barcode]
+      );
+    }
+    
+    // Return diagnostic information
+    res.json({
+      barcode: barcode,
+      formatValid: formatValid,
+      isLegacyFormat: isLegacy,
+      ticketFound: !!ticket,
+      ticketFoundByNumber: !!ticketByNumber,
+      ticket: ticket || ticketByNumber || null,
+      troubleshooting: {
+        hint: !ticket && !ticketByNumber ? 
+          'Ticket does not exist in database. Check if ticket number is correct.' :
+          ticket && ticket.status === 'SOLD' ?
+          'Ticket exists but is already sold.' :
+          ticket && ticket.status === 'INVALID' ?
+          'Ticket exists but has been marked as invalid/replaced.' :
+          'Ticket exists and is available for sale.'
+      }
+    });
+  } catch (error) {
+    console.error('Debug barcode error:', error);
+    res.status(500).json({ 
+      error: 'Debug failed',
+      message: 'An error occurred while debugging. Please try again or contact support.'
+    });
+  }
+});
 
 // 404 handler - must be after all other routes
 app.use((req, res, next) => {

@@ -920,7 +920,16 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Failed to process ticket');
+                    // Show specific error message from API
+                    const errorMsg = data.message || data.error || 'Failed to process ticket';
+                    console.error('Scan error details:', {
+                        status: response.status,
+                        error: data.error,
+                        message: data.message,
+                        barcode: barcode,
+                        response: data
+                    });
+                    throw new Error(errorMsg);
                 }
                 
                 resultDiv.innerHTML = `✅ ${t.ticketNumber} ${barcode} ${t.ticketSoldSuccess}`;
@@ -930,6 +939,7 @@
                 await loadStats();
             } catch (error) {
                 console.error('Scan error:', error);
+                console.error('Barcode scanned:', barcode);
                 resultDiv.innerHTML = `❌ ${t.errorPrefix} ${error.message}`;
                 resultDiv.style.color = 'red';
             }
@@ -1009,7 +1019,16 @@
                 const data = await response.json();
                 
                 if (!response.ok) {
-                    throw new Error(data.error || 'Failed to register ticket');
+                    // Show specific error message from API
+                    const errorMsg = data.message || data.error || 'Failed to register ticket';
+                    console.error('Manual entry error details:', {
+                        status: response.status,
+                        error: data.error,
+                        message: data.message,
+                        ticketNumber: ticketNumber,
+                        response: data
+                    });
+                    throw new Error(errorMsg);
                 }
                 
                 resultDiv.innerHTML = `✅ ${t.ticketNumber} ${ticketNumber} ${t.ticketSoldSuccess}`;
@@ -1029,6 +1048,7 @@
                 
             } catch (error) {
                 console.error('Manual entry error:', error);
+                console.error('Ticket number entered:', ticketNumber);
                 resultDiv.innerHTML = `❌ ${t.errorPrefix} ${error.message}`;
                 resultDiv.style.color = '#991b1b';
                 resultDiv.style.background = '#fee2e2';
