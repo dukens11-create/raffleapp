@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bulk Ticket Manager - Raffle App</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    header {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    header h1 {
+      font-size: 28px;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .btn-secondary {
+      background: #64748b;
+    }
+    
+    .btn-secondary:hover {
+      background: #475569;
+    }
+    
+    .btn-danger {
+      background: #ef4444;
+    }
+    
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+    
+    .btn-success {
+      background: #10b981;
+    }
+    
+    .btn-success:hover {
+      background: #059669;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card h2 {
+      font-size: 20px;
+      color: #1e293b;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-card.warning {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
+    
+    .stat-card.danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .stat-card.success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .stat-label {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+    
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    select, input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    select:focus, input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+    }
+    
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .alert.show {
+      display: block;
+    }
+    
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 2px solid #10b981;
+    }
+    
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 2px solid #ef4444;
+    }
+    
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 2px solid #3b82f6;
+    }
+    
+    .alert-warning {
+      background: #fef3c7;
+      color: #92400e;
+      border: 2px solid #f59e0b;
+    }
+    
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+    
+    .loading.show {
+      display: block;
+    }
+    
+    .spinner {
+      border: 4px solid #f3f4f6;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+    
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    th {
+      background: #f8fafc;
+      font-weight: 600;
+      color: #475569;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .badge-warning {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .badge-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>
+        🔄 Bulk Ticket Manager
+      </h1>
+      <a href="/admin.html" class="btn btn-secondary">← Back to Admin</a>
+    </header>
+    
+    <!-- Alert Messages -->
+    <div id="alert" class="alert"></div>
+    
+    <!-- Statistics Card -->
+    <div class="card">
+      <h2>📊 Barcode Statistics</h2>
+      <div id="loading-stats" class="loading">
+        <div class="spinner"></div>
+        <p>Loading statistics...</p>
+      </div>
+      <div id="stats-content" style="display: none;">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Tickets</div>
+            <div class="stat-value" id="stat-total">0</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-label">Valid 8-Digit Barcodes</div>
+            <div class="stat-value" id="stat-valid">0</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-label">Missing Barcodes</div>
+            <div class="stat-value" id="stat-missing">0</div>
+          </div>
+          <div class="stat-card danger">
+            <div class="stat-label">Invalid Format</div>
+            <div class="stat-value" id="stat-invalid">0</div>
+          </div>
+          <div class="stat-card danger">
+            <div class="stat-label">Flagged Invalid</div>
+            <div class="stat-value" id="stat-flagged">0</div>
+          </div>
+        </div>
+        
+        <h3 style="margin-top: 24px; margin-bottom: 12px; color: #475569;">By Category</h3>
+        <table id="category-stats-table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Total</th>
+              <th>Valid</th>
+              <th>Missing</th>
+            </tr>
+          </thead>
+          <tbody id="category-stats-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Detect Legacy Tickets -->
+    <div class="card">
+      <h2>🔍 Detect Legacy Tickets</h2>
+      <p style="color: #64748b; margin-bottom: 16px;">
+        Scan the system for tickets with missing or invalid barcodes that need to be regenerated.
+      </p>
+      <button class="btn" onclick="detectLegacyTickets()">Detect Legacy Tickets</button>
+      
+      <div id="loading-detect" class="loading">
+        <div class="spinner"></div>
+        <p>Scanning for legacy tickets...</p>
+      </div>
+      
+      <div id="legacy-results" style="display: none; margin-top: 24px;">
+        <h3 style="color: #475569; margin-bottom: 12px;">Results</h3>
+        <div id="legacy-count" style="margin-bottom: 16px;"></div>
+        <table id="legacy-table" style="display: none;">
+          <thead>
+            <tr>
+              <th>Ticket Number</th>
+              <th>Category</th>
+              <th>Current Barcode</th>
+              <th>Issue</th>
+            </tr>
+          </thead>
+          <tbody id="legacy-table-body">
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Regenerate Barcodes -->
+    <div class="card">
+      <h2>🔄 Regenerate Barcodes</h2>
+      <p style="color: #64748b; margin-bottom: 16px;">
+        Regenerate barcodes to ensure all tickets use the new 8-digit format.
+      </p>
+      
+      <div class="form-group">
+        <label for="regenerate-category">Filter by Category (Optional)</label>
+        <select id="regenerate-category">
+          <option value="">All Categories</option>
+          <option value="ABC">ABC - Regular ($50)</option>
+          <option value="EFG">EFG - Silver ($100)</option>
+          <option value="JKL">JKL - Gold ($250)</option>
+          <option value="XYZ">XYZ - Platinum ($500)</option>
+        </select>
+      </div>
+      
+      <div class="checkbox-group" style="margin-bottom: 20px;">
+        <input type="checkbox" id="legacy-only" checked>
+        <label for="legacy-only" style="margin-bottom: 0;">Only regenerate legacy/invalid barcodes</label>
+      </div>
+      
+      <button class="btn btn-success" onclick="regenerateBarcodes()">Regenerate Barcodes</button>
+      
+      <div id="loading-regenerate" class="loading">
+        <div class="spinner"></div>
+        <p>Regenerating barcodes...</p>
+      </div>
+      
+      <div id="regenerate-results" style="display: none; margin-top: 24px;">
+      </div>
+    </div>
+    
+    <!-- Export Options -->
+    <div class="card">
+      <h2>📥 Bulk Export Options</h2>
+      <p style="color: #64748b; margin-bottom: 16px;">
+        Export all tickets with valid 8-digit barcodes in various formats.
+      </p>
+      
+      <div class="form-group">
+        <label for="export-category">Category</label>
+        <select id="export-category">
+          <option value="">All Categories</option>
+          <option value="ABC">ABC - Regular ($50)</option>
+          <option value="EFG">EFG - Silver ($100)</option>
+          <option value="JKL">JKL - Gold ($250)</option>
+          <option value="XYZ">XYZ - Platinum ($500)</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label for="export-format">Export Format</label>
+        <select id="export-format">
+          <option value="excel">Excel (XLSX)</option>
+          <option value="csv">CSV</option>
+          <option value="txt">Text (TXT)</option>
+          <option value="pdf">PDF (Printable Tickets)</option>
+        </select>
+      </div>
+      
+      <div id="pdf-options" style="display: none;">
+        <div class="form-group">
+          <label for="paper-type">Paper Type</label>
+          <select id="paper-type">
+            <option value="AVERY_16145">Avery 16145 (10 tickets/page)</option>
+            <option value="PRINTWORKS">PrintWorks Custom (8 tickets/page)</option>
+            <option value="LETTER_8_TICKETS">Letter 8.5x11 - 8 Tickets</option>
+            <option value="GRID_20_TICKETS">Grid Layout - 20 Tickets</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="actions">
+        <button class="btn" onclick="exportTickets()">Export Tickets</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Check authentication
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/admin/check-auth', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          window.location.href = '/login.html';
+          return false;
+        }
+        
+        return true;
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        window.location.href = '/login.html';
+        return false;
+      }
+    }
+    
+    // Show alert message
+    function showAlert(message, type = 'info') {
+      const alert = document.getElementById('alert');
+      alert.textContent = message;
+      alert.className = `alert alert-${type} show`;
+      
+      setTimeout(() => {
+        alert.classList.remove('show');
+      }, 5000);
+    }
+    
+    // Load statistics
+    async function loadStatistics() {
+      const loading = document.getElementById('loading-stats');
+      const content = document.getElementById('stats-content');
+      
+      loading.classList.add('show');
+      content.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/admin/bulk-tickets/statistics', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) throw new Error('Failed to load statistics');
+        
+        const stats = await response.json();
+        
+        document.getElementById('stat-total').textContent = stats.total_tickets || 0;
+        document.getElementById('stat-valid').textContent = stats.valid_8digit || 0;
+        document.getElementById('stat-missing').textContent = stats.missing_barcode || 0;
+        document.getElementById('stat-invalid').textContent = stats.invalid_format || 0;
+        document.getElementById('stat-flagged').textContent = stats.flagged_invalid || 0;
+        
+        // Category breakdown
+        const tbody = document.getElementById('category-stats-body');
+        tbody.innerHTML = '';
+        
+        if (stats.by_category && stats.by_category.length > 0) {
+          stats.by_category.forEach(cat => {
+            const row = tbody.insertRow();
+            row.insertCell(0).textContent = cat.category;
+            row.insertCell(1).textContent = cat.total;
+            row.insertCell(2).textContent = cat.valid;
+            row.insertCell(3).textContent = cat.missing;
+          });
+        }
+        
+        loading.classList.remove('show');
+        content.style.display = 'block';
+      } catch (error) {
+        console.error('Error loading statistics:', error);
+        showAlert('Failed to load statistics: ' + error.message, 'error');
+        loading.classList.remove('show');
+      }
+    }
+    
+    // Detect legacy tickets
+    async function detectLegacyTickets() {
+      const loading = document.getElementById('loading-detect');
+      const results = document.getElementById('legacy-results');
+      
+      loading.classList.add('show');
+      results.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/admin/bulk-tickets/detect-legacy', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) throw new Error('Failed to detect legacy tickets');
+        
+        const data = await response.json();
+        
+        const countDiv = document.getElementById('legacy-count');
+        const table = document.getElementById('legacy-table');
+        const tbody = document.getElementById('legacy-table-body');
+        
+        if (data.total === 0) {
+          countDiv.innerHTML = '<p style="color: #10b981; font-weight: 600;">✅ No legacy tickets found! All tickets have valid 8-digit barcodes.</p>';
+          table.style.display = 'none';
+        } else {
+          countDiv.innerHTML = `<p style="color: #f59e0b; font-weight: 600;">⚠️ Found ${data.total} tickets with issues that need attention.</p>`;
+          table.style.display = 'table';
+          
+          tbody.innerHTML = '';
+          data.tickets.slice(0, 100).forEach(ticket => {
+            const row = tbody.insertRow();
+            row.insertCell(0).textContent = ticket.ticket_number;
+            row.insertCell(1).textContent = ticket.category;
+            row.insertCell(2).textContent = ticket.barcode || 'N/A';
+            
+            const issueCell = row.insertCell(3);
+            const badge = document.createElement('span');
+            badge.className = ticket.issue === 'MISSING_BARCODE' ? 'badge badge-warning' : 'badge badge-danger';
+            badge.textContent = ticket.issue === 'MISSING_BARCODE' ? 'Missing' : 'Invalid Format';
+            issueCell.appendChild(badge);
+          });
+          
+          if (data.total > 100) {
+            const row = tbody.insertRow();
+            const cell = row.insertCell(0);
+            cell.colSpan = 4;
+            cell.style.textAlign = 'center';
+            cell.style.color = '#64748b';
+            cell.textContent = `... and ${data.total - 100} more tickets`;
+          }
+        }
+        
+        loading.classList.remove('show');
+        results.style.display = 'block';
+      } catch (error) {
+        console.error('Error detecting legacy tickets:', error);
+        showAlert('Failed to detect legacy tickets: ' + error.message, 'error');
+        loading.classList.remove('show');
+      }
+    }
+    
+    // Regenerate barcodes
+    async function regenerateBarcodes() {
+      const category = document.getElementById('regenerate-category').value;
+      const legacyOnly = document.getElementById('legacy-only').checked;
+      
+      if (!confirm(`Are you sure you want to regenerate barcodes${category ? ' for category ' + category : ''}? This will update barcodes in the database.`)) {
+        return;
+      }
+      
+      const loading = document.getElementById('loading-regenerate');
+      const results = document.getElementById('regenerate-results');
+      
+      loading.classList.add('show');
+      results.style.display = 'none';
+      
+      try {
+        const response = await fetch('/api/admin/bulk-tickets/regenerate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ category, legacyOnly })
+        });
+        
+        if (!response.ok) throw new Error('Failed to regenerate barcodes');
+        
+        const data = await response.json();
+        
+        results.innerHTML = `
+          <div class="alert alert-success show">
+            <strong>✅ Regeneration Complete!</strong><br>
+            • Total tickets processed: ${data.total}<br>
+            • Successfully regenerated: ${data.regenerated}<br>
+            • Skipped: ${data.skipped}<br>
+            • Errors: ${data.errors.length}
+          </div>
+        `;
+        
+        if (data.errors.length > 0) {
+          results.innerHTML += `
+            <h4 style="color: #ef4444; margin-top: 16px;">Errors:</h4>
+            <ul style="color: #64748b;">
+              ${data.errors.slice(0, 10).map(err => `<li>${err}</li>`).join('')}
+              ${data.errors.length > 10 ? `<li>... and ${data.errors.length - 10} more errors</li>` : ''}
+            </ul>
+          `;
+        }
+        
+        loading.classList.remove('show');
+        results.style.display = 'block';
+        
+        // Reload statistics
+        loadStatistics();
+        
+        showAlert('Barcodes regenerated successfully!', 'success');
+      } catch (error) {
+        console.error('Error regenerating barcodes:', error);
+        showAlert('Failed to regenerate barcodes: ' + error.message, 'error');
+        loading.classList.remove('show');
+      }
+    }
+    
+    // Export tickets
+    async function exportTickets() {
+      const category = document.getElementById('export-category').value;
+      const format = document.getElementById('export-format').value;
+      const paperType = document.getElementById('paper-type').value;
+      
+      try {
+        if (format === 'pdf') {
+          // PDF export with print job
+          const response = await fetch('/api/admin/bulk-tickets/export-pdf', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ category, paperType })
+          });
+          
+          if (!response.ok) throw new Error('Failed to export PDF');
+          
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `bulk-tickets-${category || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          showAlert('PDF exported successfully!', 'success');
+        } else if (format === 'excel') {
+          // Excel export
+          let url = `/api/admin/tickets/export?limit=50000`;
+          if (category) url += `&category=${category}`;
+          
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `tickets-${category || 'all'}.xlsx`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
+          showAlert('Excel file downloaded successfully!', 'success');
+        } else if (format === 'csv') {
+          // CSV export
+          let url = `/api/admin/tickets/export-csv?`;
+          if (category) url += `category=${category}`;
+          
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `tickets-${category || 'all'}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
+          showAlert('CSV file downloaded successfully!', 'success');
+        } else if (format === 'txt') {
+          // TXT export
+          const url = `/api/admin/tickets/export-all-barcodes`;
+          
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `tickets-barcodes.txt`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          
+          showAlert('TXT file downloaded successfully!', 'success');
+        }
+      } catch (error) {
+        console.error('Error exporting tickets:', error);
+        showAlert('Failed to export tickets: ' + error.message, 'error');
+      }
+    }
+    
+    // Show/hide PDF options based on format
+    document.getElementById('export-format').addEventListener('change', function() {
+      const pdfOptions = document.getElementById('pdf-options');
+      pdfOptions.style.display = this.value === 'pdf' ? 'block' : 'none';
+    });
+    
+    // Initialize
+    window.addEventListener('DOMContentLoaded', async () => {
+      const authenticated = await checkAuth();
+      if (authenticated) {
+        loadStatistics();
+      }
+    });
+  </script>
+</body>
+</html>
