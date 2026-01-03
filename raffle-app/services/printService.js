@@ -1764,6 +1764,197 @@ async function generateGridPDF(tickets, customDesign = null) {
   return pdfPromise;
 }
 
+/**
+ * Generate 8-up ticket layout for letter paper (8.5" × 11") in LANDSCAPE
+ * Ticket size: 5.5" × 2.1" (396pt × 151pt at 72 DPI) in landscape orientation
+ * Layout: 4 rows × 2 columns = 8 tickets per page
+ * Paper orientation: LANDSCAPE (11" wide × 8.5" tall = 792pt × 612pt)
+ * - 2 tickets per row: 2 × 5.5" = 11" (792pt - perfect fit for width with NO margins)
+ * - 4 rows: 4 × 2.1" = 8.4" (604pt - fits in 612pt with 4pt top/bottom margins)
+ * XYZ category only (XYZ-000001 to XYZ-375000)
+ * 
+ * @param {Array} tickets - Array of ticket objects
+ * @param {Object} customDesign - Optional custom design with front/back images
+ * @param {Object} barcodeSettings - Barcode generation settings
+ * @returns {Promise<PDFDocument>} - PDF document stream
+ */
+async function generateXYZ8UpPDF(tickets, customDesign = null, barcodeSettings = {}) {
+  const doc = new PDFDocument({
+    size: 'LETTER',
+    layout: 'landscape', // 11" wide × 8.5" tall (792pt × 612pt)
+    margins: { top: 4, bottom: 4, left: 0, right: 0 } // Minimal margins for alignment
+  });
+
+  const TICKET_WIDTH = 396;  // 5.5" × 72 DPI
+  const TICKET_HEIGHT = 151; // 2.1" × 72 DPI
+  const TICKETS_PER_PAGE = 8;
+  const COLS = 2; // 2 columns (5.5" each = 11" total width = 792pt)
+  const ROWS = 4; // 4 rows (2.1" each = 8.4" total height = 604pt)
+
+  let ticketIndex = 0;
+
+  for (const ticket of tickets) {
+    // Add new page if needed
+    if (ticketIndex > 0 && ticketIndex % TICKETS_PER_PAGE === 0) {
+      doc.addPage();
+    }
+
+    const positionOnPage = ticketIndex % TICKETS_PER_PAGE;
+    const col = positionOnPage % COLS;
+    const row = Math.floor(positionOnPage / COLS);
+
+    const x = 0 + (col * TICKET_WIDTH);  // No left margin
+    const y = 4 + (row * TICKET_HEIGHT); // 4pt top margin for centering
+
+    // Generate barcode for this ticket
+    let barcodeImage = null;
+    if (ticket.barcode) {
+      try {
+        // Pad barcode to 12 digits for EAN-13 (13th digit is check digit)
+        // Convert to string first to handle numeric barcodes
+        const paddedBarcode = String(ticket.barcode).padStart(12, '0');
+        barcodeImage = await bwipjs.toBuffer({
+          bcid: 'ean13',
+          text: paddedBarcode,
+          scale: 2,
+          height: 10,
+          includetext: true,
+          textxalign: 'center'
+        });
+      } catch (error) {
+        console.error('Barcode generation error for ticket', ticket.ticket_number, error);
+      }
+    }
+
+    // Draw FRONT side with custom design
+    await drawXYZTicketFront(doc, ticket, customDesign, x, y, barcodeImage);
+
+    ticketIndex++;
+  }
+
+  doc.end();
+  return doc;
+}
+
+/**
+ * Draw XYZ ticket FRONT with custom image background
+ * Includes stub section (left 2") with form fields and main section (right 3.5") with design
+ * 
+ * @param {PDFDocument} doc - PDF document
+ * @param {Object} ticket - Ticket data
+ * @param {Object} customDesign - Custom design with front_image_path
+ * @param {number} x - X position
+ * @param {number} y - Y position
+ * @param {Buffer} barcodeImage - Barcode image buffer (for back side preview)
+ */
+async function drawXYZTicketFront(doc, ticket, customDesign, x, y, barcodeImage) {
+  const TICKET_WIDTH = 396;  // 5.5" × 72 DPI
+  const TICKET_HEIGHT = 151; // 2.1" × 72 DPI
+  const STUB_WIDTH = 144;    // 2" × 72 DPI
+
+  // Draw border
+  doc.save();
+  doc.strokeColor('#000000')
+     .lineWidth(1)
+     .rect(x, y, TICKET_WIDTH, TICKET_HEIGHT)
+     .stroke();
+  doc.restore();
+
+  // Draw custom front image as background if available
+  if (customDesign && customDesign.front_image_path) {
+    try {
+      // Validate image path to prevent path traversal attacks
+      const normalizedPath = path.normalize(customDesign.front_image_path);
+      if (normalizedPath.includes('..') || path.isAbsolute(normalizedPath)) {
+        console.error('Invalid image path detected (security):', normalizedPath);
+      } else {
+        const imagePath = path.join(__dirname, '..', 'public', normalizedPath);
+        if (fs.existsSync(imagePath)) {
+          doc.image(imagePath, x, y, {
+            width: TICKET_WIDTH,
+            height: TICKET_HEIGHT,
+            fit: [TICKET_WIDTH, TICKET_HEIGHT],
+            align: 'center',
+            valign: 'center'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading front image:', error);
+    }
+  } else {
+    // Draw default background with gradient effect
+    doc.rect(x, y, TICKET_WIDTH, TICKET_HEIGHT)
+       .fillOpacity(0.05)
+       .fill('#F7DC6F')
+       .fillOpacity(1);
+  }
+
+  // Draw tear-off perforation line
+  doc.save();
+  doc.strokeColor('#999999')
+     .lineWidth(1)
+     .dash(5, 5);
+  doc.moveTo(x + STUB_WIDTH, y)
+     .lineTo(x + STUB_WIDTH, y + TICKET_HEIGHT)
+     .stroke();
+  doc.restore();
+
+  // Draw scissors icon at perforation
+  doc.fontSize(16).fillColor('#666666')
+     .text('✂', x + STUB_WIDTH - 12, y + TICKET_HEIGHT / 2 - 8);
+
+  // STUB SECTION - Form fields only (no barcode on front)
+  doc.fontSize(9).fillColor('#000000').font('Helvetica-Bold');
+  doc.text('NON:', x + 10, y + 20, { width: STUB_WIDTH - 20 });
+  doc.strokeColor('#000000').lineWidth(0.5);
+  doc.moveTo(x + 10, y + 34).lineTo(x + STUB_WIDTH - 10, y + 34).stroke();
+
+  doc.text('TELEFÒN:', x + 10, y + 45, { width: STUB_WIDTH - 20 });
+  doc.moveTo(x + 10, y + 59).lineTo(x + STUB_WIDTH - 10, y + 59).stroke();
+
+  doc.text('NIF:', x + 10, y + 70, { width: STUB_WIDTH - 20 });
+  doc.moveTo(x + 10, y + 84).lineTo(x + STUB_WIDTH - 10, y + 84).stroke();
+
+  // Ticket number on stub (bottom)
+  doc.fontSize(8).fillColor('#333333').font('Helvetica');
+  doc.text(ticket.ticket_number, x + 10, y + TICKET_HEIGHT - 25, { 
+    width: STUB_WIDTH - 20, 
+    align: 'center' 
+  });
+
+  // MAIN SECTION - Ticket number overlay with semi-transparent background
+  doc.rect(x + STUB_WIDTH + 10, y + 10, 100, 20)
+     .fillOpacity(0.85)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+  
+  doc.fontSize(12).fillColor('#000000').font('Helvetica-Bold');
+  doc.text(ticket.ticket_number, x + STUB_WIDTH + 15, y + 15, { width: 90, align: 'center' });
+  
+  // Add barcode on back side (for demonstration, draw it in bottom area)
+  // In actual double-sided printing, this would be on the reverse
+  if (barcodeImage) {
+    const barcodeX = x + STUB_WIDTH + 60;
+    const barcodeY = y + TICKET_HEIGHT - 55;
+    
+    // Semi-transparent background for barcode
+    doc.rect(barcodeX - 5, barcodeY - 5, 130, 50)
+       .fillOpacity(0.9)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+    
+    try {
+      doc.image(barcodeImage, barcodeX, barcodeY, { 
+        width: 120, 
+        height: 40 
+      });
+    } catch (error) {
+      console.error('Error drawing barcode:', error);
+    }
+  }
+}
+
 module.exports = {
   createPrintJob,
   updatePrintJobStatus,
@@ -1771,6 +1962,7 @@ module.exports = {
   generateCustomTemplatePDF,
   generateCategoryCustomPDF,
   generateGridPDF,
+  generateXYZ8UpPDF,
   getPrintJobs,
   getPrintJob,
   TEMPLATES

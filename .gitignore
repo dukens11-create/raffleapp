@@ -4,3 +4,5 @@ node_modules
 .env
 raffle-app/uploads/
 raffle-app/ticket_exports/
+raffle-app/test-*.js
+raffle-app/test-*.pdf
