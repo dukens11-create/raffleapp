@@ -1836,7 +1836,7 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     let qrBuffer = null;
     try {
       qrBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: 67, // 0.7" at 96 DPI
+        size: 67, // ~0.93" at 72 DPI (67pt / 72 DPI)
         errorCorrectionLevel: 'M'
       });
     } catch (error) {
@@ -1847,8 +1847,10 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     let barcodeBuffer = null;
     if (ticket.barcode) {
       try {
+        // Use EAN-13 for valid 13-digit barcodes, otherwise use code128
+        const barcodeType = (ticket.barcode.length === 13 && /^\d+$/.test(ticket.barcode)) ? 'ean13' : 'code128';
         barcodeBuffer = await bwipjs.toBuffer({
-          bcid: 'ean13',
+          bcid: barcodeType,
           text: ticket.barcode,
           scale: barcodeSettings.width ? (barcodeSettings.width / 60) : 1.5,
           height: barcodeSettings.height ? Math.floor(barcodeSettings.height / 2) : 10,
@@ -1879,6 +1881,11 @@ async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y, qrBuf
   const TICKET_HEIGHT = 5.5 * 72;  // 5.5" = 396pt
   const STUB_HEIGHT = 1.5 * 72;    // 1.5" = 108pt (top section)
   const MAIN_HEIGHT = 4.0 * 72;    // 4.0" = 288pt (bottom section)
+  
+  // Layout constants for better maintainability
+  const PADDING = 5;
+  const FIELD_SPACING = 18; // Space between form fields
+  const FIELD_LINE_OFFSET = 12; // Offset from label to line
 
   // Draw outer border
   doc.save();
@@ -1924,22 +1931,32 @@ async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y, qrBuf
   // === STUB SECTION (Top 1.5") - Buyer info fields ===
   doc.fontSize(7).fillColor('#000000').font('Helvetica-Bold');
   
-  doc.text('Name:', x + 5, y + 8, { width: TICKET_WIDTH - 10 });
+  // Define field positions using constants
+  let fieldY = y + 8;
+  
+  // Name field
+  doc.text('Name:', x + PADDING, fieldY, { width: TICKET_WIDTH - 10 });
   doc.strokeColor('#000000').lineWidth(0.5);
-  doc.moveTo(x + 5, y + 20).lineTo(x + TICKET_WIDTH - 5, y + 20).stroke();
+  doc.moveTo(x + PADDING, fieldY + FIELD_LINE_OFFSET).lineTo(x + TICKET_WIDTH - PADDING, fieldY + FIELD_LINE_OFFSET).stroke();
+  fieldY += FIELD_SPACING;
 
-  doc.text('Phone:', x + 5, y + 26, { width: TICKET_WIDTH - 10 });
-  doc.moveTo(x + 5, y + 38).lineTo(x + TICKET_WIDTH - 5, y + 38).stroke();
+  // Phone field
+  doc.text('Phone:', x + PADDING, fieldY, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + PADDING, fieldY + FIELD_LINE_OFFSET).lineTo(x + TICKET_WIDTH - PADDING, fieldY + FIELD_LINE_OFFSET).stroke();
+  fieldY += FIELD_SPACING;
 
-  doc.text('Email:', x + 5, y + 44, { width: TICKET_WIDTH - 10 });
-  doc.moveTo(x + 5, y + 56).lineTo(x + TICKET_WIDTH - 5, y + 56).stroke();
+  // Email field
+  doc.text('Email:', x + PADDING, fieldY, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + PADDING, fieldY + FIELD_LINE_OFFSET).lineTo(x + TICKET_WIDTH - PADDING, fieldY + FIELD_LINE_OFFSET).stroke();
+  fieldY += FIELD_SPACING;
 
-  doc.text('Date:', x + 5, y + 62, { width: TICKET_WIDTH - 10 });
-  doc.moveTo(x + 5, y + 74).lineTo(x + TICKET_WIDTH - 5, y + 74).stroke();
+  // Date field
+  doc.text('Date:', x + PADDING, fieldY, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + PADDING, fieldY + FIELD_LINE_OFFSET).lineTo(x + TICKET_WIDTH - PADDING, fieldY + FIELD_LINE_OFFSET).stroke();
 
   // Small ticket number on stub
   doc.fontSize(6).fillColor('#666666').font('Helvetica')
-     .text(`#${ticket.ticket_number}`, x + 5, y + STUB_HEIGHT - 15, {
+     .text(`#${ticket.ticket_number}`, x + PADDING, y + STUB_HEIGHT - 15, {
        width: TICKET_WIDTH - 10,
        align: 'center'
      });
