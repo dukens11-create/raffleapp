@@ -1810,9 +1810,11 @@ async function generateXYZ8UpPDF(tickets, customDesign = null, barcodeSettings =
     let barcodeImage = null;
     if (ticket.barcode) {
       try {
+        // Pad barcode to 12 digits for EAN-13 (13th digit is check digit)
+        const paddedBarcode = ticket.barcode.padStart(12, '0');
         barcodeImage = await bwipjs.toBuffer({
           bcid: 'ean13',
-          text: ticket.barcode,
+          text: paddedBarcode,
           scale: 2,
           height: 10,
           includetext: true,
