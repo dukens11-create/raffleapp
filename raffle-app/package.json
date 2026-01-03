@@ -4,7 +4,8 @@
   "main": "server.js",
   "scripts": {
     "start": "cross-env NODE_ENV=production node --max-old-space-size=1024 server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "migrate:barcodes": "node migrations/migrate_to_8digit_barcodes.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

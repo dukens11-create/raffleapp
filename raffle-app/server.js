@@ -2310,19 +2310,18 @@ app.get('/api/admin/tickets/template', requireAuth, requireAdmin, (req, res) => 
   }
 });
 
-// GET /api/admin/tickets/number-barcode - Export ticket numbers and barcodes as CSV
+// GET /api/admin/tickets/number-barcode - Export ticket numbers and barcodes as CSV (STREAMING)
 // Returns a CSV file with only ticket_number and barcode columns, sorted by ticket_number
+// Uses streaming to handle large datasets (1M+ tickets) without OOM crashes
 app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (req, res) => {
   try {
-    console.log('📥 CSV export request received for ticket numbers and barcodes');
+    console.log('📥 CSV export request received for ticket numbers and barcodes (STREAMING)');
     
-    // Fetch all tickets with only ticket_number and barcode, sorted by ticket_number
-    const tickets = await db.query(
-      'SELECT ticket_number, barcode FROM tickets ORDER BY ticket_number ASC'
-    );
+    // Check if tickets exist before starting streaming
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult ? countResult.total : 0;
     
-    // Handle case where no tickets exist
-    if (!tickets || tickets.length === 0) {
+    if (totalTickets === 0) {
       console.warn('⚠️ No tickets found in database');
       return res.status(404).json({ 
         error: 'No tickets found',
@@ -2330,7 +2329,12 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
       });
     }
     
-    console.log(`✅ Found ${tickets.length} tickets for CSV export`);
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets for CSV export`);
+    
+    // Set response headers for CSV download
+    const filename = 'tickets_number_barcode.csv';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     
     // Helper function to format CSV field (escape and quote if needed)
     const formatCsvField = (value) => {
@@ -2342,62 +2346,66 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
       return needsQuotes ? `"${escapedValue}"` : escapedValue;
     };
     
-    // Generate CSV content
-    // Start with header row
-    let csvContent = 'ticket_number,barcode\n';
+    // Write header row
+    res.write('ticket_number,barcode\n');
     
-    // Add each ticket as a row
-    tickets.forEach(ticket => {
-      const ticketNumber = formatCsvField(ticket.ticket_number);
-      const barcode = formatCsvField(ticket.barcode);
-      csvContent += `${ticketNumber},${barcode}\n`;
-    });
+    let totalProcessed = 0;
     
-    // Set response headers for CSV download
-    const filename = 'tickets_number_barcode.csv';
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(csvContent);
+    // Stream tickets row-by-row without loading all into memory
+    await db.streamRows(
+      'SELECT ticket_number, barcode FROM tickets ORDER BY ticket_number ASC',
+      [],
+      (ticket) => {
+        const ticketNumber = formatCsvField(ticket.ticket_number);
+        const barcode = formatCsvField(ticket.barcode);
+        res.write(`${ticketNumber},${barcode}\n`);
+        totalProcessed++;
+        
+        // Log progress every 10,000 tickets
+        if (totalProcessed % 10000 === 0) {
+          console.log(`📊 Streamed ${totalProcessed.toLocaleString()} tickets...`);
+        }
+      },
+      { batchSize: 1000 }
+    );
     
-    console.log(`✅ CSV export successful: ${tickets.length} tickets exported`);
+    // End response
+    res.end();
+    
+    console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
     
   } catch (error) {
     console.error('❌ Error exporting CSV:', error);
     console.error('Stack:', error.stack);
-    res.status(500).json({ 
-      error: 'Failed to export CSV',
-      message: error.message
-    });
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to export CSV',
+        message: error.message
+      });
+    }
   }
 });
 
-// GET /api/admin/tickets/export-all-barcodes - Export ALL ticket numbers and barcodes as TXT
+// GET /api/admin/tickets/export-all-barcodes - Export ALL ticket numbers and barcodes as TXT (STREAMING)
+// Uses streaming to handle large datasets without OOM crashes
 app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, async (req, res) => {
   try {
-    console.log('Starting export of all ticket barcodes...');
+    console.log('📥 Starting streaming export of all ticket barcodes...');
     
-    // Get ALL tickets, ordered by ticket number
-    const tickets = await db.query(`
-      SELECT ticket_number, barcode 
-      FROM tickets 
-      ORDER BY ticket_number ASC
-    `);
+    // Check if tickets exist before starting streaming
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult ? countResult.total : 0;
     
-    console.log(`Found ${tickets.length} tickets to export`);
-    
-    if (tickets.length === 0) {
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found in database');
       return res.status(404).json({ 
         error: 'No tickets found',
         message: 'There are no tickets in the system. Please generate or import tickets first.'
       });
     }
     
-    // Generate simple TXT content: "TICKET-NUMBER  BARCODE"
-    const lines = [];
-    tickets.forEach(ticket => {
-      lines.push(`${ticket.ticket_number}  ${ticket.barcode}`);
-    });
-    const txtContent = lines.join('\n') + '\n';
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets for export`);
     
     // Set headers for file download
     const timestamp = new Date().toISOString().split('T')[0];
@@ -2405,16 +2413,41 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
     
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(txtContent);
     
-    console.log(`Export complete: ${filename} with ${tickets.length} tickets`);
+    let totalProcessed = 0;
+    
+    // Stream tickets row-by-row without loading all into memory
+    await db.streamRows(
+      'SELECT ticket_number, barcode FROM tickets ORDER BY ticket_number ASC',
+      [],
+      (ticket) => {
+        // Write line: "TICKET-NUMBER  BARCODE"
+        res.write(`${ticket.ticket_number}  ${ticket.barcode}\n`);
+        totalProcessed++;
+        
+        // Log progress every 10,000 tickets
+        if (totalProcessed % 10000 === 0) {
+          console.log(`📊 Streamed ${totalProcessed.toLocaleString()} tickets...`);
+        }
+      },
+      { batchSize: 1000 }
+    );
+    
+    // End response
+    res.end();
+    
+    console.log(`✅ Export complete: ${filename} with ${totalProcessed.toLocaleString()} tickets`);
     
   } catch (error) {
-    console.error('Error exporting all ticket barcodes:', error);
-    res.status(500).json({ 
-      error: 'Failed to export ticket barcodes',
-      message: error.message
-    });
+    console.error('❌ Error exporting all ticket barcodes:', error);
+    console.error('Stack:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to export ticket barcodes',
+        message: error.message
+      });
+    }
   }
 });
 
@@ -4362,7 +4395,8 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
   }
 });
 
-// GET /api/admin/tickets/export-csv - Export tickets to CSV
+// GET /api/admin/tickets/export-csv - Export tickets to CSV (STREAMING)
+// Uses streaming to handle large datasets without OOM crashes
 app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, res) => {
   try {
     const {
@@ -4370,6 +4404,8 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
       category = '',
       status = ''
     } = req.query;
+    
+    console.log('📥 CSV export request received (STREAMING) - filters:', { search, category, status });
     
     // Build WHERE clause dynamically
     const conditions = [];
@@ -4392,6 +4428,21 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
     
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     
+    // Check if any tickets match criteria before starting streaming
+    const countQuery = `SELECT COUNT(*) as total FROM tickets ${whereClause}`;
+    const countResult = await db.get(countQuery, params);
+    const totalTickets = countResult ? countResult.total : 0;
+    
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found matching criteria');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'No tickets match the specified criteria.'
+      });
+    }
+    
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets matching criteria`);
+    
     const query = `
       SELECT 
         ticket_number,
@@ -4407,32 +4458,54 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
       ORDER BY ticket_number
     `;
     
-    const tickets = await db.all(query, params);
-    
-    // Generate CSV
-    const csvHeader = 'Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Created At\n';
-    const csvRows = tickets.map(ticket => {
-      return [
-        ticket.ticket_number || '',
-        ticket.barcode || '',
-        ticket.category || '',
-        ticket.price || '',
-        ticket.status || '',
-        ticket.buyer_name || '',
-        ticket.seller_name || '',
-        ticket.created_at || ''
-      ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
-    }).join('\n');
-    
-    const csv = csvHeader + csvRows;
-    
     // Set headers for file download
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename="tickets-export-${Date.now()}.csv"`);
-    res.send(csv);
+    
+    // Write CSV header
+    res.write('Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Created At\n');
+    
+    let totalProcessed = 0;
+    
+    // Stream tickets row-by-row without loading all into memory
+    await db.streamRows(
+      query,
+      params,
+      (ticket) => {
+        const row = [
+          ticket.ticket_number || '',
+          ticket.barcode || '',
+          ticket.category || '',
+          ticket.price || '',
+          ticket.status || '',
+          ticket.buyer_name || '',
+          ticket.seller_name || '',
+          ticket.created_at || ''
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
+        
+        res.write(row + '\n');
+        totalProcessed++;
+        
+        // Log progress every 10,000 tickets
+        if (totalProcessed % 10000 === 0) {
+          console.log(`📊 Streamed ${totalProcessed.toLocaleString()} tickets...`);
+        }
+      },
+      { batchSize: 1000 }
+    );
+    
+    // End response
+    res.end();
+    
+    console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
+    
   } catch (error) {
-    console.error('Error exporting CSV:', error);
-    res.status(500).json({ error: 'Failed to export CSV' });
+    console.error('❌ Error exporting CSV:', error);
+    console.error('Stack:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to export CSV' });
+    }
   }
 });
 

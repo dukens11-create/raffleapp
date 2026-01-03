@@ -575,6 +575,161 @@ function isUniqueConstraintError(error) {
          message.includes('duplicate key');
 }
 
+/**
+ * Stream rows from database without loading all into memory
+ * Processes rows one at a time using a callback
+ * 
+ * @param {string} sql - SQL query
+ * @param {Array} params - Query parameters
+ * @param {Function} rowCallback - Callback function(row) called for each row
+ * @param {Object} options - Options { batchSize: number }
+ * @returns {Promise<number>} - Total rows processed
+ */
+async function streamRows(sql, params = [], rowCallback, options = {}) {
+  const batchSize = options.batchSize || 1000;
+  let totalProcessed = 0;
+  
+  if (USE_POSTGRES) {
+    // PostgreSQL: Use LIMIT/OFFSET pagination to avoid loading all rows at once
+    let offset = 0;
+    let hasMore = true;
+    
+    // Convert SQLite placeholders (?) to PostgreSQL placeholders ($1, $2, etc.)
+    let pgSql = sql;
+    let paramIndex = 1;
+    pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
+    
+    // Add LIMIT and OFFSET if not present
+    // Note: Simple check - assumes caller doesn't use LIMIT in string literals
+    if (!pgSql.toUpperCase().includes('LIMIT')) {
+      pgSql += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
+    }
+    
+    while (hasMore) {
+      const batchParams = [...params, batchSize, offset];
+      const result = await new Promise((resolve, reject) => {
+        pgPool.query(pgSql, batchParams, (err, result) => {
+          if (err) reject(err);
+          else resolve(result.rows);
+        });
+      });
+      
+      if (result.length === 0) {
+        hasMore = false;
+      } else {
+        for (const row of result) {
+          await rowCallback(row);
+          totalProcessed++;
+        }
+        offset += result.length;
+        
+        // Allow garbage collection between batches
+        if (global.gc) {
+          global.gc();
+        }
+      }
+    }
+  } else {
+    // SQLite: Use db.each for row-by-row processing
+    return new Promise((resolve, reject) => {
+      db.each(
+        sql,
+        params,
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            rowCallback(row);
+            totalProcessed++;
+          }
+        },
+        (err) => {
+          if (err) reject(err);
+          else resolve(totalProcessed);
+        }
+      );
+    });
+  }
+  
+  return totalProcessed;
+}
+
+/**
+ * Process rows in batches without loading entire result set into memory
+ * Calls batchCallback with array of rows for each batch
+ * 
+ * @param {string} sql - SQL query
+ * @param {Array} params - Query parameters
+ * @param {Function} batchCallback - Callback function(batch) called for each batch, returns true to stop
+ * @param {Object} options - Options { batchSize: number }
+ * @returns {Promise<number>} - Total rows processed
+ */
+async function processBatches(sql, params = [], batchCallback, options = {}) {
+  const batchSize = options.batchSize || 1000;
+  let totalProcessed = 0;
+  let offset = 0;
+  let hasMore = true;
+  
+  // Convert SQLite placeholders (?) to PostgreSQL placeholders ($1, $2, etc.) if needed
+  let execSql = sql;
+  
+  if (USE_POSTGRES) {
+    let paramIndex = 1;
+    execSql = execSql.replace(/\?/g, () => `$${paramIndex++}`);
+  }
+  
+  // Add LIMIT and OFFSET if not present
+  // Note: Simple check - assumes caller doesn't use LIMIT in string literals
+  if (!execSql.toUpperCase().includes('LIMIT')) {
+    if (USE_POSTGRES) {
+      execSql += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    } else {
+      execSql += ' LIMIT ? OFFSET ?';
+    }
+  }
+  
+  while (hasMore) {
+    const batchParams = [...params, batchSize, offset];
+    
+    let batch;
+    if (USE_POSTGRES) {
+      batch = await new Promise((resolve, reject) => {
+        pgPool.query(execSql, batchParams, (err, result) => {
+          if (err) reject(err);
+          else resolve(result.rows);
+        });
+      });
+    } else {
+      batch = await new Promise((resolve, reject) => {
+        db.all(execSql, batchParams, (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+    }
+    
+    if (batch.length === 0) {
+      hasMore = false;
+    } else {
+      const shouldStop = await batchCallback(batch);
+      totalProcessed += batch.length;
+      offset += batch.length;
+      
+      // Stop if callback returns true
+      if (shouldStop === true) {
+        hasMore = false;
+      }
+      
+      // Allow garbage collection between batches
+      if (global.gc) {
+        global.gc();
+      }
+    }
+  }
+  
+  return totalProcessed;
+}
+
 module.exports = {
   query,
   get,
@@ -585,5 +740,7 @@ module.exports = {
   serialize,
   USE_POSTGRES,
   getCurrentTimestamp,
-  isUniqueConstraintError
+  isUniqueConstraintError,
+  streamRows,
+  processBatches
 };
