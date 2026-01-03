@@ -2344,9 +2344,9 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
       return needsQuotes ? `"${escapedValue}"` : escapedValue;
     };
     
-    // Write CSV header
+    // Write CSV header (this sends headers to client)
     res.write('ticket_number,barcode,category\n');
-    headerSent = true;
+    headerSent = true; // Now headers are truly sent
     
     // Stream tickets from database in batches
     const totalProcessed = await db.streamQuery(
@@ -2423,7 +2423,9 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     
-    headerSent = true;
+    // Start the response stream (this sends headers to client)
+    res.write('');
+    headerSent = true; // Now headers are truly sent
     
     // Stream tickets from database in batches
     const totalProcessed = await db.streamQuery(
@@ -2431,6 +2433,7 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
       [],
       (ticket) => {
         // Format: "TICKET-NUMBER  BARCODE  CATEGORY"
+        // Note: Using inline || '' for null handling as TXT doesn't need CSV escaping
         res.write(`${ticket.ticket_number}  ${ticket.barcode}  ${ticket.category || ''}\n`);
         rowCount++;
         

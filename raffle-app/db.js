@@ -582,6 +582,9 @@ function isUniqueConstraintError(error) {
  * @param {string} sql - SQL query
  * @param {array} params - Query parameters
  * @param {function} rowCallback - Callback function called for each row (row) => {}
+ *                                 Note: In PostgreSQL mode, async callbacks are awaited.
+ *                                 In SQLite mode, async callbacks are not awaited (db.each limitation).
+ *                                 For SQLite, callbacks should be synchronous or handle their own promises.
  * @param {object} options - Options { batchSize: 1000 }
  * @returns {Promise<number>} - Total rows processed
  */
