@@ -320,8 +320,11 @@ async function getBarcodeStatistics() {
  */
 async function validateTicketForSale(barcode) {
   try {
+    console.log(`[VALIDATE] Checking barcode: ${barcode}`);
+    
     // Step 1: Validate format (both new and legacy formats)
     if (!barcode || typeof barcode !== 'string' || barcode.trim().length === 0) {
+      console.log('[VALIDATE] Empty or invalid type');
       return {
         valid: false,
         error: 'INVALID_FORMAT',
@@ -333,6 +336,7 @@ async function validateTicketForSale(barcode) {
 
     // Validate barcode format using updated validation
     if (!barcodeService.validateBarcodeNumber(cleanedBarcode)) {
+      console.log(`[VALIDATE] Format validation failed for: ${cleanedBarcode}`);
       return {
         valid: false,
         error: 'INVALID_FORMAT',
@@ -340,10 +344,13 @@ async function validateTicketForSale(barcode) {
       };
     }
     
+    console.log(`[VALIDATE] Format valid. Looking up ticket...`);
+    
     // Step 2: Find ticket in database (supports both barcode and ticket_number lookup)
     const ticket = await ticketService.getTicketByBarcode(cleanedBarcode);
     
     if (!ticket) {
+      console.log(`[VALIDATE] Ticket not found for barcode: ${cleanedBarcode}`);
       return {
         valid: false,
         error: 'NOT_FOUND',
@@ -351,8 +358,11 @@ async function validateTicketForSale(barcode) {
       };
     }
     
+    console.log(`[VALIDATE] Ticket found: ${ticket.ticket_number}, status: ${ticket.status}`);
+    
     // Step 3: Check if ticket is flagged as invalid
     if (ticket.status === 'INVALID') {
+      console.log(`[VALIDATE] Ticket ${ticket.ticket_number} is marked INVALID`);
       return {
         valid: false,
         error: 'LEGACY_TICKET',
@@ -363,6 +373,7 @@ async function validateTicketForSale(barcode) {
     
     // Step 4: Check if already sold
     if (ticket.status === 'SOLD') {
+      console.log(`[VALIDATE] Ticket ${ticket.ticket_number} is already SOLD`);
       return {
         valid: false,
         error: 'ALREADY_SOLD',
@@ -372,12 +383,14 @@ async function validateTicketForSale(barcode) {
     }
     
     // Step 5: Valid ticket
+    console.log(`[VALIDATE] Ticket ${ticket.ticket_number} is valid and available`);
     return {
       valid: true,
       ticket: ticket
     };
   } catch (error) {
-    console.error('Error validating ticket:', error);
+    console.error('[VALIDATE] Exception:', error);
+    console.error('[VALIDATE] Stack trace:', error.stack);
     return {
       valid: false,
       error: 'SYSTEM_ERROR',
