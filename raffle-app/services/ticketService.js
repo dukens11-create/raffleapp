@@ -9,7 +9,7 @@ const qrcodeService = require('./qrcodeService');
 const barcodeGenerator = require('./barcodeGenerator');
 
 /**
- * Create a single ticket with auto-generated barcode and QR code
+ * Create a single ticket with auto-generated barcode (QR codes disabled)
  * 
  * @param {Object} ticketData - Ticket information
  * @param {number} ticketData.raffle_id - Raffle ID
@@ -33,29 +33,20 @@ async function createTicket(ticketData) {
     const parts = ticket_number.split('-');
     const sequenceNum = parseInt(parts[1], 10);
     
-    // Generate EAN-13 barcode
+    // Generate 8-digit barcode
     const barcode = barcodeGenerator.generateBarcode(category, sequenceNum);
-    
-    // Generate QR code data (JSON string)
-    const qrCodeData = qrcodeService.generateQRCodeData({
-      ticket_number,
-      barcode,
-      category,
-      price,
-      raffle_id
-    });
 
     const result = await db.run(
       `INSERT INTO tickets (raffle_id, category_id, category, ticket_number, barcode, qr_code_data, price, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', ${db.getCurrentTimestamp()})`,
-      [raffle_id, category_id, category, ticket_number, barcode, qrCodeData, price]
+       VALUES (?, ?, ?, ?, ?, NULL, ?, 'AVAILABLE', ${db.getCurrentTimestamp()})`,
+      [raffle_id, category_id, category, ticket_number, barcode, price]
     );
 
     return {
       id: result.lastID,
       ...ticketData,
       barcode,
-      qr_code_data: qrCodeData,
+      qr_code_data: null,
       status: 'AVAILABLE',
       printed: false
     };
@@ -101,7 +92,7 @@ async function createTicketsBulk(tickets) {
 }
 
 /**
- * Generate and save barcode and QR code for a ticket
+ * Generate and save barcode for a ticket (QR codes disabled)
  * This is called during the print process
  * 
  * @param {string} ticketNumber - Ticket number
@@ -111,21 +102,18 @@ async function generateAndSaveCodes(ticketNumber) {
   try {
     // Generate barcode number
     const barcodeNumber = barcodeService.generateBarcodeNumber(ticketNumber);
-    
-    // Generate QR code verification URL
-    const qrCodeData = qrcodeService.generateVerificationURL(ticketNumber);
 
-    // Save to database
+    // Save to database (qr_code_data is set to NULL)
     await db.run(
       `UPDATE tickets 
-       SET barcode = ?, qr_code_data = ?
+       SET barcode = ?, qr_code_data = NULL
        WHERE ticket_number = ?`,
-      [barcodeNumber, qrCodeData, ticketNumber]
+      [barcodeNumber, ticketNumber]
     );
 
     return {
       barcode: barcodeNumber,
-      qrCodeData: qrCodeData
+      qrCodeData: null
     };
   } catch (error) {
     console.error(`Error generating codes for ticket ${ticketNumber}:`, error);
@@ -267,7 +255,8 @@ async function createTicketsForRange(params) {
 }
 
 /**
- * Generate tickets with barcodes and QR codes in bulk (optimized for large-scale generation)
+ * Generate tickets with barcodes in bulk (optimized for large-scale generation)
+ * QR codes disabled - only barcodes are generated
  * 
  * @param {Object} params - Parameters
  * @param {number} params.raffle_id - Raffle ID
@@ -292,22 +281,13 @@ async function generateTickets(params) {
     const batchEnd = Math.min(i + batchSize - 1, endNum);
     const tickets = [];
     
-    // Generate batch of tickets with barcodes and QR codes
+    // Generate batch of tickets with barcodes (no QR codes)
     for (let ticketNum = i; ticketNum <= batchEnd; ticketNum++) {
       const paddedNum = String(ticketNum).padStart(6, '0');
       const ticket_number = `${category}-${paddedNum}`;
       
-      // Generate EAN-13 barcode
+      // Generate 8-digit barcode
       const barcode = barcodeGenerator.generateBarcode(category, ticketNum);
-      
-      // Generate QR code data (JSON string)
-      const qr_code_data = qrcodeService.generateQRCodeData({
-        ticket_number,
-        barcode,
-        category,
-        price,
-        raffle_id
-      });
       
       tickets.push({
         raffle_id,
@@ -315,7 +295,7 @@ async function generateTickets(params) {
         category,
         ticket_number,
         barcode,
-        qr_code_data,
+        qr_code_data: null,
         price
       });
     }
