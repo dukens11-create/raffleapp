@@ -193,16 +193,16 @@ async function updatePrintJobStatus(jobId, status, progress = 0) {
 
 /**
  * Draw a single ticket FRONT side on the PDF (buyer keeps this)
+ * QR codes removed - only barcode is displayed
  * 
  * @param {PDFDocument} doc - PDF document
  * @param {Object} ticket - Ticket data
  * @param {Object} template - Template configuration
  * @param {number} x - X position
  * @param {number} y - Y position
- * @param {Buffer} qrMainImage - Main QR code image buffer
- * @param {Buffer} barcodeImage - Barcode image buffer
+ * @param {Buffer} barcodeImage - Barcode image buffer (QR code removed)
  */
-async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcodeImage) {
+async function drawTicketFront(doc, ticket, template, x, y, barcodeImage) {
   const { ticketWidth, ticketHeight, perforationLine } = template;
   
   // Detect if this is the smaller LETTER_8_TICKETS format
@@ -216,7 +216,6 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   const priceSize = isSmallFormat ? 8 : 10;
   const fieldSize = isSmallFormat ? 6 : 8;
   const footerSize = isSmallFormat ? 6 : 7;
-  const qrSize = isSmallFormat ? 50 : 80;
   const barcodeWidth = isSmallFormat ? 90 : 120;
   const barcodeHeight = isSmallFormat ? 30 : 40;
   
@@ -245,7 +244,7 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   doc.fontSize(ticketNumSize)
      .font('Helvetica-Bold')
      .text(ticket.ticket_number, x + padding, ticketNumY, {
-       width: ticketWidth - qrSize - (padding * 3),
+       width: ticketWidth - (padding * 2),
        align: 'left'
      });
 
@@ -253,27 +252,17 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
   doc.fontSize(bodySize)
      .font('Helvetica')
      .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, categoryY, {
-       width: ticketWidth - qrSize - (padding * 3)
+       width: ticketWidth - (padding * 2)
      });
   
   const priceY = categoryY + (isSmallFormat ? 12 : 14);
   doc.fontSize(priceSize)
      .font('Helvetica-Bold')
      .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, priceY, {
-       width: ticketWidth - qrSize - (padding * 3)
+       width: ticketWidth - (padding * 2)
      });
 
-  // QR Code (right side)
-  if (qrMainImage) {
-    const qrX = x + ticketWidth - qrSize - padding;
-    const qrY = y + padding + (isSmallFormat ? 8 : 10);
-    doc.image(qrMainImage, qrX, qrY, {
-      width: qrSize,
-      height: qrSize
-    });
-  }
-
-  // EAN-13 Barcode (center area)
+  // Barcode (center area) - QR code removed
   if (barcodeImage) {
     const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
     const barcodeY = y + priceY + (isSmallFormat ? 20 : 30);
@@ -328,15 +317,15 @@ async function drawTicketFront(doc, ticket, template, x, y, qrMainImage, barcode
 
 /**
  * Draw a single ticket BACK side on the PDF (seller stub - tracks who sold it)
+ * QR codes removed - barcode information only
  * 
  * @param {PDFDocument} doc - PDF document
  * @param {Object} ticket - Ticket data
  * @param {Object} template - Template configuration
  * @param {number} x - X position
  * @param {number} y - Y position
- * @param {Buffer} qrStubImage - Stub QR code image buffer
  */
-function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
+function drawTicketBack(doc, ticket, template, x, y) {
   const { ticketWidth, ticketHeight, perforationLine } = template;
   
   // Detect if this is the smaller LETTER_8_TICKETS format
@@ -349,7 +338,6 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
   const bodySize = isSmallFormat ? 7 : 9;
   const fieldSize = isSmallFormat ? 6 : 8;
   const footerSize = isSmallFormat ? 6 : 7;
-  const qrSize = isSmallFormat ? 36 : 50;
   
   // Draw border (dashed for tear-off if specified)
   if (perforationLine) {
@@ -367,19 +355,9 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
   doc.fontSize(titleSize)
      .font('Helvetica-Bold')
      .text('📋 SELLER STUB', x + padding, y + padding, {
-       width: ticketWidth - qrSize - (padding * 3),
+       width: ticketWidth - (padding * 2),
        align: 'left'
      });
-
-  // Small QR code (top right)
-  if (qrStubImage) {
-    const qrX = x + ticketWidth - qrSize - padding;
-    const qrY = y + padding;
-    doc.image(qrStubImage, qrX, qrY, {
-      width: qrSize,
-      height: qrSize
-    });
-  }
 
   // Ticket number
   const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
@@ -426,9 +404,9 @@ function drawTicketBack(doc, ticket, template, x, y, qrStubImage) {
 
 /**
  * Draw ticket FRONT with tear-off perforation and custom design
- * CRITICAL: NO BARCODE ON FRONT! Barcode appears ONLY on back side stub.
+ * QR codes removed - no QR code rendering
  */
-async function drawTicketFrontWithTearoff(doc, ticket, template, x, y, qrMainImage, customDesign = null) {
+async function drawTicketFrontWithTearoff(doc, ticket, template, x, y, customDesign = null) {
   const { ticketWidth, ticketHeight, mainTicketHeight, tearOffY, tearOffHeight } = template;
   
   // === MAIN TICKET (TOP) ===
@@ -491,14 +469,6 @@ async function drawTicketFrontWithTearoff(doc, ticket, template, x, y, qrMainIma
   doc.text('Price:', x + 95, y + 53);
   doc.font('Helvetica-Bold').text(`$${parseFloat(ticket.price).toFixed(2)}`, x + 125, y + 53);
   
-  // QR Code (top right, NO barcode on front!)
-  if (qrMainImage) {
-    if (customDesign) {
-      doc.rect(x + ticketWidth - 65, y + 5, 60, 60).fillOpacity(0.95).fill('#FFFFFF').fillOpacity(1);
-    }
-    doc.image(qrMainImage, x + ticketWidth - 60, y + 8, { width: 50, height: 50 });
-  }
-  
   // === PERFORATION LINE ===
   
   const perforationY = y + tearOffY;
@@ -538,23 +508,13 @@ async function drawTicketFrontWithTearoff(doc, ticket, template, x, y, qrMainIma
   doc.fontSize(10).font('Helvetica-Bold').fillColor('#000000');
   doc.text('SELLER STUB', x + 8, stubY + 5, { width: ticketWidth - 16, align: 'center' });
   doc.fontSize(11).text(`#${ticket.ticket_number}`, x + 8, stubY + 18);
-  
-  // Small QR on stub
-  if (qrMainImage) {
-    if (customDesign) {
-      doc.rect(x + ticketWidth - 47, stubY + 3, 42, 42).fillOpacity(0.95).fill('#FFFFFF').fillOpacity(1);
-    }
-    doc.image(qrMainImage, x + ticketWidth - 43, stubY + 5, { width: 35, height: 35 });
-  }
-  
-  // **NO BARCODE ON FRONT STUB - It's only on the back!**
 }
 
 /**
  * Draw ticket BACK with tear-off perforation and BARCODE on stub
- * CRITICAL: Barcode appears ONLY on back side stub (adjustable size)
+ * Barcode appears on back side stub - QR codes removed
  */
-async function drawTicketBackWithTearoff(doc, ticket, template, x, y, qrStubImage, customDesign = null, barcodeSettings = {}) {
+async function drawTicketBackWithTearoff(doc, ticket, template, x, y, customDesign = null, barcodeSettings = {}) {
   const { ticketWidth, ticketHeight, mainTicketHeight, tearOffY, tearOffHeight } = template;
   
   // Adjustable barcode size (from settings)
@@ -653,7 +613,7 @@ async function drawTicketBackWithTearoff(doc, ticket, template, x, y, qrStubImag
     // Generate barcode with adjustable size using module-level constants
     try {
       const barcodeBuffer = await bwipjs.toBuffer({
-        bcid: 'ean13',
+        bcid: 'code128',
         text: ticket.barcode,
         scale: barcodeWidth / BARCODE_BASE_WIDTH, // Scale proportionally from base width
         height: Math.floor(barcodeHeight / BARCODE_HEIGHT_RATIO), // Convert points to mm for bwip-js
@@ -721,24 +681,13 @@ async function generatePrintPDF(tickets, paperType, printJobId, customDesign = n
       // Detect if this is the smaller LETTER_8_TICKETS format
       const isSmallFormat = template.ticketWidth < 200;
       
-      // Generate QR code images with full ticket data (scaled for format)
-      const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: isSmallFormat ? 67 : 96, // 0.7" at 96 DPI for small format, 1" for regular
-        errorCorrectionLevel: 'M'
-      });
-      
-      const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: isSmallFormat ? 48 : 50, // 0.5" at 96 DPI for small format
-        errorCorrectionLevel: 'M'
-      });
-      
-      // Generate EAN-13 barcode image (using bwip-js)
+      // Generate barcode image only (QR codes disabled)
       const bwipjs = require('bwip-js');
       let barcodeBuffer = null;
       if (ticket.barcode) {
         try {
           barcodeBuffer = await bwipjs.toBuffer({
-            bcid: 'ean13',
+            bcid: 'code128',
             text: ticket.barcode,
             scale: isSmallFormat ? 1.5 : 2,
             height: isSmallFormat ? 8 : 10,
@@ -752,15 +701,13 @@ async function generatePrintPDF(tickets, paperType, printJobId, customDesign = n
       
       return {
         ticket,
-        qrMainBuffer,
-        qrStubBuffer,
         barcodeBuffer
       };
     }));
     
     // Draw FRONT side tickets in grid layout
     for (let j = 0; j < batchWithCodes.length; j++) {
-      const { ticket, qrMainBuffer, barcodeBuffer } = batchWithCodes[j];
+      const { ticket, barcodeBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (2 columns x N rows)
       const col = j % template.columns;
@@ -771,9 +718,9 @@ async function generatePrintPDF(tickets, paperType, printJobId, customDesign = n
 
       // Draw FRONT side - use tear-off layout if enabled
       if (useTearoffLayout) {
-        await drawTicketFrontWithTearoff(doc, ticket, template, x, y, qrMainBuffer, customDesign);
+        await drawTicketFrontWithTearoff(doc, ticket, template, x, y, customDesign);
       } else {
-        await drawTicketFront(doc, ticket, template, x, y, qrMainBuffer, barcodeBuffer);
+        await drawTicketFront(doc, ticket, template, x, y, barcodeBuffer);
       }
     }
     
@@ -782,7 +729,7 @@ async function generatePrintPDF(tickets, paperType, printJobId, customDesign = n
     
     // Draw BACK side stubs in same layout (will be on back when printed duplex)
     for (let j = 0; j < batchWithCodes.length; j++) {
-      const { ticket, qrStubBuffer } = batchWithCodes[j];
+      const { ticket } = batchWithCodes[j];
 
       // Calculate position in grid (same as front)
       const col = j % template.columns;
@@ -793,9 +740,9 @@ async function generatePrintPDF(tickets, paperType, printJobId, customDesign = n
 
       // Draw BACK side - use tear-off layout if enabled
       if (useTearoffLayout) {
-        await drawTicketBackWithTearoff(doc, ticket, template, x, y, qrStubBuffer, customDesign, barcodeSettings);
+        await drawTicketBackWithTearoff(doc, ticket, template, x, y, customDesign, barcodeSettings);
       } else {
-        drawTicketBack(doc, ticket, template, x, y, qrStubBuffer);
+        drawTicketBack(doc, ticket, template, x, y);
       }
       
       // Mark ticket as printed after processing both sides

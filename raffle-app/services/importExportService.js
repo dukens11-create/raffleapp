@@ -257,7 +257,6 @@ async function exportTickets(filters = {}) {
         t.category as 'Category',
         t.price as 'Price',
         t.barcode as 'Barcode',
-        t.qr_code_data as 'QR Code',
         t.status as 'Status',
         t.buyer_name as 'Buyer Name',
         t.buyer_phone as 'Buyer Phone',
