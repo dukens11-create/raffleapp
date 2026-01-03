@@ -1,8 +1,9 @@
 /**
- * Export All Tickets Script
+ * Export All Tickets Script (STREAMING VERSION)
  * 
  * This script exports all ticket data from the database to a tab-separated values (TSV) file
  * that can be easily opened in Excel or other spreadsheet applications.
+ * Uses streaming to handle large datasets (1M+ tickets) without OOM crashes.
  * 
  * HOW TO RUN:
  *   node export_all_tickets.js
@@ -11,46 +12,29 @@
  *   Creates a file at: ticket_exports/all_tickets.tsv
  *   Format: category<TAB>ticket_number<TAB>barcode
  * 
- * The script queries all tickets from the database, ordered by category and ticket_number,
- * and exports them to a TSV file for easy viewing in spreadsheet applications.
+ * The script streams tickets from the database row-by-row, writing directly to the file,
+ * without loading the entire dataset into memory.
  */
 
-const sqlite3 = require('sqlite3').verbose();
+const db = require('./db');
 const fs = require('fs');
 const path = require('path');
 
 // ============================================================================
-// DATABASE CONFIGURATION
+// OUTPUT CONFIGURATION
 // ============================================================================
-// Change this path if your database is located elsewhere
-const DB_PATH = './raffle.db';
-
-// Output directory and file configuration
 const OUTPUT_DIR = 'ticket_exports';
 const OUTPUT_FILE = 'all_tickets.tsv';
 
 // ============================================================================
-// MAIN EXPORT FUNCTION
+// MAIN EXPORT FUNCTION (STREAMING)
 // ============================================================================
 
 async function exportAllTickets() {
-  console.log('🎟️  Starting ticket export...');
-  console.log(`📂 Database: ${DB_PATH}`);
+  console.log('🎟️  Starting ticket export (STREAMING)...');
   
-  // Check if database file exists
-  if (!fs.existsSync(DB_PATH)) {
-    console.error(`❌ Error: Database file not found at ${DB_PATH}`);
-    console.error('   Please ensure the database file exists or update DB_PATH in this script.');
-    process.exit(1);
-  }
-  
-  // Open database connection
-  const db = new sqlite3.Database(DB_PATH, sqlite3.OPEN_READONLY, (err) => {
-    if (err) {
-      console.error('❌ Error opening database:', err.message);
-      process.exit(1);
-    }
-  });
+  // Wait for database connection to be ready
+  await new Promise(resolve => setTimeout(resolve, 1000));
   
   try {
     // Create output directory if it doesn't exist
@@ -59,75 +43,65 @@ async function exportAllTickets() {
       console.log(`✅ Created directory: ${OUTPUT_DIR}`);
     }
     
-    // Query all tickets ordered by category and ticket_number
-    const query = `
-      SELECT category, ticket_number, barcode
-      FROM tickets
-      ORDER BY category ASC, ticket_number ASC
-    `;
-    
-    console.log('🔍 Querying database...');
-    
-    const tickets = await new Promise((resolve, reject) => {
-      db.all(query, [], (err, rows) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      });
-    });
-    
-    console.log(`📊 Found ${tickets.length} tickets`);
-    
-    if (tickets.length === 0) {
-      console.log('⚠️  No tickets found in database. Export file will be created with headers only.');
-    }
-    
-    // Create TSV content
+    // Create write stream for output file
     const outputPath = path.join(OUTPUT_DIR, OUTPUT_FILE);
-    const header = 'category\tticket_number\tbarcode\n';
+    const writeStream = fs.createWriteStream(outputPath, { encoding: 'utf8' });
     
-    // Build TSV content
-    let tsvContent = header;
-    for (const ticket of tickets) {
-      const category = ticket.category || '';
-      const ticketNumber = ticket.ticket_number || '';
-      const barcode = ticket.barcode || '';
-      tsvContent += `${category}\t${ticketNumber}\t${barcode}\n`;
-    }
+    // Write TSV header
+    writeStream.write('category\tticket_number\tbarcode\n');
     
-    // Write to file
-    fs.writeFileSync(outputPath, tsvContent, 'utf8');
+    console.log('🔍 Streaming tickets from database...');
+    
+    let totalProcessed = 0;
+    const categoryBreakdown = {};
+    
+    // Stream tickets row-by-row without loading all into memory
+    await db.streamRows(
+      'SELECT category, ticket_number, barcode FROM tickets ORDER BY category ASC, ticket_number ASC',
+      [],
+      (ticket) => {
+        const category = ticket.category || '';
+        const ticketNumber = ticket.ticket_number || '';
+        const barcode = ticket.barcode || '';
+        
+        writeStream.write(`${category}\t${ticketNumber}\t${barcode}\n`);
+        
+        // Track category breakdown
+        categoryBreakdown[category] = (categoryBreakdown[category] || 0) + 1;
+        totalProcessed++;
+        
+        // Log progress every 10,000 tickets
+        if (totalProcessed % 10000 === 0) {
+          console.log(`📊 Streamed ${totalProcessed.toLocaleString()} tickets...`);
+        }
+      },
+      { batchSize: 1000 }
+    );
+    
+    // Close write stream
+    writeStream.end();
     
     console.log('✅ Export completed successfully!');
     console.log(`📄 Output file: ${outputPath}`);
-    console.log(`📈 Total tickets exported: ${tickets.length}`);
+    console.log(`📈 Total tickets exported: ${totalProcessed.toLocaleString()}`);
     
     // Show category breakdown
-    if (tickets.length > 0) {
-      const categoryBreakdown = {};
-      tickets.forEach(ticket => {
-        const cat = ticket.category || 'NULL';
-        categoryBreakdown[cat] = (categoryBreakdown[cat] || 0) + 1;
-      });
-      
+    if (totalProcessed > 0) {
       console.log('\n📊 Category Breakdown:');
       Object.entries(categoryBreakdown).sort().forEach(([category, count]) => {
-        console.log(`   ${category}: ${count} tickets`);
+        console.log(`   ${category || 'NULL'}: ${count.toLocaleString()} tickets`);
       });
+    } else {
+      console.log('⚠️  No tickets found in database. Export file created with headers only.');
     }
     
   } catch (error) {
     console.error('❌ Error during export:', error.message);
+    console.error('Stack:', error.stack);
     process.exit(1);
   } finally {
     // Close database connection
-    db.close((err) => {
-      if (err) {
-        console.error('Error closing database:', err.message);
-      }
-    });
+    db.close();
   }
 }
 

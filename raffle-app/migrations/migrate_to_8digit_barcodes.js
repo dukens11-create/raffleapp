@@ -67,48 +67,60 @@ async function migrateDatabase() {
   console.log('');
 
   try {
-    // Step 1: Get all tickets
-    console.log('📊 Step 1: Fetching all tickets...');
-    const tickets = await db.all('SELECT id, ticket_number, barcode FROM tickets ORDER BY ticket_number');
-    console.log(`   Found ${tickets.length} tickets to process`);
+    // Step 1: Get total count of tickets
+    console.log('📊 Step 1: Checking ticket count...');
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult.total;
+    console.log(`   Found ${totalTickets.toLocaleString()} tickets to process`);
     console.log('');
 
-    if (tickets.length === 0) {
+    if (totalTickets === 0) {
       console.log('✅ No tickets to migrate. Database is empty.');
       return;
     }
 
-    // Step 2: Convert barcodes and check for duplicates
-    console.log('🔧 Step 2: Converting barcodes to 8-digit format...');
-    const newBarcodes = new Map();
+    // Step 2: Process tickets in batches to convert barcodes
+    console.log('🔧 Step 2: Converting barcodes to 8-digit format (BATCH PROCESSING)...');
     const updates = [];
+    const newBarcodes = new Map();
     let conversionErrors = 0;
-
-    for (const ticket of tickets) {
-      try {
-        const newBarcode = generate8DigitBarcode(ticket.ticket_number);
-        
-        // Check for duplicates
-        if (newBarcodes.has(newBarcode)) {
-          console.error(`   ❌ ERROR: Duplicate barcode detected: ${newBarcode} for ticket ${ticket.ticket_number}`);
-          conversionErrors++;
-          continue;
+    let processed = 0;
+    
+    await db.processBatches(
+      'SELECT id, ticket_number, barcode FROM tickets ORDER BY ticket_number',
+      [],
+      async (batch) => {
+        for (const ticket of batch) {
+          try {
+            const newBarcode = generate8DigitBarcode(ticket.ticket_number);
+            
+            // Check for duplicates
+            if (newBarcodes.has(newBarcode)) {
+              console.error(`   ❌ ERROR: Duplicate barcode detected: ${newBarcode} for ticket ${ticket.ticket_number}`);
+              conversionErrors++;
+              continue;
+            }
+            
+            newBarcodes.set(newBarcode, ticket.ticket_number);
+            updates.push({
+              id: ticket.id,
+              ticket_number: ticket.ticket_number,
+              old_barcode: ticket.barcode,
+              new_barcode: newBarcode
+            });
+          } catch (error) {
+            console.error(`   ❌ ERROR processing ticket ${ticket.ticket_number}: ${error.message}`);
+            conversionErrors++;
+          }
         }
         
-        newBarcodes.set(newBarcode, ticket.ticket_number);
-        updates.push({
-          id: ticket.id,
-          ticket_number: ticket.ticket_number,
-          old_barcode: ticket.barcode,
-          new_barcode: newBarcode
-        });
-      } catch (error) {
-        console.error(`   ❌ ERROR processing ticket ${ticket.ticket_number}: ${error.message}`);
-        conversionErrors++;
-      }
-    }
+        processed += batch.length;
+        console.log(`   Progress: ${processed.toLocaleString()} / ${totalTickets.toLocaleString()} tickets processed`);
+      },
+      { batchSize: 1000 }
+    );
 
-    console.log(`   Converted ${updates.length} barcodes`);
+    console.log(`   Converted ${updates.length.toLocaleString()} barcodes`);
     if (conversionErrors > 0) {
       console.log(`   ⚠️  ${conversionErrors} errors during conversion`);
     }
@@ -120,12 +132,12 @@ async function migrateDatabase() {
       console.log(`   ${u.ticket_number}: ${u.old_barcode || 'NULL'} -> ${u.new_barcode}`);
     });
     if (updates.length > 5) {
-      console.log(`   ... and ${updates.length - 5} more`);
+      console.log(`   ... and ${(updates.length - 5).toLocaleString()} more`);
     }
     console.log('');
 
-    // Step 4: Update database
-    console.log('💾 Step 3: Updating database...');
+    // Step 4: Update database in batches
+    console.log('💾 Step 3: Updating database (BATCH PROCESSING)...');
     let updateCount = 0;
     const batchSize = 1000;
 
@@ -144,7 +156,12 @@ async function migrateDatabase() {
         }
       }
       
-      console.log(`   Progress: ${updateCount} / ${updates.length} tickets updated`);
+      console.log(`   Progress: ${updateCount.toLocaleString()} / ${updates.length.toLocaleString()} tickets updated`);
+      
+      // Allow garbage collection between batches
+      if (global.gc) {
+        global.gc();
+      }
     }
     console.log('');
 
@@ -170,8 +187,8 @@ async function migrateDatabase() {
 
     // Step 6: Summary
     console.log('📊 Migration Summary:');
-    console.log(`   Total tickets: ${tickets.length}`);
-    console.log(`   Successfully updated: ${updateCount}`);
+    console.log(`   Total tickets: ${totalTickets.toLocaleString()}`);
+    console.log(`   Successfully updated: ${updateCount.toLocaleString()}`);
     console.log(`   Errors: ${conversionErrors}`);
     console.log(`   All QR code data: NULLIFIED`);
     console.log('');
