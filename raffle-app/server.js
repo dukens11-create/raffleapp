@@ -2759,6 +2759,74 @@ app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (re
   }
 });
 
+// POST /api/admin/tickets/print-xyz-8up - Generate 8-up XYZ tickets (8 per letter page)
+app.post('/api/admin/tickets/print-xyz-8up', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { startNumber, endNumber, designId } = req.body;
+
+    // Validate input
+    if (!startNumber || !endNumber) {
+      return res.status(400).json({ error: 'Start and end numbers required' });
+    }
+
+    const start = parseInt(startNumber);
+    const end = parseInt(endNumber);
+
+    if (isNaN(start) || isNaN(end)) {
+      return res.status(400).json({ error: 'Start and end numbers must be valid integers' });
+    }
+
+    if (start < 1 || end > 375000 || start > end) {
+      return res.status(400).json({ 
+        error: 'Invalid range. XYZ tickets: 1-375000' 
+      });
+    }
+
+    // Get XYZ tickets in range
+    const tickets = await db.all(`
+      SELECT ticket_number, barcode, category, price
+      FROM tickets
+      WHERE category = 'XYZ'
+        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) >= ?
+        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) <= ?
+      ORDER BY ticket_number ASC
+    `, [start, end]);
+
+    if (tickets.length === 0) {
+      return res.status(404).json({ error: 'No XYZ tickets found in range' });
+    }
+
+    // Get custom design if specified
+    let customDesign = null;
+    if (designId) {
+      customDesign = await db.get(
+        'SELECT * FROM ticket_designs WHERE id = ? AND is_active = ?', 
+        [designId, db.USE_POSTGRES ? true : 1]
+      );
+    }
+
+    // Generate PDF
+    const pdfDoc = await printService.generateXYZ8UpPDF(tickets, customDesign, {
+      barcodeWidth: 120,
+      barcodeHeight: 50
+    });
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="XYZ-tickets-${start}-to-${end}-8up.pdf"`);
+
+    pdfDoc.pipe(res);
+
+  } catch (error) {
+    console.error('Error generating XYZ 8-up PDF:', error);
+    
+    // If headers not sent yet, send error response
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+  }
+});
+
 // ============================================================================
 // BULK TICKET GENERATION ENDPOINTS
 // ============================================================================
