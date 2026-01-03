@@ -1811,7 +1811,7 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     if (ticket.barcode) {
       try {
         barcodeStub = await bwipjs.toBuffer({
-          bcid: 'ean13',
+          bcid: 'code128',
           text: ticket.barcode,
           scale: 1.5,
           height: 8,
@@ -1819,7 +1819,7 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
           textxalign: 'center'
         });
         barcodeMain = await bwipjs.toBuffer({
-          bcid: 'ean13',
+          bcid: 'code128',
           text: ticket.barcode,
           scale: 1.5,
           height: 8,
