@@ -2041,23 +2041,6 @@ async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y, qrBuf
      });
 }
 
-  doc.text('NIF:', x + 5, y + 50, { width: TICKET_WIDTH - 10 });
-  doc.moveTo(x + 5, y + 62).lineTo(x + TICKET_WIDTH - 5, y + 62).stroke();
-
-  // MAIN SECTION (Bottom 4") - Design shown by background
-  // Overlay ticket number for readability
-  doc.rect(x + 5, y + STUB_HEIGHT + 10, TICKET_WIDTH - 10, 18)
-     .fillOpacity(0.85)
-     .fill('#FFFFFF')
-     .fillOpacity(1);
-  
-  doc.fontSize(10).fillColor('#000000').font('Helvetica-Bold');
-  doc.text(ticket.ticket_number, x + 5, y + STUB_HEIGHT + 14, { 
-    width: TICKET_WIDTH - 10, 
-    align: 'center' 
-  });
-}
-
 module.exports = {
   createPrintJob,
   updatePrintJobStatus,
