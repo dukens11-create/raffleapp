@@ -1833,16 +1833,21 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Barcode is required' });
     }
     
-    // Find ticket by barcode
-    const ticket = await db.get('SELECT * FROM tickets WHERE barcode = ? AND status = \'active\'', [barcode]);
+    // Validate barcode using new 8-digit validation
+    const validation = await bulkTicketService.validateTicketForSale(barcode);
     
-    if (!ticket) {
-      return res.status(404).json({ error: 'Ticket not found or already sold' });
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        error: validation.error,
+        message: validation.message
+      });
     }
+    
+    const ticket = validation.ticket;
     
     // Mark as sold by this seller
     await db.run(
-      "UPDATE tickets SET status = 'sold', seller_name = ?, seller_phone = ? WHERE id = ?",
+      "UPDATE tickets SET status = 'SOLD', seller_name = ?, seller_phone = ?, sold_at = CURRENT_TIMESTAMP WHERE id = ?",
       [req.session.user.name, req.session.user.phone, ticket.id]
     );
     
@@ -2062,6 +2067,7 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req,
 const ticketService = require('./services/ticketService');
 const printService = require('./services/printService');
 const importExportService = require('./services/importExportService');
+const bulkTicketService = require('./services/bulkTicketService');
 // Note: multer is already imported at the top of the file
 
 // Configure multer for file uploads
@@ -4429,6 +4435,148 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
     res.status(500).json({ error: 'Failed to export CSV' });
   }
 });
+
+// ============================================================================
+// BULK TICKET OPERATIONS API ENDPOINTS
+// ============================================================================
+
+// GET /api/admin/bulk-tickets/statistics - Get barcode statistics
+app.get('/api/admin/bulk-tickets/statistics', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const stats = await bulkTicketService.getBarcodeStatistics();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting barcode statistics:', error);
+    res.status(500).json({ 
+      error: 'Failed to get statistics',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/admin/bulk-tickets/detect-legacy - Detect legacy/invalid barcodes
+app.get('/api/admin/bulk-tickets/detect-legacy', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const legacyTickets = await bulkTicketService.detectLegacyBarcodes();
+    res.json({
+      total: legacyTickets.length,
+      tickets: legacyTickets
+    });
+  } catch (error) {
+    console.error('Error detecting legacy barcodes:', error);
+    res.status(500).json({ 
+      error: 'Failed to detect legacy barcodes',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/admin/bulk-tickets/regenerate - Regenerate barcodes for all or filtered tickets
+app.post('/api/admin/bulk-tickets/regenerate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, legacyOnly } = req.body;
+    
+    const results = await bulkTicketService.regenerateAllBarcodes({
+      category,
+      legacyOnly: legacyOnly === true
+    });
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error regenerating barcodes:', error);
+    res.status(500).json({ 
+      error: 'Failed to regenerate barcodes',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/admin/bulk-tickets/flag-legacy - Flag legacy tickets as invalid
+app.post('/api/admin/bulk-tickets/flag-legacy', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketIds } = req.body;
+    
+    if (!Array.isArray(ticketIds) || ticketIds.length === 0) {
+      return res.status(400).json({ 
+        error: 'ticketIds array is required and must not be empty'
+      });
+    }
+    
+    const flagged = await bulkTicketService.flagLegacyTickets(ticketIds);
+    
+    res.json({
+      success: true,
+      flagged: flagged
+    });
+  } catch (error) {
+    console.error('Error flagging legacy tickets:', error);
+    res.status(500).json({ 
+      error: 'Failed to flag legacy tickets',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/admin/bulk-tickets/export-pdf - Export all tickets to PDF
+app.post('/api/admin/bulk-tickets/export-pdf', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, startTicket, endTicket, paperType } = req.body;
+    
+    const pdfDoc = await bulkTicketService.exportAllTicketsPDF({
+      category,
+      startTicket,
+      endTicket,
+      paperType: paperType || 'AVERY_16145',
+      adminId: req.session.user.id,
+      raffleId: 1 // TODO: Get from request or config
+    });
+    
+    const filename = `bulk-tickets-${category || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    console.error('Error exporting tickets to PDF:', error);
+    res.status(500).json({ 
+      error: 'Failed to export tickets to PDF',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/tickets/validate-barcode - Validate ticket barcode for sale/scan
+app.post('/api/tickets/validate-barcode', requireAuth, async (req, res) => {
+  try {
+    const { barcode } = req.body;
+    
+    if (!barcode) {
+      return res.status(400).json({ 
+        error: 'Barcode is required'
+      });
+    }
+    
+    const validation = await bulkTicketService.validateTicketForSale(barcode);
+    
+    if (!validation.valid) {
+      return res.status(400).json(validation);
+    }
+    
+    res.json(validation);
+  } catch (error) {
+    console.error('Error validating barcode:', error);
+    res.status(500).json({ 
+      error: 'Failed to validate barcode',
+      message: error.message
+    });
+  }
+});
+
+// ============================================================================
+// END BULK TICKET OPERATIONS API ENDPOINTS
+// ============================================================================
 
 // ============================================================================
 // END RAFFLE TICKET SYSTEM API ENDPOINTS
