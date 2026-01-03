@@ -184,7 +184,6 @@ async function getTicketByBarcode(barcode) {
 
     // If not found and barcode looks like a ticket number (contains letters or dashes),
     // try matching against ticket_number column
-    const barcodeService = require('./barcodeService');
     if (barcodeService.isLegacyBarcode(barcode)) {
       // Normalize the barcode for ticket number matching
       const normalized = barcode.toUpperCase().trim();

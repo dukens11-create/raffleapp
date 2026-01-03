@@ -138,23 +138,26 @@ function isLegacyBarcode(barcode) {
     return true;
   }
 
+  const cleanedUpper = cleaned.toUpperCase();
+
   // Alphanumeric with optional dashes (ticket number patterns)
-  if (/^[A-Z]{3}-?\d{6}$/.test(cleaned.toUpperCase())) {
+  if (/^[A-Z]{3}-?\d{6}$/.test(cleanedUpper)) {
     return true;
   }
 
   // Alphanumeric with multiple dashes
-  if (/^[A-Z]{3}-\d{3}-\d{3}$/.test(cleaned.toUpperCase())) {
+  if (/^[A-Z]{3}-\d{3}-\d{3}$/.test(cleanedUpper)) {
     return true;
   }
 
-  // Pure numeric sequences (6-7 digits, or 9+ digits)
-  if (/^\d{6,7}$/.test(cleaned) || /^\d{9,}$/.test(cleaned)) {
+  // Pure numeric sequences (6-7 digits, or 9-13 digits)
+  // Note: 8 digits excluded above, 14+ would be too long for typical barcodes
+  if (/^\d{6,7}$/.test(cleaned) || /^\d{9,13}$/.test(cleaned)) {
     return true;
   }
 
   // Any other alphanumeric pattern with letters and numbers (6+ chars)
-  if (/^[A-Z0-9-]{6,}$/.test(cleaned.toUpperCase()) && /[A-Z]/.test(cleaned.toUpperCase()) && /\d/.test(cleaned)) {
+  if (/^[A-Z0-9-]{6,}$/.test(cleanedUpper) && /[A-Z]/.test(cleanedUpper) && /\d/.test(cleaned)) {
     return true;
   }
 
