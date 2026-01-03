@@ -672,10 +672,9 @@ async function generatePrintPDF(tickets, paperType, printJobId, customDesign = n
       // Generate codes if not already generated
       const ticketService = require('./ticketService');
       const barcodeGenerator = require('./barcodeGenerator');
-      if (!ticket.barcode || !ticket.qr_code_data) {
+      if (!ticket.barcode) {
         const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
         ticket.barcode = codes.barcode;
-        ticket.qr_code_data = codes.qrCodeData;
       }
 
       // Detect if this is the smaller LETTER_8_TICKETS format
@@ -892,33 +891,21 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
     const batchWithCodes = await Promise.all(batch.map(async (ticket) => {
       // Generate codes if not already generated
       const ticketService = require('./ticketService');
-      if (!ticket.barcode || !ticket.qr_code_data) {
+      if (!ticket.barcode) {
         const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
         ticket.barcode = codes.barcode;
-        ticket.qr_code_data = codes.qrCodeData;
       }
 
       // Detect if this is the smaller LETTER_8_TICKETS format
       const isSmallFormat = template.ticketWidth < 200;
 
-      // Generate QR code images with full ticket data
-      const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: isSmallFormat ? 67 : 96,
-        errorCorrectionLevel: 'M'
-      });
-      
-      const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: isSmallFormat ? 48 : 50,
-        errorCorrectionLevel: 'M'
-      });
-      
-      // Generate EAN-13 barcode image
+      // Generate barcode image only (QR codes disabled)
       const bwipjs = require('bwip-js');
       let barcodeBuffer = null;
       if (ticket.barcode) {
         try {
           barcodeBuffer = await bwipjs.toBuffer({
-            bcid: 'ean13',
+            bcid: 'code128',
             text: ticket.barcode,
             scale: isSmallFormat ? 1.5 : 2,
             height: isSmallFormat ? 8 : 10,
@@ -932,15 +919,13 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       
       return {
         ticket,
-        qrMainBuffer,
-        qrStubBuffer,
         barcodeBuffer
       };
     }));
     
     // Draw FRONT side tickets with custom template
     for (let j = 0; j < batchWithCodes.length; j++) {
-      const { ticket, qrMainBuffer, barcodeBuffer } = batchWithCodes[j];
+      const { ticket, barcodeBuffer } = batchWithCodes[j];
 
       // Calculate position in grid (2 columns x N rows)
       const col = j % template.columns;
@@ -959,19 +944,8 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       } catch (error) {
         console.error('Error drawing front template image:', error);
         // Fallback to default template
-        await drawTicketFront(doc, ticket, template, x, y, qrMainBuffer, barcodeBuffer);
+        await drawTicketFront(doc, ticket, template, x, y, barcodeBuffer);
         continue;
-      }
-
-      // Overlay QR code (top right corner)
-      if (qrMainBuffer) {
-        const qrSize = 60;
-        const qrX = x + template.ticketWidth - qrSize - 10;
-        const qrY = y + 10;
-        doc.image(qrMainBuffer, qrX, qrY, {
-          width: qrSize,
-          height: qrSize
-        });
       }
 
       // Overlay barcode (bottom center)
@@ -1004,7 +978,7 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
     
     // Draw BACK side stubs with custom template
     for (let j = 0; j < batchWithCodes.length; j++) {
-      const { ticket, qrStubBuffer } = batchWithCodes[j];
+      const { ticket } = batchWithCodes[j];
 
       // Calculate position in grid (same as front)
       const col = j % template.columns;
@@ -1023,19 +997,8 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       } catch (error) {
         console.error('Error drawing back template image:', error);
         // Fallback to default template
-        drawTicketBack(doc, ticket, template, x, y, qrStubBuffer);
+        drawTicketBack(doc, ticket, template, x, y);
         continue;
-      }
-
-      // Overlay small QR code (top right corner)
-      if (qrStubBuffer) {
-        const qrSize = 50;
-        const qrX = x + template.ticketWidth - qrSize - 10;
-        const qrY = y + 10;
-        doc.image(qrStubBuffer, qrX, qrY, {
-          width: qrSize,
-          height: qrSize
-        });
       }
       
       // Mark ticket as printed after processing both sides
@@ -1161,30 +1124,18 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
   const ticketsWithCodes = await Promise.all(tickets.map(async (ticket) => {
     // Generate codes if not already generated
     const ticketService = require('./ticketService');
-    if (!ticket.barcode || !ticket.qr_code_data) {
+    if (!ticket.barcode) {
       const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
       ticket.barcode = codes.barcode;
-      ticket.qr_code_data = codes.qrCodeData;
     }
 
-    // Generate QR code and barcode images (smaller for LETTER_8_TICKETS)
-    const qrMainBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-      size: 67, // 0.7" at 96 DPI
-      errorCorrectionLevel: 'M'
-    });
-    
-    const qrStubBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-      size: 48, // 0.5" at 96 DPI
-      errorCorrectionLevel: 'M'
-    });
-    
-    // Generate EAN-13 barcode
+    // Generate barcode images only (QR codes disabled)
     const bwipjs = require('bwip-js');
     let barcodeBuffer = null;
     if (ticket.barcode) {
       try {
         barcodeBuffer = await bwipjs.toBuffer({
-          bcid: 'ean13',
+          bcid: 'code128',
           text: ticket.barcode,
           scale: 1.5,
           height: 8,
@@ -1198,8 +1149,6 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
     
     return {
       ticket,
-      qrMainBuffer,
-      qrStubBuffer,
       barcodeBuffer
     };
   }));
@@ -1213,7 +1162,7 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
     
     // Draw FRONT side tickets in 4x2 grid
     for (let j = 0; j < batch.length; j++) {
-      const { ticket, qrMainBuffer, barcodeBuffer } = batch[j];
+      const { ticket, barcodeBuffer } = batch[j];
       
       const col = j % paperType.columns;
       const row = Math.floor(j / paperType.columns);
@@ -1235,8 +1184,8 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
         }
       }
       
-      // Draw ticket content with semi-transparent backgrounds
-      drawCustomTicketContent(doc, ticket, x, y, paperType.ticketWidth, paperType.ticketHeight, qrMainBuffer, barcodeBuffer);
+      // Draw ticket content with semi-transparent backgrounds (no QR code)
+      drawCustomTicketContent(doc, ticket, x, y, paperType.ticketWidth, paperType.ticketHeight, barcodeBuffer);
       
       // Draw dashed border for tear-off line
       doc.save()
@@ -1253,7 +1202,7 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
     
     // Draw BACK side stubs in same layout
     for (let j = 0; j < batch.length; j++) {
-      const { ticket, qrStubBuffer } = batch[j];
+      const { ticket } = batch[j];
       
       const col = j % paperType.columns;
       const row = Math.floor(j / paperType.columns);
@@ -1275,8 +1224,8 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
         }
       }
       
-      // Draw ticket stub content
-      drawCustomTicketBackContent(doc, ticket, x, y, paperType.ticketWidth, paperType.ticketHeight, qrStubBuffer);
+      // Draw ticket stub content (no QR code)
+      drawCustomTicketBackContent(doc, ticket, x, y, paperType.ticketWidth, paperType.ticketHeight);
       
       // Draw dashed border
       doc.save()
@@ -1296,8 +1245,9 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
 /**
  * Draw ticket content with semi-transparent backgrounds for readability
  * Optimized for LETTER_8_TICKETS format (2.125" × 5.5")
+ * QR codes removed
  */
-function drawCustomTicketContent(doc, ticket, x, y, width, height, qrBuffer, barcodeBuffer) {
+function drawCustomTicketContent(doc, ticket, x, y, width, height, barcodeBuffer) {
   const padding = 4;
 
   // Semi-transparent white background for ticket number area
@@ -1355,29 +1305,12 @@ function drawCustomTicketContent(doc, ticket, x, y, width, height, qrBuffer, bar
          align: 'center'
        });
   }
-
-  // QR code (top right)
-  if (qrBuffer) {
-    const qrSize = 45;
-    const qrX = x + width - qrSize - 10;
-    const qrY = y + 10;
-
-    // White background for QR code
-    doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6)
-       .fillOpacity(0.9)
-       .fill('#FFFFFF')
-       .fillOpacity(1);
-
-    doc.image(qrBuffer, qrX, qrY, {
-      width: qrSize,
-      height: qrSize
-    });
-  }
 }
 
 /**
  * Draw ticket in grid layout with borders
  * Compact design for 2" × 2.1" tickets
+ * QR codes removed
  * 
  * @param {PDFDocument} doc - PDF document
  * @param {Object} ticket - Ticket data
@@ -1385,10 +1318,9 @@ function drawCustomTicketContent(doc, ticket, x, y, width, height, qrBuffer, bar
  * @param {number} y - Y position
  * @param {number} width - Ticket width
  * @param {number} height - Ticket height
- * @param {Buffer} qrImage - QR code image buffer
  * @param {Buffer} barcodeImage - Barcode image buffer
  */
-async function drawGridTicket(doc, ticket, x, y, width, height, qrImage, barcodeImage) {
+async function drawGridTicket(doc, ticket, x, y, width, height, barcodeImage) {
   const padding = 4;
   
   // Draw border
@@ -1439,15 +1371,6 @@ async function drawGridTicket(doc, ticket, x, y, width, height, qrImage, barcode
      .fillColor('#000000')
      .font('Helvetica-Bold')
      .text(`$${parseFloat(ticket.price).toFixed(0)}`, badgeX + badgeWidth + 5, badgeY + 2);
-  
-  // QR Code (top right, small)
-  if (qrImage) {
-    const qrSize = 35;
-    doc.image(qrImage, x + width - qrSize - padding, y + padding, {
-      width: qrSize,
-      height: qrSize
-    });
-  }
   
   // ===== TEAR-OFF PERFORATION LINE =====
   const perforationY = y + height * 0.60; // 60% down
@@ -1551,8 +1474,9 @@ async function drawGridTicket(doc, ticket, x, y, width, height, qrImage, barcode
 
 /**
  * Draw ticket back/stub content with semi-transparent backgrounds
+ * QR codes removed
  */
-function drawCustomTicketBackContent(doc, ticket, x, y, width, height, qrBuffer) {
+function drawCustomTicketBackContent(doc, ticket, x, y, width, height) {
   const padding = 4;
 
   // Semi-transparent background for title
@@ -1585,23 +1509,6 @@ function drawCustomTicketBackContent(doc, ticket, x, y, width, height, qrBuffer)
      .font('Helvetica')
      .text(`Category: ${ticket.category}`, x + 15, y + 60)
      .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + 15, y + 72);
-
-  // QR code (top right)
-  if (qrBuffer) {
-    const qrSize = 36;
-    const qrX = x + width - qrSize - 10;
-    const qrY = y + 10;
-
-    doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6)
-       .fillOpacity(0.9)
-       .fill('#FFFFFF')
-       .fillOpacity(1);
-
-    doc.image(qrBuffer, qrX, qrY, {
-      width: qrSize,
-      height: qrSize
-    });
-  }
 
   // Seller info fields background
   doc.rect(x + 10, y + 105, width - 20, 85)
@@ -1658,24 +1565,17 @@ async function generateGridPDF(tickets, customDesign = null) {
     const y = template.topMargin + (row * template.ticketHeight);
     
     // Generate codes if not already generated
-    if (!ticket.barcode || !ticket.qr_code_data) {
+    if (!ticket.barcode) {
       const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
       ticket.barcode = codes.barcode;
-      ticket.qr_code_data = codes.qrCodeData;
     }
     
-    // Generate QR code image
-    const qrImage = await qrcodeService.generateQRCodeBuffer(ticket, {
-      size: 48, // 0.5" at 96 DPI for small format
-      errorCorrectionLevel: 'M'
-    });
-    
-    // Generate EAN-13 barcode image
+    // Generate barcode image only (QR codes disabled)
     let barcodeImage = null;
     if (ticket.barcode) {
       try {
         barcodeImage = await bwipjs.toBuffer({
-          bcid: 'ean13',
+          bcid: 'code128',
           text: ticket.barcode,
           scale: 1.5,
           height: 6,
@@ -1695,7 +1595,6 @@ async function generateGridPDF(tickets, customDesign = null) {
       y, 
       template.ticketWidth, 
       template.ticketHeight,
-      qrImage,
       barcodeImage
     );
     
