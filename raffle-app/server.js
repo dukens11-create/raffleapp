@@ -2604,19 +2604,27 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
     
     // Check if using PORTRAIT_8UP layout (XYZ tickets only)
     if (paper_type === 'PORTRAIT_8UP') {
-      // Generate PDF with portrait 8-up layout: 4 columns × 2 rows = 8 tickets per page
-      const pdfBuffer = await printService.generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings);
-      
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=tickets-portrait-8up-${category}-${start_ticket}-to-${end_ticket}.pdf`);
-      res.send(pdfBuffer);
-      
-      // Mark tickets as printed
-      for (const ticket of tickets) {
-        await ticketService.markAsPrinted(ticket.ticket_number);
+      try {
+        // Generate PDF with portrait 8-up layout: 4 columns × 2 rows = 8 tickets per page
+        const pdfBuffer = await printService.generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings);
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=tickets-portrait-8up-${category}-${start_ticket}-to-${end_ticket}.pdf`);
+        res.send(pdfBuffer);
+        
+        // Mark tickets as printed
+        for (const ticket of tickets) {
+          await ticketService.markAsPrinted(ticket.ticket_number);
+        }
+        
+        return;
+      } catch (pdfError) {
+        console.error('Error generating PORTRAIT_8UP PDF:', pdfError);
+        return res.status(500).json({ 
+          error: 'Failed to generate PDF', 
+          details: pdfError.message 
+        });
       }
-      
-      return;
     }
     
     // Check if using grid layout

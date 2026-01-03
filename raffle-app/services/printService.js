@@ -1789,6 +1789,17 @@ async function generateGridPDF(tickets, customDesign = null) {
  * Includes barcodes, QR codes, and all ticket information
  */
 async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings) {
+  // Validate inputs to prevent crashes
+  if (!tickets || !Array.isArray(tickets) || tickets.length === 0) {
+    throw new Error('No tickets provided for PDF generation');
+  }
+
+  // Ensure barcodeSettings has default values
+  const settings = {
+    width: barcodeSettings?.width || 90,
+    height: barcodeSettings?.height || 20
+  };
+
   const doc = new PDFDocument({
     size: 'LETTER',  // Portrait: 612pt × 792pt (8.5" × 11")
     margins: { top: 0, bottom: 0, left: 0, right: 0 }
@@ -1810,69 +1821,95 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     doc.on('error', reject);
   });
 
-  let ticketIndex = 0;
+  try {
+    let ticketIndex = 0;
 
-  for (const ticket of tickets) {
-    // Add new page after every 8 tickets
-    if (ticketIndex > 0 && ticketIndex % TICKETS_PER_PAGE === 0) {
-      doc.addPage();
-    }
+    for (const ticket of tickets) {
+      // Validate ticket has required properties
+      if (!ticket || !ticket.ticket_number) {
+        console.error('Invalid ticket object, skipping:', ticket);
+        continue;
+      }
 
-    const positionOnPage = ticketIndex % TICKETS_PER_PAGE;
-    const col = positionOnPage % COLS;
-    const row = Math.floor(positionOnPage / COLS);
+      // Add new page after every 8 tickets
+      if (ticketIndex > 0 && ticketIndex % TICKETS_PER_PAGE === 0) {
+        doc.addPage();
+      }
 
-    const x = LEFT_MARGIN + (col * TICKET_WIDTH);
-    const y = TOP_MARGIN + (row * TICKET_HEIGHT);
+      const positionOnPage = ticketIndex % TICKETS_PER_PAGE;
+      const col = positionOnPage % COLS;
+      const row = Math.floor(positionOnPage / COLS);
 
-    // Generate codes if not already present
-    if (!ticket.barcode || !ticket.qr_code_data) {
-      const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
-      ticket.barcode = codes.barcode;
-      ticket.qr_code_data = codes.qrCodeData;
-    }
+      const x = LEFT_MARGIN + (col * TICKET_WIDTH);
+      const y = TOP_MARGIN + (row * TICKET_HEIGHT);
 
-    // Generate QR code
-    let qrBuffer = null;
-    try {
-      qrBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: 67, // 0.93 inches at 72 DPI (67pt / 72 DPI = 0.93")
-        errorCorrectionLevel: 'M'
-      });
-    } catch (error) {
-      console.error('Error generating QR code:', error);
-    }
+      // Generate codes if not already present
+      if (!ticket.barcode || !ticket.qr_code_data) {
+        try {
+          const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+          ticket.barcode = codes.barcode;
+          ticket.qr_code_data = codes.qrCodeData;
+        } catch (error) {
+          console.error(`Error generating codes for ticket ${ticket.ticket_number}:`, error);
+          // Continue with ticket even if code generation fails
+        }
+      }
 
-    // Generate barcode
-    let barcodeBuffer = null;
-    if (ticket.barcode) {
+      // Generate QR code
+      let qrBuffer = null;
       try {
-        // Use code128 for reliability (works with any alphanumeric barcode)
-        // EAN-13 requires exact 12 digits + valid check digit which may not always be guaranteed
-        const BARCODE_BASE_WIDTH = 60; // Base width in modules for scaling
-        const BARCODE_HEIGHT_RATIO = 2; // Conversion factor from points to mm for bwip-js
-        
-        barcodeBuffer = await bwipjs.toBuffer({
-          bcid: 'code128', // More flexible than EAN-13, works with any format
-          text: ticket.barcode,
-          scale: barcodeSettings.width ? (barcodeSettings.width / BARCODE_BASE_WIDTH) : 1.5,
-          height: barcodeSettings.height ? Math.floor(barcodeSettings.height / BARCODE_HEIGHT_RATIO) : 10,
-          includetext: false,
-          textxalign: 'center'
+        qrBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+          size: 67, // 0.93 inches at 72 DPI (67pt / 72 DPI = 0.93")
+          errorCorrectionLevel: 'M'
         });
       } catch (error) {
-        console.error('Error generating barcode:', error);
+        console.error(`Error generating QR code for ticket ${ticket.ticket_number}:`, error);
       }
+
+      // Generate barcode
+      let barcodeBuffer = null;
+      if (ticket.barcode) {
+        try {
+          // Use code128 for reliability (works with any alphanumeric barcode)
+          // EAN-13 requires exact 12 digits + valid check digit which may not always be guaranteed
+          const BARCODE_BASE_WIDTH = 60; // Base width in modules for scaling
+          const BARCODE_HEIGHT_RATIO = 2; // Conversion factor from points to mm for bwip-js
+          
+          barcodeBuffer = await bwipjs.toBuffer({
+            bcid: 'code128', // More flexible than EAN-13, works with any format
+            text: String(ticket.barcode), // Ensure barcode is a string
+            scale: settings.width ? (settings.width / BARCODE_BASE_WIDTH) : 1.5,
+            height: settings.height ? Math.floor(settings.height / BARCODE_HEIGHT_RATIO) : 10,
+            includetext: false,
+            textxalign: 'center'
+          });
+        } catch (error) {
+          console.error(`Error generating barcode for ticket ${ticket.ticket_number}:`, error);
+        }
+      }
+
+      // Draw the ticket with error handling
+      try {
+        await drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y, qrBuffer, barcodeBuffer);
+      } catch (error) {
+        console.error(`Error drawing ticket ${ticket.ticket_number}:`, error);
+        // Continue to next ticket instead of crashing
+      }
+
+      ticketIndex++;
     }
 
-    // Draw the ticket
-    await drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y, qrBuffer, barcodeBuffer);
-
-    ticketIndex++;
+    doc.end();
+    return await pdfPromise;
+  } catch (error) {
+    // Ensure PDF document is properly closed on error
+    try {
+      doc.end();
+    } catch (endError) {
+      console.error('Error closing PDF document:', endError);
+    }
+    throw error;
   }
-
-  doc.end();
-  return pdfPromise;
 }
 
 /**
