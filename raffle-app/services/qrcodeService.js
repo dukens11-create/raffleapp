@@ -1,243 +1,80 @@
 /**
- * QR Code Service - Generate QR codes for raffle tickets
- * Uses qrcode library to generate QR codes with verification URLs
+ * QR Code Service - DISABLED
+ * QR codes have been removed from the system. All functions return null/empty values.
+ * This file is kept for backward compatibility during migration.
  */
 
-const QRCode = require('qrcode');
-
-// Base URL for ticket verification
-const VERIFICATION_BASE_URL = process.env.VERIFICATION_URL || 'https://enejipamticket.com/verify';
+// NOTE: QR code generation has been disabled as per system requirements.
+// All tickets now use 8-digit barcodes only.
 
 /**
- * Generate verification URL for a ticket
- * 
- * @param {string} ticketNumber - Ticket number (e.g., "ABC-000001")
- * @returns {string} - Verification URL
+ * Generate verification URL for a ticket (DISABLED - returns empty string)
  */
 function generateVerificationURL(ticketNumber) {
-  if (!ticketNumber || typeof ticketNumber !== 'string') {
-    throw new Error('Invalid ticket number');
-  }
-
-  return `${VERIFICATION_BASE_URL}/${ticketNumber}`;
+  return '';
 }
 
 /**
- * Generate QR code image as PNG buffer
- * 
- * @param {string} data - Data to encode (typically verification URL)
- * @param {Object} options - QR code generation options
- * @param {number} options.size - Size in pixels for main ticket (default: 96 = 1 inch at 96 DPI)
- * @param {string} options.errorCorrectionLevel - Error correction level: L, M, Q, H (default: M)
- * @returns {Promise<Buffer>} - PNG image buffer
+ * Generate QR code image as PNG buffer (DISABLED - returns null)
  */
 async function generateQRCodeImage(data, options = {}) {
-  const {
-    size = 96, // 1 inch at 96 DPI
-    errorCorrectionLevel = 'M' // Medium error correction (15% restoration)
-  } = options;
-
-  try {
-    const buffer = await QRCode.toBuffer(data, {
-      errorCorrectionLevel: errorCorrectionLevel,
-      type: 'png',
-      width: size,
-      margin: 1, // Quiet zone margin
-      color: {
-        dark: '#000000',  // Black
-        light: '#FFFFFF'  // White
-      }
-    });
-
-    return buffer;
-  } catch (error) {
-    console.error('QR code generation error:', error);
-    throw new Error(`Failed to generate QR code: ${error.message}`);
-  }
+  return null;
 }
 
 /**
- * Generate QR code for ticket verification
- * Creates both main ticket size (1" x 1") and stub size (0.4" x 0.4")
- * 
- * @param {string} ticketNumber - Ticket number (e.g., "ABC-000001")
- * @returns {Promise<Object>} - { verificationURL, mainQRCode, stubQRCode }
+ * Generate QR code for ticket verification (DISABLED - returns null values)
  */
 async function generateTicketQRCode(ticketNumber) {
-  const verificationURL = generateVerificationURL(ticketNumber);
-  
-  // Generate main QR code (1" x 1" at 96 DPI)
-  const mainQRCode = await generateQRCodeImage(verificationURL, {
-    size: 96, // 1 inch at 96 DPI
-    errorCorrectionLevel: 'M'
-  });
-
-  // Generate stub QR code (0.4" x 0.4" at 96 DPI)
-  const stubQRCode = await generateQRCodeImage(verificationURL, {
-    size: 38, // 0.4 inch at 96 DPI (rounded from 38.4)
-    errorCorrectionLevel: 'M'
-  });
-
   return {
-    verificationURL,
-    mainQRCode,
-    stubQRCode
+    verificationURL: '',
+    mainQRCode: null,
+    stubQRCode: null
   };
 }
 
 /**
- * Generate QR code as data URL (for web display)
- * 
- * @param {string} data - Data to encode
- * @param {Object} options - Options for QR code generation
- * @returns {Promise<string>} - Data URL
+ * Generate QR code as data URL (DISABLED - returns empty string)
  */
 async function generateQRCodeDataURL(data, options = {}) {
-  const {
-    size = 96,
-    errorCorrectionLevel = 'M'
-  } = options;
-
-  try {
-    const dataURL = await QRCode.toDataURL(data, {
-      errorCorrectionLevel: errorCorrectionLevel,
-      width: size,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    });
-
-    return dataURL;
-  } catch (error) {
-    console.error('QR code data URL generation error:', error);
-    throw new Error(`Failed to generate QR code data URL: ${error.message}`);
-  }
+  return '';
 }
 
 /**
- * Validate verification URL format
- * 
- * @param {string} url - URL to validate
- * @returns {boolean} - True if valid
+ * Validate verification URL format (DISABLED - always returns false)
  */
 function validateVerificationURL(url) {
-  if (!url || typeof url !== 'string') {
-    return false;
-  }
-
-  // Check if URL starts with verification base URL
-  return url.startsWith(VERIFICATION_BASE_URL);
+  return false;
 }
 
 /**
- * Extract ticket number from verification URL
- * 
- * @param {string} url - Verification URL
- * @returns {string|null} - Ticket number or null if invalid
+ * Extract ticket number from verification URL (DISABLED - returns null)
  */
 function extractTicketNumberFromURL(url) {
-  if (!validateVerificationURL(url)) {
-    return null;
-  }
-
-  const parts = url.split('/');
-  return parts[parts.length - 1];
+  return null;
 }
 
 /**
- * Generate QR code data with full ticket information
- * Creates JSON data containing all ticket details
- * 
- * @param {Object} ticket - Ticket object
- * @param {string} ticket.ticket_number - Ticket number
- * @param {string} ticket.barcode - Barcode number
- * @param {string} ticket.category - Category code
- * @param {number} ticket.price - Ticket price
- * @param {number} ticket.raffle_id - Raffle ID
- * @returns {string} - JSON string with ticket data
+ * Generate QR code data with full ticket information (DISABLED - returns empty string)
  */
 function generateQRCodeData(ticket) {
-  const qrData = {
-    ticket_number: ticket.ticket_number,
-    barcode: ticket.barcode,
-    category: ticket.category,
-    price: ticket.price,
-    raffle_id: ticket.raffle_id,
-    generated_at: new Date().toISOString()
-  };
-  
-  return JSON.stringify(qrData);
+  return '';
 }
 
 /**
- * Generate QR code buffer for printing with full ticket data
- * 
- * @param {Object} ticket - Ticket object with all details
- * @param {Object} options - QR code options
- * @param {number} options.size - Size in pixels (default: 150)
- * @returns {Promise<Buffer>} - PNG buffer
+ * Generate QR code buffer for printing (DISABLED - returns null)
  */
 async function generateQRCodeBuffer(ticket, options = {}) {
-  const {
-    size = 150,
-    errorCorrectionLevel = 'M'
-  } = options;
-
-  const qrString = generateQRCodeData(ticket);
-  
-  try {
-    const buffer = await QRCode.toBuffer(qrString, {
-      errorCorrectionLevel: errorCorrectionLevel,
-      type: 'png',
-      width: size,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    });
-    
-    return buffer;
-  } catch (error) {
-    console.error('QR code buffer generation error:', error);
-    throw new Error(`Failed to generate QR code buffer: ${error.message}`);
-  }
+  return null;
 }
 
 /**
- * Generate QR code as data URL with full ticket data
- * 
- * @param {Object} ticket - Ticket object with all details
- * @param {Object} options - QR code options
- * @returns {Promise<string>} - Data URL
+ * Generate QR code as data URL with full ticket data (DISABLED - returns empty string)
  */
 async function generateQRCode(ticket, options = {}) {
-  const {
-    size = 200,
-    errorCorrectionLevel = 'M'
-  } = options;
-
-  const qrString = generateQRCodeData(ticket);
-  
-  try {
-    const dataURL = await QRCode.toDataURL(qrString, {
-      errorCorrectionLevel: errorCorrectionLevel,
-      width: size,
-      margin: 1,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    });
-    
-    return dataURL;
-  } catch (error) {
-    console.error('QR code data URL generation error:', error);
-    throw new Error(`Failed to generate QR code: ${error.message}`);
-  }
+  return '';
 }
+
+const VERIFICATION_BASE_URL = ''; // Disabled
 
 module.exports = {
   generateVerificationURL,
