@@ -659,7 +659,7 @@ async function streamRows(sql, params = [], rowCallback, options = {}) {
  * 
  * @param {string} sql - SQL query
  * @param {Array} params - Query parameters
- * @param {Function} batchCallback - Callback function(batch) called for each batch
+ * @param {Function} batchCallback - Callback function(batch) called for each batch, returns true to stop
  * @param {Object} options - Options { batchSize: number }
  * @returns {Promise<number>} - Total rows processed
  */
@@ -671,7 +671,6 @@ async function processBatches(sql, params = [], batchCallback, options = {}) {
   
   // Convert SQLite placeholders (?) to PostgreSQL placeholders ($1, $2, etc.) if needed
   let execSql = sql;
-  let execParams = params;
   
   if (USE_POSTGRES) {
     let paramIndex = 1;
@@ -681,14 +680,14 @@ async function processBatches(sql, params = [], batchCallback, options = {}) {
   // Add LIMIT and OFFSET if not present
   if (!execSql.toUpperCase().includes('LIMIT')) {
     if (USE_POSTGRES) {
-      execSql += ` LIMIT $${execParams.length + 1} OFFSET $${execParams.length + 2}`;
+      execSql += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     } else {
       execSql += ' LIMIT ? OFFSET ?';
     }
   }
   
   while (hasMore) {
-    const batchParams = [...execParams, batchSize, offset];
+    const batchParams = [...params, batchSize, offset];
     
     let batch;
     if (USE_POSTGRES) {
@@ -710,9 +709,14 @@ async function processBatches(sql, params = [], batchCallback, options = {}) {
     if (batch.length === 0) {
       hasMore = false;
     } else {
-      await batchCallback(batch);
+      const shouldStop = await batchCallback(batch);
       totalProcessed += batch.length;
       offset += batch.length;
+      
+      // Stop if callback returns true
+      if (shouldStop === true) {
+        hasMore = false;
+      }
       
       // Allow garbage collection between batches
       if (global.gc) {

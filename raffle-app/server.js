@@ -2311,6 +2311,20 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
   try {
     console.log('📥 CSV export request received for ticket numbers and barcodes (STREAMING)');
     
+    // Check if tickets exist before starting streaming
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult ? countResult.total : 0;
+    
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found in database');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'There are no tickets in the system. Please generate or import tickets first.'
+      });
+    }
+    
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets for CSV export`);
+    
     // Set response headers for CSV download
     const filename = 'tickets_number_barcode.csv';
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -2352,11 +2366,7 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
     // End response
     res.end();
     
-    if (totalProcessed === 0) {
-      console.warn('⚠️ No tickets found in database');
-    } else {
-      console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
-    }
+    console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
     
   } catch (error) {
     console.error('❌ Error exporting CSV:', error);
@@ -2376,6 +2386,20 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
 app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, async (req, res) => {
   try {
     console.log('📥 Starting streaming export of all ticket barcodes...');
+    
+    // Check if tickets exist before starting streaming
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult ? countResult.total : 0;
+    
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found in database');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'There are no tickets in the system. Please generate or import tickets first.'
+      });
+    }
+    
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets for export`);
     
     // Set headers for file download
     const timestamp = new Date().toISOString().split('T')[0];
@@ -2406,11 +2430,7 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
     // End response
     res.end();
     
-    if (totalProcessed === 0) {
-      console.warn('⚠️ No tickets found in database');
-    } else {
-      console.log(`✅ Export complete: ${filename} with ${totalProcessed.toLocaleString()} tickets`);
-    }
+    console.log(`✅ Export complete: ${filename} with ${totalProcessed.toLocaleString()} tickets`);
     
   } catch (error) {
     console.error('❌ Error exporting all ticket barcodes:', error);
@@ -4402,6 +4422,21 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
     
     const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     
+    // Check if any tickets match criteria before starting streaming
+    const countQuery = `SELECT COUNT(*) as total FROM tickets ${whereClause}`;
+    const countResult = await db.get(countQuery, params);
+    const totalTickets = countResult ? countResult.total : 0;
+    
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found matching criteria');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'No tickets match the specified criteria.'
+      });
+    }
+    
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets matching criteria`);
+    
     const query = `
       SELECT 
         ticket_number,
@@ -4456,11 +4491,7 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
     // End response
     res.end();
     
-    if (totalProcessed === 0) {
-      console.warn('⚠️ No tickets found matching criteria');
-    } else {
-      console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
-    }
+    console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
     
   } catch (error) {
     console.error('❌ Error exporting CSV:', error);

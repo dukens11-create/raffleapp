@@ -317,8 +317,10 @@ async function exportTickets(filters = {}) {
         
         // Stop if we've reached the limit
         if (allTickets.length >= totalToFetch) {
-          return; // Break out of batch processing
+          return true; // Signal to stop processing more batches
         }
+        
+        return false; // Continue processing
       },
       { batchSize: BATCH_SIZE }
     );
