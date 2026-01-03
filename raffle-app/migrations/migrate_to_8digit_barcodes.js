@@ -45,8 +45,19 @@ function generate8DigitBarcode(ticketNumber) {
     throw new Error(`Unknown category: ${category}`);
   }
 
+  // Validate sequence length - should not exceed 7 digits
+  const sequenceNum = parseInt(sequence, 10);
+  if (isNaN(sequenceNum) || sequenceNum < 1 || sequenceNum > 9999999) {
+    throw new Error(`Invalid sequence number: ${sequence}. Must be between 1 and 9999999`);
+  }
+
   // Format: 1 digit prefix + 7 digit sequence = 8 digits total
   const barcode = prefix + sequence.padStart(7, '0');
+  
+  // Final validation - ensure result is exactly 8 digits
+  if (barcode.length !== 8 || !/^\d{8}$/.test(barcode)) {
+    throw new Error(`Generated barcode is invalid: ${barcode}`);
+  }
   
   return barcode;
 }

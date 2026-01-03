@@ -21,6 +21,8 @@ const CATEGORY_NAMES = {
 };
 
 // Barcode generation constants for BWIP-JS
+// Code128 barcode format - supports alphanumeric content
+const BARCODE_FORMAT = 'code128';
 // EAN-13 barcode standard width is approximately 60 modules (bars)
 // Scale factor is calculated relative to this baseline for proportional sizing
 const BARCODE_BASE_WIDTH = 60;
@@ -613,7 +615,7 @@ async function drawTicketBackWithTearoff(doc, ticket, template, x, y, customDesi
     // Generate barcode with adjustable size using module-level constants
     try {
       const barcodeBuffer = await bwipjs.toBuffer({
-        bcid: 'code128',
+        bcid: BARCODE_FORMAT,
         text: ticket.barcode,
         scale: barcodeWidth / BARCODE_BASE_WIDTH, // Scale proportionally from base width
         height: Math.floor(barcodeHeight / BARCODE_HEIGHT_RATIO), // Convert points to mm for bwip-js
@@ -686,7 +688,7 @@ async function generatePrintPDF(tickets, paperType, printJobId, customDesign = n
       if (ticket.barcode) {
         try {
           barcodeBuffer = await bwipjs.toBuffer({
-            bcid: 'code128',
+            bcid: BARCODE_FORMAT,
             text: ticket.barcode,
             scale: isSmallFormat ? 1.5 : 2,
             height: isSmallFormat ? 8 : 10,
@@ -905,7 +907,7 @@ async function generateCustomTemplatePDF(tickets, customTemplate, paperType, pri
       if (ticket.barcode) {
         try {
           barcodeBuffer = await bwipjs.toBuffer({
-            bcid: 'code128',
+            bcid: BARCODE_FORMAT,
             text: ticket.barcode,
             scale: isSmallFormat ? 1.5 : 2,
             height: isSmallFormat ? 8 : 10,
@@ -1135,7 +1137,7 @@ async function generateCategoryCustomPDF(tickets, categoryDesign) {
     if (ticket.barcode) {
       try {
         barcodeBuffer = await bwipjs.toBuffer({
-          bcid: 'code128',
+          bcid: BARCODE_FORMAT,
           text: ticket.barcode,
           scale: 1.5,
           height: 8,
@@ -1575,7 +1577,7 @@ async function generateGridPDF(tickets, customDesign = null) {
     if (ticket.barcode) {
       try {
         barcodeImage = await bwipjs.toBuffer({
-          bcid: 'code128',
+          bcid: BARCODE_FORMAT,
           text: ticket.barcode,
           scale: 1.5,
           height: 6,
@@ -1657,7 +1659,7 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     if (ticket.barcode) {
       try {
         barcodeStub = await bwipjs.toBuffer({
-          bcid: 'code128',
+          bcid: BARCODE_FORMAT,
           text: ticket.barcode,
           scale: 1.5,
           height: 8,
@@ -1665,7 +1667,7 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
           textxalign: 'center'
         });
         barcodeMain = await bwipjs.toBuffer({
-          bcid: 'code128',
+          bcid: BARCODE_FORMAT,
           text: ticket.barcode,
           scale: 1.5,
           height: 8,
