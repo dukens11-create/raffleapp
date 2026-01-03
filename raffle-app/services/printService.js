@@ -1765,9 +1765,12 @@ async function generateGridPDF(tickets, customDesign = null) {
 }
 
 /**
- * Generate 8-up ticket layout for letter paper (8.5" × 11")
- * Ticket size: 5.5" × 2.1" (396pt × 151pt at 72 DPI)
+ * Generate 8-up ticket layout for letter paper (8.5" × 11") in LANDSCAPE
+ * Ticket size: 5.5" × 2.1" (396pt × 151pt at 72 DPI) in landscape orientation
  * Layout: 4 rows × 2 columns = 8 tickets per page
+ * Paper orientation: LANDSCAPE (11" wide × 8.5" tall = 792pt × 612pt)
+ * - 2 tickets per row: 2 × 5.5" = 11" (792pt - perfect fit for width with NO margins)
+ * - 4 rows: 4 × 2.1" = 8.4" (604pt - fits in 612pt with 4pt top/bottom margins)
  * XYZ category only (XYZ-000001 to XYZ-375000)
  * 
  * @param {Array} tickets - Array of ticket objects
@@ -1778,14 +1781,15 @@ async function generateGridPDF(tickets, customDesign = null) {
 async function generateXYZ8UpPDF(tickets, customDesign = null, barcodeSettings = {}) {
   const doc = new PDFDocument({
     size: 'LETTER',
-    margins: { top: 18, bottom: 18, left: 18, right: 18 } // 0.25" margins
+    layout: 'landscape', // 11" wide × 8.5" tall (792pt × 612pt)
+    margins: { top: 4, bottom: 4, left: 0, right: 0 } // Minimal margins for alignment
   });
 
   const TICKET_WIDTH = 396;  // 5.5" × 72 DPI
   const TICKET_HEIGHT = 151; // 2.1" × 72 DPI
   const TICKETS_PER_PAGE = 8;
-  const COLS = 2;
-  const ROWS = 4;
+  const COLS = 2; // 2 columns (5.5" each = 11" total width = 792pt)
+  const ROWS = 4; // 4 rows (2.1" each = 8.4" total height = 604pt)
 
   let ticketIndex = 0;
 
@@ -1799,8 +1803,8 @@ async function generateXYZ8UpPDF(tickets, customDesign = null, barcodeSettings =
     const col = positionOnPage % COLS;
     const row = Math.floor(positionOnPage / COLS);
 
-    const x = 18 + (col * TICKET_WIDTH);  // 0.25" margin + column offset
-    const y = 18 + (row * TICKET_HEIGHT); // 0.25" margin + row offset
+    const x = 0 + (col * TICKET_WIDTH);  // No left margin
+    const y = 4 + (row * TICKET_HEIGHT); // 4pt top margin for centering
 
     // Generate barcode for this ticket
     let barcodeImage = null;
@@ -1820,11 +1824,7 @@ async function generateXYZ8UpPDF(tickets, customDesign = null, barcodeSettings =
     }
 
     // Draw FRONT side with custom design
-    await drawXYZTicketFront(doc, ticket, customDesign, x, y);
-
-    // For back side, we'll need to handle this on a second pass or separate page
-    // For now, draw back on the same position (will be properly handled in duplex printing)
-    await drawXYZTicketBack(doc, ticket, customDesign, x, y, barcodeImage);
+    await drawXYZTicketFront(doc, ticket, customDesign, x, y, barcodeImage);
 
     ticketIndex++;
   }
@@ -1842,11 +1842,20 @@ async function generateXYZ8UpPDF(tickets, customDesign = null, barcodeSettings =
  * @param {Object} customDesign - Custom design with front_image_path
  * @param {number} x - X position
  * @param {number} y - Y position
+ * @param {Buffer} barcodeImage - Barcode image buffer (for back side preview)
  */
-async function drawXYZTicketFront(doc, ticket, customDesign, x, y) {
-  const TICKET_WIDTH = 396;
-  const TICKET_HEIGHT = 151;
-  const STUB_WIDTH = 144; // 2" × 72 DPI
+async function drawXYZTicketFront(doc, ticket, customDesign, x, y, barcodeImage) {
+  const TICKET_WIDTH = 396;  // 5.5" × 72 DPI
+  const TICKET_HEIGHT = 151; // 2.1" × 72 DPI
+  const STUB_WIDTH = 144;    // 2" × 72 DPI
+
+  // Draw border
+  doc.save();
+  doc.strokeColor('#000000')
+     .lineWidth(1)
+     .rect(x, y, TICKET_WIDTH, TICKET_HEIGHT)
+     .stroke();
+  doc.restore();
 
   // Draw custom front image as background if available
   if (customDesign && customDesign.front_image_path) {
@@ -1865,7 +1874,7 @@ async function drawXYZTicketFront(doc, ticket, customDesign, x, y) {
       console.error('Error loading front image:', error);
     }
   } else {
-    // Draw default background
+    // Draw default background with gradient effect
     doc.rect(x, y, TICKET_WIDTH, TICKET_HEIGHT)
        .fillOpacity(0.05)
        .fill('#F7DC6F')
@@ -1905,7 +1914,7 @@ async function drawXYZTicketFront(doc, ticket, customDesign, x, y) {
     align: 'center' 
   });
 
-  // MAIN SECTION - Ticket number overlay with background
+  // MAIN SECTION - Ticket number overlay with semi-transparent background
   doc.rect(x + STUB_WIDTH + 10, y + 10, 100, 20)
      .fillOpacity(0.85)
      .fill('#FFFFFF')
@@ -1913,39 +1922,28 @@ async function drawXYZTicketFront(doc, ticket, customDesign, x, y) {
   
   doc.fontSize(12).fillColor('#000000').font('Helvetica-Bold');
   doc.text(ticket.ticket_number, x + STUB_WIDTH + 15, y + 15, { width: 90, align: 'center' });
-}
-
-/**
- * Draw XYZ ticket BACK with custom image and DUAL barcodes
- * Stub section (left 2") has vertical barcode, main section (right 3.5") has horizontal barcode
- * 
- * @param {PDFDocument} doc - PDF document
- * @param {Object} ticket - Ticket data
- * @param {Object} customDesign - Custom design with back_image_path
- * @param {number} x - X position
- * @param {number} y - Y position
- * @param {Buffer} barcodeImage - Barcode image buffer
- */
-async function drawXYZTicketBack(doc, ticket, customDesign, x, y, barcodeImage) {
-  const TICKET_WIDTH = 396;
-  const TICKET_HEIGHT = 151;
-  const STUB_WIDTH = 144;
-  const MAIN_WIDTH = 252; // 3.5" × 72 DPI
-
-  // For now, we're drawing back on the same page (this creates a preview)
-  // In actual double-sided printing, this would be on the reverse side
   
-  // Skip drawing back on same position to avoid overlap
-  // In production, this would be handled by printing front pages first,
-  // then flipping paper and printing back pages
-  
-  // Note: For proper double-sided printing, we'd need to either:
-  // 1. Create separate front and back PDF files
-  // 2. Use alternating pages (odd = front, even = back)
-  // 3. Let the printer handle duplex printing with proper page order
-  
-  // Since this is a streaming PDF, we'll add back designs on separate pages
-  // after all front pages are complete
+  // Add barcode on back side (for demonstration, draw it in bottom area)
+  // In actual double-sided printing, this would be on the reverse
+  if (barcodeImage) {
+    const barcodeX = x + STUB_WIDTH + 60;
+    const barcodeY = y + TICKET_HEIGHT - 55;
+    
+    // Semi-transparent background for barcode
+    doc.rect(barcodeX - 5, barcodeY - 5, 130, 50)
+       .fillOpacity(0.9)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+    
+    try {
+      doc.image(barcodeImage, barcodeX, barcodeY, { 
+        width: 120, 
+        height: 40 
+      });
+    } catch (error) {
+      console.error('Error drawing barcode:', error);
+    }
+  }
 }
 
 module.exports = {
