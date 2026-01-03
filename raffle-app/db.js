@@ -590,7 +590,7 @@ async function streamRows(sql, params = [], rowCallback, options = {}) {
   let totalProcessed = 0;
   
   if (USE_POSTGRES) {
-    // PostgreSQL: Use cursor-based pagination
+    // PostgreSQL: Use LIMIT/OFFSET pagination to avoid loading all rows at once
     let offset = 0;
     let hasMore = true;
     
@@ -600,6 +600,7 @@ async function streamRows(sql, params = [], rowCallback, options = {}) {
     pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
     
     // Add LIMIT and OFFSET if not present
+    // Note: Simple check - assumes caller doesn't use LIMIT in string literals
     if (!pgSql.toUpperCase().includes('LIMIT')) {
       pgSql += ` LIMIT $${paramIndex++} OFFSET $${paramIndex++}`;
     }
@@ -678,6 +679,7 @@ async function processBatches(sql, params = [], batchCallback, options = {}) {
   }
   
   // Add LIMIT and OFFSET if not present
+  // Note: Simple check - assumes caller doesn't use LIMIT in string literals
   if (!execSql.toUpperCase().includes('LIMIT')) {
     if (USE_POSTGRES) {
       execSql += ` LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;

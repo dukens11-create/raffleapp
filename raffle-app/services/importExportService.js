@@ -305,8 +305,18 @@ async function exportTickets(filters = {}) {
       query,
       params,
       async (batch) => {
+        // Calculate how many tickets we can still add without exceeding limit
+        const remainingCapacity = totalToFetch - allTickets.length;
+        
+        if (remainingCapacity <= 0) {
+          return true; // Already at or over limit, stop processing
+        }
+        
+        // Only take what we need from this batch
+        const batchToAdd = batch.slice(0, remainingCapacity);
+        
         // Transform batch and add to results
-        const transformedBatch = batch.map(ticket => ({
+        const transformedBatch = batchToAdd.map(ticket => ({
           ...ticket,
           'Printed': ticket['Printed'] ? 'Yes' : 'No'
         }));
@@ -325,13 +335,10 @@ async function exportTickets(filters = {}) {
       { batchSize: BATCH_SIZE }
     );
     
-    // Trim to exact limit if needed
-    const ticketsToExport = allTickets.slice(0, totalToFetch);
-    
-    console.log(`✅ Batch processing complete - total tickets: ${ticketsToExport.length.toLocaleString()}`);
+    console.log(`✅ Batch processing complete - total tickets: ${allTickets.length.toLocaleString()}`);
 
     // Generate Excel file from collected tickets
-    const worksheet = XLSX.utils.json_to_sheet(ticketsToExport);
+    const worksheet = XLSX.utils.json_to_sheet(allTickets);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Tickets');
 
