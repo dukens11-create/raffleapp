@@ -1811,7 +1811,8 @@ async function generateXYZ8UpPDF(tickets, customDesign = null, barcodeSettings =
     if (ticket.barcode) {
       try {
         // Pad barcode to 12 digits for EAN-13 (13th digit is check digit)
-        const paddedBarcode = ticket.barcode.padStart(12, '0');
+        // Convert to string first to handle numeric barcodes
+        const paddedBarcode = String(ticket.barcode).padStart(12, '0');
         barcodeImage = await bwipjs.toBuffer({
           bcid: 'ean13',
           text: paddedBarcode,
@@ -1862,15 +1863,21 @@ async function drawXYZTicketFront(doc, ticket, customDesign, x, y, barcodeImage)
   // Draw custom front image as background if available
   if (customDesign && customDesign.front_image_path) {
     try {
-      const imagePath = path.join(__dirname, '..', 'public', customDesign.front_image_path);
-      if (fs.existsSync(imagePath)) {
-        doc.image(imagePath, x, y, {
-          width: TICKET_WIDTH,
-          height: TICKET_HEIGHT,
-          fit: [TICKET_WIDTH, TICKET_HEIGHT],
-          align: 'center',
-          valign: 'center'
-        });
+      // Validate image path to prevent path traversal attacks
+      const normalizedPath = path.normalize(customDesign.front_image_path);
+      if (normalizedPath.includes('..') || path.isAbsolute(normalizedPath)) {
+        console.error('Invalid image path detected (security):', normalizedPath);
+      } else {
+        const imagePath = path.join(__dirname, '..', 'public', normalizedPath);
+        if (fs.existsSync(imagePath)) {
+          doc.image(imagePath, x, y, {
+            width: TICKET_WIDTH,
+            height: TICKET_HEIGHT,
+            fit: [TICKET_WIDTH, TICKET_HEIGHT],
+            align: 'center',
+            valign: 'center'
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading front image:', error);

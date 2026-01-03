@@ -2783,14 +2783,18 @@ app.post('/api/admin/tickets/print-xyz-8up', requireAuth, requireAdmin, async (r
     }
 
     // Get XYZ tickets in range
+    // Validate ticket number format first
+    const startTicket = `XYZ-${String(start).padStart(6, '0')}`;
+    const endTicket = `XYZ-${String(end).padStart(6, '0')}`;
+    
     const tickets = await db.all(`
       SELECT ticket_number, barcode, category, price
       FROM tickets
       WHERE category = 'XYZ'
-        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) >= ?
-        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) <= ?
+        AND ticket_number >= ?
+        AND ticket_number <= ?
       ORDER BY ticket_number ASC
-    `, [start, end]);
+    `, [startTicket, endTicket]);
 
     if (tickets.length === 0) {
       return res.status(404).json({ error: 'No XYZ tickets found in range' });

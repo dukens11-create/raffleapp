@@ -3083,8 +3083,9 @@
       const ticketCount = end - start + 1;
       const pageCount = Math.ceil(ticketCount / 8);
       
-      // Confirm large batch
-      if (ticketCount > 1000) {
+      // Confirm large batch (threshold: 1000 tickets to prevent excessive generation time)
+      const LARGE_BATCH_THRESHOLD = 1000;
+      if (ticketCount > LARGE_BATCH_THRESHOLD) {
         if (!confirm(`Generate ${ticketCount} tickets (${pageCount} pages)? This may take a few minutes.`)) {
           return;
         }
