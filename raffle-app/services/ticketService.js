@@ -164,17 +164,72 @@ async function getTicketByNumber(ticketNumber) {
 
 /**
  * Get ticket by barcode
+ * Supports both new 8-digit barcodes and legacy formats
+ * For legacy formats, also tries matching against ticket_number column
  * 
  * @param {string} barcode - Barcode number
  * @returns {Promise<Object|null>} - Ticket or null if not found
  */
 async function getTicketByBarcode(barcode) {
   try {
-    const ticket = await db.get(
+    // First, try exact match on barcode column
+    let ticket = await db.get(
       'SELECT * FROM tickets WHERE barcode = ?',
       [barcode]
     );
-    return ticket || null;
+    
+    if (ticket) {
+      return ticket;
+    }
+
+    // If not found and barcode looks like a ticket number (contains letters or dashes),
+    // try matching against ticket_number column
+    const barcodeService = require('./barcodeService');
+    if (barcodeService.isLegacyBarcode(barcode)) {
+      // Normalize the barcode for ticket number matching
+      const normalized = barcode.toUpperCase().trim();
+      
+      // Try direct match on ticket_number
+      ticket = await db.get(
+        'SELECT * FROM tickets WHERE ticket_number = ?',
+        [normalized]
+      );
+      
+      if (ticket) {
+        return ticket;
+      }
+
+      // Try without dashes (e.g., ABC000001 -> ABC-000001)
+      if (/^[A-Z]{3}\d{6}$/.test(normalized)) {
+        const withDash = `${normalized.substring(0, 3)}-${normalized.substring(3)}`;
+        ticket = await db.get(
+          'SELECT * FROM tickets WHERE ticket_number = ?',
+          [withDash]
+        );
+        
+        if (ticket) {
+          return ticket;
+        }
+      }
+
+      // Try with dash if pattern has dashes in wrong places (e.g., ABC-000-001 -> ABC-000001)
+      if (normalized.includes('-')) {
+        const withoutDashes = normalized.replace(/-/g, '');
+        if (/^[A-Z]{3}\d{6}$/.test(withoutDashes)) {
+          const standardFormat = `${withoutDashes.substring(0, 3)}-${withoutDashes.substring(3)}`;
+          ticket = await db.get(
+            'SELECT * FROM tickets WHERE ticket_number = ?',
+            [standardFormat]
+          );
+          
+          if (ticket) {
+            return ticket;
+          }
+        }
+      }
+    }
+
+    return null;
   } catch (error) {
     console.error('Error getting ticket by barcode:', error);
     throw error;

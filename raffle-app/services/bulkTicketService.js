@@ -313,24 +313,35 @@ async function getBarcodeStatistics() {
 
 /**
  * Validate ticket barcode during scan/sale
- * Rejects legacy barcodes and only accepts new 8-digit format
+ * Accepts both new 8-digit format and legacy barcode formats
  * 
  * @param {string} barcode - Barcode to validate
  * @returns {Promise<Object>} - Validation result
  */
 async function validateTicketForSale(barcode) {
   try {
-    // Step 1: Validate format
-    if (!isValid8DigitBarcode(barcode)) {
+    // Step 1: Validate format (both new and legacy formats)
+    if (!barcode || typeof barcode !== 'string' || barcode.trim().length === 0) {
       return {
         valid: false,
         error: 'INVALID_FORMAT',
-        message: 'This barcode format is not valid. Please use a ticket with the new 8-digit barcode format.'
+        message: 'Barcode is required and cannot be empty.'
+      };
+    }
+
+    const cleanedBarcode = barcode.trim();
+
+    // Validate barcode format using updated validation
+    if (!barcodeService.validateBarcodeNumber(cleanedBarcode)) {
+      return {
+        valid: false,
+        error: 'INVALID_FORMAT',
+        message: 'Barcode format not recognized. Please verify the barcode is readable and try again.'
       };
     }
     
-    // Step 2: Find ticket in database
-    const ticket = await ticketService.getTicketByBarcode(barcode);
+    // Step 2: Find ticket in database (supports both barcode and ticket_number lookup)
+    const ticket = await ticketService.getTicketByBarcode(cleanedBarcode);
     
     if (!ticket) {
       return {
