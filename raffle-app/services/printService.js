@@ -1764,6 +1764,247 @@ async function generateGridPDF(tickets, customDesign = null) {
   return pdfPromise;
 }
 
+/**
+ * Generate 8-up PORTRAIT ticket layout for letter paper (8.5" × 11")
+ * Ticket size: 2.1" wide × 5.5" tall (151pt × 396pt at 72 DPI)
+ * Layout: 4 columns × 2 rows
+ */
+async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings) {
+  const doc = new PDFDocument({
+    size: 'LETTER',  // Portrait: 612pt × 792pt (8.5" × 11")
+    margins: { top: 18, bottom: 18, left: 18, right: 18 } // 0.25" margins
+  });
+
+  // CRITICAL: PORTRAIT dimensions
+  const TICKET_WIDTH = 151;   // 2.1" × 72 DPI
+  const TICKET_HEIGHT = 396;  // 5.5" × 72 DPI
+  const STUB_HEIGHT = 108;    // 1.5" × 72 DPI (top)
+  const MAIN_HEIGHT = 288;    // 4" × 72 DPI (bottom)
+  const TICKETS_PER_PAGE = 8;
+  const COLS = 4;  // 4 columns across
+  const ROWS = 2;  // 2 rows down
+
+  const pdfPromise = new Promise((resolve, reject) => {
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+  });
+
+  let ticketIndex = 0;
+
+  for (const ticket of tickets) {
+    if (ticketIndex > 0 && ticketIndex % TICKETS_PER_PAGE === 0) {
+      doc.addPage();
+    }
+
+    const positionOnPage = ticketIndex % TICKETS_PER_PAGE;
+    const col = positionOnPage % COLS;
+    const row = Math.floor(positionOnPage / COLS);
+
+    const x = 18 + (col * TICKET_WIDTH);   // 0.25" margin + column offset
+    const y = 18 + (row * TICKET_HEIGHT);  // 0.25" margin + row offset
+
+    // Generate barcodes for this ticket
+    let barcodeStub = null;
+    let barcodeMain = null;
+    if (ticket.barcode) {
+      try {
+        barcodeStub = await bwipjs.toBuffer({
+          bcid: 'code128',
+          text: ticket.barcode,
+          scale: 1.5,
+          height: 8,
+          includetext: false,
+          textxalign: 'center'
+        });
+        barcodeMain = await bwipjs.toBuffer({
+          bcid: 'code128',
+          text: ticket.barcode,
+          scale: 1.5,
+          height: 8,
+          includetext: false,
+          textxalign: 'center'
+        });
+      } catch (error) {
+        console.error('Error generating barcode:', error);
+      }
+    }
+
+    // Draw FRONT side
+    await drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y);
+
+    ticketIndex++;
+  }
+
+  doc.end();
+  return pdfPromise;
+}
+
+/**
+ * Draw PORTRAIT ticket FRONT with custom image background
+ */
+async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y) {
+  const TICKET_WIDTH = 151;   // 2.1"
+  const TICKET_HEIGHT = 396;  // 5.5"
+  const STUB_HEIGHT = 108;    // 1.5"
+  const MAIN_HEIGHT = 288;    // 4"
+
+  // Draw custom front image as background (scaled/rotated to fit portrait)
+  if (customDesign && customDesign.front_image_path) {
+    const imagePath = path.join(__dirname, '..', 'public', customDesign.front_image_path);
+    try {
+      // Check if file exists
+      if (fs.existsSync(imagePath)) {
+        // Rotate and scale the horizontal image to fit vertical ticket
+        doc.save();
+        doc.translate(x + TICKET_WIDTH/2, y + TICKET_HEIGHT/2);
+        doc.rotate(90); // Rotate 90 degrees for portrait
+        doc.image(imagePath, -TICKET_HEIGHT/2, -TICKET_WIDTH/2, {
+          width: TICKET_HEIGHT,
+          height: TICKET_WIDTH
+        });
+        doc.restore();
+      }
+    } catch (err) {
+      console.error('Error loading front image:', err);
+    }
+  }
+
+  // Draw horizontal perforation line (between stub and main)
+  doc.save();
+  doc.strokeColor('#999999')
+     .lineWidth(1)
+     .dash(5, 5);
+  doc.moveTo(x, y + STUB_HEIGHT)
+     .lineTo(x + TICKET_WIDTH, y + STUB_HEIGHT)
+     .stroke();
+  doc.restore();
+
+  // Draw scissors icon at perforation (left side)
+  doc.fontSize(10).fillColor('#666666')
+     .text('✂', x + 2, y + STUB_HEIGHT - 6);
+
+  // STUB SECTION (Top 1.5") - Form fields
+  doc.fontSize(7).fillColor('#000000').font('Helvetica-Bold');
+  
+  doc.text('NON:', x + 5, y + 10, { width: TICKET_WIDTH - 10 });
+  doc.strokeColor('#000000');
+  doc.moveTo(x + 5, y + 22).lineTo(x + TICKET_WIDTH - 5, y + 22).stroke();
+
+  doc.text('TELEFÒN:', x + 5, y + 30, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + 5, y + 42).lineTo(x + TICKET_WIDTH - 5, y + 42).stroke();
+
+  doc.text('NIF:', x + 5, y + 50, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + 5, y + 62).lineTo(x + TICKET_WIDTH - 5, y + 62).stroke();
+
+  // MAIN SECTION (Bottom 4") - Design shown by background
+  // Overlay ticket number for readability
+  doc.rect(x + 5, y + STUB_HEIGHT + 10, TICKET_WIDTH - 10, 18)
+     .fillOpacity(0.85)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+  
+  doc.fontSize(10).fillColor('#000000').font('Helvetica-Bold');
+  doc.text(ticket.ticket_number, x + 5, y + STUB_HEIGHT + 14, { 
+    width: TICKET_WIDTH - 10, 
+    align: 'center' 
+  });
+}
+
+/**
+ * Draw PORTRAIT ticket BACK with dual barcodes
+ */
+async function drawXYZPortraitTicketBack(doc, ticket, customDesign, x, y, barcodeStub, barcodeMain) {
+  const TICKET_WIDTH = 151;   // 2.1"
+  const TICKET_HEIGHT = 396;  // 5.5"
+  const STUB_HEIGHT = 108;    // 1.5"
+
+  // Draw custom back image as background (rotated for portrait)
+  if (customDesign && customDesign.back_image_path) {
+    const imagePath = path.join(__dirname, '..', 'public', customDesign.back_image_path);
+    try {
+      // Check if file exists
+      if (fs.existsSync(imagePath)) {
+        doc.save();
+        doc.translate(x + TICKET_WIDTH/2, y + TICKET_HEIGHT/2);
+        doc.rotate(90);
+        doc.image(imagePath, -TICKET_HEIGHT/2, -TICKET_WIDTH/2, {
+          width: TICKET_HEIGHT,
+          height: TICKET_WIDTH
+        });
+        doc.restore();
+      }
+    } catch (err) {
+      console.error('Error loading back image:', err);
+    }
+  }
+
+  // Draw perforation line
+  doc.save();
+  doc.strokeColor('#999999').lineWidth(1).dash(5, 5);
+  doc.moveTo(x, y + STUB_HEIGHT)
+     .lineTo(x + TICKET_WIDTH, y + STUB_HEIGHT)
+     .stroke();
+  doc.restore();
+
+  // STUB SECTION (Top) - Barcode
+  const barcodeWidth = 100;
+  const barcodeHeight = 35;
+  const barcodeX = x + (TICKET_WIDTH - barcodeWidth) / 2;
+
+  // Semi-transparent background
+  doc.rect(barcodeX - 5, y + 15, barcodeWidth + 10, barcodeHeight + 25)
+     .fillOpacity(0.9)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+
+  if (barcodeStub) {
+    doc.image(barcodeStub, barcodeX, y + 20, { 
+      width: barcodeWidth, 
+      height: barcodeHeight 
+    });
+  }
+
+  // Ticket number below barcode
+  doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
+  doc.text(ticket.ticket_number, x + 5, y + 60, { 
+    width: TICKET_WIDTH - 10, 
+    align: 'center' 
+  });
+
+  // Helper text
+  doc.fontSize(6).fillColor('#666666').font('Helvetica');
+  doc.text('Keep for verification', x + 5, y + 75, { 
+    width: TICKET_WIDTH - 10, 
+    align: 'center' 
+  });
+
+  // MAIN SECTION (Bottom) - Barcode
+  const mainBarcodeY = y + STUB_HEIGHT + 50;
+  const mainBarcodeX = x + (TICKET_WIDTH - barcodeWidth) / 2;
+
+  // Semi-transparent background
+  doc.rect(mainBarcodeX - 5, mainBarcodeY - 5, barcodeWidth + 10, barcodeHeight + 35)
+     .fillOpacity(0.9)
+     .fill('#FFFFFF')
+     .fillOpacity(1);
+
+  if (barcodeMain) {
+    doc.image(barcodeMain, mainBarcodeX, mainBarcodeY, { 
+      width: barcodeWidth, 
+      height: barcodeHeight 
+    });
+  }
+
+  // Ticket number (large)
+  doc.fontSize(12).fillColor('#000000').font('Helvetica-Bold');
+  doc.text(ticket.ticket_number, x + 5, mainBarcodeY + barcodeHeight + 5, { 
+    width: TICKET_WIDTH - 10, 
+    align: 'center' 
+  });
+}
+
 module.exports = {
   createPrintJob,
   updatePrintJobStatus,
@@ -1771,6 +2012,7 @@ module.exports = {
   generateCustomTemplatePDF,
   generateCategoryCustomPDF,
   generateGridPDF,
+  generateXYZ8UpPortraitPDF,
   getPrintJobs,
   getPrintJob,
   TEMPLATES
