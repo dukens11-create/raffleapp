@@ -79,8 +79,25 @@ async function regenerateAllBarcodes(options = {}) {
     }
     
     if (legacyOnly) {
-      // Only tickets with missing or invalid barcodes
-      conditions.push('(barcode IS NULL OR LENGTH(barcode) != 8 OR barcode NOT GLOB "[1-4][0-9][0-9][0-9][0-9][0-9][0-9][0-9]")');
+      // Only tickets with missing or invalid barcodes using the validation function
+      const allTickets = await db.all('SELECT id, ticket_number, barcode, category FROM tickets' + (conditions.length > 0 ? ' WHERE ' + conditions.filter(c => c.indexOf('barcode') === -1).join(' AND ') : ''));
+      
+      // Filter in JavaScript using the validation function
+      const legacyTickets = allTickets.filter(t => !t.barcode || !isValid8DigitBarcode(t.barcode));
+      
+      // Create a temporary table or use IN clause with IDs
+      if (legacyTickets.length === 0) {
+        return {
+          total: 0,
+          regenerated: 0,
+          skipped: 0,
+          errors: []
+        };
+      }
+      
+      const legacyIds = legacyTickets.map(t => t.id);
+      conditions.push(`id IN (${legacyIds.map(() => '?').join(',')})`);
+      params.push(...legacyIds);
     }
     
     if (conditions.length > 0) {
@@ -102,8 +119,16 @@ async function regenerateAllBarcodes(options = {}) {
     
     for (const ticket of tickets) {
       try {
-        // Generate new 8-digit barcode
-        const newBarcode = barcodeService.generateBarcodeNumber(ticket.ticket_number);
+        // Generate new 8-digit barcode with error handling
+        let newBarcode;
+        try {
+          newBarcode = barcodeService.generateBarcodeNumber(ticket.ticket_number);
+        } catch (generateError) {
+          console.error(`Error generating barcode for ticket ${ticket.ticket_number}:`, generateError);
+          results.errors.push(`Ticket ${ticket.ticket_number}: ${generateError.message}`);
+          results.skipped++;
+          continue;
+        }
         
         // Validate the generated barcode
         if (!isValid8DigitBarcode(newBarcode)) {
@@ -124,7 +149,7 @@ async function regenerateAllBarcodes(options = {}) {
           console.log(`   Progress: ${results.regenerated} / ${results.total} tickets`);
         }
       } catch (error) {
-        console.error(`Error regenerating barcode for ticket ${ticket.ticket_number}:`, error);
+        console.error(`Error processing ticket ${ticket.ticket_number}:`, error);
         results.errors.push(`Ticket ${ticket.ticket_number}: ${error.message}`);
         results.skipped++;
       }
@@ -179,10 +204,19 @@ async function flagLegacyTickets(ticketIds) {
  * @param {string} options.startTicket - Start ticket number (optional)
  * @param {string} options.endTicket - End ticket number (optional)
  * @param {string} options.paperType - Paper type for PDF (default: AVERY_16145)
+ * @param {number} options.adminId - Admin user ID (default: 1)
+ * @param {number} options.raffleId - Raffle ID (default: 1)
  * @returns {Promise<PDFDocument>} - PDF document stream
  */
 async function exportAllTicketsPDF(options = {}) {
-  const { category, startTicket, endTicket, paperType = 'AVERY_16145' } = options;
+  const { 
+    category, 
+    startTicket, 
+    endTicket, 
+    paperType = 'AVERY_16145',
+    adminId = 1,
+    raffleId = 1 
+  } = options;
   
   try {
     console.log('📄 Generating PDF export...');
@@ -213,8 +247,8 @@ async function exportAllTicketsPDF(options = {}) {
     
     // Create a print job for tracking
     const printJob = await printService.createPrintJob({
-      admin_id: 1, // System admin
-      raffle_id: 1,
+      admin_id: adminId,
+      raffle_id: raffleId,
       category: category || 'ALL',
       ticket_range_start: tickets[0].ticket_number,
       ticket_range_end: tickets[tickets.length - 1].ticket_number,

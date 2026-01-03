@@ -4526,7 +4526,9 @@ app.post('/api/admin/bulk-tickets/export-pdf', requireAuth, requireAdmin, async 
       category,
       startTicket,
       endTicket,
-      paperType: paperType || 'AVERY_16145'
+      paperType: paperType || 'AVERY_16145',
+      adminId: req.session.user.id,
+      raffleId: 1 // TODO: Get from request or config
     });
     
     const filename = `bulk-tickets-${category || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;

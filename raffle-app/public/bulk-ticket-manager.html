@@ -686,6 +686,7 @@
           showAlert('PDF exported successfully!', 'success');
         } else if (format === 'excel') {
           // Excel export
+          // Note: 50000 limit is defined in importExportService.js MAX_EXPORT_LIMIT
           let url = `/api/admin/tickets/export?limit=50000`;
           if (category) url += `&category=${category}`;
           
