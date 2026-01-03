@@ -1869,7 +1869,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     console.error('[SCAN] Stack trace:', error.stack);
     res.status(500).json({ 
       error: 'Failed to process ticket',
-      message: error.message,
+      message: 'An unexpected error occurred. Please try again or contact support.',
       hint: 'Check server logs for details'
     });
   }
@@ -4713,7 +4713,7 @@ app.post('/api/tickets/debug-barcode', requireAuth, async (req, res) => {
     console.error('Debug barcode error:', error);
     res.status(500).json({ 
       error: 'Debug failed',
-      message: error.message
+      message: 'An error occurred while debugging. Please try again or contact support.'
     });
   }
 });
