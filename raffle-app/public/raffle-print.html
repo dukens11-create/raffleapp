@@ -297,6 +297,7 @@
             <option value="">Select Paper Type</option>
             <option value="AVERY_16145">Avery 16145 (Recommended)</option>
             <option value="PRINTWORKS">PrintWorks Custom</option>
+            <option value="PORTRAIT_8UP">🖨️ Portrait 8-up (XYZ Only)</option>
           </select>
           
           <div id="paper-info" class="paper-info" style="display: none;"></div>
@@ -336,6 +337,17 @@
           'Manual cutting required (guides included)',
           'Main ticket: 1.675" height',
           'Tear-off stub: 0.45" height'
+        ]
+      },
+      'PORTRAIT_8UP': {
+        title: 'Portrait 8-up Layout (XYZ Only)',
+        details: [
+          'Size: 2.1" × 5.5" (Portrait orientation)',
+          'Layout: 8 tickets per page (4 columns × 2 rows)',
+          'Standard 8.5" × 11" paper',
+          'Tear-off perforation line included',
+          'XYZ category only',
+          'Optimized for easy cutting'
         ]
       }
     };
@@ -428,6 +440,7 @@
       e.preventDefault();
       
       const submitBtn = document.getElementById('submit-btn');
+      const category = document.getElementById('category').value;
       const startTicket = document.getElementById('start-ticket').value;
       const endTicket = document.getElementById('end-ticket').value;
       const paperType = document.getElementById('paper-type').value;
@@ -443,20 +456,28 @@
         return;
       }
       
+      // Validate XYZ category for PORTRAIT_8UP
+      if (paperType === 'PORTRAIT_8UP' && category !== 'XYZ') {
+        showAlert('Error: Portrait 8-up layout is only available for XYZ category tickets', 'error');
+        return;
+      }
+      
       submitBtn.disabled = true;
       
-      // Prepare request body matching API requirements
+      // Prepare request body for /api/admin/tickets/print/generate endpoint
       const requestBody = {
-        from: startTicket,
-        to: endTicket,
-        paperType: paperType
+        category: category,
+        start_ticket: startTicket,
+        end_ticket: endTicket,
+        paper_type: paperType,
+        raffle_id: 1 // Default raffle ID
       };
       
       try {
         updateProgress(10, 'Preparing print job...');
         
-        // Call the print API
-        const response = await fetch('/api/admin/tickets/print', {
+        // Call the print/generate API endpoint
+        const response = await fetch('/api/admin/tickets/print/generate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -495,7 +516,13 @@
           // Handle error response
           let errorMessage = 'Failed to generate PDF';
           
-          if (contentType && contentType.includes('application/json')) {
+          // Check for authentication errors
+          if (response.status === 401 || response.status === 403) {
+            errorMessage = 'Session expired. Please log in again.';
+            setTimeout(() => {
+              window.location.href = '/admin.html';
+            }, 2000);
+          } else if (contentType && contentType.includes('application/json')) {
             const error = await response.json();
             errorMessage = error.error || errorMessage;
           } else {

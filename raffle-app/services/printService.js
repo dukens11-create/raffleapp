@@ -122,6 +122,24 @@ const TEMPLATES = {
     spacing: 0.05 * 72,
     pageWidth: 8.5 * 72,
     pageHeight: 11 * 72
+  },
+  PORTRAIT_8UP: {
+    name: 'Portrait 8-up (2.1" × 5.5")',
+    ticketWidth: 2.1 * 72,       // 2.1 inches in points - PORTRAIT WIDTH
+    ticketHeight: 5.5 * 72,      // 5.5 inches in points - PORTRAIT HEIGHT
+    mainHeight: 4.0 * 72,        // Main ticket section (bottom 4")
+    stubHeight: 1.5 * 72,        // Stub section (top 1.5")
+    perforationLine: true,       // Dashed perforation line
+    ticketsPerPage: 8,           // 4 columns x 2 rows
+    columns: 4,
+    rows: 2,
+    topMargin: 0.25 * 72,        // 0.25 inch margin
+    leftMargin: 0.25 * 72,       // 0.25 inch margin
+    rightMargin: 0.25 * 72,      // 0.25 inch margin
+    bottomMargin: 0.25 * 72,     // 0.25 inch margin
+    spacing: 0,                  // No gap between tickets
+    pageWidth: 8.5 * 72,         // Letter width (612 points)
+    pageHeight: 11 * 72          // Letter height (792 points)
   }
 };
 
@@ -1767,22 +1785,23 @@ async function generateGridPDF(tickets, customDesign = null) {
 /**
  * Generate 8-up PORTRAIT ticket layout for letter paper (8.5" × 11")
  * Ticket size: 2.1" wide × 5.5" tall (151pt × 396pt at 72 DPI)
- * Layout: 4 columns × 2 rows
+ * Layout: 4 columns × 2 rows = 8 tickets per page
+ * Includes barcodes, QR codes, and all ticket information
  */
 async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings) {
   const doc = new PDFDocument({
     size: 'LETTER',  // Portrait: 612pt × 792pt (8.5" × 11")
-    margins: { top: 18, bottom: 18, left: 18, right: 18 } // 0.25" margins
+    margins: { top: 0, bottom: 0, left: 0, right: 0 }
   });
 
-  // CRITICAL: PORTRAIT dimensions
-  const TICKET_WIDTH = 151;   // 2.1" × 72 DPI
-  const TICKET_HEIGHT = 396;  // 5.5" × 72 DPI
-  const STUB_HEIGHT = 108;    // 1.5" × 72 DPI (top)
-  const MAIN_HEIGHT = 288;    // 4" × 72 DPI (bottom)
+  // PORTRAIT dimensions for 8-up layout
+  const TICKET_WIDTH = 2.1 * 72;   // 2.1" = 151.2pt
+  const TICKET_HEIGHT = 5.5 * 72;  // 5.5" = 396pt
   const TICKETS_PER_PAGE = 8;
   const COLS = 4;  // 4 columns across
   const ROWS = 2;  // 2 rows down
+  const TOP_MARGIN = 0.25 * 72;    // 0.25" = 18pt
+  const LEFT_MARGIN = 0.25 * 72;   // 0.25" = 18pt
 
   const pdfPromise = new Promise((resolve, reject) => {
     const chunks = [];
@@ -1794,6 +1813,7 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
   let ticketIndex = 0;
 
   for (const ticket of tickets) {
+    // Add new page after every 8 tickets
     if (ticketIndex > 0 && ticketIndex % TICKETS_PER_PAGE === 0) {
       doc.addPage();
     }
@@ -1802,27 +1822,36 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     const col = positionOnPage % COLS;
     const row = Math.floor(positionOnPage / COLS);
 
-    const x = 18 + (col * TICKET_WIDTH);   // 0.25" margin + column offset
-    const y = 18 + (row * TICKET_HEIGHT);  // 0.25" margin + row offset
+    const x = LEFT_MARGIN + (col * TICKET_WIDTH);
+    const y = TOP_MARGIN + (row * TICKET_HEIGHT);
 
-    // Generate barcodes for this ticket
-    let barcodeStub = null;
-    let barcodeMain = null;
+    // Generate codes if not already present
+    if (!ticket.barcode || !ticket.qr_code_data) {
+      const codes = await ticketService.generateAndSaveCodes(ticket.ticket_number);
+      ticket.barcode = codes.barcode;
+      ticket.qr_code_data = codes.qrCodeData;
+    }
+
+    // Generate QR code
+    let qrBuffer = null;
+    try {
+      qrBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
+        size: 67, // 0.7" at 96 DPI
+        errorCorrectionLevel: 'M'
+      });
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+    }
+
+    // Generate barcode
+    let barcodeBuffer = null;
     if (ticket.barcode) {
       try {
-        barcodeStub = await bwipjs.toBuffer({
-          bcid: 'code128',
+        barcodeBuffer = await bwipjs.toBuffer({
+          bcid: 'ean13',
           text: ticket.barcode,
-          scale: 1.5,
-          height: 8,
-          includetext: false,
-          textxalign: 'center'
-        });
-        barcodeMain = await bwipjs.toBuffer({
-          bcid: 'code128',
-          text: ticket.barcode,
-          scale: 1.5,
-          height: 8,
+          scale: barcodeSettings.width ? (barcodeSettings.width / 60) : 1.5,
+          height: barcodeSettings.height ? Math.floor(barcodeSettings.height / 2) : 10,
           includetext: false,
           textxalign: 'center'
         });
@@ -1831,8 +1860,8 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
       }
     }
 
-    // Draw FRONT side
-    await drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y);
+    // Draw the ticket
+    await drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y, qrBuffer, barcodeBuffer);
 
     ticketIndex++;
   }
@@ -1843,26 +1872,33 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
 
 /**
  * Draw PORTRAIT ticket FRONT with custom image background
+ * Includes barcode, QR code, category, price, and form fields
  */
-async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y) {
-  const TICKET_WIDTH = 151;   // 2.1"
-  const TICKET_HEIGHT = 396;  // 5.5"
-  const STUB_HEIGHT = 108;    // 1.5"
-  const MAIN_HEIGHT = 288;    // 4"
+async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y, qrBuffer, barcodeBuffer) {
+  const TICKET_WIDTH = 2.1 * 72;   // 2.1" = 151.2pt
+  const TICKET_HEIGHT = 5.5 * 72;  // 5.5" = 396pt
+  const STUB_HEIGHT = 1.5 * 72;    // 1.5" = 108pt (top section)
+  const MAIN_HEIGHT = 4.0 * 72;    // 4.0" = 288pt (bottom section)
 
-  // Draw custom front image as background (scaled/rotated to fit portrait)
+  // Draw outer border
+  doc.save();
+  doc.strokeColor('#000000')
+     .lineWidth(1)
+     .rect(x, y, TICKET_WIDTH, TICKET_HEIGHT)
+     .stroke();
+  doc.restore();
+
+  // Draw custom front image as background (if provided)
   if (customDesign && customDesign.front_image_path) {
     const imagePath = path.join(__dirname, '..', 'public', customDesign.front_image_path);
     try {
-      // Check if file exists
       if (fs.existsSync(imagePath)) {
-        // Rotate and scale the horizontal image to fit vertical ticket
         doc.save();
-        doc.translate(x + TICKET_WIDTH/2, y + TICKET_HEIGHT/2);
-        doc.rotate(90); // Rotate 90 degrees for portrait
-        doc.image(imagePath, -TICKET_HEIGHT/2, -TICKET_WIDTH/2, {
-          width: TICKET_HEIGHT,
-          height: TICKET_WIDTH
+        doc.rect(x, y, TICKET_WIDTH, TICKET_HEIGHT).clip();
+        doc.image(imagePath, x, y, {
+          width: TICKET_WIDTH,
+          height: TICKET_HEIGHT,
+          fit: 'cover'
         });
         doc.restore();
       }
@@ -1881,19 +1917,129 @@ async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y) {
      .stroke();
   doc.restore();
 
-  // Draw scissors icon at perforation (left side)
-  doc.fontSize(10).fillColor('#666666')
+  // Draw scissors icon at perforation
+  doc.fontSize(10).fillColor('#666666').font('Helvetica')
      .text('✂', x + 2, y + STUB_HEIGHT - 6);
 
-  // STUB SECTION (Top 1.5") - Form fields
+  // === STUB SECTION (Top 1.5") - Buyer info fields ===
   doc.fontSize(7).fillColor('#000000').font('Helvetica-Bold');
   
-  doc.text('NON:', x + 5, y + 10, { width: TICKET_WIDTH - 10 });
-  doc.strokeColor('#000000');
-  doc.moveTo(x + 5, y + 22).lineTo(x + TICKET_WIDTH - 5, y + 22).stroke();
+  doc.text('Name:', x + 5, y + 8, { width: TICKET_WIDTH - 10 });
+  doc.strokeColor('#000000').lineWidth(0.5);
+  doc.moveTo(x + 5, y + 20).lineTo(x + TICKET_WIDTH - 5, y + 20).stroke();
 
-  doc.text('TELEFÒN:', x + 5, y + 30, { width: TICKET_WIDTH - 10 });
-  doc.moveTo(x + 5, y + 42).lineTo(x + TICKET_WIDTH - 5, y + 42).stroke();
+  doc.text('Phone:', x + 5, y + 26, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + 5, y + 38).lineTo(x + TICKET_WIDTH - 5, y + 38).stroke();
+
+  doc.text('Email:', x + 5, y + 44, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + 5, y + 56).lineTo(x + TICKET_WIDTH - 5, y + 56).stroke();
+
+  doc.text('Date:', x + 5, y + 62, { width: TICKET_WIDTH - 10 });
+  doc.moveTo(x + 5, y + 74).lineTo(x + TICKET_WIDTH - 5, y + 74).stroke();
+
+  // Small ticket number on stub
+  doc.fontSize(6).fillColor('#666666').font('Helvetica')
+     .text(`#${ticket.ticket_number}`, x + 5, y + STUB_HEIGHT - 15, {
+       width: TICKET_WIDTH - 10,
+       align: 'center'
+     });
+
+  // === MAIN SECTION (Bottom 4") - Ticket details ===
+  
+  const mainY = y + STUB_HEIGHT + 5;
+  
+  // Semi-transparent background for text readability
+  if (customDesign) {
+    doc.rect(x + 5, mainY, TICKET_WIDTH - 10, 35)
+       .fillOpacity(0.85)
+       .fill('#FFFFFF')
+       .fillOpacity(1);
+  }
+
+  // Title
+  doc.fontSize(10).fillColor('#000000').font('Helvetica-Bold')
+     .text('🎫 RAFFLE TICKET', x + 5, mainY + 3, {
+       width: TICKET_WIDTH - 10,
+       align: 'center'
+     });
+
+  // Ticket number (large)
+  doc.fontSize(12).font('Helvetica-Bold')
+     .text(ticket.ticket_number, x + 5, mainY + 18, {
+       width: TICKET_WIDTH - 10,
+       align: 'center'
+     });
+
+  // Category and price
+  const categoryY = mainY + 35;
+  doc.fontSize(8).font('Helvetica')
+     .text(`Category: ${ticket.category}`, x + 5, categoryY, {
+       width: TICKET_WIDTH - 10,
+       align: 'center'
+     });
+  
+  doc.fontSize(9).font('Helvetica-Bold')
+     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + 5, categoryY + 12, {
+       width: TICKET_WIDTH - 10,
+       align: 'center'
+     });
+
+  // QR Code (right side of main section)
+  if (qrBuffer) {
+    const qrSize = 50;
+    const qrX = x + TICKET_WIDTH - qrSize - 8;
+    const qrY = mainY + 45;
+
+    if (customDesign) {
+      doc.rect(qrX - 3, qrY - 3, qrSize + 6, qrSize + 6)
+         .fillOpacity(0.9)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+
+    doc.image(qrBuffer, qrX, qrY, {
+      width: qrSize,
+      height: qrSize
+    });
+  }
+
+  // Barcode (bottom center of main section)
+  if (barcodeBuffer) {
+    const barcodeWidth = 100;
+    const barcodeHeight = 35;
+    const barcodeX = x + (TICKET_WIDTH - barcodeWidth) / 2;
+    const barcodeY = y + TICKET_HEIGHT - barcodeHeight - 25;
+
+    // White background for barcode
+    if (customDesign) {
+      doc.rect(barcodeX - 5, barcodeY - 5, barcodeWidth + 10, barcodeHeight + 18)
+         .fillOpacity(0.95)
+         .fill('#FFFFFF')
+         .fillOpacity(1);
+    }
+
+    doc.image(barcodeBuffer, barcodeX, barcodeY, {
+      width: barcodeWidth,
+      height: barcodeHeight
+    });
+
+    // Barcode number text
+    if (ticket.barcode) {
+      doc.fontSize(6).fillColor('#000000').font('Helvetica')
+         .text(ticket.barcode, x + 5, barcodeY + barcodeHeight + 2, {
+           width: TICKET_WIDTH - 10,
+           align: 'center'
+         });
+    }
+  }
+
+  // Footer message
+  doc.fontSize(6).fillColor('#666666').font('Helvetica')
+     .text('Keep this ticket for raffle entry', x + 5, y + TICKET_HEIGHT - 8, {
+       width: TICKET_WIDTH - 10,
+       align: 'center'
+     });
+}
 
   doc.text('NIF:', x + 5, y + 50, { width: TICKET_WIDTH - 10 });
   doc.moveTo(x + 5, y + 62).lineTo(x + TICKET_WIDTH - 5, y + 62).stroke();
@@ -1907,99 +2053,6 @@ async function drawXYZPortraitTicketFront(doc, ticket, customDesign, x, y) {
   
   doc.fontSize(10).fillColor('#000000').font('Helvetica-Bold');
   doc.text(ticket.ticket_number, x + 5, y + STUB_HEIGHT + 14, { 
-    width: TICKET_WIDTH - 10, 
-    align: 'center' 
-  });
-}
-
-/**
- * Draw PORTRAIT ticket BACK with dual barcodes
- */
-async function drawXYZPortraitTicketBack(doc, ticket, customDesign, x, y, barcodeStub, barcodeMain) {
-  const TICKET_WIDTH = 151;   // 2.1"
-  const TICKET_HEIGHT = 396;  // 5.5"
-  const STUB_HEIGHT = 108;    // 1.5"
-
-  // Draw custom back image as background (rotated for portrait)
-  if (customDesign && customDesign.back_image_path) {
-    const imagePath = path.join(__dirname, '..', 'public', customDesign.back_image_path);
-    try {
-      // Check if file exists
-      if (fs.existsSync(imagePath)) {
-        doc.save();
-        doc.translate(x + TICKET_WIDTH/2, y + TICKET_HEIGHT/2);
-        doc.rotate(90);
-        doc.image(imagePath, -TICKET_HEIGHT/2, -TICKET_WIDTH/2, {
-          width: TICKET_HEIGHT,
-          height: TICKET_WIDTH
-        });
-        doc.restore();
-      }
-    } catch (err) {
-      console.error('Error loading back image:', err);
-    }
-  }
-
-  // Draw perforation line
-  doc.save();
-  doc.strokeColor('#999999').lineWidth(1).dash(5, 5);
-  doc.moveTo(x, y + STUB_HEIGHT)
-     .lineTo(x + TICKET_WIDTH, y + STUB_HEIGHT)
-     .stroke();
-  doc.restore();
-
-  // STUB SECTION (Top) - Barcode
-  const barcodeWidth = 100;
-  const barcodeHeight = 35;
-  const barcodeX = x + (TICKET_WIDTH - barcodeWidth) / 2;
-
-  // Semi-transparent background
-  doc.rect(barcodeX - 5, y + 15, barcodeWidth + 10, barcodeHeight + 25)
-     .fillOpacity(0.9)
-     .fill('#FFFFFF')
-     .fillOpacity(1);
-
-  if (barcodeStub) {
-    doc.image(barcodeStub, barcodeX, y + 20, { 
-      width: barcodeWidth, 
-      height: barcodeHeight 
-    });
-  }
-
-  // Ticket number below barcode
-  doc.fontSize(8).fillColor('#000000').font('Helvetica-Bold');
-  doc.text(ticket.ticket_number, x + 5, y + 60, { 
-    width: TICKET_WIDTH - 10, 
-    align: 'center' 
-  });
-
-  // Helper text
-  doc.fontSize(6).fillColor('#666666').font('Helvetica');
-  doc.text('Keep for verification', x + 5, y + 75, { 
-    width: TICKET_WIDTH - 10, 
-    align: 'center' 
-  });
-
-  // MAIN SECTION (Bottom) - Barcode
-  const mainBarcodeY = y + STUB_HEIGHT + 50;
-  const mainBarcodeX = x + (TICKET_WIDTH - barcodeWidth) / 2;
-
-  // Semi-transparent background
-  doc.rect(mainBarcodeX - 5, mainBarcodeY - 5, barcodeWidth + 10, barcodeHeight + 35)
-     .fillOpacity(0.9)
-     .fill('#FFFFFF')
-     .fillOpacity(1);
-
-  if (barcodeMain) {
-    doc.image(barcodeMain, mainBarcodeX, mainBarcodeY, { 
-      width: barcodeWidth, 
-      height: barcodeHeight 
-    });
-  }
-
-  // Ticket number (large)
-  doc.fontSize(12).fillColor('#000000').font('Helvetica-Bold');
-  doc.text(ticket.ticket_number, x + 5, mainBarcodeY + barcodeHeight + 5, { 
     width: TICKET_WIDTH - 10, 
     align: 'center' 
   });

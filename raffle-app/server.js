@@ -2525,8 +2525,13 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
       return res.status(400).json({ error: 'Missing required parameters' });
     }
     
-    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS', 'DEFAULT_TEAROFF'].includes(paper_type)) {
+    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS', 'DEFAULT_TEAROFF', 'PORTRAIT_8UP'].includes(paper_type)) {
       return res.status(400).json({ error: 'Invalid paper type' });
+    }
+    
+    // Validate XYZ category for PORTRAIT_8UP
+    if (paper_type === 'PORTRAIT_8UP' && category !== 'XYZ') {
+      return res.status(400).json({ error: 'PORTRAIT_8UP paper type is only available for XYZ category tickets' });
     }
     
     // Get tickets in range
@@ -2596,6 +2601,23 @@ app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (
     };
     
     let doc;
+    
+    // Check if using PORTRAIT_8UP layout (XYZ tickets only)
+    if (paper_type === 'PORTRAIT_8UP') {
+      // Generate PDF with portrait 8-up layout: 4 columns × 2 rows = 8 tickets per page
+      const pdfBuffer = await printService.generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=tickets-portrait-8up-${category}-${start_ticket}-to-${end_ticket}.pdf`);
+      res.send(pdfBuffer);
+      
+      // Mark tickets as printed
+      for (const ticket of tickets) {
+        await ticketService.markAsPrinted(ticket.ticket_number);
+      }
+      
+      return;
+    }
     
     // Check if using grid layout
     if (layout === 'grid' || layout === 'grid_20') {
