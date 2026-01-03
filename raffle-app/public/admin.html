@@ -2888,6 +2888,16 @@
         
         console.log('📊 Response status:', response.status);
         
+        // Check for authentication errors
+        if (response.status === 401 || response.status === 403) {
+          const errorMessage = 'You are not authenticated. Please log in again.';
+          // Redirect to login page after showing error
+          setTimeout(() => {
+            window.location.href = '/login.html';
+          }, 2000);
+          throw new Error(errorMessage);
+        }
+        
         // Check if response is OK
         if (!response.ok) {
           // Try to parse error as JSON
@@ -2916,6 +2926,11 @@
         
         console.log(`✅ CSV received: ${blob.size} bytes`);
         
+        // Check for empty file
+        if (blob.size === 0) {
+          throw new Error('Downloaded file is empty. No tickets found in database.');
+        }
+        
         // Create download link
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -2933,7 +2948,7 @@
         // Show success message
         downloadStatus.textContent = '✅ CSV download complete!';
         downloadStatus.style.color = '#10b981';
-        showNotify('✅ CSV downloaded successfully! File contains ticket numbers and barcodes only.', '#10b981', 3000);
+        showNotify('✅ CSV downloaded successfully! File contains ticket numbers, barcodes, and categories.', '#10b981', 3000);
         
         // Reset status after 3 seconds
         setTimeout(() => {
@@ -2978,6 +2993,16 @@
         const response = await fetch('/api/admin/tickets/export-all-barcodes');
         
         console.log('📊 Response status:', response.status);
+        
+        // Check for authentication errors
+        if (response.status === 401 || response.status === 403) {
+          const errorMessage = 'You are not authenticated. Please log in again.';
+          // Redirect to login page after showing error
+          setTimeout(() => {
+            window.location.href = '/login.html';
+          }, 2000);
+          throw new Error(errorMessage);
+        }
         
         // Check if response is OK
         if (!response.ok) {
@@ -3033,7 +3058,7 @@
         document.body.removeChild(a);
         
         console.log('✅ Download complete!');
-        showNotify('✅ TXT file downloaded successfully!', '#10b981');
+        showNotify('✅ TXT file downloaded successfully! File contains ticket numbers, barcodes, and categories.', '#10b981');
         
       } catch (error) {
         console.error('❌ TXT download error:', error);

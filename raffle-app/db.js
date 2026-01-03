@@ -575,6 +575,100 @@ function isUniqueConstraintError(error) {
          message.includes('duplicate key');
 }
 
+/**
+ * Stream query results in batches
+ * Works for both SQLite and PostgreSQL
+ * 
+ * @param {string} sql - SQL query
+ * @param {array} params - Query parameters
+ * @param {function} rowCallback - Callback function called for each row (row) => {}
+ * @param {object} options - Options { batchSize: 1000 }
+ * @returns {Promise<number>} - Total rows processed
+ */
+async function streamQuery(sql, params = [], rowCallback, options = {}) {
+  const batchSize = options.batchSize || 1000;
+  let offset = 0;
+  let totalProcessed = 0;
+  
+  if (USE_POSTGRES) {
+    // PostgreSQL: Use cursor-based approach with LIMIT/OFFSET
+    let pgSql = sql;
+    let paramIndex = 1;
+    pgSql = pgSql.replace(/\?/g, () => `$${paramIndex++}`);
+    
+    while (true) {
+      const paginatedQuery = `${pgSql} LIMIT ${batchSize} OFFSET ${offset}`;
+      
+      try {
+        const result = await new Promise((resolve, reject) => {
+          pgPool.query(paginatedQuery, params, (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        });
+        
+        if (result.rows.length === 0) {
+          break;
+        }
+        
+        for (const row of result.rows) {
+          await rowCallback(row);
+          totalProcessed++;
+        }
+        
+        if (result.rows.length < batchSize) {
+          break;
+        }
+        
+        offset += batchSize;
+      } catch (error) {
+        console.error('Error in streamQuery (PostgreSQL):', error);
+        throw error;
+      }
+    }
+  } else {
+    // SQLite: Use db.each for streaming
+    return new Promise((resolve, reject) => {
+      let processed = 0;
+      
+      db.each(
+        sql,
+        params,
+        async (err, row) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          
+          try {
+            await rowCallback(row);
+            processed++;
+          } catch (callbackError) {
+            reject(callbackError);
+          }
+        },
+        (err, count) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(processed);
+          }
+        }
+      );
+    });
+  }
+  
+  return totalProcessed;
+}
+
+/**
+ * Get direct database connection for low-level operations
+ * Use with caution - prefer using query, get, run, all, or streamQuery
+ */
+function getConnection() {
+  return USE_POSTGRES ? pgPool : db;
+}
+
 module.exports = {
   query,
   get,
@@ -585,5 +679,7 @@ module.exports = {
   serialize,
   USE_POSTGRES,
   getCurrentTimestamp,
-  isUniqueConstraintError
+  isUniqueConstraintError,
+  streamQuery,
+  getConnection
 };

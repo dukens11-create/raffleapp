@@ -2304,19 +2304,20 @@ app.get('/api/admin/tickets/template', requireAuth, requireAdmin, (req, res) => 
   }
 });
 
-// GET /api/admin/tickets/number-barcode - Export ticket numbers and barcodes as CSV
-// Returns a CSV file with only ticket_number and barcode columns, sorted by ticket_number
+// GET /api/admin/tickets/number-barcode - Export ticket numbers and barcodes as CSV (streaming)
+// Returns a CSV file with ticket_number, barcode, and category columns, sorted by ticket_number
+// Uses streaming to handle large datasets without loading all data in memory
 app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (req, res) => {
+  let headerSent = false;
+  let rowCount = 0;
+  
   try {
     console.log('📥 CSV export request received for ticket numbers and barcodes');
     
-    // Fetch all tickets with only ticket_number and barcode, sorted by ticket_number
-    const tickets = await db.query(
-      'SELECT ticket_number, barcode FROM tickets ORDER BY ticket_number ASC'
-    );
+    // Check if any tickets exist before starting stream
+    const ticketCount = await db.get('SELECT COUNT(*) as count FROM tickets');
     
-    // Handle case where no tickets exist
-    if (!tickets || tickets.length === 0) {
+    if (!ticketCount || ticketCount.count === 0) {
       console.warn('⚠️ No tickets found in database');
       return res.status(404).json({ 
         error: 'No tickets found',
@@ -2324,7 +2325,14 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
       });
     }
     
-    console.log(`✅ Found ${tickets.length} tickets for CSV export`);
+    console.log(`✅ Found ${ticketCount.count} tickets for CSV export, starting stream...`);
+    
+    // Set response headers for CSV download
+    const filename = 'tickets_number_barcode.csv';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     
     // Helper function to format CSV field (escape and quote if needed)
     const formatCsvField = (value) => {
@@ -2336,62 +2344,75 @@ app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (r
       return needsQuotes ? `"${escapedValue}"` : escapedValue;
     };
     
-    // Generate CSV content
-    // Start with header row
-    let csvContent = 'ticket_number,barcode\n';
+    // Write CSV header
+    res.write('ticket_number,barcode,category\n');
+    headerSent = true;
     
-    // Add each ticket as a row
-    tickets.forEach(ticket => {
-      const ticketNumber = formatCsvField(ticket.ticket_number);
-      const barcode = formatCsvField(ticket.barcode);
-      csvContent += `${ticketNumber},${barcode}\n`;
-    });
+    // Stream tickets from database in batches
+    const totalProcessed = await db.streamQuery(
+      'SELECT ticket_number, barcode, category FROM tickets ORDER BY ticket_number ASC',
+      [],
+      (ticket) => {
+        const ticketNumber = formatCsvField(ticket.ticket_number);
+        const barcode = formatCsvField(ticket.barcode);
+        const category = formatCsvField(ticket.category);
+        res.write(`${ticketNumber},${barcode},${category}\n`);
+        rowCount++;
+        
+        // Log progress every 10000 rows
+        if (rowCount % 10000 === 0) {
+          console.log(`📊 CSV export progress: ${rowCount} rows written`);
+        }
+      },
+      { batchSize: 1000 }
+    );
     
-    // Set response headers for CSV download
-    const filename = 'tickets_number_barcode.csv';
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(csvContent);
+    // End the response
+    res.end();
     
-    console.log(`✅ CSV export successful: ${tickets.length} tickets exported`);
+    console.log(`✅ CSV export successful: ${totalProcessed} tickets exported`);
     
   } catch (error) {
     console.error('❌ Error exporting CSV:', error);
     console.error('Stack:', error.stack);
-    res.status(500).json({ 
-      error: 'Failed to export CSV',
-      message: error.message
-    });
+    
+    // If headers not sent yet, send error as JSON
+    if (!headerSent) {
+      res.status(500).json({ 
+        error: 'Failed to export CSV',
+        message: error.message
+      });
+    } else {
+      // Headers already sent, can't send JSON error
+      // Just end the response - client will see incomplete download
+      console.error('❌ Error occurred mid-stream, response already started');
+      res.end();
+    }
   }
 });
 
-// GET /api/admin/tickets/export-all-barcodes - Export ALL ticket numbers and barcodes as TXT
+// GET /api/admin/tickets/export-all-barcodes - Export ALL ticket numbers and barcodes as TXT (streaming)
+// Returns a TXT file with ticket_number, barcode, and category, sorted by ticket_number
+// Uses streaming to handle large datasets without loading all data in memory
 app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, async (req, res) => {
+  let headerSent = false;
+  let rowCount = 0;
+  
   try {
-    console.log('Starting export of all ticket barcodes...');
+    console.log('📥 TXT export request received for all ticket barcodes');
     
-    // Get ALL tickets, ordered by ticket number
-    const tickets = await db.query(`
-      SELECT ticket_number, barcode 
-      FROM tickets 
-      ORDER BY ticket_number ASC
-    `);
+    // Check if any tickets exist before starting stream
+    const ticketCount = await db.get('SELECT COUNT(*) as count FROM tickets');
     
-    console.log(`Found ${tickets.length} tickets to export`);
-    
-    if (tickets.length === 0) {
+    if (!ticketCount || ticketCount.count === 0) {
+      console.warn('⚠️ No tickets found in database');
       return res.status(404).json({ 
         error: 'No tickets found',
         message: 'There are no tickets in the system. Please generate or import tickets first.'
       });
     }
     
-    // Generate simple TXT content: "TICKET-NUMBER  BARCODE"
-    const lines = [];
-    tickets.forEach(ticket => {
-      lines.push(`${ticket.ticket_number}  ${ticket.barcode}`);
-    });
-    const txtContent = lines.join('\n') + '\n';
+    console.log(`✅ Found ${ticketCount.count} tickets for TXT export, starting stream...`);
     
     // Set headers for file download
     const timestamp = new Date().toISOString().split('T')[0];
@@ -2399,16 +2420,49 @@ app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, asy
     
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(txtContent);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     
-    console.log(`Export complete: ${filename} with ${tickets.length} tickets`);
+    headerSent = true;
+    
+    // Stream tickets from database in batches
+    const totalProcessed = await db.streamQuery(
+      'SELECT ticket_number, barcode, category FROM tickets ORDER BY ticket_number ASC',
+      [],
+      (ticket) => {
+        // Format: "TICKET-NUMBER  BARCODE  CATEGORY"
+        res.write(`${ticket.ticket_number}  ${ticket.barcode}  ${ticket.category || ''}\n`);
+        rowCount++;
+        
+        // Log progress every 10000 rows
+        if (rowCount % 10000 === 0) {
+          console.log(`📊 TXT export progress: ${rowCount} rows written`);
+        }
+      },
+      { batchSize: 1000 }
+    );
+    
+    // End the response
+    res.end();
+    
+    console.log(`✅ TXT export successful: ${totalProcessed} tickets exported to ${filename}`);
     
   } catch (error) {
-    console.error('Error exporting all ticket barcodes:', error);
-    res.status(500).json({ 
-      error: 'Failed to export ticket barcodes',
-      message: error.message
-    });
+    console.error('❌ Error exporting TXT:', error);
+    console.error('Stack:', error.stack);
+    
+    // If headers not sent yet, send error as JSON
+    if (!headerSent) {
+      res.status(500).json({ 
+        error: 'Failed to export ticket barcodes',
+        message: error.message
+      });
+    } else {
+      // Headers already sent, can't send JSON error
+      // Just end the response - client will see incomplete download
+      console.error('❌ Error occurred mid-stream, response already started');
+      res.end();
+    }
   }
 });
 
