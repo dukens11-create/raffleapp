@@ -1836,7 +1836,7 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     let qrBuffer = null;
     try {
       qrBuffer = await qrcodeService.generateQRCodeBuffer(ticket, {
-        size: 67, // ~0.93" at 72 DPI (67pt / 72 DPI)
+        size: 67, // 0.93 inches at 72 DPI (67pt / 72 DPI = 0.93")
         errorCorrectionLevel: 'M'
       });
     } catch (error) {
@@ -1847,13 +1847,16 @@ async function generateXYZ8UpPortraitPDF(tickets, customDesign, barcodeSettings)
     let barcodeBuffer = null;
     if (ticket.barcode) {
       try {
-        // Use EAN-13 for valid 13-digit barcodes, otherwise use code128
-        const barcodeType = (ticket.barcode.length === 13 && /^\d+$/.test(ticket.barcode)) ? 'ean13' : 'code128';
+        // Use code128 for reliability (works with any alphanumeric barcode)
+        // EAN-13 requires exact 12 digits + valid check digit which may not always be guaranteed
+        const BARCODE_BASE_WIDTH = 60; // Base width in modules for scaling
+        const BARCODE_HEIGHT_RATIO = 2; // Conversion factor from points to mm for bwip-js
+        
         barcodeBuffer = await bwipjs.toBuffer({
-          bcid: barcodeType,
+          bcid: 'code128', // More flexible than EAN-13, works with any format
           text: ticket.barcode,
-          scale: barcodeSettings.width ? (barcodeSettings.width / 60) : 1.5,
-          height: barcodeSettings.height ? Math.floor(barcodeSettings.height / 2) : 10,
+          scale: barcodeSettings.width ? (barcodeSettings.width / BARCODE_BASE_WIDTH) : 1.5,
+          height: barcodeSettings.height ? Math.floor(barcodeSettings.height / BARCODE_HEIGHT_RATIO) : 10,
           includetext: false,
           textxalign: 'center'
         });

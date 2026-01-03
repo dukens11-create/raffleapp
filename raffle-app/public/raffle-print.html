@@ -464,13 +464,18 @@
       
       submitBtn.disabled = true;
       
+      // Get raffle ID from URL params or default to 1
+      // This allows the page to work with different raffles if raffle_id is in the URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const raffleId = parseInt(urlParams.get('raffle_id')) || 1;
+      
       // Prepare request body for /api/admin/tickets/print/generate endpoint
       const requestBody = {
         category: category,
         start_ticket: startTicket,
         end_ticket: endTicket,
         paper_type: paperType,
-        raffle_id: 1 // Default raffle ID
+        raffle_id: raffleId
       };
       
       try {
