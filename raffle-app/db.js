@@ -626,6 +626,7 @@ async function streamQuery(sql, params = [], rowCallback, options = {}) {
         throw error;
       }
     }
+    return totalProcessed;
   } else {
     // SQLite: Use db.each for streaming
     return new Promise((resolve, reject) => {
@@ -634,14 +635,16 @@ async function streamQuery(sql, params = [], rowCallback, options = {}) {
       db.each(
         sql,
         params,
-        async (err, row) => {
+        (err, row) => {
           if (err) {
             reject(err);
             return;
           }
           
           try {
-            await rowCallback(row);
+            // Note: rowCallback is synchronous in SQLite mode
+            // For async operations, they will run but we won't wait
+            rowCallback(row);
             processed++;
           } catch (callbackError) {
             reject(callbackError);
@@ -657,8 +660,6 @@ async function streamQuery(sql, params = [], rowCallback, options = {}) {
       );
     });
   }
-  
-  return totalProcessed;
 }
 
 /**
