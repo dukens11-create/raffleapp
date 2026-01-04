@@ -32,6 +32,15 @@
 
 require('dotenv').config();
 
+// Load node-fetch if needed for custom gateway
+let fetch;
+try {
+  fetch = require('node-fetch');
+} catch (error) {
+  // node-fetch not installed, will fail gracefully if custom gateway is used
+  console.warn('⚠️  node-fetch not installed, custom SMS gateway will not work');
+}
+
 // SMS Provider configuration
 const SMS_PROVIDER = process.env.SMS_PROVIDER || 'disabled';
 
@@ -77,11 +86,16 @@ const ADMIN_PHONES = process.env.ADMIN_NOTIFICATION_PHONES
 function formatPhoneNumber(phone) {
   if (!phone) return null;
   
+  // Check if phone already starts with +
+  const hasPlus = phone.trim().startsWith('+');
+  
   // Remove all non-digit characters
   let cleaned = phone.replace(/\D/g, '');
   
   // Add + if not present
-  if (!cleaned.startsWith('+')) {
+  if (!hasPlus) {
+    cleaned = '+' + cleaned;
+  } else {
     cleaned = '+' + cleaned;
   }
   
@@ -128,9 +142,11 @@ async function sendViaCustomGateway(to, message) {
     throw new Error('Custom SMS gateway not configured');
   }
   
+  if (!fetch) {
+    throw new Error('node-fetch not installed, cannot use custom SMS gateway');
+  }
+  
   try {
-    const fetch = require('node-fetch');
-    
     // This is a generic implementation - adjust based on your SMS provider's API
     const response = await fetch(CUSTOM_SMS_CONFIG.url, {
       method: 'POST',

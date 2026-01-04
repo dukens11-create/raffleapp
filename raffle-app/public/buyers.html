@@ -1325,7 +1325,12 @@
       const quantityInput = document.getElementById('purchase-quantity');
       const totalAmountEl = document.getElementById('total-amount');
       
-      if (!categorySelect.value || !raffleData) {
+      // Safety check for raffleData
+      if (!categorySelect || !quantityInput || !totalAmountEl) {
+        return;
+      }
+      
+      if (!categorySelect.value || !raffleData || !raffleData.categories) {
         totalAmountEl.textContent = '$0.00';
         return;
       }
@@ -1334,12 +1339,16 @@
       if (category) {
         const total = parseFloat(category.price) * parseInt(quantityInput.value || 1);
         totalAmountEl.textContent = '$' + total.toFixed(2);
+      } else {
+        totalAmountEl.textContent = '$0.00';
       }
     }
     
     // Populate purchase form with raffle categories
     async function populatePurchaseCategories() {
+      // Wait for raffleData to be loaded
       if (!raffleData || !raffleData.categories) {
+        console.warn('Raffle data not yet loaded, cannot populate purchase categories');
         return;
       }
       

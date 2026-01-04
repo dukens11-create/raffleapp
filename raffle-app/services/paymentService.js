@@ -245,12 +245,13 @@ async function createNatCashPayment(paymentData) {
   } catch (error) {
     console.error('NatCash payment error:', error.message);
     
-    // If NatCash API is not available, return a simulated response for testing
+    // If NatCash API is not available in sandbox mode, return a simulated response
+    // In production mode, we throw the error to alert the admin that NatCash is down
     if (NATCASH_CONFIG.mode === 'sandbox') {
-      console.warn('⚠️  NatCash API not available, using simulated response');
+      console.warn('⚠️  NatCash API not available in sandbox, using simulated response');
       return {
         success: true,
-        paymentId: `NATCASH_${Date.now()}`,
+        paymentId: `NATCASH_SIM_${Date.now()}`,
         transactionRef: `SIMULATED_${orderId}`,
         status: 'pending',
         mode: 'sandbox',
@@ -258,7 +259,9 @@ async function createNatCashPayment(paymentData) {
       };
     }
     
-    throw error;
+    // In production, throw the error so it can be handled by the caller
+    // This ensures the admin is aware of API issues
+    throw new Error(`NatCash API unavailable: ${error.message}`);
   }
 }
 
