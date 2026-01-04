@@ -562,6 +562,99 @@
       min-width: 200px;
     }
     
+    /* Payment Method Cards */
+    .payment-method-card {
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: white;
+    }
+    
+    .payment-method-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    .payment-method-card.selected {
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .payment-method-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    
+    .payment-method-icon {
+      font-size: 32px;
+    }
+    
+    .payment-method-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .payment-method-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
+    
+    .badge-automated {
+      background: #dcfce7;
+      color: #166534;
+    }
+    
+    .badge-manual {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .payment-method-description {
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .instruction-step {
+      padding: 12px 16px;
+      background: rgba(102, 126, 234, 0.05);
+      border-left: 3px solid #667eea;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    
+    .instruction-step strong {
+      color: #667eea;
+    }
+    
+    .wallet-info {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    
+    .wallet-number {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      margin: 12px 0;
+    }
+    
     /* Responsive */
     @media (max-width: 768px) {
       body {
@@ -625,6 +718,9 @@
       <button class="tab" data-tab="available-tickets">
         🎫 Available Tickets
       </button>
+      <button class="tab" data-tab="purchase">
+        💳 Purchase Tickets
+      </button>
       <button class="tab" data-tab="my-tickets">
         👤 My Tickets
       </button>
@@ -665,6 +761,97 @@
             <div class="spinner"></div>
             <p>Loading available tickets...</p>
           </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tab Content: Purchase Tickets -->
+    <div id="purchase" class="tab-content">
+      <div class="card">
+        <h2>💳 Purchase Raffle Tickets</h2>
+        <p style="color: #64748b; margin-bottom: 24px;">
+          Select your preferred payment method below to purchase raffle tickets. We support multiple payment options for your convenience.
+        </p>
+        
+        <div class="alert alert-error" id="purchase-error"></div>
+        <div class="alert alert-success" id="purchase-success"></div>
+        <div class="alert alert-info" id="purchase-info"></div>
+        
+        <!-- Step 1: Buyer Information -->
+        <div id="step-buyer-info">
+          <h3 style="margin-bottom: 16px; font-size: 18px;">📝 Step 1: Your Information</h3>
+          
+          <div class="form-group">
+            <label for="purchase-name">Full Name *</label>
+            <input type="text" id="purchase-name" placeholder="Enter your full name" required>
+          </div>
+          
+          <div class="form-group">
+            <label for="purchase-phone">Phone Number *</label>
+            <input type="tel" id="purchase-phone" placeholder="509-1234-5678" required>
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              You'll receive SMS updates about your purchase
+            </p>
+          </div>
+          
+          <div class="form-group">
+            <label for="purchase-email">Email Address</label>
+            <input type="email" id="purchase-email" placeholder="your@email.com">
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              Optional: For email receipts
+            </p>
+          </div>
+          
+          <div class="form-group">
+            <label for="purchase-category">Ticket Category *</label>
+            <select id="purchase-category" required>
+              <option value="">Select a category...</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="purchase-quantity">Number of Tickets *</label>
+            <input type="number" id="purchase-quantity" min="1" max="10" value="1" required>
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              Maximum 10 tickets per transaction
+            </p>
+          </div>
+          
+          <div style="background: rgba(102, 126, 234, 0.1); padding: 16px; border-radius: 8px; margin: 20px 0;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 600;">Total Amount:</span>
+              <span id="total-amount" style="font-size: 24px; font-weight: 700; color: #667eea;">$0.00</span>
+            </div>
+          </div>
+          
+          <button class="btn btn-primary" onclick="proceedToPayment()">
+            Continue to Payment →
+          </button>
+        </div>
+        
+        <!-- Step 2: Payment Method Selection -->
+        <div id="step-payment-method" style="display: none;">
+          <button onclick="backToBuyerInfo()" style="background: none; border: none; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: 16px;">
+            ← Back to Information
+          </button>
+          
+          <h3 style="margin-bottom: 16px; font-size: 18px;">💳 Step 2: Choose Payment Method</h3>
+          
+          <div id="payment-methods-container">
+            <div class="loading">
+              <div class="spinner"></div>
+              <p>Loading payment methods...</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Step 3: Payment Details (shown based on method selected) -->
+        <div id="step-payment-details" style="display: none;">
+          <button onclick="backToPaymentMethod()" style="background: none; border: none; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: 16px;">
+            ← Back to Payment Methods
+          </button>
+          
+          <div id="payment-details-content"></div>
         </div>
       </div>
     </div>
@@ -764,6 +951,9 @@
           loadRaffleInfo();
         } else if (tabName === 'available-tickets' && !window.availableTicketsLoaded) {
           loadAvailableTickets();
+        } else if (tabName === 'purchase' && !window.purchaseTabLoaded) {
+          populatePurchaseCategories();
+          window.purchaseTabLoaded = true;
         }
       });
     });
@@ -1113,6 +1303,545 @@
           categoryFilter.appendChild(option);
         });
       }
+    }
+    
+    // ============================================================================
+    // PAYMENT FLOW FUNCTIONS
+    // ============================================================================
+    
+    let purchaseData = {
+      name: '',
+      phone: '',
+      email: '',
+      category: '',
+      quantity: 1,
+      amount: 0,
+      selectedMethod: null
+    };
+    
+    // Update total amount when category or quantity changes
+    function updateTotalAmount() {
+      const categorySelect = document.getElementById('purchase-category');
+      const quantityInput = document.getElementById('purchase-quantity');
+      const totalAmountEl = document.getElementById('total-amount');
+      
+      // Safety check for raffleData
+      if (!categorySelect || !quantityInput || !totalAmountEl) {
+        return;
+      }
+      
+      if (!categorySelect.value || !raffleData || !raffleData.categories) {
+        totalAmountEl.textContent = '$0.00';
+        return;
+      }
+      
+      const category = raffleData.categories.find(c => c.category_code === categorySelect.value);
+      if (category) {
+        const total = parseFloat(category.price) * parseInt(quantityInput.value || 1);
+        totalAmountEl.textContent = '$' + total.toFixed(2);
+      } else {
+        totalAmountEl.textContent = '$0.00';
+      }
+    }
+    
+    // Populate purchase form with raffle categories
+    async function populatePurchaseCategories() {
+      // Wait for raffleData to be loaded
+      if (!raffleData || !raffleData.categories) {
+        console.warn('Raffle data not yet loaded, cannot populate purchase categories');
+        return;
+      }
+      
+      const categorySelect = document.getElementById('purchase-category');
+      categorySelect.innerHTML = '<option value="">Select a category...</option>';
+      
+      raffleData.categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.category_code;
+        option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
+        option.dataset.price = cat.price;
+        categorySelect.appendChild(option);
+      });
+      
+      // Add event listeners
+      categorySelect.addEventListener('change', updateTotalAmount);
+      document.getElementById('purchase-quantity').addEventListener('input', updateTotalAmount);
+    }
+    
+    // Proceed to payment method selection
+    function proceedToPayment() {
+      const errorEl = document.getElementById('purchase-error');
+      const name = document.getElementById('purchase-name').value.trim();
+      const phone = document.getElementById('purchase-phone').value.trim();
+      const email = document.getElementById('purchase-email').value.trim();
+      const category = document.getElementById('purchase-category').value;
+      const quantity = parseInt(document.getElementById('purchase-quantity').value);
+      
+      errorEl.classList.remove('show');
+      
+      // Validation
+      if (!name) {
+        errorEl.textContent = 'Please enter your full name';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      if (!phone) {
+        errorEl.textContent = 'Please enter your phone number';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      if (!category) {
+        errorEl.textContent = 'Please select a ticket category';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      if (!quantity || quantity < 1 || quantity > 10) {
+        errorEl.textContent = 'Please enter a valid quantity (1-10)';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      // Calculate amount
+      const selectedCategory = raffleData.categories.find(c => c.category_code === category);
+      const amount = parseFloat(selectedCategory.price) * quantity;
+      
+      // Store purchase data
+      purchaseData = {
+        name: name,
+        phone: phone,
+        email: email,
+        category: category,
+        categoryName: selectedCategory.category_name || selectedCategory.category_code,
+        quantity: quantity,
+        amount: amount
+      };
+      
+      // Hide buyer info, show payment methods
+      document.getElementById('step-buyer-info').style.display = 'none';
+      document.getElementById('step-payment-method').style.display = 'block';
+      
+      // Load payment methods
+      loadPaymentMethods();
+    }
+    
+    // Load available payment methods
+    async function loadPaymentMethods() {
+      const container = document.getElementById('payment-methods-container');
+      
+      try {
+        const response = await fetch('/api/payments/methods');
+        const data = await response.json();
+        
+        if (!data.success || data.methods.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">⚠️</div>
+              <h3>Payment Methods Not Configured</h3>
+              <p>Please contact the administrator to set up payment options.</p>
+            </div>
+          `;
+          return;
+        }
+        
+        let html = '<div style="margin-bottom: 16px;">';
+        
+        // Group by type
+        const automated = data.methods.filter(m => m.type === 'automated');
+        const manual = data.methods.filter(m => m.type === 'manual');
+        
+        if (automated.length > 0) {
+          html += '<h4 style="margin-bottom: 12px; color: #475569;">Automated Payments (Instant)</h4>';
+          automated.forEach(method => {
+            html += createPaymentMethodCard(method);
+          });
+        }
+        
+        if (manual.length > 0) {
+          html += '<h4 style="margin: 24px 0 12px 0; color: #475569;">Manual Payments (Admin Verification Required)</h4>';
+          manual.forEach(method => {
+            html += createPaymentMethodCard(method);
+          });
+        }
+        
+        html += '</div>';
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Error loading payment methods:', error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <h3>Unable to Load Payment Methods</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Create payment method card HTML
+    function createPaymentMethodCard(method) {
+      const icon = method.id.includes('moncash') ? '💰' : '💳';
+      const badge = method.type === 'automated' ? 
+        '<span class="payment-method-badge badge-automated">Instant</span>' :
+        '<span class="payment-method-badge badge-manual">Requires Approval</span>';
+      
+      return `
+        <div class="payment-method-card" onclick="selectPaymentMethod('${method.id}')">
+          <div class="payment-method-header">
+            <span class="payment-method-icon">${icon}</span>
+            <div style="flex: 1;">
+              <div class="payment-method-title">${method.name}</div>
+            </div>
+            ${badge}
+          </div>
+          <div class="payment-method-description">
+            ${method.type === 'automated' ? 
+              'Fast and secure automated payment processing' : 
+              'Submit your payment details for admin verification (usually within 24 hours)'}
+          </div>
+        </div>
+      `;
+    }
+    
+    // Select payment method and show details
+    async function selectPaymentMethod(methodId) {
+      purchaseData.selectedMethod = methodId;
+      
+      // Hide payment methods, show payment details
+      document.getElementById('step-payment-method').style.display = 'none';
+      document.getElementById('step-payment-details').style.display = 'block';
+      
+      const detailsContainer = document.getElementById('payment-details-content');
+      
+      if (methodId === 'moncash_api') {
+        showMonCashAutomatedPayment(detailsContainer);
+      } else if (methodId === 'natcash_api') {
+        showNatCashAutomatedPayment(detailsContainer);
+      } else if (methodId === 'moncash_manual') {
+        await showManualPayment(detailsContainer, 'moncash');
+      } else if (methodId === 'natcash_manual') {
+        await showManualPayment(detailsContainer, 'natcash');
+      }
+    }
+    
+    // Show MonCash automated payment
+    function showMonCashAutomatedPayment(container) {
+      container.innerHTML = `
+        <h3 style="margin-bottom: 16px;">💰 MonCash Payment</h3>
+        
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+          <h4 style="margin-bottom: 12px;">Purchase Summary</h4>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Buyer:</span>
+            <strong>${purchaseData.name}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Phone:</span>
+            <strong>${purchaseData.phone}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Category:</span>
+            <strong>${purchaseData.categoryName}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Quantity:</span>
+            <strong>${purchaseData.quantity} ticket(s)</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 2px solid rgba(0,0,0,0.1);">
+            <span style="font-size: 18px; font-weight: 600;">Total:</span>
+            <strong style="font-size: 24px; color: #667eea;">$${purchaseData.amount.toFixed(2)}</strong>
+          </div>
+        </div>
+        
+        <div class="alert alert-info show">
+          You will be redirected to MonCash to complete your payment securely.
+        </div>
+        
+        <button class="btn btn-primary" onclick="initiateMonCashPayment()">
+          Proceed to MonCash Payment →
+        </button>
+      `;
+    }
+    
+    // Show NatCash automated payment
+    function showNatCashAutomatedPayment(container) {
+      container.innerHTML = `
+        <h3 style="margin-bottom: 16px;">💳 NatCash Payment</h3>
+        
+        <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+          <h4 style="margin-bottom: 12px;">Purchase Summary</h4>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Buyer:</span>
+            <strong>${purchaseData.name}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Phone:</span>
+            <strong>${purchaseData.phone}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Category:</span>
+            <strong>${purchaseData.categoryName}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span>Quantity:</span>
+            <strong>${purchaseData.quantity} ticket(s)</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-top: 16px; padding-top: 16px; border-top: 2px solid rgba(0,0,0,0.1);">
+            <span style="font-size: 18px; font-weight: 600;">Total:</span>
+            <strong style="font-size: 24px; color: #667eea;">$${purchaseData.amount.toFixed(2)}</strong>
+          </div>
+        </div>
+        
+        <div class="alert alert-info show">
+          A payment request will be sent to your phone number via NatCash.
+        </div>
+        
+        <button class="btn btn-primary" onclick="initiateNatCashPayment()">
+          Send Payment Request →
+        </button>
+      `;
+    }
+    
+    // Show manual payment instructions
+    async function showManualPayment(container, method) {
+      try {
+        const response = await fetch(`/api/payments/manual-instructions/${method}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error('Instructions not available');
+        }
+        
+        const instructions = data.instructions;
+        
+        container.innerHTML = `
+          <h3 style="margin-bottom: 16px;">${method === 'moncash' ? '💰' : '💳'} ${instructions.method} - Manual Payment</h3>
+          
+          <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h4 style="margin-bottom: 12px;">Purchase Summary</h4>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Amount to Pay:</span>
+              <strong style="font-size: 24px; color: #667eea;">$${purchaseData.amount.toFixed(2)}</strong>
+            </div>
+          </div>
+          
+          <div class="wallet-info">
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 8px;">Send payment to:</div>
+            <div class="wallet-number">${instructions.walletNumber}</div>
+            <div style="font-size: 14px; opacity: 0.9; margin-top: 8px;">Business Wallet</div>
+          </div>
+          
+          <h4 style="margin: 24px 0 12px 0;">📝 How to Pay:</h4>
+          ${instructions.steps.map((step, index) => `
+            <div class="instruction-step">
+              <strong>Step ${index + 1}:</strong> ${step}
+            </div>
+          `).join('')}
+          
+          <div class="alert alert-info show" style="margin: 20px 0;">
+            <strong>Important:</strong> ${instructions.note}
+          </div>
+          
+          <h4 style="margin: 24px 0 12px 0;">✅ Submit Payment Reference</h4>
+          
+          <div class="form-group">
+            <label for="manual-reference">Transaction Reference Number *</label>
+            <input type="text" id="manual-reference" placeholder="Enter reference from your payment" required>
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              This is the confirmation number you received after completing the payment
+            </p>
+          </div>
+          
+          <div class="form-group">
+            <label for="manual-notes">Additional Notes (Optional)</label>
+            <input type="text" id="manual-notes" placeholder="Any additional information">
+          </div>
+          
+          <button class="btn btn-primary" onclick="submitManualPayment('${method}')">
+            Submit for Verification
+          </button>
+        `;
+      } catch (error) {
+        console.error('Error loading instructions:', error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <h3>Instructions Not Available</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Initiate MonCash automated payment
+    async function initiateMonCashPayment() {
+      const errorEl = document.getElementById('purchase-error');
+      const infoEl = document.getElementById('purchase-info');
+      
+      errorEl.classList.remove('show');
+      infoEl.textContent = 'Processing payment...';
+      infoEl.classList.add('show');
+      
+      try {
+        const response = await fetch('/api/payments/moncash/initiate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: purchaseData.amount,
+            buyer_name: purchaseData.name,
+            buyer_phone: purchaseData.phone,
+            buyer_email: purchaseData.email,
+            ticket_category: purchaseData.category,
+            ticket_quantity: purchaseData.quantity
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Payment initiation failed');
+        }
+        
+        // Redirect to MonCash
+        window.location.href = data.redirectUrl;
+      } catch (error) {
+        infoEl.classList.remove('show');
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Initiate NatCash automated payment
+    async function initiateNatCashPayment() {
+      const errorEl = document.getElementById('purchase-error');
+      const successEl = document.getElementById('purchase-success');
+      const infoEl = document.getElementById('purchase-info');
+      
+      errorEl.classList.remove('show');
+      successEl.classList.remove('show');
+      infoEl.textContent = 'Sending payment request...';
+      infoEl.classList.add('show');
+      
+      try {
+        const response = await fetch('/api/payments/natcash/initiate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: purchaseData.amount,
+            buyer_name: purchaseData.name,
+            buyer_phone: purchaseData.phone,
+            buyer_email: purchaseData.email,
+            ticket_category: purchaseData.category,
+            ticket_quantity: purchaseData.quantity
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Payment initiation failed');
+        }
+        
+        infoEl.classList.remove('show');
+        successEl.innerHTML = `
+          <strong>Payment Request Sent!</strong><br>
+          Reference: ${data.paymentReference}<br>
+          Please check your phone to complete the payment.
+        `;
+        successEl.classList.add('show');
+      } catch (error) {
+        infoEl.classList.remove('show');
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Submit manual payment
+    async function submitManualPayment(method) {
+      const errorEl = document.getElementById('purchase-error');
+      const successEl = document.getElementById('purchase-success');
+      const reference = document.getElementById('manual-reference').value.trim();
+      const notes = document.getElementById('manual-notes').value.trim();
+      
+      errorEl.classList.remove('show');
+      successEl.classList.remove('show');
+      
+      if (!reference) {
+        errorEl.textContent = 'Please enter the transaction reference number';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/payments/manual/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payment_method: method,
+            amount: purchaseData.amount,
+            buyer_name: purchaseData.name,
+            buyer_phone: purchaseData.phone,
+            buyer_email: purchaseData.email,
+            ticket_category: purchaseData.category,
+            ticket_quantity: purchaseData.quantity,
+            transaction_reference: reference,
+            notes: notes
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Submission failed');
+        }
+        
+        successEl.innerHTML = `
+          <strong>Payment Submitted Successfully!</strong><br>
+          Reference: ${data.paymentReference}<br><br>
+          ${data.message}
+        `;
+        successEl.classList.add('show');
+        
+        // Reset form after success
+        setTimeout(() => {
+          resetPurchaseForm();
+        }, 5000);
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Navigation functions
+    function backToBuyerInfo() {
+      document.getElementById('step-payment-method').style.display = 'none';
+      document.getElementById('step-buyer-info').style.display = 'block';
+    }
+    
+    function backToPaymentMethod() {
+      document.getElementById('step-payment-details').style.display = 'none';
+      document.getElementById('step-payment-method').style.display = 'block';
+    }
+    
+    function resetPurchaseForm() {
+      document.getElementById('step-payment-details').style.display = 'none';
+      document.getElementById('step-payment-method').style.display = 'none';
+      document.getElementById('step-buyer-info').style.display = 'block';
+      
+      // Clear form
+      document.getElementById('purchase-name').value = '';
+      document.getElementById('purchase-phone').value = '';
+      document.getElementById('purchase-email').value = '';
+      document.getElementById('purchase-category').value = '';
+      document.getElementById('purchase-quantity').value = '1';
+      updateTotalAmount();
+      
+      // Clear alerts
+      document.getElementById('purchase-error').classList.remove('show');
+      document.getElementById('purchase-success').classList.remove('show');
+      document.getElementById('purchase-info').classList.remove('show');
     }
     
     // Initialize on page load

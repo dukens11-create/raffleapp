@@ -389,6 +389,47 @@ async function initializeSchema() {
       )
     `);
     
+    // Payments table - for tracking all payment transactions
+    await run(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        raffle_id INTEGER NOT NULL ${USE_POSTGRES ? 'REFERENCES raffles(id) ON DELETE CASCADE' : ''},
+        payment_reference TEXT UNIQUE NOT NULL,
+        payment_method TEXT NOT NULL,
+        payment_type TEXT NOT NULL,
+        amount ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'} NOT NULL,
+        buyer_name TEXT NOT NULL,
+        buyer_email TEXT,
+        buyer_phone TEXT NOT NULL,
+        ticket_category TEXT,
+        ticket_quantity INTEGER DEFAULT 1,
+        payment_status TEXT DEFAULT 'pending',
+        transaction_id TEXT,
+        external_reference TEXT,
+        payment_provider TEXT,
+        payment_mode TEXT,
+        verified_by INTEGER ${USE_POSTGRES ? 'REFERENCES users(id)' : ''},
+        verified_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        rejection_reason TEXT,
+        ticket_numbers TEXT,
+        notes TEXT,
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        updated_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    
+    // Create indexes for payments table
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_payments_reference ON payments(payment_reference)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(payment_status)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_payments_buyer_phone ON payments(buyer_phone)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_payments_buyer_email ON payments(buyer_email)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_payments_raffle_id ON payments(raffle_id)`);
+      console.log('✅ Created 5 indexes on payments table');
+    } catch (error) {
+      console.warn('⚠️  Could not create some payment indexes:', error.message);
+    }
+    
     // Add fit_mode column if it doesn't exist (for existing databases)
     try {
       if (USE_POSTGRES) {

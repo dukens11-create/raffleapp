@@ -14,6 +14,8 @@ const csrf = require('csurf');
 const cors = require('cors');
 const pgSession = require('connect-pg-simple')(session);
 const emailService = require('./services/emailService');
+const paymentService = require('./services/paymentService');
+const smsService = require('./services/smsService');
 const multer = require('multer');
 const sharp = require('sharp');
 const PDFDocument = require('pdfkit');
@@ -4557,6 +4559,507 @@ app.get('/api/public/verify-ticket/:ticketNumber', async (req, res) => {
   } catch (error) {
     console.error('Error verifying ticket:', error);
     res.status(500).json({ error: 'Failed to verify ticket' });
+  }
+});
+
+// ============================================================================
+// PAYMENT ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/payments/methods - Get available payment methods
+ * Public endpoint to check configured payment methods
+ */
+app.get('/api/payments/methods', async (req, res) => {
+  try {
+    const methods = paymentService.getAvailablePaymentMethods();
+    
+    res.json({
+      success: true,
+      methods: methods,
+      smsEnabled: smsService.isConfigured()
+    });
+  } catch (error) {
+    console.error('Error getting payment methods:', error);
+    res.status(500).json({ error: 'Failed to get payment methods' });
+  }
+});
+
+/**
+ * POST /api/payments/moncash/initiate - Initiate MonCash payment
+ * Creates a MonCash payment for automated processing
+ */
+app.post('/api/payments/moncash/initiate', [
+  body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity } = req.body;
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Generate payment reference
+    const paymentReference = paymentService.generatePaymentReference('MONCASH');
+    
+    // Create payment in database first
+    await db.run(`
+      INSERT INTO payments (
+        raffle_id, payment_reference, payment_method, payment_type,
+        amount, buyer_name, buyer_email, buyer_phone,
+        ticket_category, ticket_quantity, payment_status,
+        payment_provider, payment_mode
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      raffle.id, paymentReference, 'MonCash', 'automated',
+      amount, buyer_name, buyer_email, buyer_phone,
+      ticket_category, ticket_quantity, 'pending',
+      'moncash', paymentService.MONCASH_CONFIG.mode
+    ]);
+    
+    // Initiate MonCash payment
+    const paymentResult = await paymentService.createMonCashPayment({
+      amount: amount,
+      orderId: paymentReference
+    });
+    
+    // Update payment with transaction details
+    await db.run(`
+      UPDATE payments 
+      SET transaction_id = ?, external_reference = ?
+      WHERE payment_reference = ?
+    `, [paymentResult.paymentToken, paymentResult.paymentToken, paymentReference]);
+    
+    res.json({
+      success: true,
+      paymentReference: paymentReference,
+      redirectUrl: paymentResult.redirectUrl,
+      paymentToken: paymentResult.paymentToken
+    });
+  } catch (error) {
+    console.error('Error initiating MonCash payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to initiate payment' });
+  }
+});
+
+/**
+ * POST /api/payments/natcash/initiate - Initiate NatCash payment
+ * Creates a NatCash payment for automated processing
+ */
+app.post('/api/payments/natcash/initiate', [
+  body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity } = req.body;
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Generate payment reference
+    const paymentReference = paymentService.generatePaymentReference('NATCASH');
+    
+    // Create payment in database first
+    await db.run(`
+      INSERT INTO payments (
+        raffle_id, payment_reference, payment_method, payment_type,
+        amount, buyer_name, buyer_email, buyer_phone,
+        ticket_category, ticket_quantity, payment_status,
+        payment_provider, payment_mode
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      raffle.id, paymentReference, 'NatCash', 'automated',
+      amount, buyer_name, buyer_email, buyer_phone,
+      ticket_category, ticket_quantity, 'pending',
+      'natcash', paymentService.NATCASH_CONFIG.mode
+    ]);
+    
+    // Initiate NatCash payment
+    const paymentResult = await paymentService.createNatCashPayment({
+      amount: amount,
+      orderId: paymentReference,
+      buyer_phone: buyer_phone
+    });
+    
+    // Update payment with transaction details
+    await db.run(`
+      UPDATE payments 
+      SET transaction_id = ?, external_reference = ?
+      WHERE payment_reference = ?
+    `, [paymentResult.paymentId, paymentResult.transactionRef, paymentReference]);
+    
+    res.json({
+      success: true,
+      paymentReference: paymentReference,
+      paymentId: paymentResult.paymentId,
+      transactionRef: paymentResult.transactionRef,
+      status: paymentResult.status
+    });
+  } catch (error) {
+    console.error('Error initiating NatCash payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to initiate payment' });
+  }
+});
+
+/**
+ * POST /api/payments/manual/submit - Submit manual payment for verification
+ * Handles USSD/manual payments that require admin approval
+ */
+app.post('/api/payments/manual/submit', [
+  body('payment_method').isIn(['moncash', 'natcash']).withMessage('Valid payment method required'),
+  body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
+  body('transaction_reference').trim().notEmpty().withMessage('Transaction reference required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { 
+      payment_method, amount, buyer_name, buyer_phone, buyer_email, 
+      ticket_category, ticket_quantity, transaction_reference, notes 
+    } = req.body;
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Generate payment reference
+    const paymentReference = paymentService.generatePaymentReference('MANUAL');
+    
+    // Create payment in database
+    await db.run(`
+      INSERT INTO payments (
+        raffle_id, payment_reference, payment_method, payment_type,
+        amount, buyer_name, buyer_email, buyer_phone,
+        ticket_category, ticket_quantity, payment_status,
+        external_reference, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      raffle.id, paymentReference, 
+      payment_method === 'moncash' ? 'MonCash (Manual)' : 'NatCash (Manual)', 
+      'manual',
+      amount, buyer_name, buyer_email, buyer_phone,
+      ticket_category, ticket_quantity, 'pending',
+      transaction_reference, notes
+    ]);
+    
+    // Send SMS notifications
+    try {
+      // Notify buyer
+      await smsService.sendPaymentPending({
+        buyer_phone: buyer_phone,
+        buyer_name: buyer_name,
+        amount: amount,
+        payment_method: payment_method === 'moncash' ? 'MonCash' : 'NatCash',
+        reference: paymentReference
+      });
+      
+      // Notify admins
+      await smsService.notifyAdminsNewPayment({
+        buyer_name: buyer_name,
+        amount: amount,
+        payment_method: payment_method === 'moncash' ? 'MonCash (Manual)' : 'NatCash (Manual)',
+        reference: paymentReference,
+        payment_status: 'pending'
+      });
+    } catch (smsError) {
+      console.error('SMS notification error:', smsError);
+      // Continue even if SMS fails
+    }
+    
+    res.json({
+      success: true,
+      paymentReference: paymentReference,
+      status: 'pending',
+      message: 'Payment submitted for verification. You will receive an SMS when approved.'
+    });
+  } catch (error) {
+    console.error('Error submitting manual payment:', error);
+    res.status(500).json({ error: 'Failed to submit payment' });
+  }
+});
+
+/**
+ * GET /api/payments/status/:reference - Get payment status
+ * Public endpoint to check payment status
+ */
+app.get('/api/payments/status/:reference', async (req, res) => {
+  try {
+    const { reference } = req.params;
+    
+    const payment = await db.get(`
+      SELECT 
+        payment_reference, payment_method, payment_type, amount,
+        payment_status, ticket_category, ticket_quantity, ticket_numbers,
+        created_at, verified_at
+      FROM payments 
+      WHERE payment_reference = ?
+    `, [reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    res.json({
+      success: true,
+      payment: payment
+    });
+  } catch (error) {
+    console.error('Error getting payment status:', error);
+    res.status(500).json({ error: 'Failed to get payment status' });
+  }
+});
+
+/**
+ * GET /api/payments/manual-instructions/:method - Get manual payment instructions
+ * Public endpoint to get instructions for manual payments
+ */
+app.get('/api/payments/manual-instructions/:method', async (req, res) => {
+  try {
+    const { method } = req.params;
+    
+    if (!['moncash', 'natcash'].includes(method)) {
+      return res.status(400).json({ error: 'Invalid payment method' });
+    }
+    
+    const instructions = paymentService.getManualPaymentInstructions(method);
+    
+    if (!instructions) {
+      return res.status(404).json({ error: 'Instructions not available' });
+    }
+    
+    res.json({
+      success: true,
+      instructions: instructions
+    });
+  } catch (error) {
+    console.error('Error getting instructions:', error);
+    res.status(500).json({ error: 'Failed to get instructions' });
+  }
+});
+
+/**
+ * GET /api/admin/payments/pending - Get pending payments for admin approval
+ * Admin endpoint to list all pending manual payments
+ */
+app.get('/api/admin/payments/pending', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const payments = await db.all(`
+      SELECT 
+        id, payment_reference, payment_method, payment_type, amount,
+        buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity,
+        external_reference, notes, created_at
+      FROM payments 
+      WHERE payment_status = 'pending'
+      ORDER BY created_at DESC
+    `);
+    
+    res.json({
+      success: true,
+      payments: payments
+    });
+  } catch (error) {
+    console.error('Error getting pending payments:', error);
+    res.status(500).json({ error: 'Failed to get pending payments' });
+  }
+});
+
+/**
+ * POST /api/admin/payments/approve - Approve a manual payment
+ * Admin endpoint to approve and assign tickets
+ */
+app.post('/api/admin/payments/approve', requireAuth, requireAdmin, [
+  body('payment_reference').trim().notEmpty().withMessage('Payment reference required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { payment_reference } = req.body;
+    
+    // Get payment details
+    const payment = await db.get(`
+      SELECT * FROM payments WHERE payment_reference = ?
+    `, [payment_reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    if (payment.payment_status !== 'pending') {
+      return res.status(400).json({ error: 'Payment already processed' });
+    }
+    
+    // Get available tickets in the requested category
+    const availableTickets = await db.all(`
+      SELECT ticket_number FROM tickets 
+      WHERE raffle_id = ? AND category = ? AND status = 'AVAILABLE'
+      ORDER BY ticket_number
+      LIMIT ?
+    `, [payment.raffle_id, payment.ticket_category, payment.ticket_quantity]);
+    
+    if (availableTickets.length < payment.ticket_quantity) {
+      return res.status(400).json({ 
+        error: `Not enough tickets available. Requested: ${payment.ticket_quantity}, Available: ${availableTickets.length}` 
+      });
+    }
+    
+    // Assign tickets to buyer
+    const ticketNumbers = availableTickets.map(t => t.ticket_number);
+    const ticketNumbersStr = ticketNumbers.join(', ');
+    
+    for (const ticket of availableTickets) {
+      await db.run(`
+        UPDATE tickets 
+        SET status = 'SOLD',
+            buyer_name = ?,
+            buyer_phone = ?,
+            buyer_email = ?,
+            payment_method = ?,
+            payment_verified = ${db.USE_POSTGRES ? 'TRUE' : '1'},
+            sold_at = CURRENT_TIMESTAMP
+        WHERE ticket_number = ?
+      `, [
+        payment.buyer_name,
+        payment.buyer_phone,
+        payment.buyer_email,
+        payment.payment_method,
+        ticket.ticket_number
+      ]);
+    }
+    
+    // Update payment status
+    await db.run(`
+      UPDATE payments 
+      SET payment_status = 'approved',
+          verified_by = ?,
+          verified_at = CURRENT_TIMESTAMP,
+          ticket_numbers = ?
+      WHERE payment_reference = ?
+    `, [req.user.id, ticketNumbersStr, payment_reference]);
+    
+    // Send SMS notification to buyer
+    try {
+      await smsService.sendPaymentApproved({
+        buyer_phone: payment.buyer_phone,
+        buyer_name: payment.buyer_name,
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        reference: payment_reference,
+        ticket_numbers: ticketNumbersStr
+      });
+    } catch (smsError) {
+      console.error('SMS notification error:', smsError);
+      // Continue even if SMS fails
+    }
+    
+    res.json({
+      success: true,
+      message: 'Payment approved and tickets assigned',
+      ticketNumbers: ticketNumbers
+    });
+  } catch (error) {
+    console.error('Error approving payment:', error);
+    res.status(500).json({ error: 'Failed to approve payment' });
+  }
+});
+
+/**
+ * POST /api/admin/payments/reject - Reject a manual payment
+ * Admin endpoint to reject a payment
+ */
+app.post('/api/admin/payments/reject', requireAuth, requireAdmin, [
+  body('payment_reference').trim().notEmpty().withMessage('Payment reference required'),
+  body('rejection_reason').trim().notEmpty().withMessage('Rejection reason required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { payment_reference, rejection_reason } = req.body;
+    
+    // Get payment details
+    const payment = await db.get(`
+      SELECT * FROM payments WHERE payment_reference = ?
+    `, [payment_reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    if (payment.payment_status !== 'pending') {
+      return res.status(400).json({ error: 'Payment already processed' });
+    }
+    
+    // Update payment status
+    await db.run(`
+      UPDATE payments 
+      SET payment_status = 'rejected',
+          verified_by = ?,
+          verified_at = CURRENT_TIMESTAMP,
+          rejection_reason = ?
+      WHERE payment_reference = ?
+    `, [req.user.id, rejection_reason, payment_reference]);
+    
+    // Send SMS notification to buyer
+    try {
+      await smsService.sendPaymentRejected({
+        buyer_phone: payment.buyer_phone,
+        buyer_name: payment.buyer_name,
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        reference: payment_reference,
+        rejection_reason: rejection_reason
+      });
+    } catch (smsError) {
+      console.error('SMS notification error:', smsError);
+      // Continue even if SMS fails
+    }
+    
+    res.json({
+      success: true,
+      message: 'Payment rejected'
+    });
+  } catch (error) {
+    console.error('Error rejecting payment:', error);
+    res.status(500).json({ error: 'Failed to reject payment' });
   }
 });
 
