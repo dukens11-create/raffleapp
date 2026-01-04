@@ -771,9 +771,19 @@
     // Load raffle info
     let currentPage = 1;
     let raffleData = null; // Cache raffle data to avoid duplicate API calls
+    let raffleCacheTime = 0; // Track when data was last fetched
+    const CACHE_DURATION = 60000; // Cache for 60 seconds
     
-    async function loadRaffleInfo() {
+    async function loadRaffleInfo(forceRefresh = false) {
       try {
+        // Use cached data if available and not expired
+        const now = Date.now();
+        if (!forceRefresh && raffleData && (now - raffleCacheTime) < CACHE_DURATION) {
+          // Render from cache
+          renderRaffleInfo(raffleData);
+          return;
+        }
+        
         const response = await fetch('/api/public/raffle-info');
         const data = await response.json();
         
@@ -783,10 +793,27 @@
         
         // Cache the data for reuse
         raffleData = data;
+        raffleCacheTime = Date.now();
         
-        const container = document.getElementById('raffle-info-content');
+        renderRaffleInfo(data);
         
-        container.innerHTML = `
+        window.raffleInfoLoaded = true;
+      } catch (error) {
+        document.getElementById('raffle-info-content').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <h3>Unable to Load Raffle Information</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Helper function to render raffle info from data
+    function renderRaffleInfo(data) {
+      const container = document.getElementById('raffle-info-content');
+      
+      container.innerHTML = `
           <div class="raffle-info-grid">
             <div class="info-item">
               <label>Raffle Name</label>
@@ -838,15 +865,7 @@
             </div>
           </div>
         `;
-        
-        window.raffleInfoLoaded = true;
-      } catch (error) {
-        document.getElementById('raffle-info-content').innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">⚠️</div>
-            <h3>Unable to Load Raffle Information</h3>
-            <p>${error.message}</p>
-          </div>
+    }
         `;
       }
     }

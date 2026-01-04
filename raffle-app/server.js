@@ -4469,9 +4469,10 @@ app.post('/api/public/my-tickets', async (req, res) => {
       }
       params.push(normalizedPhone);
     } else if (buyer_code) {
-      // Buyer code is the unique barcode assigned to each ticket upon sale
-      // This barcode is printed on the physical ticket and included in email receipts
-      // It serves as a unique identifier for buyers to look up their tickets
+      // buyer_code parameter accepts the ticket's barcode value
+      // The barcode is a unique identifier assigned to each ticket upon sale
+      // It's printed on physical tickets and included in email receipts as a "buyer code"
+      // Buyers use this code to look up their purchased tickets
       query += ' AND barcode = ?';
       params.push(buyer_code.trim());
     }
