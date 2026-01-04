@@ -19,6 +19,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
   
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   
   <style>
     * {
@@ -338,16 +339,21 @@
     }
     
     .qr-thumbnail {
-      width: 40px;
-      height: 40px;
+      width: 60px;
+      height: 60px;
       cursor: pointer;
       transition: transform 0.3s;
       border: 1px solid #e2e8f0;
       border-radius: 4px;
+      display: block;
+      margin: 0 auto;
     }
     
     .qr-thumbnail:hover {
-      transform: scale(1.1);
+      transform: scale(1.5);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      position: relative;
     }
     
     .status-badge {
@@ -730,6 +736,10 @@
               <th>
                 <span data-translate="qrCode">QR Code</span>
               </th>
+              <th data-sort="sold_at">
+                <span data-translate="soldAt">Sold At</span>
+                <span class="sort-icon">↕</span>
+              </th>
               <th>
                 <span data-translate="buyer">Buyer</span>
               </th>
@@ -805,6 +815,7 @@
         price: 'Price',
         status: 'Status',
         qrCode: 'QR Code',
+        soldAt: 'Sold At',
         buyer: 'Buyer',
         seller: 'Seller',
         noTickets: 'No tickets found',
@@ -844,6 +855,7 @@
         price: 'Prix',
         status: 'Statut',
         qrCode: 'Code QR',
+        soldAt: 'Vendu Le',
         buyer: 'Acheteur',
         seller: 'Vendeur',
         noTickets: 'Aucun billet trouvé',
@@ -883,6 +895,7 @@
         price: 'Pri',
         status: 'Estati',
         qrCode: 'Kòd QR',
+        soldAt: 'Vann Nan',
         buyer: 'Achtè',
         seller: 'Vandè',
         noTickets: 'Pa gen tikè',
@@ -922,6 +935,7 @@
         price: 'Precio',
         status: 'Estado',
         qrCode: 'Código QR',
+        soldAt: 'Vendido En',
         buyer: 'Comprador',
         seller: 'Vendedor',
         noTickets: 'No se encontraron boletos',
@@ -1070,6 +1084,9 @@
       const tbody = document.getElementById('ticketsBody');
       tbody.innerHTML = '';
       
+      // Track QR canvases that need generation
+      const qrCanvases = [];
+      
       tickets.forEach(ticket => {
         const tr = document.createElement('tr');
         
@@ -1090,11 +1107,26 @@
           barcodeHtml = '<span style="color: #94a3b8;">N/A</span>';
         }
         
-        // QR Code thumbnail
+        // QR Code - generate as canvas for inline display
         let qrHtml = '<span style="color: #94a3b8;">N/A</span>';
+        let qrCanvasElement = null;
         if (ticket.qr_code_data) {
-          // Generate simple QR placeholder (in production, use actual QR generation)
-          qrHtml = `<button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="showQRModal('${ticket.ticket_number}', '${ticket.qr_code_data}')">View QR</button>`;
+          // Create unique ID using ticket number, timestamp, and random suffix for guaranteed uniqueness
+          const qrId = `qr-${ticket.ticket_number.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          qrHtml = `<canvas id="${qrId}" class="qr-thumbnail"></canvas>`;
+          // Store the QR data for later use (no need to escape in data attribute)
+          qrCanvasElement = { id: qrId, data: ticket.qr_code_data };
+        }
+        
+        // Format sold_at date
+        let soldAtHtml = '<span style="color: #94a3b8;">-</span>';
+        if (ticket.sold_at) {
+          try {
+            const date = new Date(ticket.sold_at);
+            soldAtHtml = date.toLocaleString();
+          } catch (e) {
+            soldAtHtml = ticket.sold_at;
+          }
         }
         
         tr.innerHTML = `
@@ -1104,11 +1136,17 @@
           <td>$${ticket.price ? parseFloat(ticket.price).toFixed(2) : '0.00'}</td>
           <td><span class="status-badge ${statusClass}">${ticket.status || 'N/A'}</span></td>
           <td>${qrHtml}</td>
+          <td>${soldAtHtml}</td>
           <td>${ticket.buyer_name || '-'}</td>
           <td>${ticket.seller_name || '-'}</td>
         `;
         
         tbody.appendChild(tr);
+        
+        // Add QR canvas to generation list if exists
+        if (qrCanvasElement) {
+          qrCanvases.push(qrCanvasElement);
+        }
       });
       
       // Generate barcodes
@@ -1123,6 +1161,22 @@
           });
         } catch (e) {
           console.error('Error generating barcode:', e);
+        }
+      });
+      
+      // Generate QR codes from tracked array (safe approach)
+      qrCanvases.forEach(qrCanvas => {
+        const canvas = document.getElementById(qrCanvas.id);
+        if (canvas) {
+          try {
+            QRCode.toCanvas(canvas, qrCanvas.data, {
+              width: 60,
+              height: 60,
+              margin: 1
+            });
+          } catch (e) {
+            console.error('Error generating QR code:', e);
+          }
         }
       });
     }

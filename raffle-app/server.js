@@ -4353,6 +4353,7 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
         t.qr_code_data,
         t.buyer_name,
         t.seller_name,
+        t.sold_at,
         t.created_at
       FROM tickets t
       ${whereClause}
@@ -4463,6 +4464,7 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
         status,
         buyer_name,
         seller_name,
+        sold_at,
         created_at
       FROM tickets
       ${whereClause}
@@ -4474,7 +4476,7 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
     res.setHeader('Content-Disposition', `attachment; filename="tickets-export-${Date.now()}.csv"`);
     
     // Write CSV header
-    res.write('Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Created At\n');
+    res.write('Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Sold At,Created At\n');
     
     let totalProcessed = 0;
     
@@ -4491,6 +4493,7 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
           ticket.status || '',
           ticket.buyer_name || '',
           ticket.seller_name || '',
+          ticket.sold_at || '',
           ticket.created_at || ''
         ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
         
