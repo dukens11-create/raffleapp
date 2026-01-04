@@ -4718,6 +4718,124 @@ app.post('/api/tickets/debug-barcode', requireAuth, async (req, res) => {
   }
 });
 
+// ============================================================================
+// ADMIN DEBUG ENDPOINTS - Ticket Diagnostics
+// ============================================================================
+
+// GET /api/admin/debug/tickets-sample - Show sample of tickets for debugging (admin only)
+app.get('/api/admin/debug/tickets-sample', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('[DEBUG] Fetching tickets sample...');
+    
+    // Get total count
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult.total || 0;
+    
+    // Get count by category
+    const categoryStats = await db.all(`
+      SELECT 
+        category,
+        COUNT(*) as count,
+        MIN(ticket_number) as first_ticket,
+        MAX(ticket_number) as last_ticket
+      FROM tickets 
+      GROUP BY category 
+      ORDER BY category ASC
+    `);
+    
+    // Get sample tickets (first 50 overall, ordered by category)
+    const sampleTickets = await db.all(`
+      SELECT 
+        id,
+        ticket_number,
+        barcode,
+        category,
+        price,
+        status,
+        created_at
+      FROM tickets 
+      ORDER BY category ASC, ticket_number ASC 
+      LIMIT 50
+    `);
+    
+    // Check for specific ticket user mentioned (exact format)
+    const abc000001 = await db.get(
+      'SELECT id, ticket_number, barcode, category, price, status FROM tickets WHERE ticket_number = ? OR barcode = ?',
+      ['ABC-000001', 'ABC-000001']
+    );
+    
+    // Check with common format variations in both ticket_number and barcode fields
+    // Note: Same values checked in both fields because we don't know which field contains the scanned value
+    const abc000001Alt = await db.get(
+      `SELECT id, ticket_number, barcode, category, price, status FROM tickets 
+       WHERE ticket_number IN (?, ?, ?, ?) 
+          OR barcode IN (?, ?, ?, ?)`,
+      ['ABC-000001', 'ABC000001', 'ABC-0001', '10000001',
+       'ABC-000001', 'ABC000001', 'ABC-0001', '10000001']
+    );
+    
+    res.json({
+      summary: {
+        total_tickets: totalTickets,
+        categories: categoryStats,
+        sample_size: sampleTickets.length
+      },
+      sample_tickets: sampleTickets,
+      specific_checks: {
+        'ABC-000001_exact': abc000001 || 'NOT FOUND',
+        'ABC-000001_variants': abc000001Alt || 'NOT FOUND'
+      },
+      barcode_formats: {
+        sample_barcodes: sampleTickets.slice(0, 5).map(t => ({
+          ticket_number: t.ticket_number,
+          barcode: t.barcode,
+          barcode_length: t.barcode ? t.barcode.length : 0
+        }))
+      },
+      troubleshooting: {
+        message: totalTickets === 0 
+          ? '⚠️ NO TICKETS IN DATABASE! You need to generate tickets first. Go to /generate-tickets.html'
+          : totalTickets < 100
+          ? `⚠️ Only ${totalTickets} tickets found. This seems low. Did ticket generation complete?`
+          : `✅ ${totalTickets.toLocaleString()} tickets found in database.`
+      }
+    });
+    
+  } catch (error) {
+    console.error('[DEBUG] Error fetching tickets sample:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch tickets sample',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// GET /api/admin/debug/ticket-count - Quick ticket count (admin only)
+app.get('/api/admin/debug/ticket-count', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const byCategory = await db.all('SELECT category, COUNT(*) as count FROM tickets GROUP BY category');
+    
+    res.json({
+      total: result.total || 0,
+      by_category: byCategory,
+      message: result.total === 0 ? 'Database is empty. Generate tickets first.' : `${result.total} tickets in database`
+    });
+  } catch (error) {
+    console.error('[DEBUG] Error fetching ticket count:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch ticket count',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// ============================================================================
+// END ADMIN DEBUG ENDPOINTS
+// ============================================================================
+
 // 404 handler - must be after all other routes
 app.use((req, res, next) => {
   // Check if this is an API request
