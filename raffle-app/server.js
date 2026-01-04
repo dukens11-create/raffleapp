@@ -4463,8 +4463,7 @@ app.post('/api/admin/tickets/unsold', requireAuth, requireAdmin, async (req, res
   } catch (error) {
     console.error('Error marking ticket as unsold:', error);
     res.status(500).json({ 
-      error: 'Failed to mark ticket as unsold',
-      details: error.message 
+      error: 'Failed to mark ticket as unsold'
     });
   }
 });

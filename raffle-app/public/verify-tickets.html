@@ -1102,6 +1102,13 @@
       document.getElementById('cat-xyz').textContent = stats.by_category.XYZ.toLocaleString();
     }
     
+    // HTML escape function to prevent XSS
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
     // Update table
     function updateTable(tickets) {
       const tbody = document.getElementById('ticketsBody');
@@ -1164,7 +1171,7 @@
           <td>${ticket.seller_name || '-'}</td>
           <td>
             ${ticket.status === 'SOLD' ? `
-              <button class="btn btn-secondary unsold-btn" style="padding: 6px 12px; font-size: 12px;" data-ticket-number="${ticket.ticket_number.replace(/"/g, '&quot;')}" data-translate="unsoldTicket">
+              <button class="btn btn-secondary unsold-btn" style="padding: 6px 12px; font-size: 12px;" data-ticket-number="${escapeHtml(ticket.ticket_number)}" data-translate="unsoldTicket">
                 Mark as Unsold
               </button>
             ` : '-'}
@@ -1362,7 +1369,8 @@
             // Refresh the ticket list
             fetchTickets(currentPage);
           } else {
-            // Sanitize error message - only show generic error
+            // Log error details for debugging, but show generic message to user
+            console.error('Server error details:', data);
             showNotification(translations[lang].unsoldError || 'Failed to mark ticket as unsold');
           }
         } catch (error) {
