@@ -660,19 +660,6 @@
     </table>
   </div>
   <div class="section">
-    <h2 data-translate="createTicket">Create Ticket</h2>
-    
-    <!-- Print Tickets Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🖨️ Print Tickets</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Print professional raffle tickets on Avery 16145 paper (10 tickets per sheet)
-      </p>
-      <a href="/print-tickets.html" style="display: inline-block; padding: 12px 24px; background: white; color: #667eea; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-        📄 Go to Print Center →
-      </a>
-    </div>
-    
     <!-- Bulk Ticket Manager Section -->
     <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
       <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🔄 Bulk Ticket Manager</h3>
@@ -789,25 +776,6 @@
         🔍 Open Verification Center →
       </a>
     </div>
-    
-    <button id="scanTicketBtn" class="scan-btn" data-translate="scanTicket">
-      📷 Scan Ticket
-    </button>
-    <form id="create-ticket-form">
-      <label for="ticket-number" style="margin-bottom:4px;display:block;" data-translate="ticketNumber">Ticket Number</label>
-      <input id="ticket-number" data-translate-placeholder="ticketNumber" placeholder="Ticket Number" required />
-      <label for="ticket-category" style="margin-top:10px;margin-bottom:4px;display:block;" data-translate="category">Category</label>
-      <select id="ticket-category" required>
-        <option value="" data-translate="selectCategory">Select Category</option>
-        <option value="ABC">ABC</option>
-        <option value="EFG">EFG</option>
-        <option value="JKL">JKL</option>
-        <option value="XYZ">XYZ</option>
-      </select>
-      <button type="submit" style="margin-top:10px;" data-translate="createTicketButton">Create Ticket</button>
-      <div id="ticket-success" class="msg-success" style="display:none;"></div>
-      <div id="ticket-error" class="msg-error" style="display:none;"></div>
-    </form>
     
     <!-- Bulk Import Section -->
     <div class="import-section" style="margin-top: 32px;">
@@ -1124,7 +1092,6 @@
                                 'Scan Ticket Barcode': 'Scan Ticket Barcode',
                                 'Audit Logs': 'Audit Logs',
                                 'Ticket Inventory': 'Ticket Inventory',
-                                'Create Ticket': 'Create Ticket',
                                 'All Tickets': 'All Tickets',
                                 'Sales Report': 'Sales Report',
                                 'Users': 'Users',
@@ -1138,7 +1105,6 @@
                                 'Scan Ticket Barcode': 'Scanner le code du billet',
                                 'Audit Logs': 'Journaux d’audit',
                                 'Ticket Inventory': 'Inventaire des billets',
-                                'Create Ticket': 'Créer un billet',
                                 'All Tickets': 'Tous les billets',
                                 'Sales Report': 'Rapport des ventes',
                                 'Users': 'Utilisateurs',
@@ -1152,7 +1118,6 @@
                                 'Scan Ticket Barcode': 'Eskane Kòd Tikè',
                                 'Audit Logs': 'Jounal Odit',
                                 'Ticket Inventory': 'Envantè Tikè',
-                                'Create Ticket': 'Kreye Tikè',
                                 'All Tickets': 'Tout Tikè',
                                 'Sales Report': 'Rapò Vant',
                                 'Users': 'Itilizatè',
@@ -1166,7 +1131,6 @@
                                 'Scan Ticket Barcode': 'Escanear código de boleto',
                                 'Audit Logs': 'Registros de auditoría',
                                 'Ticket Inventory': 'Inventario de boletos',
-                                'Create Ticket': 'Crear boleto',
                                 'All Tickets': 'Todos los boletos',
                                 'Sales Report': 'Informe de ventas',
                                 'Users': 'Usuarios',
@@ -1393,8 +1357,6 @@
                                 });
                               }
                               
-                              document.getElementById('ticket-number').value = decodedText;
-                              
                               setTimeout(() => {
                                 stopAdminScanner();
                                 document.getElementById('scannerModal').style.display = 'none';
@@ -1525,12 +1487,7 @@
                               }
                             }
                             
-                            // Event listeners
-                            document.getElementById('scanTicketBtn')?.addEventListener('click', () => {
-                              document.getElementById('scannerModal').style.display = 'block';
-                              startAdminScanner();
-                            });
-                            
+                            // Scanner modal close event listeners
                             document.getElementById('closeScannerBtn')?.addEventListener('click', () => {
                               stopAdminScanner();
                               document.getElementById('scannerModal').style.display = 'none';
@@ -1609,34 +1566,6 @@
           });
         }
         loadInventory();
-    // Create ticket
-    document.getElementById('create-ticket-form').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const number = document.getElementById('ticket-number').value;
-      const category = document.getElementById('ticket-category').value;
-      const successDiv = document.getElementById('ticket-success');
-      const errorDiv = document.getElementById('ticket-error');
-      successDiv.style.display = 'none';
-      errorDiv.style.display = 'none';
-      if (!number || !category) {
-        errorDiv.textContent = 'Number and category required.';
-        errorDiv.style.display = 'block';
-        return;
-      }
-      const res = await fetch('/create-ticket', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number, category })
-      });
-      if (res.ok) {
-        successDiv.textContent = 'Ticket created!';
-        successDiv.style.display = 'block';
-      } else {
-        errorDiv.textContent = 'Failed to create ticket.';
-        errorDiv.style.display = 'block';
-      }
-      loadTickets();
-    });
 
     // Load all tickets
     async function loadTickets() {
