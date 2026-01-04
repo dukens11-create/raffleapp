@@ -1377,6 +1377,11 @@ app.get('/seller', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'seller.html'));
 });
 
+// Buyers Dashboard - Public page (no authentication required)
+app.get('/buyers', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
+});
+
 // API: Get all sellers
 app.get('/api/sellers', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -4287,6 +4292,234 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
         price: ticket.price,
         status: ticket.status,
         printed: ticket.printed
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying ticket:', error);
+    res.status(500).json({ error: 'Failed to verify ticket' });
+  }
+});
+
+// ============================================================================
+// PUBLIC BUYERS DASHBOARD API ENDPOINTS
+// ============================================================================
+
+// GET /api/public/raffle-info - Get current raffle information
+app.get('/api/public/raffle-info', async (req, res) => {
+  try {
+    // Get the active or most recent raffle
+    const raffle = await db.get(`
+      SELECT id, name, description, start_date, draw_date, status, total_tickets
+      FROM raffles 
+      WHERE status IN ('active', 'draft')
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Get ticket categories with their prices
+    const categories = await db.all(`
+      SELECT category_code, category_name, price, color, description
+      FROM ticket_categories 
+      WHERE raffle_id = ?
+      ORDER BY category_code
+    `, [raffle.id]);
+    
+    // Get statistics
+    const stats = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        COUNT(CASE WHEN status = 'SOLD' THEN 1 END) as sold_tickets,
+        COUNT(CASE WHEN status = 'AVAILABLE' THEN 1 END) as available_tickets
+      FROM tickets 
+      WHERE raffle_id = ?
+    `, [raffle.id]);
+    
+    res.json({
+      raffle: {
+        name: raffle.name,
+        description: raffle.description,
+        start_date: raffle.start_date,
+        draw_date: raffle.draw_date,
+        status: raffle.status
+      },
+      categories: categories,
+      stats: stats || { total_tickets: 0, sold_tickets: 0, available_tickets: 0 }
+    });
+  } catch (error) {
+    console.error('Error fetching raffle info:', error);
+    res.status(500).json({ error: 'Failed to fetch raffle information' });
+  }
+});
+
+// GET /api/public/available-tickets - Get list of available tickets (no buyer data)
+app.get('/api/public/available-tickets', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const category = req.query.category || '';
+    const offset = (page - 1) * limit;
+    
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status IN ('active', 'draft')
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Build query with optional category filter
+    let query = `
+      SELECT ticket_number, category, price, status
+      FROM tickets 
+      WHERE raffle_id = ? AND status = 'AVAILABLE'
+    `;
+    const params = [raffle.id];
+    
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    
+    query += ' ORDER BY ticket_number LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+    
+    const tickets = await db.all(query, params);
+    
+    // Get total count for pagination
+    let countQuery = `
+      SELECT COUNT(*) as total 
+      FROM tickets 
+      WHERE raffle_id = ? AND status = 'AVAILABLE'
+    `;
+    const countParams = [raffle.id];
+    
+    if (category) {
+      countQuery += ' AND category = ?';
+      countParams.push(category);
+    }
+    
+    const countResult = await db.get(countQuery, countParams);
+    const total = countResult ? countResult.total : 0;
+    
+    res.json({
+      tickets: tickets,
+      pagination: {
+        page: page,
+        limit: limit,
+        total: total,
+        total_pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching available tickets:', error);
+    res.status(500).json({ error: 'Failed to fetch available tickets' });
+  }
+});
+
+// POST /api/public/my-tickets - Lookup tickets by email/phone/buyer code
+app.post('/api/public/my-tickets', async (req, res) => {
+  try {
+    const { email, phone, buyer_code } = req.body;
+    
+    if (!email && !phone && !buyer_code) {
+      return res.status(400).json({ error: 'Please provide email, phone, or buyer code' });
+    }
+    
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status IN ('active', 'draft')
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Build query based on provided identifier
+    let query = `
+      SELECT ticket_number, category, price, status, barcode, sold_at, buyer_name
+      FROM tickets 
+      WHERE raffle_id = ? AND status = 'SOLD'
+    `;
+    const params = [raffle.id];
+    
+    if (email) {
+      query += ' AND LOWER(buyer_email) = LOWER(?)';
+      params.push(email);
+    } else if (phone) {
+      query += ' AND buyer_phone = ?';
+      params.push(phone);
+    } else if (buyer_code) {
+      // Assuming buyer_code is stored in barcode or a similar field
+      query += ' AND barcode = ?';
+      params.push(buyer_code);
+    }
+    
+    query += ' ORDER BY sold_at DESC';
+    
+    const tickets = await db.all(query, params);
+    
+    if (tickets.length === 0) {
+      return res.json({ 
+        tickets: [], 
+        message: 'No tickets found with the provided information' 
+      });
+    }
+    
+    res.json({
+      tickets: tickets.map(t => ({
+        ticket_number: t.ticket_number,
+        category: t.category,
+        price: t.price,
+        status: t.status,
+        barcode: t.barcode,
+        sold_at: t.sold_at,
+        buyer_name: t.buyer_name
+      }))
+    });
+  } catch (error) {
+    console.error('Error looking up tickets:', error);
+    res.status(500).json({ error: 'Failed to lookup tickets' });
+  }
+});
+
+// GET /api/public/verify-ticket/:ticketNumber - Verify ticket status without owner info
+app.get('/api/public/verify-ticket/:ticketNumber', async (req, res) => {
+  try {
+    const ticketNumber = req.params.ticketNumber;
+    
+    const ticket = await db.get(`
+      SELECT ticket_number, category, price, status, barcode
+      FROM tickets 
+      WHERE ticket_number = ? OR barcode = ?
+    `, [ticketNumber, ticketNumber]);
+    
+    if (!ticket) {
+      return res.json({ 
+        valid: false,
+        message: 'Ticket not found' 
+      });
+    }
+    
+    res.json({
+      valid: true,
+      ticket: {
+        ticket_number: ticket.ticket_number,
+        category: ticket.category,
+        price: ticket.price,
+        status: ticket.status,
+        is_available: ticket.status === 'AVAILABLE',
+        is_sold: ticket.status === 'SOLD'
       }
     });
   } catch (error) {
