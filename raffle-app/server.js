@@ -4307,11 +4307,11 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
 // GET /api/public/raffle-info - Get current raffle information
 app.get('/api/public/raffle-info', async (req, res) => {
   try {
-    // Get the active or most recent raffle
+    // Get the active raffle only (not draft)
     const raffle = await db.get(`
       SELECT id, name, description, start_date, draw_date, status, total_tickets
       FROM raffles 
-      WHERE status IN ('active', 'draft')
+      WHERE status = 'active'
       ORDER BY created_at DESC 
       LIMIT 1
     `);
@@ -4363,10 +4363,10 @@ app.get('/api/public/available-tickets', async (req, res) => {
     const category = req.query.category || '';
     const offset = (page - 1) * limit;
     
-    // Get the active raffle
+    // Get the active raffle only
     const raffle = await db.get(`
       SELECT id FROM raffles 
-      WHERE status IN ('active', 'draft')
+      WHERE status = 'active'
       ORDER BY created_at DESC 
       LIMIT 1
     `);
@@ -4433,10 +4433,10 @@ app.post('/api/public/my-tickets', async (req, res) => {
       return res.status(400).json({ error: 'Please provide email, phone, or buyer code' });
     }
     
-    // Get the active raffle
+    // Get the active raffle only
     const raffle = await db.get(`
       SELECT id FROM raffles 
-      WHERE status IN ('active', 'draft')
+      WHERE status = 'active'
       ORDER BY created_at DESC 
       LIMIT 1
     `);
@@ -4455,14 +4455,16 @@ app.post('/api/public/my-tickets', async (req, res) => {
     
     if (email) {
       query += ' AND LOWER(buyer_email) = LOWER(?)';
-      params.push(email);
+      params.push(email.trim());
     } else if (phone) {
-      query += ' AND buyer_phone = ?';
-      params.push(phone);
+      // Normalize phone number by removing non-numeric characters
+      const normalizedPhone = phone.replace(/\D/g, '');
+      query += ' AND REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\') = ?';
+      params.push(normalizedPhone);
     } else if (buyer_code) {
-      // Assuming buyer_code is stored in barcode or a similar field
+      // Buyer code matches the barcode field
       query += ' AND barcode = ?';
-      params.push(buyer_code);
+      params.push(buyer_code.trim());
     }
     
     query += ' ORDER BY sold_at DESC';
@@ -4496,13 +4498,24 @@ app.post('/api/public/my-tickets', async (req, res) => {
 // GET /api/public/verify-ticket/:ticketNumber - Verify ticket status without owner info
 app.get('/api/public/verify-ticket/:ticketNumber', async (req, res) => {
   try {
-    const ticketNumber = req.params.ticketNumber;
+    const ticketIdentifier = req.params.ticketNumber.trim();
     
-    const ticket = await db.get(`
+    // Search by ticket_number first, then by barcode if not found
+    // This ensures ticket_number takes precedence if there's a collision
+    let ticket = await db.get(`
       SELECT ticket_number, category, price, status, barcode
       FROM tickets 
-      WHERE ticket_number = ? OR barcode = ?
-    `, [ticketNumber, ticketNumber]);
+      WHERE ticket_number = ?
+    `, [ticketIdentifier]);
+    
+    // If not found by ticket number, try barcode
+    if (!ticket) {
+      ticket = await db.get(`
+        SELECT ticket_number, category, price, status, barcode
+        FROM tickets 
+        WHERE barcode = ?
+      `, [ticketIdentifier]);
+    }
     
     if (!ticket) {
       return res.json({ 
