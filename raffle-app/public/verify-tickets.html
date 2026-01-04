@@ -1084,6 +1084,9 @@
       const tbody = document.getElementById('ticketsBody');
       tbody.innerHTML = '';
       
+      // Track QR canvases that need generation
+      const qrCanvases = [];
+      
       tickets.forEach(ticket => {
         const tr = document.createElement('tr');
         
@@ -1106,10 +1109,13 @@
         
         // QR Code - generate as canvas for inline display
         let qrHtml = '<span style="color: #94a3b8;">N/A</span>';
+        let qrCanvasElement = null;
         if (ticket.qr_code_data) {
-          // Create unique ID for each QR canvas
-          const qrId = `qr-${ticket.ticket_number.replace(/[^a-zA-Z0-9]/g, '')}`;
-          qrHtml = `<canvas id="${qrId}" class="qr-thumbnail" data-qr="${ticket.qr_code_data}"></canvas>`;
+          // Create unique ID using ticket number, timestamp, and random suffix for guaranteed uniqueness
+          const qrId = `qr-${ticket.ticket_number.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          qrHtml = `<canvas id="${qrId}" class="qr-thumbnail"></canvas>`;
+          // Store the QR data for later use (no need to escape in data attribute)
+          qrCanvasElement = { id: qrId, data: ticket.qr_code_data };
         }
         
         // Format sold_at date
@@ -1136,6 +1142,11 @@
         `;
         
         tbody.appendChild(tr);
+        
+        // Add QR canvas to generation list if exists
+        if (qrCanvasElement) {
+          qrCanvases.push(qrCanvasElement);
+        }
       });
       
       // Generate barcodes
@@ -1153,17 +1164,19 @@
         }
       });
       
-      // Generate QR codes
-      document.querySelectorAll('.qr-thumbnail').forEach(canvas => {
-        const qrData = canvas.getAttribute('data-qr');
-        try {
-          QRCode.toCanvas(canvas, qrData, {
-            width: 60,
-            height: 60,
-            margin: 1
-          });
-        } catch (e) {
-          console.error('Error generating QR code:', e);
+      // Generate QR codes from tracked array (safe approach)
+      qrCanvases.forEach(qrCanvas => {
+        const canvas = document.getElementById(qrCanvas.id);
+        if (canvas) {
+          try {
+            QRCode.toCanvas(canvas, qrCanvas.data, {
+              width: 60,
+              height: 60,
+              margin: 1
+            });
+          } catch (e) {
+            console.error('Error generating QR code:', e);
+          }
         }
       });
     }
