@@ -4758,16 +4758,20 @@ app.get('/api/admin/debug/tickets-sample', requireAuth, requireAdmin, async (req
       LIMIT 50
     `);
     
-    // Check for specific ticket user mentioned
+    // Check for specific ticket user mentioned (exact format)
     const abc000001 = await db.get(
       'SELECT id, ticket_number, barcode, category, price, status FROM tickets WHERE ticket_number = ? OR barcode = ?',
       ['ABC-000001', 'ABC-000001']
     );
     
-    // Also check with different formats (common variations)
+    // Check with common format variations in both ticket_number and barcode fields
+    // Note: Same values checked in both fields because we don't know which field contains the scanned value
     const abc000001Alt = await db.get(
-      'SELECT id, ticket_number, barcode, category, price, status FROM tickets WHERE ticket_number IN (?, ?, ?) OR barcode IN (?, ?, ?)',
-      ['ABC-000001', 'ABC000001', 'ABC-0001', 'ABC-000001', 'ABC000001', '10000001']
+      `SELECT id, ticket_number, barcode, category, price, status FROM tickets 
+       WHERE ticket_number IN (?, ?, ?, ?) 
+          OR barcode IN (?, ?, ?, ?)`,
+      ['ABC-000001', 'ABC000001', 'ABC-0001', '10000001',
+       'ABC-000001', 'ABC000001', 'ABC-0001', '10000001']
     );
     
     res.json({
