@@ -4743,7 +4743,7 @@ app.get('/api/admin/debug/tickets-sample', requireAuth, requireAdmin, async (req
       ORDER BY category ASC
     `);
     
-    // Get sample tickets (first 10 from each category)
+    // Get sample tickets (first 50 overall, ordered by category)
     const sampleTickets = await db.all(`
       SELECT 
         id,
@@ -4767,7 +4767,7 @@ app.get('/api/admin/debug/tickets-sample', requireAuth, requireAdmin, async (req
     // Also check with different formats
     const abc000001Alt = await db.get(
       'SELECT * FROM tickets WHERE ticket_number IN (?, ?, ?) OR barcode IN (?, ?, ?)',
-      ['ABC-000001', 'ABC000001', 'ABC-0001', '10000001', 'ABC-000001', 'ABC000001']
+      ['ABC-000001', 'ABC000001', 'ABC-0001', '10000001', 'ABC-0001', '10000001']
     );
     
     res.json({
@@ -4819,7 +4819,12 @@ app.get('/api/admin/debug/ticket-count', requireAuth, requireAdmin, async (req, 
       message: result.total === 0 ? 'Database is empty. Generate tickets first.' : `${result.total} tickets in database`
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[DEBUG] Error fetching ticket count:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch ticket count',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
