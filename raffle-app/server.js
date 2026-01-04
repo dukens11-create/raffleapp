@@ -4407,6 +4407,65 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
   }
 });
 
+// POST /api/admin/tickets/unsold - Mark a sold ticket as unsold (reverse sale)
+app.post('/api/admin/tickets/unsold', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber } = req.body;
+    
+    if (!ticketNumber) {
+      return res.status(400).json({ 
+        error: 'Ticket number is required' 
+      });
+    }
+    
+    // Get the ticket
+    const ticket = await db.get(
+      'SELECT * FROM tickets WHERE ticket_number = ?',
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        error: 'Ticket not found' 
+      });
+    }
+    
+    if (ticket.status !== 'SOLD') {
+      return res.status(400).json({ 
+        error: 'Ticket is not sold' 
+      });
+    }
+    
+    // Mark as unsold - clear sold_at, seller info, and set status back to AVAILABLE
+    await db.run(
+      `UPDATE tickets 
+       SET status = 'AVAILABLE', 
+           sold_at = NULL, 
+           seller_name = NULL, 
+           seller_phone = NULL,
+           buyer_name = NULL,
+           buyer_phone = NULL
+       WHERE ticket_number = ?`,
+      [ticketNumber]
+    );
+    
+    console.log(`Ticket ${ticketNumber} marked as unsold by admin ${req.session.user.name}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Ticket marked as unsold successfully',
+      ticketNumber: ticketNumber
+    });
+    
+  } catch (error) {
+    console.error('Error marking ticket as unsold:', error);
+    res.status(500).json({ 
+      error: 'Failed to mark ticket as unsold',
+      details: error.message 
+    });
+  }
+});
+
 // GET /api/admin/tickets/export-csv - Export tickets to CSV (STREAMING)
 // Uses streaming to handle large datasets without OOM crashes
 app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, res) => {
