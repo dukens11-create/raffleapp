@@ -1164,7 +1164,7 @@
           <td>${ticket.seller_name || '-'}</td>
           <td>
             ${ticket.status === 'SOLD' ? `
-              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" onclick="unsoldTicket('${ticket.ticket_number}')" data-translate="unsoldTicket">
+              <button class="btn btn-secondary unsold-btn" style="padding: 6px 12px; font-size: 12px;" data-ticket-number="${ticket.ticket_number.replace(/"/g, '&quot;')}" data-translate="unsoldTicket">
                 Mark as Unsold
               </button>
             ` : '-'}
@@ -1331,41 +1331,46 @@
       window.print();
     });
     
-    // Unsold ticket function
-    async function unsoldTicket(ticketNumber) {
-      const lang = getCurrentLanguage();
-      const confirmMsg = translations[lang].confirmUnsold || 'Are you sure you want to mark this ticket as unsold? This will reverse the sale.';
-      
-      if (!confirm(confirmMsg)) {
-        return;
-      }
-      
-      try {
-        const response = await fetch('/api/admin/tickets/unsold', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ ticketNumber })
-        });
+    // Event delegation for unsold buttons
+    document.getElementById('ticketsBody').addEventListener('click', async (e) => {
+      if (e.target.classList.contains('unsold-btn') || e.target.closest('.unsold-btn')) {
+        const button = e.target.classList.contains('unsold-btn') ? e.target : e.target.closest('.unsold-btn');
+        const ticketNumber = button.getAttribute('data-ticket-number');
         
-        const data = await response.json();
+        if (!ticketNumber) return;
         
-        if (response.ok && data.success) {
-          showNotification(translations[lang].unsoldSuccess || 'Ticket marked as unsold successfully');
-          // Refresh the ticket list
-          fetchTickets(currentPage);
-        } else {
-          showNotification(translations[lang].unsoldError || data.error || 'Failed to mark ticket as unsold');
+        const lang = getCurrentLanguage();
+        const confirmMsg = translations[lang].confirmUnsold || 'Are you sure you want to mark this ticket as unsold? This will reverse the sale.';
+        
+        if (!confirm(confirmMsg)) {
+          return;
         }
-      } catch (error) {
-        console.error('Error marking ticket as unsold:', error);
-        showNotification(translations[lang].unsoldError || 'Failed to mark ticket as unsold');
+        
+        try {
+          const response = await fetch('/api/admin/tickets/unsold', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ticketNumber })
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.success) {
+            showNotification(translations[lang].unsoldSuccess || 'Ticket marked as unsold successfully');
+            // Refresh the ticket list
+            fetchTickets(currentPage);
+          } else {
+            // Sanitize error message - only show generic error
+            showNotification(translations[lang].unsoldError || 'Failed to mark ticket as unsold');
+          }
+        } catch (error) {
+          console.error('Error marking ticket as unsold:', error);
+          showNotification(translations[lang].unsoldError || 'Failed to mark ticket as unsold');
+        }
       }
-    }
-    
-    // Make unsoldTicket function global so it can be called from onclick
-    window.unsoldTicket = unsoldTicket;
+    });
     
     // Initial load
     fetchTickets(1);

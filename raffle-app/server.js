@@ -4449,7 +4449,10 @@ app.post('/api/admin/tickets/unsold', requireAuth, requireAdmin, async (req, res
       [ticketNumber]
     );
     
-    console.log(`Ticket ${ticketNumber} marked as unsold by admin ${req.session.user.name}`);
+    // Sanitize log output to prevent log injection
+    const safeTicketNumber = String(ticketNumber).replace(/[\r\n]/g, '');
+    const safeAdminName = String(req.session.user.name).replace(/[\r\n]/g, '');
+    console.log(`Ticket ${safeTicketNumber} marked as unsold by admin ${safeAdminName}`);
     
     res.json({ 
       success: true, 
