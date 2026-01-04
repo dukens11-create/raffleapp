@@ -447,6 +447,15 @@ const authLimiter = rateLimit({
   }
 });
 
+// Rate limiting - Gentle limiter for public pages (prevent abuse while allowing normal access)
+const publicPageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // Very generous limit - 200 page loads per 15 minutes
+  message: 'Too many page requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 // Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
@@ -1378,7 +1387,7 @@ app.get('/seller', requireAuth, (req, res) => {
 });
 
 // Buyers Dashboard - Public page (no authentication required)
-app.get('/buyers', (req, res) => {
+app.get('/buyers', publicPageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
 });
 
