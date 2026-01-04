@@ -212,7 +212,10 @@ async function createNatCashPayment(paymentData) {
     const fetch = require('node-fetch');
     const endpoint = NATCASH_CONFIG.endpoints[NATCASH_CONFIG.mode];
     
-    // Note: Adjust this based on actual NatCash API structure
+    // ⚠️ IMPORTANT: This is a placeholder endpoint structure
+    // TODO: Update this with actual NatCash API documentation before production use
+    // Contact NatCash support for the correct API endpoint and request format
+    // Current implementation is based on common API patterns and may not work
     const response = await fetch(`${endpoint}/payments/create`, {
       method: 'POST',
       headers: {
@@ -245,10 +248,13 @@ async function createNatCashPayment(paymentData) {
   } catch (error) {
     console.error('NatCash payment error:', error.message);
     
-    // If NatCash API is not available in sandbox mode, return a simulated response
-    // In production mode, we throw the error to alert the admin that NatCash is down
+    // Graceful degradation in sandbox mode for development/testing
+    // In sandbox: Return simulated response to allow testing without real API
+    // In production: Throw error to alert admin of API issues
     if (NATCASH_CONFIG.mode === 'sandbox') {
-      console.warn('⚠️  NatCash API not available in sandbox, using simulated response');
+      console.warn('⚠️  NatCash API error in sandbox mode');
+      console.warn('   Using simulated response for testing purposes');
+      console.warn('   Update NatCash API endpoints before production deployment');
       return {
         success: true,
         paymentId: `NATCASH_SIM_${Date.now()}`,
@@ -280,7 +286,9 @@ async function verifyNatCashPayment(paymentId) {
     const fetch = require('node-fetch');
     const endpoint = NATCASH_CONFIG.endpoints[NATCASH_CONFIG.mode];
     
-    // Note: Adjust this based on actual NatCash API structure
+    // ⚠️ IMPORTANT: This is a placeholder endpoint structure
+    // TODO: Update this with actual NatCash API documentation before production use
+    // Contact NatCash support for the correct API endpoint and request format
     const response = await fetch(`${endpoint}/payments/${paymentId}/status`, {
       method: 'GET',
       headers: {

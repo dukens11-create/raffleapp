@@ -86,20 +86,11 @@ const ADMIN_PHONES = process.env.ADMIN_NOTIFICATION_PHONES
 function formatPhoneNumber(phone) {
   if (!phone) return null;
   
-  // Check if phone already starts with +
-  const hasPlus = phone.trim().startsWith('+');
-  
   // Remove all non-digit characters
   let cleaned = phone.replace(/\D/g, '');
   
-  // Add + if not present
-  if (!hasPlus) {
-    cleaned = '+' + cleaned;
-  } else {
-    cleaned = '+' + cleaned;
-  }
-  
-  return cleaned;
+  // Add + prefix if not already present in original
+  return '+' + cleaned;
 }
 
 /**
