@@ -1357,8 +1357,6 @@
                                 });
                               }
                               
-                              document.getElementById('ticket-number').value = decodedText;
-                              
                               setTimeout(() => {
                                 stopAdminScanner();
                                 document.getElementById('scannerModal').style.display = 'none';
@@ -1489,12 +1487,7 @@
                               }
                             }
                             
-                            // Event listeners
-                            document.getElementById('scanTicketBtn')?.addEventListener('click', () => {
-                              document.getElementById('scannerModal').style.display = 'block';
-                              startAdminScanner();
-                            });
-                            
+                            // Event listeners for scanner close button
                             document.getElementById('closeScannerBtn')?.addEventListener('click', () => {
                               stopAdminScanner();
                               document.getElementById('scannerModal').style.display = 'none';
