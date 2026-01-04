@@ -4457,7 +4457,7 @@ app.post('/api/admin/tickets/unsold', requireAuth, requireAdmin, async (req, res
     res.json({ 
       success: true, 
       message: 'Ticket marked as unsold successfully',
-      ticketNumber: ticketNumber
+      ticketNumber
     });
     
   } catch (error) {

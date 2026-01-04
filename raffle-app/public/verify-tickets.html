@@ -356,6 +356,11 @@
       position: relative;
     }
     
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
     .status-badge {
       display: inline-block;
       padding: 4px 12px;
@@ -1171,7 +1176,7 @@
           <td>${ticket.seller_name || '-'}</td>
           <td>
             ${ticket.status === 'SOLD' ? `
-              <button class="btn btn-secondary unsold-btn" style="padding: 6px 12px; font-size: 12px;" data-ticket-number="${escapeHtml(ticket.ticket_number)}" data-translate="unsoldTicket">
+              <button class="btn btn-secondary btn-small unsold-btn" data-ticket-number="${escapeHtml(ticket.ticket_number)}" data-translate="unsoldTicket">
                 Mark as Unsold
               </button>
             ` : '-'}
@@ -1340,8 +1345,8 @@
     
     // Event delegation for unsold buttons
     document.getElementById('ticketsBody').addEventListener('click', async (e) => {
-      if (e.target.classList.contains('unsold-btn') || e.target.closest('.unsold-btn')) {
-        const button = e.target.classList.contains('unsold-btn') ? e.target : e.target.closest('.unsold-btn');
+      const button = e.target.closest('.unsold-btn');
+      if (button) {
         const ticketNumber = button.getAttribute('data-ticket-number');
         
         if (!ticketNumber) return;
