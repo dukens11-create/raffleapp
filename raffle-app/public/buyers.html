@@ -682,17 +682,29 @@
         
         <div class="form-group">
           <label for="lookup-email">Email Address</label>
-          <input type="email" id="lookup-email" placeholder="your@email.com">
+          <input type="email" id="lookup-email" placeholder="your@email.com" 
+                 aria-describedby="email-help" autocomplete="email">
+          <p id="email-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            Enter the email address used when purchasing tickets
+          </p>
         </div>
         
         <div class="form-group">
           <label for="lookup-phone">Phone Number</label>
-          <input type="tel" id="lookup-phone" placeholder="1234567890">
+          <input type="tel" id="lookup-phone" placeholder="1234567890"
+                 aria-describedby="phone-help" autocomplete="tel">
+          <p id="phone-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            Enter phone number in any format (e.g., 123-456-7890 or 1234567890)
+          </p>
         </div>
         
         <div class="form-group">
           <label for="lookup-code">Buyer Code (from receipt)</label>
-          <input type="text" id="lookup-code" placeholder="Enter your buyer code">
+          <input type="text" id="lookup-code" placeholder="Enter your buyer code"
+                 aria-describedby="code-help" autocomplete="off">
+          <p id="code-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            Find your unique buyer code on your ticket receipt or confirmation email
+          </p>
         </div>
         
         <button class="btn btn-primary" onclick="lookupMyTickets()">
@@ -715,7 +727,11 @@
         
         <div class="form-group">
           <label for="verify-ticket-number">Ticket Number or Barcode</label>
-          <input type="text" id="verify-ticket-number" placeholder="Enter ticket number or barcode">
+          <input type="text" id="verify-ticket-number" placeholder="Enter ticket number or barcode"
+                 aria-describedby="verify-help" autocomplete="off">
+          <p id="verify-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            Enter the ticket number or scan the barcode to verify its status
+          </p>
         </div>
         
         <button class="btn btn-primary" onclick="verifyTicket()">

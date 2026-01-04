@@ -4457,12 +4457,20 @@ app.post('/api/public/my-tickets', async (req, res) => {
       query += ' AND LOWER(buyer_email) = LOWER(?)';
       params.push(email.trim());
     } else if (phone) {
-      // Normalize phone number by removing non-numeric characters
+      // Normalize phone number by removing all non-numeric characters for consistent matching
       const normalizedPhone = phone.replace(/\D/g, '');
-      query += ' AND REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\') = ?';
+      // Strip all non-numeric characters from stored phone numbers to match normalized input
+      if (USE_POSTGRES) {
+        query += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
+      } else {
+        // SQLite: use multiple REPLACE calls to remove common formatting characters
+        query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\') = ?';
+      }
       params.push(normalizedPhone);
     } else if (buyer_code) {
-      // Buyer code matches the barcode field
+      // Buyer code is the unique barcode assigned to each ticket upon sale
+      // This barcode is printed on the physical ticket and included in email receipts
+      // It serves as a unique identifier for buyers to look up their tickets
       query += ' AND barcode = ?';
       params.push(buyer_code.trim());
     }
