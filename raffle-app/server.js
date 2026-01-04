@@ -4618,6 +4618,7 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
         t.qr_code_data,
         t.buyer_name,
         t.seller_name,
+        t.sold_at,
         t.created_at
       FROM tickets t
       ${whereClause}
@@ -4668,6 +4669,67 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
   } catch (error) {
     console.error('Error fetching verification list:', error);
     res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// POST /api/admin/tickets/unsold - Mark a sold ticket as unsold (reverse sale)
+app.post('/api/admin/tickets/unsold', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber } = req.body;
+    
+    if (!ticketNumber) {
+      return res.status(400).json({ 
+        error: 'Ticket number is required' 
+      });
+    }
+    
+    // Get the ticket
+    const ticket = await db.get(
+      'SELECT * FROM tickets WHERE ticket_number = ?',
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        error: 'Ticket not found' 
+      });
+    }
+    
+    if (ticket.status !== 'SOLD') {
+      return res.status(400).json({ 
+        error: 'Ticket is not sold' 
+      });
+    }
+    
+    // Mark as unsold - clear sold_at, seller info, and set status back to AVAILABLE
+    await db.run(
+      `UPDATE tickets 
+       SET status = 'AVAILABLE', 
+           sold_at = NULL, 
+           seller_name = NULL, 
+           seller_phone = NULL,
+           buyer_name = NULL,
+           buyer_phone = NULL
+       WHERE ticket_number = ?`,
+      [ticketNumber]
+    );
+    
+    // Sanitize log output to prevent log injection
+    const safeTicketNumber = String(ticketNumber).replace(/[\r\n]/g, '');
+    const safeAdminName = String(req.session.user.name).replace(/[\r\n]/g, '');
+    console.log(`Ticket ${safeTicketNumber} marked as unsold by admin ${safeAdminName}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Ticket marked as unsold successfully',
+      ticketNumber
+    });
+    
+  } catch (error) {
+    console.error('Error marking ticket as unsold:', error);
+    res.status(500).json({ 
+      error: 'Failed to mark ticket as unsold'
+    });
   }
 });
 
@@ -4728,6 +4790,7 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
         status,
         buyer_name,
         seller_name,
+        sold_at,
         created_at
       FROM tickets
       ${whereClause}
@@ -4739,7 +4802,7 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
     res.setHeader('Content-Disposition', `attachment; filename="tickets-export-${Date.now()}.csv"`);
     
     // Write CSV header
-    res.write('Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Created At\n');
+    res.write('Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Sold At,Created At\n');
     
     let totalProcessed = 0;
     
@@ -4756,6 +4819,7 @@ app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, 
           ticket.status || '',
           ticket.buyer_name || '',
           ticket.seller_name || '',
+          ticket.sold_at || '',
           ticket.created_at || ''
         ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
         

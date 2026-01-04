@@ -19,6 +19,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
   
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   
   <style>
     * {
@@ -338,16 +339,26 @@
     }
     
     .qr-thumbnail {
-      width: 40px;
-      height: 40px;
+      width: 60px;
+      height: 60px;
       cursor: pointer;
       transition: transform 0.3s;
       border: 1px solid #e2e8f0;
       border-radius: 4px;
+      display: block;
+      margin: 0 auto;
     }
     
     .qr-thumbnail:hover {
-      transform: scale(1.1);
+      transform: scale(1.5);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      position: relative;
+    }
+    
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
     }
     
     .status-badge {
@@ -730,11 +741,18 @@
               <th>
                 <span data-translate="qrCode">QR Code</span>
               </th>
+              <th data-sort="sold_at">
+                <span data-translate="soldAt">Sold At</span>
+                <span class="sort-icon">↕</span>
+              </th>
               <th>
                 <span data-translate="buyer">Buyer</span>
               </th>
               <th>
                 <span data-translate="seller">Seller</span>
+              </th>
+              <th>
+                <span data-translate="actions">Actions</span>
               </th>
             </tr>
           </thead>
@@ -805,8 +823,14 @@
         price: 'Price',
         status: 'Status',
         qrCode: 'QR Code',
+        soldAt: 'Sold At',
         buyer: 'Buyer',
         seller: 'Seller',
+        actions: 'Actions',
+        unsoldTicket: 'Mark as Unsold',
+        confirmUnsold: 'Are you sure you want to mark this ticket as unsold? This will reverse the sale.',
+        unsoldSuccess: 'Ticket marked as unsold successfully',
+        unsoldError: 'Failed to mark ticket as unsold',
         noTickets: 'No tickets found',
         tryAdjusting: 'Try adjusting your search or filter criteria',
         previous: 'Previous',
@@ -844,8 +868,14 @@
         price: 'Prix',
         status: 'Statut',
         qrCode: 'Code QR',
+        soldAt: 'Vendu Le',
         buyer: 'Acheteur',
         seller: 'Vendeur',
+        actions: 'Actions',
+        unsoldTicket: 'Marquer Comme Non Vendu',
+        confirmUnsold: 'Êtes-vous sûr de vouloir marquer ce billet comme non vendu? Cela annulera la vente.',
+        unsoldSuccess: 'Billet marqué comme non vendu avec succès',
+        unsoldError: 'Échec du marquage du billet comme non vendu',
         noTickets: 'Aucun billet trouvé',
         tryAdjusting: 'Essayez d\'ajuster vos critères de recherche ou de filtre',
         previous: 'Précédent',
@@ -883,8 +913,14 @@
         price: 'Pri',
         status: 'Estati',
         qrCode: 'Kòd QR',
+        soldAt: 'Vann Nan',
         buyer: 'Achtè',
         seller: 'Vandè',
+        actions: 'Aksyon',
+        unsoldTicket: 'Make Kòm Pa Vann',
+        confirmUnsold: 'Ou si ou vle make tikè sa a kòm pa vann? Sa ap annile vant lan.',
+        unsoldSuccess: 'Tikè make kòm pa vann avèk siksè',
+        unsoldError: 'Echwe make tikè a kòm pa vann',
         noTickets: 'Pa gen tikè',
         tryAdjusting: 'Eseye ajiste kritè rechèch oswa filtè ou',
         previous: 'Anvan',
@@ -922,8 +958,14 @@
         price: 'Precio',
         status: 'Estado',
         qrCode: 'Código QR',
+        soldAt: 'Vendido En',
         buyer: 'Comprador',
         seller: 'Vendedor',
+        actions: 'Acciones',
+        unsoldTicket: 'Marcar Como No Vendido',
+        confirmUnsold: '¿Está seguro de que desea marcar este boleto como no vendido? Esto revertirá la venta.',
+        unsoldSuccess: 'Boleto marcado como no vendido exitosamente',
+        unsoldError: 'Error al marcar el boleto como no vendido',
         noTickets: 'No se encontraron boletos',
         tryAdjusting: 'Intente ajustar sus criterios de búsqueda o filtro',
         previous: 'Anterior',
@@ -1065,10 +1107,20 @@
       document.getElementById('cat-xyz').textContent = stats.by_category.XYZ.toLocaleString();
     }
     
+    // HTML escape function to prevent XSS
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
     // Update table
     function updateTable(tickets) {
       const tbody = document.getElementById('ticketsBody');
       tbody.innerHTML = '';
+      
+      // Track QR canvases that need generation
+      const qrCanvases = [];
       
       tickets.forEach(ticket => {
         const tr = document.createElement('tr');
@@ -1090,11 +1142,26 @@
           barcodeHtml = '<span style="color: #94a3b8;">N/A</span>';
         }
         
-        // QR Code thumbnail
+        // QR Code - generate as canvas for inline display
         let qrHtml = '<span style="color: #94a3b8;">N/A</span>';
+        let qrCanvasElement = null;
         if (ticket.qr_code_data) {
-          // Generate simple QR placeholder (in production, use actual QR generation)
-          qrHtml = `<button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="showQRModal('${ticket.ticket_number}', '${ticket.qr_code_data}')">View QR</button>`;
+          // Create unique ID using ticket number, timestamp, and random suffix for guaranteed uniqueness
+          const qrId = `qr-${ticket.ticket_number.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          qrHtml = `<canvas id="${qrId}" class="qr-thumbnail"></canvas>`;
+          // Store the QR data for later use (no need to escape in data attribute)
+          qrCanvasElement = { id: qrId, data: ticket.qr_code_data };
+        }
+        
+        // Format sold_at date
+        let soldAtHtml = '<span style="color: #94a3b8;">-</span>';
+        if (ticket.sold_at) {
+          try {
+            const date = new Date(ticket.sold_at);
+            soldAtHtml = date.toLocaleString();
+          } catch (e) {
+            soldAtHtml = ticket.sold_at;
+          }
         }
         
         tr.innerHTML = `
@@ -1104,11 +1171,24 @@
           <td>$${ticket.price ? parseFloat(ticket.price).toFixed(2) : '0.00'}</td>
           <td><span class="status-badge ${statusClass}">${ticket.status || 'N/A'}</span></td>
           <td>${qrHtml}</td>
+          <td>${soldAtHtml}</td>
           <td>${ticket.buyer_name || '-'}</td>
           <td>${ticket.seller_name || '-'}</td>
+          <td>
+            ${ticket.status === 'SOLD' ? `
+              <button class="btn btn-secondary btn-small unsold-btn" data-ticket-number="${escapeHtml(ticket.ticket_number)}" data-translate="unsoldTicket">
+                Mark as Unsold
+              </button>
+            ` : '-'}
+          </td>
         `;
         
         tbody.appendChild(tr);
+        
+        // Add QR canvas to generation list if exists
+        if (qrCanvasElement) {
+          qrCanvases.push(qrCanvasElement);
+        }
       });
       
       // Generate barcodes
@@ -1123,6 +1203,22 @@
           });
         } catch (e) {
           console.error('Error generating barcode:', e);
+        }
+      });
+      
+      // Generate QR codes from tracked array (safe approach)
+      qrCanvases.forEach(qrCanvas => {
+        const canvas = document.getElementById(qrCanvas.id);
+        if (canvas) {
+          try {
+            QRCode.toCanvas(canvas, qrCanvas.data, {
+              width: 60,
+              height: 60,
+              margin: 1
+            });
+          } catch (e) {
+            console.error('Error generating QR code:', e);
+          }
         }
       });
     }
@@ -1245,6 +1341,48 @@
     
     document.getElementById('printView').addEventListener('click', () => {
       window.print();
+    });
+    
+    // Event delegation for unsold buttons
+    document.getElementById('ticketsBody').addEventListener('click', async (e) => {
+      const button = e.target.closest('.unsold-btn');
+      if (button) {
+        const ticketNumber = button.getAttribute('data-ticket-number');
+        
+        if (!ticketNumber) return;
+        
+        const lang = getCurrentLanguage();
+        const confirmMsg = translations[lang].confirmUnsold || 'Are you sure you want to mark this ticket as unsold? This will reverse the sale.';
+        
+        if (!confirm(confirmMsg)) {
+          return;
+        }
+        
+        try {
+          const response = await fetch('/api/admin/tickets/unsold', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ticketNumber })
+          });
+          
+          const data = await response.json();
+          
+          if (response.ok && data.success) {
+            showNotification(translations[lang].unsoldSuccess || 'Ticket marked as unsold successfully');
+            // Refresh the ticket list
+            fetchTickets(currentPage);
+          } else {
+            // Log error details for debugging, but show generic message to user
+            console.error('Server error details:', data);
+            showNotification(translations[lang].unsoldError || 'Failed to mark ticket as unsold');
+          }
+        } catch (error) {
+          console.error('Error marking ticket as unsold:', error);
+          showNotification(translations[lang].unsoldError || 'Failed to mark ticket as unsold');
+        }
+      }
     });
     
     // Initial load
