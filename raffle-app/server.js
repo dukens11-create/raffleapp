@@ -4460,11 +4460,12 @@ app.post('/api/public/my-tickets', async (req, res) => {
       // Normalize phone number by removing all non-numeric characters for consistent matching
       const normalizedPhone = phone.replace(/\D/g, '');
       // Strip all non-numeric characters from stored phone numbers to match normalized input
-      if (USE_POSTGRES) {
+      if (db.USE_POSTGRES) {
         query += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
       } else {
         // SQLite: use multiple REPLACE calls to remove common formatting characters
-        query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\') = ?';
+        // Handles: - ( ) . space and other common phone formatting
+        query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
       }
       params.push(normalizedPhone);
     } else if (buyer_code) {

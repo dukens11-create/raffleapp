@@ -770,6 +770,7 @@
     
     // Load raffle info
     let currentPage = 1;
+    let raffleData = null; // Cache raffle data to avoid duplicate API calls
     
     async function loadRaffleInfo() {
       try {
@@ -779,6 +780,9 @@
         if (!response.ok) {
           throw new Error(data.error || 'Failed to load raffle info');
         }
+        
+        // Cache the data for reuse
+        raffleData = data;
         
         const container = document.getElementById('raffle-info-content');
         
@@ -1080,22 +1084,15 @@
     async function init() {
       await loadRaffleInfo();
       
-      // Populate category filter
-      try {
-        const response = await fetch('/api/public/raffle-info');
-        const data = await response.json();
-        
-        if (response.ok && data.categories) {
-          const categoryFilter = document.getElementById('category-filter');
-          data.categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.category_code;
-            option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
-            categoryFilter.appendChild(option);
-          });
-        }
-      } catch (error) {
-        console.error('Failed to load categories:', error);
+      // Populate category filter from cached raffle data
+      if (raffleData && raffleData.categories) {
+        const categoryFilter = document.getElementById('category-filter');
+        raffleData.categories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.category_code;
+          option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
+          categoryFilter.appendChild(option);
+        });
       }
     }
     
