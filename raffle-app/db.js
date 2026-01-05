@@ -425,9 +425,75 @@ async function initializeSchema() {
       await run(`CREATE INDEX IF NOT EXISTS idx_payments_buyer_phone ON payments(buyer_phone)`);
       await run(`CREATE INDEX IF NOT EXISTS idx_payments_buyer_email ON payments(buyer_email)`);
       await run(`CREATE INDEX IF NOT EXISTS idx_payments_raffle_id ON payments(raffle_id)`);
-      console.log('✅ Created 5 indexes on payments table');
+      await run(`CREATE INDEX IF NOT EXISTS idx_payments_transaction_id ON payments(transaction_id)`);
+      console.log('✅ Created 6 indexes on payments table');
     } catch (error) {
       console.warn('⚠️  Could not create some payment indexes:', error.message);
+    }
+    
+    // Transaction verification log table - for fraud detection and audit trail
+    await run(`
+      CREATE TABLE IF NOT EXISTS txn_verification_log (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        txn_id TEXT NOT NULL,
+        payment_reference TEXT NOT NULL,
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        verification_time ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        tickets_remaining INTEGER,
+        FOREIGN KEY (payment_reference) REFERENCES payments(payment_reference)
+      )
+    `);
+    
+    // Create index for fast fraud detection
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_txn_verification_txn_id ON txn_verification_log(txn_id)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_txn_verification_payment_ref ON txn_verification_log(payment_reference)`);
+      console.log('✅ Created txn_verification_log table with indexes');
+    } catch (error) {
+      console.warn('⚠️  Could not create txn verification log indexes:', error.message);
+    }
+    
+    // Add payment_reference column to tickets table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS payment_reference TEXT
+        `);
+        await run(`CREATE INDEX IF NOT EXISTS idx_tickets_payment_reference ON tickets(payment_reference)`);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasPaymentRef = columns.some(col => col.name === 'payment_reference');
+        if (!hasPaymentRef) {
+          await run(`ALTER TABLE tickets ADD COLUMN payment_reference TEXT`);
+          await run(`CREATE INDEX IF NOT EXISTS idx_tickets_payment_reference ON tickets(payment_reference)`);
+        }
+      }
+      console.log('✅ Added payment_reference column to tickets table');
+    } catch (error) {
+      console.log('Note: payment_reference column already exists or could not be added');
+    }
+    
+    // Add seller_name column to payments table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE payments 
+          ADD COLUMN IF NOT EXISTS seller_name TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(payments)`);
+        const hasSellerName = columns.some(col => col.name === 'seller_name');
+        if (!hasSellerName) {
+          await run(`ALTER TABLE payments ADD COLUMN seller_name TEXT`);
+        }
+      }
+      console.log('✅ Added seller_name column to payments table');
+    } catch (error) {
+      console.log('Note: seller_name column already exists or could not be added');
     }
     
     // Add fit_mode column if it doesn't exist (for existing databases)
