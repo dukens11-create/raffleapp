@@ -1029,6 +1029,28 @@ async function sendRejectionNotification(email, phone, name, reason) {
   return result;
 }
 
+// Helper function to log fraud attempts
+async function logFraudAttempt(txn_id, seller_phone, seller_name, fraud_type, details) {
+  try {
+    await db.run(
+      `INSERT INTO txn_verification_log 
+       (txn_id, ticket_number, seller_phone, seller_name, verification_time, status, fraud_type, fraud_details)
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'fraud_attempt', ?, ?)`,
+      [
+        txn_id, 
+        details.attempted_ticket || details.ticket_number || null,
+        seller_phone, 
+        seller_name, 
+        fraud_type, 
+        JSON.stringify(details)
+      ]
+    );
+    console.log(`🚨 [FRAUD] Logged ${fraud_type} attempt for Txn ID: ${txn_id}`);
+  } catch (error) {
+    console.error('Failed to log fraud attempt:', error);
+  }
+}
+
 // Routes
 
 // Home page - login
@@ -1887,6 +1909,216 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       error: 'Failed to process ticket',
       message: 'An unexpected error occurred. Please try again or contact support.',
       hint: 'Check server logs for details'
+    });
+  }
+});
+
+// API: Register ticket with MonCash Transaction ID
+app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
+  try {
+    const { txn_id, ticket_barcode } = req.body;
+    const seller_phone = req.session.user.phone;
+    const seller_name = req.session.user.name;
+    
+    console.log(`[TXN-REG] Seller ${seller_name} registering ticket ${ticket_barcode} with Txn ID: ${txn_id}`);
+    
+    // === VALIDATION ===
+    
+    if (!txn_id || !/^\d{12}$/.test(txn_id)) {
+      console.log('[TXN-REG] Invalid Txn ID format');
+      // Don't notify admin for format errors (too many false positives)
+      return res.status(400).json({ 
+        error: 'INVALID_TXN_FORMAT',
+        message: 'Transaction ID must be exactly 12 digits'
+      });
+    }
+    
+    if (!ticket_barcode) {
+      console.log('[TXN-REG] Missing ticket barcode');
+      return res.status(400).json({ 
+        error: 'TICKET_REQUIRED',
+        message: 'Ticket number is required'
+      });
+    }
+    
+    // === FRAUD CHECK 1: TXN ID ALREADY USED ===
+    const existingTxn = await db.get(
+      `SELECT t.ticket_number, t.seller_name, t.sold_at, t.buyer_name
+       FROM tickets t 
+       WHERE t.txn_id = ?`,
+      [txn_id]
+    );
+    
+    if (existingTxn) {
+      console.log(`[TXN-REG] 🚨 FRAUD: Txn ID ${txn_id} already used for ticket ${existingTxn.ticket_number}`);
+      
+      // Log fraud attempt
+      await logFraudAttempt(txn_id, seller_phone, seller_name, 'DUPLICATE_TXN', {
+        attempted_ticket: ticket_barcode,
+        original_ticket: existingTxn.ticket_number,
+        original_seller: existingTxn.seller_name
+      });
+      
+      // 🚨 SEND FRAUD ALERT TO ADMIN
+      await smsService.sendFraudAlert({
+        fraud_type: 'DUPLICATE_TXN',
+        txn_id,
+        seller_name,
+        seller_phone,
+        details: {
+          original_ticket: existingTxn.ticket_number,
+          original_seller: existingTxn.seller_name,
+          attempted_ticket: ticket_barcode
+        }
+      });
+      
+      return res.status(400).json({ 
+        error: 'TXN_ALREADY_USED',
+        message: `This Transaction ID has already been used for ticket ${existingTxn.ticket_number}`,
+        fraud_alert: true,
+        details: {
+          original_ticket: existingTxn.ticket_number,
+          assigned_by: existingTxn.seller_name,
+          assigned_at: existingTxn.sold_at
+        }
+      });
+    }
+    
+    // === VALIDATE TICKET ===
+    const validation = await bulkTicketService.validateTicketForSale(ticket_barcode);
+    
+    if (!validation.valid) {
+      console.log(`[TXN-REG] Ticket validation failed: ${validation.error}`);
+      return res.status(400).json({ 
+        error: validation.error,
+        message: validation.message
+      });
+    }
+    
+    const ticket = validation.ticket;
+    
+    // === FRAUD CHECK 2: TICKET ALREADY HAS TXN ID ===
+    if (ticket.txn_id) {
+      console.log(`[TXN-REG] 🚨 FRAUD: Ticket ${ticket.ticket_number} already has Txn ID: ${ticket.txn_id}`);
+      
+      await logFraudAttempt(txn_id, seller_phone, seller_name, 'TICKET_ALREADY_ASSIGNED', {
+        ticket_number: ticket.ticket_number,
+        existing_txn: ticket.txn_id
+      });
+      
+      // 🚨 SEND FRAUD ALERT TO ADMIN
+      await smsService.sendFraudAlert({
+        fraud_type: 'TICKET_ALREADY_ASSIGNED',
+        txn_id,
+        seller_name,
+        seller_phone,
+        details: {
+          ticket_number: ticket.ticket_number,
+          existing_txn: ticket.txn_id
+        }
+      });
+      
+      return res.status(400).json({ 
+        error: 'TICKET_ALREADY_ASSIGNED',
+        message: `This ticket is already assigned to Txn ID: ${ticket.txn_id}`,
+        fraud_alert: true
+      });
+    }
+    
+    // === VERIFY PAYMENT (OPTIONAL) ===
+    const payment = await db.get(
+      `SELECT * FROM payments WHERE transaction_id = ?`,
+      [txn_id]
+    );
+    
+    if (payment && payment.payment_status !== 'approved') {
+      console.log(`[TXN-REG] ⚠️ Payment not approved: ${payment.payment_status}`);
+      
+      // ⚠️ NOTIFY ADMIN OF PAYMENT ISSUE
+      await smsService.sendTxnFailureNotification({
+        error_type: 'PAYMENT_NOT_APPROVED',
+        txn_id,
+        seller_name,
+        seller_phone,
+        error_message: `Payment status: ${payment.payment_status}`
+      });
+      
+      return res.status(400).json({ 
+        error: 'PAYMENT_NOT_APPROVED',
+        message: `Payment status is "${payment.payment_status}". Only approved payments can be used.`
+      });
+    }
+    
+    // === ALL CHECKS PASSED - REGISTER TICKET ===
+    
+    await db.run(
+      `UPDATE tickets 
+       SET status = 'SOLD', 
+           seller_name = ?, 
+           seller_phone = ?, 
+           txn_id = ?,
+           sold_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [seller_name, seller_phone, txn_id, ticket.id]
+    );
+    
+    // Update payment if exists
+    if (payment) {
+      await db.run(
+        `UPDATE payments 
+         SET ticket_numbers = ?,
+             verified_by = (SELECT id FROM users WHERE phone = ?),
+             verified_at = CURRENT_TIMESTAMP
+         WHERE payment_reference = ?`,
+        [ticket.ticket_number, seller_phone, payment.payment_reference]
+      );
+    }
+    
+    // Log success
+    await db.run(
+      `INSERT INTO txn_verification_log 
+       (txn_id, ticket_number, seller_phone, seller_name, verification_time, status)
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, 'success')`,
+      [txn_id, ticket.ticket_number, seller_phone, seller_name]
+    );
+    
+    // Get session count
+    const sessionCount = await db.get(
+      `SELECT COUNT(*) as count FROM tickets 
+       WHERE seller_phone = ? 
+       AND DATE(sold_at) = DATE('now')`,
+      [seller_phone]
+    );
+    
+    // ✅ SEND SUCCESS NOTIFICATION TO ADMIN
+    await smsService.sendTxnSuccessNotification({
+      txn_id,
+      ticket_number: ticket.ticket_number,
+      seller_name,
+      seller_phone,
+      category: ticket.category,
+      session_count: sessionCount.count
+    });
+    
+    console.log(`✅ [TICKET REGISTERED] Txn: ${txn_id} → Ticket: ${ticket.ticket_number} by ${seller_name}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Ticket registered successfully',
+      ticket: {
+        ticket_number: ticket.ticket_number,
+        txn_id: txn_id,
+        seller: seller_name,
+        category: ticket.category,
+        registered_at: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('[TXN-REG] Error:', error);
+    res.status(500).json({ 
+      error: 'SERVER_ERROR',
+      message: 'Failed to register ticket'
     });
   }
 });
@@ -5460,6 +5692,98 @@ app.post('/api/admin/bulk-tickets/export-pdf', requireAuth, requireAdmin, async 
       error: 'Failed to export tickets to PDF',
       message: error.message
     });
+  }
+});
+
+// API: Get recent Txn ID activity for admin dashboard
+app.get('/api/admin/txn-activity', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const limit = req.query.limit || 50;
+    const filter = req.query.filter || 'all'; // all, success, fraud, failure
+    
+    let query = `
+      SELECT 
+        txn_id,
+        ticket_number,
+        seller_name,
+        seller_phone,
+        verification_time,
+        status,
+        fraud_type,
+        fraud_details
+      FROM txn_verification_log
+    `;
+    
+    if (filter === 'success') {
+      query += ` WHERE status = 'success'`;
+    } else if (filter === 'fraud') {
+      query += ` WHERE status = 'fraud_attempt'`;
+    } else if (filter === 'failure') {
+      query += ` WHERE status = 'failure'`;
+    }
+    
+    query += ` ORDER BY verification_time DESC LIMIT ?`;
+    
+    const activities = await db.all(query, [limit]);
+    
+    res.json({ 
+      success: true, 
+      activities,
+      total: activities.length 
+    });
+    
+  } catch (error) {
+    console.error('Error fetching activity:', error);
+    res.status(500).json({ error: 'Failed to fetch activity' });
+  }
+});
+
+// API: Get Txn ID statistics for admin
+app.get('/api/admin/txn-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const period = req.query.period || 'today'; // today, week, month
+    
+    let dateFilter = '';
+    if (period === 'today') {
+      dateFilter = `DATE(verification_time) = DATE('now')`;
+    } else if (period === 'week') {
+      dateFilter = `verification_time >= datetime('now', '-7 days')`;
+    } else if (period === 'month') {
+      dateFilter = `verification_time >= datetime('now', '-30 days')`;
+    }
+    
+    const stats = await db.get(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as successful,
+        SUM(CASE WHEN status = 'fraud_attempt' THEN 1 ELSE 0 END) as fraud,
+        SUM(CASE WHEN status = 'failure' THEN 1 ELSE 0 END) as failed
+      FROM txn_verification_log
+      WHERE ${dateFilter}
+    `);
+    
+    // Top seller
+    const topSeller = await db.get(`
+      SELECT seller_name, COUNT(*) as count
+      FROM txn_verification_log
+      WHERE status = 'success' AND ${dateFilter}
+      GROUP BY seller_name
+      ORDER BY count DESC
+      LIMIT 1
+    `);
+    
+    res.json({ 
+      success: true, 
+      stats: {
+        ...stats,
+        top_seller: topSeller?.seller_name || 'N/A',
+        top_seller_count: topSeller?.count || 0
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 

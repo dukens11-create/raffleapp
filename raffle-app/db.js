@@ -514,6 +514,64 @@ async function initializeSchema() {
 
     console.log('✅ Performance indexes created');
     
+    // Add txn_id column to tickets table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS txn_id TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasTxnId = columns.some(col => col.name === 'txn_id');
+        if (!hasTxnId) {
+          await run(`ALTER TABLE tickets ADD COLUMN txn_id TEXT`);
+        }
+      }
+      console.log('✅ Added txn_id column to tickets table');
+    } catch (error) {
+      // Column might already exist, that's okay
+      console.log('Note: txn_id column already exists or could not be added');
+    }
+    
+    // Create txn_verification_log table for tracking all Txn ID actions
+    await run(`
+      CREATE TABLE IF NOT EXISTS txn_verification_log (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        txn_id TEXT NOT NULL,
+        ticket_number TEXT,
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        verification_time ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        status TEXT NOT NULL,
+        fraud_type TEXT,
+        fraud_details TEXT,
+        error_type TEXT,
+        error_message TEXT
+      )
+    `);
+    console.log('✅ Created txn_verification_log table');
+    
+    // Create indexes for txn_verification_log
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_txn_log_txn_id ON txn_verification_log(txn_id)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_txn_log_status ON txn_verification_log(status)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_txn_log_seller_phone ON txn_verification_log(seller_phone)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_txn_log_verification_time ON txn_verification_log(verification_time)`);
+      console.log('✅ Created indexes on txn_verification_log table');
+    } catch (error) {
+      console.warn('⚠️  Could not create some txn_verification_log indexes:', error.message);
+    }
+    
+    // Create index on tickets.txn_id for faster lookups
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_tickets_txn_id ON tickets(txn_id)`);
+      console.log('✅ Created index on tickets.txn_id');
+    } catch (error) {
+      console.warn('⚠️  Could not create tickets.txn_id index:', error.message);
+    }
+    
     console.log('✅ Database schema initialized successfully');
     
     // Check if admin exists, create if not
