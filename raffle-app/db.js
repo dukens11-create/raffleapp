@@ -72,7 +72,8 @@ function query(sql, params = []) {
       });
     } else {
       // SQLite
-      if (sql.trim().toUpperCase().startsWith('SELECT')) {
+      const upperSql = sql.trim().toUpperCase();
+      if (upperSql.startsWith('SELECT') || upperSql.startsWith('PRAGMA')) {
         db.all(sql, params, (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -504,7 +505,8 @@ async function initializeSchema() {
         }
       } else {
         // SQLite doesn't support IF NOT EXISTS for columns, so check first
-        const columns = await all(`PRAGMA table_info(tickets)`);
+        const columnsResult = await query(`PRAGMA table_info(tickets)`, []);
+        const columns = Array.isArray(columnsResult) ? columnsResult : [];
         const hasTxnId = columns.some(col => col.name === 'txn_id');
         if (!hasTxnId) {
           await run(`ALTER TABLE tickets ADD COLUMN txn_id TEXT`);
