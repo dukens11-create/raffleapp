@@ -1001,6 +1001,9 @@ function generatePassword() {
   return password;
 }
 
+// Constants for validation
+const TXN_ID_LENGTH = 12;
+
 // Helper function to send credentials
 async function sendCredentials(email, phone, name, password) {
   // Send email with credentials
@@ -1924,12 +1927,13 @@ app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
     
     // === VALIDATION ===
     
-    if (!txn_id || !/^\d{12}$/.test(txn_id)) {
+    const txnIdRegex = new RegExp(`^\\d{${TXN_ID_LENGTH}}$`);
+    if (!txn_id || !txnIdRegex.test(txn_id)) {
       console.log('[TXN-REG] Invalid Txn ID format');
       // Don't notify admin for format errors (too many false positives)
       return res.status(400).json({ 
         error: 'INVALID_TXN_FORMAT',
-        message: 'Transaction ID must be exactly 12 digits'
+        message: `Transaction ID must be exactly ${TXN_ID_LENGTH} digits`
       });
     }
     

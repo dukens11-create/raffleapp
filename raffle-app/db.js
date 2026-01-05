@@ -72,7 +72,8 @@ function query(sql, params = []) {
       });
     } else {
       // SQLite
-      if (sql.trim().toUpperCase().startsWith('SELECT') || sql.trim().toUpperCase().startsWith('PRAGMA')) {
+      const upperSql = sql.trim().toUpperCase();
+      if (upperSql.startsWith('SELECT') || upperSql.startsWith('PRAGMA')) {
         db.all(sql, params, (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
