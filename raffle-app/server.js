@@ -4812,6 +4812,245 @@ app.post('/api/payments/manual/submit', [
   }
 });
 
+// ============================================================================
+// WEBHOOK ENDPOINTS FOR AUTOMATED PAYMENT PROCESSING
+// ============================================================================
+
+/**
+ * POST /api/webhooks/moncash - MonCash Webhook Handler
+ * Receives payment notifications from MonCash payment gateway
+ * Automatically verifies and processes payments
+ */
+app.post('/api/webhooks/moncash', async (req, res) => {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('📥 MONCASH WEBHOOK RECEIVED');
+  console.log('═══════════════════════════════════════');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('IP:', req.ip);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    // Extract signature from header
+    const signature = req.headers['x-moncash-signature'] || req.headers['x-signature'];
+    
+    if (!signature) {
+      console.warn('⚠️  No signature header found in MonCash webhook');
+    }
+    
+    // Verify webhook signature
+    const isValid = paymentService.verifyMonCashWebhook(req.body, signature);
+    
+    if (!isValid) {
+      console.error('❌ Invalid MonCash webhook signature');
+      console.error('   Signature received:', signature);
+      console.error('   Payload:', JSON.stringify(req.body));
+      
+      // Return 200 OK to prevent retries for invalid signatures
+      // Log the attempt for security monitoring
+      return res.status(200).json({ 
+        success: false, 
+        error: 'Invalid signature' 
+      });
+    }
+    
+    console.log('✅ MonCash webhook signature verified');
+    
+    // Extract payment details from webhook payload
+    // MonCash typically sends: transaction_id, order_id, amount, status, payer
+    const {
+      transactionId,
+      transaction_id,
+      orderId,
+      order_id,
+      amount,
+      status,
+      payment_status,
+      payer
+    } = req.body;
+    
+    // Normalize field names (MonCash may use different naming conventions)
+    const normalizedData = {
+      transactionId: transactionId || transaction_id,
+      orderId: orderId || order_id,
+      status: status || payment_status,
+      amount: parseFloat(amount),
+      provider: 'moncash',
+      webhookPayload: req.body
+    };
+    
+    console.log('📝 Normalized payment data:', normalizedData);
+    
+    // Validate required fields
+    if (!normalizedData.orderId) {
+      console.error('❌ Missing order_id in MonCash webhook');
+      return res.status(200).json({ 
+        success: false, 
+        error: 'Missing order_id' 
+      });
+    }
+    
+    // Process the webhook payment
+    const result = await paymentService.processWebhookPayment(normalizedData, db, smsService);
+    
+    console.log('📊 Processing result:', result);
+    
+    // Update webhook received timestamp
+    try {
+      await db.run(`
+        UPDATE payments 
+        SET webhook_received_at = CURRENT_TIMESTAMP
+        WHERE payment_reference = ?
+      `, [normalizedData.orderId]);
+    } catch (dbError) {
+      console.error('Failed to update webhook timestamp:', dbError);
+    }
+    
+    // Always return 200 OK to acknowledge receipt
+    // Even if processing failed, we don't want the gateway to retry
+    console.log('✅ MonCash webhook processed');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+    res.status(200).json({
+      success: true,
+      message: result.message || 'Webhook processed',
+      orderId: normalizedData.orderId
+    });
+    
+  } catch (error) {
+    console.error('❌ MonCash webhook processing error:', error);
+    console.error('Stack:', error.stack);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+    // Return 200 OK to prevent retries
+    // Log the error for debugging
+    res.status(200).json({
+      success: false,
+      error: 'Internal processing error'
+    });
+  }
+});
+
+/**
+ * POST /api/webhooks/natcash - NatCash Webhook Handler
+ * Receives payment notifications from NatCash payment gateway
+ * Automatically verifies and processes payments
+ */
+app.post('/api/webhooks/natcash', async (req, res) => {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('📥 NATCASH WEBHOOK RECEIVED');
+  console.log('═══════════════════════════════════════');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('IP:', req.ip);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  
+  try {
+    // Extract signature from header
+    const signature = req.headers['x-natcash-signature'] || req.headers['x-signature'];
+    
+    if (!signature) {
+      console.warn('⚠️  No signature header found in NatCash webhook');
+    }
+    
+    // Verify webhook signature
+    const isValid = paymentService.verifyNatCashWebhook(req.body, signature);
+    
+    if (!isValid) {
+      console.error('❌ Invalid NatCash webhook signature');
+      console.error('   Signature received:', signature);
+      console.error('   Payload:', JSON.stringify(req.body));
+      
+      // Return 200 OK to prevent retries for invalid signatures
+      // Log the attempt for security monitoring
+      return res.status(200).json({ 
+        success: false, 
+        error: 'Invalid signature' 
+      });
+    }
+    
+    console.log('✅ NatCash webhook signature verified');
+    
+    // Extract payment details from webhook payload
+    // NatCash format may vary - adjust based on actual API documentation
+    const {
+      paymentId,
+      payment_id,
+      orderId,
+      order_id,
+      amount,
+      status,
+      payment_status,
+      transactionRef,
+      transaction_ref
+    } = req.body;
+    
+    // Normalize field names
+    const normalizedData = {
+      transactionId: paymentId || payment_id || transactionRef || transaction_ref,
+      orderId: orderId || order_id,
+      status: status || payment_status,
+      amount: parseFloat(amount),
+      provider: 'natcash',
+      webhookPayload: req.body
+    };
+    
+    console.log('📝 Normalized payment data:', normalizedData);
+    
+    // Validate required fields
+    if (!normalizedData.orderId) {
+      console.error('❌ Missing order_id in NatCash webhook');
+      return res.status(200).json({ 
+        success: false, 
+        error: 'Missing order_id' 
+      });
+    }
+    
+    // Process the webhook payment
+    const result = await paymentService.processWebhookPayment(normalizedData, db, smsService);
+    
+    console.log('📊 Processing result:', result);
+    
+    // Update webhook received timestamp
+    try {
+      await db.run(`
+        UPDATE payments 
+        SET webhook_received_at = CURRENT_TIMESTAMP
+        WHERE payment_reference = ?
+      `, [normalizedData.orderId]);
+    } catch (dbError) {
+      console.error('Failed to update webhook timestamp:', dbError);
+    }
+    
+    // Always return 200 OK to acknowledge receipt
+    console.log('✅ NatCash webhook processed');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+    res.status(200).json({
+      success: true,
+      message: result.message || 'Webhook processed',
+      orderId: normalizedData.orderId
+    });
+    
+  } catch (error) {
+    console.error('❌ NatCash webhook processing error:', error);
+    console.error('Stack:', error.stack);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+    // Return 200 OK to prevent retries
+    res.status(200).json({
+      success: false,
+      error: 'Internal processing error'
+    });
+  }
+});
+
 /**
  * GET /api/payments/status/:reference - Get payment status
  * Public endpoint to check payment status
