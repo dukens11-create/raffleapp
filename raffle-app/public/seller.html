@@ -355,7 +355,23 @@
         .btn-warning:hover {
             background: #d97706;
         }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
 
+        .txn-verification-section,
         .scanner-section,
         .concern-section {
             background: white;
@@ -364,7 +380,8 @@
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             margin-bottom: 20px;
         }
-
+        
+        .txn-verification-section h2,
         .scanner-section h2,
         .concern-section h2 {
             color: #333;
@@ -372,10 +389,55 @@
             margin-bottom: 10px;
         }
 
+        .txn-verification-section p,
         .scanner-section p,
         .concern-section p {
             color: #666;
             margin-bottom: 15px;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+        
+        .alert-success h4 {
+            color: #047857;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        
+        .alert-danger h4 {
+            color: #dc2626;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+        
+        .alert p {
+            margin: 5px 0;
+        }
+        
+        .alert strong {
+            font-weight: 600;
         }
 
         #scannerContainer {
@@ -455,10 +517,36 @@
             </div>
         </div>
 
-        <!-- Barcode Scanner Section -->
-        <div class="scanner-section">
-            <h2>📷 Scan Ticket</h2>
-            <p>Use your camera to scan ticket barcodes</p>
+        <!-- Transaction ID Verification Section (Step 1) -->
+        <div class="txn-verification-section">
+            <h2>💳 Step 1: Verify Payment</h2>
+            <p>Enter customer's 12-digit MonCash Transaction ID first</p>
+            
+            <form id="txnVerificationForm">
+                <div class="form-group">
+                    <label for="txnIdInput">MonCash Transaction ID (12 digits)</label>
+                    <input 
+                        type="text" 
+                        id="txnIdInput" 
+                        placeholder="123456789012" 
+                        pattern="[0-9]{12}" 
+                        maxlength="12"
+                        required
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 16px; font-family: monospace; letter-spacing: 2px;"
+                    />
+                </div>
+                <button type="submit" class="btn btn-primary">Verify Payment</button>
+            </form>
+            
+            <div id="txnVerificationResult" style="display: none;">
+                <!-- Shows verification results -->
+            </div>
+        </div>
+
+        <!-- Barcode Scanner Section (Step 2) - DISABLED until txn verified -->
+        <div class="scanner-section" id="ticketScanningSection" style="opacity: 0.5; pointer-events: none;">
+            <h2>🎟️ Step 2: Scan Tickets</h2>
+            <p>🔒 Verify payment first to enable scanning</p>
             <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
             <div id="scannerContainer" style="display: none;">
                 <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
@@ -469,9 +557,9 @@
         </div>
 
         <!-- Manual Ticket Entry Section -->
-        <div class="manual-entry-section">
+        <div class="manual-entry-section" id="manualEntrySection" style="opacity: 0.5; pointer-events: none;">
             <h2>✍️ Manual Ticket Entry</h2>
-            <p>Enter ticket number manually if scanner doesn't work</p>
+            <p>🔒 Verify payment first to enable manual entry</p>
             <form id="manualTicketForm" style="display: flex; gap: 10px; align-items: flex-end;">
                 <div style="flex: 1;">
                     <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Ticket Number</label>
@@ -572,6 +660,8 @@
     </script>
 
     <script>
+        // Global state for current verified payment
+        let currentVerifiedPayment = null;
         let currentSeller = null;
 
         // Translation data
@@ -582,12 +672,33 @@
                 logout: "Logout",
                 ticketsSold: "Tickets Sold",
                 totalRevenue: "Total Revenue",
+                verifyPayment: "Verify Payment",
+                verifyPaymentDesc: "Enter customer's 12-digit MonCash Transaction ID first",
+                transactionId: "MonCash Transaction ID (12 digits)",
+                transactionIdPlaceholder: "123456789012",
+                verifyPaymentButton: "Verify Payment",
+                verifyingPayment: "Verifying payment...",
+                paymentVerified: "Payment Verified!",
+                customer: "Customer",
+                phone: "Phone",
+                amount: "Amount",
+                ticketsAllowed: "Tickets Allowed",
+                alreadyAssigned: "Already Assigned",
+                remainingToScan: "Remaining to Scan",
+                verifyDifferentPayment: "Verify Different Payment",
+                fraudAlert: "FRAUD ALERT",
+                fraudAlertDesc: "This attempt has been logged. Contact admin if you believe this is an error.",
+                previouslyAssignedTo: "Previously assigned to:",
+                tickets: "Tickets",
+                by: "By",
+                ticketScanningStep: "Step 2: Scan Tickets",
+                verifyFirstLocked: "🔒 Verify payment first to enable scanning",
                 scanTicket: "Scan Ticket",
                 scanDescription: "Use your camera to scan ticket barcodes",
                 openScanner: "Open Camera Scanner",
                 closeScanner: "Close Scanner",
                 manualEntry: "Manual Ticket Entry",
-                manualDescription: "Enter ticket number manually if scanner doesn't work",
+                manualDescription: "🔒 Verify payment first to enable manual entry",
                 ticketNumber: "Ticket Number",
                 registerSale: "Register Sale",
                 reportConcern: "Report a Concern",
@@ -623,12 +734,33 @@
                 logout: "Dekonekte",
                 ticketsSold: "Tikè Vann",
                 totalRevenue: "Total Lajan",
+                verifyPayment: "Verifye Peman",
+                verifyPaymentDesc: "Antre 12-chif ID Tranzaksyon MonCash kliyan an anvan",
+                transactionId: "ID Tranzaksyon MonCash (12 chif)",
+                transactionIdPlaceholder: "123456789012",
+                verifyPaymentButton: "Verifye Peman",
+                verifyingPayment: "K ap verifye peman...",
+                paymentVerified: "Peman Verifye!",
+                customer: "Kliyan",
+                phone: "Telefòn",
+                amount: "Montan",
+                ticketsAllowed: "Tikè Otorize",
+                alreadyAssigned: "Deja Asiye",
+                remainingToScan: "Ki Rete pou Eskane",
+                verifyDifferentPayment: "Verifye Yon Lòt Peman",
+                fraudAlert: "ALÈT FWOD",
+                fraudAlertDesc: "Tantativ sa a anrejistre. Kontakte admin si ou panse sa se yon erè.",
+                previouslyAssignedTo: "Deja asiye bay:",
+                tickets: "Tikè",
+                by: "Pa",
+                ticketScanningStep: "Etap 2: Eskane Tikè",
+                verifyFirstLocked: "🔒 Verifye peman an anvan pou aktive eskanaj",
                 scanTicket: "Eskane Tikè",
                 scanDescription: "Sèvi ak kamera ou pou eskane kòd tikè yo",
                 openScanner: "Louvri Kamera",
                 closeScanner: "Fèmen Kamera",
                 manualEntry: "Antre Tikè Manyèlman",
-                manualDescription: "Antre nimewo tikè a manyèlman si eskanè a pa mache",
+                manualDescription: "🔒 Verifye peman an anvan pou aktive antre manyèl",
                 ticketNumber: "Nimewo Tikè",
                 registerSale: "Anrejistre Vant",
                 reportConcern: "Rapòte yon Pwoblèm",
@@ -664,12 +796,33 @@
                 logout: "Déconnexion",
                 ticketsSold: "Billets Vendus",
                 totalRevenue: "Revenu Total",
+                verifyPayment: "Vérifier le Paiement",
+                verifyPaymentDesc: "Entrez d'abord l'ID de transaction MonCash à 12 chiffres du client",
+                transactionId: "ID de Transaction MonCash (12 chiffres)",
+                transactionIdPlaceholder: "123456789012",
+                verifyPaymentButton: "Vérifier le Paiement",
+                verifyingPayment: "Vérification du paiement...",
+                paymentVerified: "Paiement Vérifié!",
+                customer: "Client",
+                phone: "Téléphone",
+                amount: "Montant",
+                ticketsAllowed: "Billets Autorisés",
+                alreadyAssigned: "Déjà Attribués",
+                remainingToScan: "Restant à Scanner",
+                verifyDifferentPayment: "Vérifier un Autre Paiement",
+                fraudAlert: "ALERTE FRAUDE",
+                fraudAlertDesc: "Cette tentative a été enregistrée. Contactez l'administrateur si vous pensez qu'il s'agit d'une erreur.",
+                previouslyAssignedTo: "Précédemment attribué à:",
+                tickets: "Billets",
+                by: "Par",
+                ticketScanningStep: "Étape 2: Scanner les Billets",
+                verifyFirstLocked: "🔒 Vérifiez d'abord le paiement pour activer le scan",
                 scanTicket: "Scanner Billet",
                 scanDescription: "Utilisez votre caméra pour scanner les codes-barres des billets",
                 openScanner: "Ouvrir Scanner",
                 closeScanner: "Fermer Scanner",
                 manualEntry: "Saisie Manuelle de Billet",
-                manualDescription: "Entrez le numéro de billet manuellement si le scanner ne fonctionne pas",
+                manualDescription: "🔒 Vérifiez d'abord le paiement pour activer la saisie manuelle",
                 ticketNumber: "Numéro de Billet",
                 registerSale: "Enregistrer Vente",
                 reportConcern: "Signaler un Problème",
@@ -810,6 +963,96 @@
                 console.error('Error loading stats:', error);
             }
         }
+        
+        // Transaction Verification Functions
+        document.getElementById('txnVerificationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const txnId = document.getElementById('txnIdInput').value.trim();
+            const resultDiv = document.getElementById('txnVerificationResult');
+            const t = translations[currentLanguage];
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '⏳ ' + t.verifyingPayment;
+            
+            try {
+                const response = await fetch('/api/payments/verify-txn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ txn_id: txnId })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    // FRAUD ALERT HANDLING
+                    if (data.fraud_alert) {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <h4>⚠️ ${t.fraudAlert}</h4>
+                                <p><strong>${data.message}</strong></p>
+                                ${data.details ? `
+                                    <p>${t.previouslyAssignedTo} <strong>${data.details.customer}</strong></p>
+                                    <p>${t.tickets}: ${data.details.assigned_tickets.join(', ')}</p>
+                                    <p>${t.by}: ${data.details.assigned_by}</p>
+                                ` : ''}
+                                <p><em>${t.fraudAlertDesc}</em></p>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `<div class="alert alert-warning">❌ ${data.message}</div>`;
+                    }
+                    return;
+                }
+                
+                // SUCCESS - Store verified payment and enable scanning
+                currentVerifiedPayment = data.payment;
+                
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h4>✅ ${t.paymentVerified}</h4>
+                        <p><strong>${t.customer}:</strong> ${data.payment.buyer_name}</p>
+                        <p><strong>${t.phone}:</strong> ${data.payment.buyer_phone}</p>
+                        <p><strong>${t.amount}:</strong> $${data.payment.amount}</p>
+                        <p><strong>${t.ticketsAllowed}:</strong> ${data.payment.tickets_allowed}</p>
+                        <p><strong>${t.alreadyAssigned}:</strong> ${data.payment.tickets_assigned}</p>
+                        <p><strong>${t.remainingToScan}:</strong> <span id="ticketsRemaining">${data.payment.tickets_remaining}</span></p>
+                        <button onclick="resetVerification()" class="btn btn-secondary">${t.verifyDifferentPayment}</button>
+                    </div>
+                `;
+                
+                // Enable ticket scanning section
+                const scanSection = document.getElementById('ticketScanningSection');
+                scanSection.style.opacity = '1';
+                scanSection.style.pointerEvents = 'auto';
+                scanSection.querySelector('p').textContent = translations[currentLanguage].scanDescription;
+                
+                // Enable manual entry section
+                const manualSection = document.getElementById('manualEntrySection');
+                manualSection.style.opacity = '1';
+                manualSection.style.pointerEvents = 'auto';
+                manualSection.querySelector('p').textContent = translations[currentLanguage].manualDescription;
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ ${t.errorPrefix} ${error.message}</div>`;
+            }
+        });
+        
+        function resetVerification() {
+            currentVerifiedPayment = null;
+            document.getElementById('txnIdInput').value = '';
+            document.getElementById('txnVerificationResult').style.display = 'none';
+            
+            const scanSection = document.getElementById('ticketScanningSection');
+            scanSection.style.opacity = '0.5';
+            scanSection.style.pointerEvents = 'none';
+            scanSection.querySelector('p').textContent = translations[currentLanguage].verifyFirstLocked;
+            
+            const manualSection = document.getElementById('manualEntrySection');
+            manualSection.style.opacity = '0.5';
+            manualSection.style.pointerEvents = 'none';
+            manualSection.querySelector('p').textContent = translations[currentLanguage].manualDescription.replace('Enter ticket number manually if scanner doesn\'t work', translations[currentLanguage].manualDescription);
+        }
 
         // Barcode Scanner Functions
         let html5QrCode = null;
@@ -905,6 +1148,11 @@
         }
 
         async function processScannedTicket(barcode) {
+            if (!currentVerifiedPayment) {
+                alert(translations[currentLanguage].verifyFirstLocked.replace('🔒 ', ''));
+                return;
+            }
+            
             const resultDiv = document.getElementById('scanResult');
             const t = translations[currentLanguage];
             resultDiv.innerHTML = '⏳ ' + t.processing;
@@ -914,26 +1162,49 @@
                 const response = await fetch('/api/tickets/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcode: barcode })
+                    body: JSON.stringify({ 
+                        barcode: barcode,
+                        payment_reference: currentVerifiedPayment.payment_reference
+                    })
                 });
                 
                 const data = await response.json();
                 
                 if (!response.ok) {
                     // Show specific error message from API
-                    const errorMsg = data.message || data.error || 'Failed to process ticket';
-                    console.error('Scan error details:', {
-                        status: response.status,
-                        error: data.error,
-                        message: data.message,
-                        barcode: barcode,
-                        response: data
-                    });
-                    throw new Error(errorMsg);
+                    if (data.fraud_alert) {
+                        resultDiv.innerHTML = `<div class="alert alert-danger">⚠️ ${t.fraudAlert}: ${data.message}</div>`;
+                    } else {
+                        const errorMsg = data.message || data.error || 'Failed to process ticket';
+                        console.error('Scan error details:', {
+                            status: response.status,
+                            error: data.error,
+                            message: data.message,
+                            barcode: barcode,
+                            response: data
+                        });
+                        resultDiv.innerHTML = `❌ ${errorMsg}`;
+                        resultDiv.style.color = 'red';
+                    }
+                    return;
                 }
                 
-                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${barcode} ${t.ticketSoldSuccess}`;
+                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess} (${data.tickets_remaining} remaining)`;
                 resultDiv.style.color = 'green';
+                
+                // Update remaining count in verification section
+                const remainingSpan = document.getElementById('ticketsRemaining');
+                if (remainingSpan) {
+                    remainingSpan.textContent = data.tickets_remaining;
+                }
+                
+                // If all tickets assigned, reset verification
+                if (data.all_tickets_assigned) {
+                    setTimeout(() => {
+                        alert(`✅ All ${currentVerifiedPayment.tickets_allowed} tickets assigned!\n\nClick OK to verify next payment.`);
+                        resetVerification();
+                    }, 1000);
+                }
                 
                 // Refresh stats
                 await loadStats();
@@ -992,6 +1263,11 @@
         document.getElementById('manualTicketForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            if (!currentVerifiedPayment) {
+                alert(translations[currentLanguage].verifyFirstLocked.replace('🔒 ', ''));
+                return;
+            }
+            
             const ticketNumber = document.getElementById('manualTicketNumber').value.trim();
             const resultDiv = document.getElementById('manualEntryResult');
             const t = translations[currentLanguage];
@@ -1013,27 +1289,51 @@
                 const response = await fetch('/api/tickets/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcode: ticketNumber })
+                    body: JSON.stringify({ 
+                        barcode: ticketNumber,
+                        payment_reference: currentVerifiedPayment.payment_reference
+                    })
                 });
                 
                 const data = await response.json();
                 
                 if (!response.ok) {
                     // Show specific error message from API
-                    const errorMsg = data.message || data.error || 'Failed to register ticket';
-                    console.error('Manual entry error details:', {
-                        status: response.status,
-                        error: data.error,
-                        message: data.message,
-                        ticketNumber: ticketNumber,
-                        response: data
-                    });
-                    throw new Error(errorMsg);
+                    if (data.fraud_alert) {
+                        resultDiv.innerHTML = `⚠️ ${t.fraudAlert}: ${data.message}`;
+                        resultDiv.style.color = '#991b1b';
+                        resultDiv.style.background = '#fee2e2';
+                    } else {
+                        const errorMsg = data.message || data.error || 'Failed to register ticket';
+                        console.error('Manual entry error details:', {
+                            status: response.status,
+                            error: data.error,
+                            message: data.message,
+                            ticketNumber: ticketNumber,
+                            response: data
+                        });
+                        throw new Error(errorMsg);
+                    }
+                    return;
                 }
                 
-                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${ticketNumber} ${t.ticketSoldSuccess}`;
+                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess} (${data.tickets_remaining} remaining)`;
                 resultDiv.style.color = '#065f46';
                 resultDiv.style.background = '#d1fae5';
+                
+                // Update remaining count in verification section
+                const remainingSpan = document.getElementById('ticketsRemaining');
+                if (remainingSpan) {
+                    remainingSpan.textContent = data.tickets_remaining;
+                }
+                
+                // If all tickets assigned, reset verification
+                if (data.all_tickets_assigned) {
+                    setTimeout(() => {
+                        alert(`✅ All ${currentVerifiedPayment.tickets_allowed} tickets assigned!\n\nClick OK to verify next payment.`);
+                        resetVerification();
+                    }, 1500);
+                }
                 
                 // Clear form
                 document.getElementById('manualTicketNumber').value = '';

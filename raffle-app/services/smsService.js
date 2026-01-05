@@ -369,6 +369,55 @@ ${payment_status === 'pending' ? 'Action: Please review and approve in admin pan
 }
 
 /**
+ * Send fraud alert SMS to admins when duplicate transaction ID is detected
+ * 
+ * @param {Object} fraudDetails - Fraud details
+ * @param {string} fraudDetails.txn_id - Transaction ID that was reused
+ * @param {string} fraudDetails.seller_name - Seller who attempted reuse
+ * @param {string} fraudDetails.seller_phone - Seller's phone number
+ * @param {string} fraudDetails.customer - Original customer name
+ * @param {string} fraudDetails.tickets - Already assigned tickets
+ * @param {string} fraudDetails.assigned_by - Who originally assigned the tickets
+ * @param {string} fraudDetails.assigned_at - When tickets were assigned
+ */
+async function sendFraudAlert(fraudDetails) {
+  if (ADMIN_PHONES.length === 0) {
+    console.warn('⚠️  Cannot send fraud alert: No admin phones configured');
+    return { success: false, error: 'No admin phones configured' };
+  }
+  
+  const message = `🚨 FRAUD ALERT - Duplicate Txn ID Detected
+
+Txn ID: ${fraudDetails.txn_id}
+Attempted by: ${fraudDetails.seller_name} (${fraudDetails.seller_phone})
+
+ORIGINAL PAYMENT:
+Customer: ${fraudDetails.customer}
+Tickets: ${fraudDetails.tickets}
+Assigned by: ${fraudDetails.assigned_by || 'Unknown'}
+Date: ${fraudDetails.assigned_at || 'Unknown'}
+
+⚠️ This attempt has been BLOCKED and LOGGED.
+
+Review admin panel for details.`;
+  
+  console.log('🚨 Sending fraud alert to admins:', ADMIN_PHONES.join(', '));
+  
+  // Send to all admin phones
+  const results = await Promise.all(
+    ADMIN_PHONES.map(phone => sendSMS(phone, message).catch(err => {
+      console.error(`Failed to send fraud alert to ${phone}:`, err);
+      return { success: false, error: err.message };
+    }))
+  );
+  
+  return {
+    success: results.some(r => r.success),
+    results: results
+  };
+}
+
+/**
  * Check if SMS service is configured
  */
 function isConfigured() {
@@ -394,5 +443,6 @@ module.exports = {
   sendPaymentApproved,
   sendPaymentRejected,
   notifyAdminsNewPayment,
+  sendFraudAlert,
   isConfigured
 };

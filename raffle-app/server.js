@@ -1840,16 +1840,181 @@ app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+// API: Verify MonCash Transaction ID before ticket scanning
+app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
+  try {
+    const { txn_id } = req.body;
+    const seller_phone = req.session.user.phone;
+    const seller_name = req.session.user.name;
+    
+    console.log(`[TXN-VERIFY] Seller ${seller_name} verifying txn_id: ${txn_id}`);
+    
+    // Validation: Must be exactly 12 digits
+    if (!txn_id || !/^\d{12}$/.test(txn_id)) {
+      console.log('[TXN-VERIFY] Invalid format');
+      return res.status(400).json({ 
+        error: 'INVALID_FORMAT',
+        message: 'Transaction ID must be exactly 12 digits'
+      });
+    }
+    
+    // FRAUD CHECK 1: Check if this Txn ID has already been used
+    const existingPayment = await db.get(
+      `SELECT * FROM payments WHERE transaction_id = ?`,
+      [txn_id]
+    );
+    
+    if (!existingPayment) {
+      console.log('[TXN-VERIFY] Payment not found');
+      return res.status(404).json({ 
+        error: 'PAYMENT_NOT_FOUND',
+        message: 'No payment found with this Transaction ID. Customer must complete payment first.'
+      });
+    }
+    
+    console.log(`[TXN-VERIFY] Payment found: ${existingPayment.payment_reference}`);
+    
+    // FRAUD CHECK 2: Verify payment is approved
+    if (existingPayment.payment_status !== 'approved') {
+      console.log(`[TXN-VERIFY] Payment not approved: ${existingPayment.payment_status}`);
+      return res.status(400).json({ 
+        error: 'PAYMENT_NOT_APPROVED',
+        message: `Payment status is "${existingPayment.payment_status}". Only approved payments can be used.`
+      });
+    }
+    
+    // FRAUD CHECK 3: Check if tickets already assigned to this payment
+    const assignedTickets = await db.all(
+      `SELECT ticket_number FROM tickets WHERE payment_reference = ?`,
+      [existingPayment.payment_reference]
+    );
+    
+    const ticketsAlreadyAssigned = assignedTickets.length;
+    const ticketsAllowed = existingPayment.ticket_quantity;
+    const ticketsRemaining = ticketsAllowed - ticketsAlreadyAssigned;
+    
+    console.log(`[TXN-VERIFY] Tickets: ${ticketsAlreadyAssigned}/${ticketsAllowed} assigned`);
+    
+    // FRAUD CHECK 4: All tickets already assigned - prevent reuse
+    if (ticketsRemaining <= 0) {
+      console.log('[TXN-VERIFY] 🚨 FRAUD ALERT: All tickets already assigned');
+      
+      const fraudDetails = {
+        txn_id: txn_id,
+        seller_name: seller_name,
+        seller_phone: seller_phone,
+        customer: existingPayment.buyer_name,
+        tickets: assignedTickets.map(t => t.ticket_number).join(', '),
+        assigned_by: existingPayment.seller_name || 'Unknown',
+        assigned_at: existingPayment.verified_at
+      };
+      
+      // Send fraud alert to admins (non-blocking)
+      smsService.sendFraudAlert(fraudDetails).catch(err => {
+        console.error('[TXN-VERIFY] Failed to send fraud alert:', err);
+      });
+      
+      return res.status(400).json({ 
+        error: 'TXN_ALREADY_USED',
+        message: `This Transaction ID has already been used. All ${ticketsAllowed} tickets have been assigned.`,
+        fraud_alert: true,
+        details: {
+          customer: existingPayment.buyer_name,
+          assigned_tickets: assignedTickets.map(t => t.ticket_number),
+          assigned_by: existingPayment.seller_name || 'Unknown',
+          assigned_at: existingPayment.verified_at
+        }
+      });
+    }
+    
+    // FRAUD CHECK 5: Log this verification attempt for audit trail
+    await db.run(
+      `INSERT INTO txn_verification_log 
+       (txn_id, payment_reference, seller_phone, seller_name, tickets_remaining)
+       VALUES (?, ?, ?, ?, ?)`,
+      [txn_id, existingPayment.payment_reference, seller_phone, seller_name, ticketsRemaining]
+    );
+    
+    console.log('[TXN-VERIFY] ✅ Verification successful');
+    
+    // Success - return payment details
+    res.json({
+      success: true,
+      payment: {
+        payment_reference: existingPayment.payment_reference,
+        txn_id: txn_id,
+        buyer_name: existingPayment.buyer_name,
+        buyer_phone: existingPayment.buyer_phone,
+        amount: existingPayment.amount,
+        payment_method: existingPayment.payment_method,
+        ticket_category: existingPayment.ticket_category,
+        tickets_allowed: ticketsAllowed,
+        tickets_assigned: ticketsAlreadyAssigned,
+        tickets_remaining: ticketsRemaining,
+        verified_at: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('[TXN-VERIFY] Error:', error);
+    res.status(500).json({ 
+      error: 'SERVER_ERROR',
+      message: 'Failed to verify transaction'
+    });
+  }
+});
+
 // API: Scan ticket barcode (seller only)
 app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   try {
-    const { barcode } = req.body;
+    const { barcode, payment_reference } = req.body;
     
     console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
     
     if (!barcode) {
       console.log('[SCAN] Error: No barcode provided');
       return res.status(400).json({ error: 'Barcode is required' });
+    }
+    
+    // NEW: Require payment_reference
+    if (!payment_reference) {
+      console.log('[SCAN] Error: No payment_reference provided');
+      return res.status(400).json({ 
+        error: 'PAYMENT_NOT_VERIFIED',
+        message: 'Please verify payment (Transaction ID) before scanning tickets'
+      });
+    }
+    
+    // Validate payment_reference exists and has tickets remaining
+    const payment = await db.get(
+      `SELECT * FROM payments WHERE payment_reference = ?`,
+      [payment_reference]
+    );
+    
+    if (!payment) {
+      console.log('[SCAN] Error: Invalid payment reference');
+      return res.status(404).json({ 
+        error: 'INVALID_PAYMENT',
+        message: 'Payment reference not found'
+      });
+    }
+    
+    // Count tickets already assigned to this payment
+    const assignedCount = await db.get(
+      `SELECT COUNT(*) as count FROM tickets WHERE payment_reference = ?`,
+      [payment_reference]
+    );
+    
+    console.log(`[SCAN] Payment ${payment_reference}: ${assignedCount.count}/${payment.ticket_quantity} tickets assigned`);
+    
+    // FRAUD CHECK: Prevent over-assignment
+    if (assignedCount.count >= payment.ticket_quantity) {
+      console.log('[SCAN] 🚨 FRAUD ALERT: Ticket limit exceeded');
+      return res.status(400).json({ 
+        error: 'TICKET_LIMIT_EXCEEDED',
+        message: `All ${payment.ticket_quantity} tickets for this payment have been assigned`,
+        fraud_alert: true
+      });
     }
     
     // Validate barcode using new 8-digit validation
@@ -1867,18 +2032,53 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     const ticket = validation.ticket;
     console.log(`[SCAN] Ticket found: ${ticket.ticket_number}, status: ${ticket.status}`);
     
-    // Mark as sold by this seller
+    // FRAUD CHECK: Ensure ticket not already linked to another payment
+    if (ticket.payment_reference && ticket.payment_reference !== payment_reference) {
+      console.log('[SCAN] 🚨 FRAUD ALERT: Ticket already linked to different payment');
+      return res.status(400).json({ 
+        error: 'TICKET_ALREADY_LINKED',
+        message: 'This ticket is already assigned to a different payment',
+        fraud_alert: true
+      });
+    }
+    
+    // Mark as sold and link to payment
     await db.run(
-      "UPDATE tickets SET status = 'SOLD', seller_name = ?, seller_phone = ?, sold_at = CURRENT_TIMESTAMP WHERE id = ?",
-      [req.session.user.name, req.session.user.phone, ticket.id]
+      `UPDATE tickets 
+       SET status = 'SOLD', 
+           seller_name = ?, 
+           seller_phone = ?, 
+           payment_reference = ?,
+           sold_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [req.session.user.name, req.session.user.phone, payment_reference, ticket.id]
+    );
+    
+    // Update payment record with ticket numbers
+    const updatedTickets = await db.all(
+      `SELECT ticket_number FROM tickets WHERE payment_reference = ?`,
+      [payment_reference]
+    );
+    const ticketNumbers = updatedTickets.map(t => t.ticket_number).join(', ');
+    
+    await db.run(
+      `UPDATE payments SET ticket_numbers = ?, seller_name = ? WHERE payment_reference = ?`,
+      [ticketNumbers, req.session.user.name, payment_reference]
     );
     
     console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name}`);
     
+    // Return success with remaining count
+    const newCount = assignedCount.count + 1;
+    const remaining = payment.ticket_quantity - newCount;
+    
     res.json({ 
       success: true, 
-      message: 'Ticket sold successfully',
-      ticket: ticket.ticket_number
+      message: 'Ticket assigned successfully',
+      ticket: ticket.ticket_number,
+      tickets_assigned: newCount,
+      tickets_remaining: remaining,
+      all_tickets_assigned: remaining === 0
     });
   } catch (error) {
     console.error('[SCAN] Error processing ticket:', error);
