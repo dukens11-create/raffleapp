@@ -387,6 +387,44 @@ function isConfigured() {
   return false;
 }
 
+/**
+ * Send fraud alert to admin(s)
+ * 
+ * @param {Object} alertData - Fraud alert details
+ * @param {string} alertData.type - Type of fraud (DUPLICATE_TXN, TICKET_ALREADY_ASSIGNED)
+ * @param {string} alertData.txn_id - Transaction ID involved
+ * @param {string} alertData.seller_name - Seller name
+ * @param {string} alertData.seller_phone - Seller phone number
+ * @param {string} [alertData.original_ticket] - Original ticket number (for duplicate TXN)
+ * @param {string} [alertData.attempted_ticket] - Attempted ticket number
+ */
+async function sendFraudAlert(alertData) {
+  const adminPhones = process.env.ADMIN_NOTIFICATION_PHONES?.split(',') || [];
+  if (adminPhones.length === 0) {
+    console.warn('⚠️  No admin phones configured for fraud alerts');
+    return;
+  }
+  
+  const message = `🚨 FRAUD ALERT
+
+Type: ${alertData.type}
+Txn ID: ${alertData.txn_id}
+Seller: ${alertData.seller_name} (${alertData.seller_phone})
+${alertData.original_ticket ? `Original: ${alertData.original_ticket}` : ''}
+${alertData.attempted_ticket ? `Attempted: ${alertData.attempted_ticket}` : ''}
+
+Review admin panel.`;
+  
+  for (const phone of adminPhones) {
+    try {
+      await sendSMS(phone.trim(), message);
+      console.log(`✅ Fraud alert sent to ${phone}`);
+    } catch (err) {
+      console.error(`❌ Failed to send fraud alert to ${phone}:`, err);
+    }
+  }
+}
+
 module.exports = {
   sendSMS,
   sendPaymentConfirmation,
@@ -394,5 +432,6 @@ module.exports = {
   sendPaymentApproved,
   sendPaymentRejected,
   notifyAdminsNewPayment,
+  sendFraudAlert,
   isConfigured
 };

@@ -485,6 +485,54 @@ async function initializeSchema() {
       }
     }
     
+    // Add txn_id column to tickets table for MonCash transaction tracking
+    try {
+      if (USE_POSTGRES) {
+        await run(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS txn_id TEXT UNIQUE`);
+        console.log('✅ Added txn_id column to tickets table (PostgreSQL)');
+      } else {
+        // Check if column exists in SQLite
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasTxnId = columns.some(col => col.name === 'txn_id');
+        if (!hasTxnId) {
+          await run(`ALTER TABLE tickets ADD COLUMN txn_id TEXT`);
+          await run(`CREATE UNIQUE INDEX idx_tickets_txn_id ON tickets(txn_id)`);
+          console.log('✅ Added txn_id column to tickets table (SQLite)');
+        }
+      }
+    } catch (err) {
+      console.log('Note: txn_id column may already exist');
+    }
+    
+    // Transaction log table - for tracking all Txn ID registrations
+    await run(`
+      CREATE TABLE IF NOT EXISTS txn_log (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        txn_id TEXT NOT NULL,
+        ticket_number TEXT NOT NULL,
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        logged_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    console.log('✅ Created txn_log table');
+    
+    // Fraud log table - for tracking fraud attempts
+    await run(`
+      CREATE TABLE IF NOT EXISTS fraud_log (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        txn_id TEXT NOT NULL,
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        fraud_type TEXT NOT NULL,
+        original_ticket TEXT,
+        attempted_ticket TEXT,
+        ticket_number TEXT,
+        logged_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    console.log('✅ Created fraud_log table');
+    
     // Add performance indexes
     console.log('📊 Creating performance indexes...');
 
@@ -493,6 +541,14 @@ async function initializeSchema() {
       'CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
+      
+      // Transaction log indexes
+      'CREATE INDEX IF NOT EXISTS idx_txn_log_txn ON txn_log(txn_id)',
+      'CREATE INDEX IF NOT EXISTS idx_txn_log_ticket ON txn_log(ticket_number)',
+      
+      // Fraud log indexes
+      'CREATE INDEX IF NOT EXISTS idx_fraud_log_txn ON fraud_log(txn_id)',
+      'CREATE INDEX IF NOT EXISTS idx_fraud_log_seller ON fraud_log(seller_phone)',
       
       // Seller requests indexes
       'CREATE INDEX IF NOT EXISTS idx_seller_requests_status ON seller_requests(status)',
