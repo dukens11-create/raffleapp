@@ -431,3 +431,387 @@ For issues or questions:
 ## Version History
 
 - v1.0 - Initial payment integration with MonCash, NatCash, and SMS notifications
+
+---
+
+## Seller Workflow: MonCash Transaction ID Verification
+
+### 🎯 Critical Business Rule
+
+**ONE TRANSACTION ID = ONE TICKET**
+
+Each MonCash Transaction ID (Txn ID) can only be used for **exactly ONE ticket**. This is a core fraud prevention measure.
+
+### Overview
+
+The Transaction ID verification system ensures that:
+- Each 12-digit MonCash Txn ID is unique to a single ticket
+- Sellers must verify a unique Txn ID for each ticket before assignment
+- Duplicate Txn ID attempts are blocked with fraud alerts
+- All verification attempts are logged for audit purposes
+- Admin receives SMS alerts for suspicious activity
+
+### Seller Registration Process
+
+#### Step 1: Customer Payment
+Customer makes payment via MonCash:
+- USSD: Dial `*202#` and complete transaction
+- Mobile App: Use MonCash mobile app to pay
+- **Result**: Customer receives 12-digit Transaction ID (e.g., `123456789012`)
+
+#### Step 2: Seller Records Transaction
+Seller enters BOTH pieces of information:
+1. **MonCash Transaction ID** (12 digits) - from customer's payment receipt
+2. **Ticket Number** - either scanned via camera or entered manually
+
+#### Step 3: System Verification
+The system performs multiple checks:
+1. ✅ **Format Validation**: Txn ID must be exactly 12 digits
+2. ✅ **Duplicate Check**: Txn ID has not been used before
+3. ✅ **Ticket Validation**: Ticket is available and valid
+4. ✅ **Payment Verification**: If payment record exists, verify it's approved
+
+#### Step 4: Registration or Alert
+- **If all checks pass**: Ticket is registered and assigned to customer
+- **If Txn ID already used**: 🚨 FRAUD ALERT is displayed and logged
+
+### Example Scenarios
+
+#### ✅ Scenario 1: Customer Buying 3 Tickets (Correct)
+
+Customer makes **3 separate MonCash payments**:
+
+```
+Payment 1: Txn ID 123456789012 → $10
+Payment 2: Txn ID 234567890123 → $10  
+Payment 3: Txn ID 345678901234 → $10
+```
+
+Seller registers each separately:
+
+```
+1. Enter 123456789012 + Scan Ticket 001 → ✅ Success
+2. Enter 234567890123 + Scan Ticket 002 → ✅ Success
+3. Enter 345678901234 + Scan Ticket 003 → ✅ Success
+```
+
+**Result**: All 3 tickets registered successfully.
+
+#### ❌ Scenario 2: Reusing Transaction ID (Fraud Attempt)
+
+Seller tries to register multiple tickets with same Txn ID:
+
+```
+1. Enter 123456789012 + Scan Ticket 001 → ✅ Success
+2. Enter 123456789012 + Scan Ticket 002 → ❌ FRAUD ALERT
+```
+
+**Result**: 
+- Second attempt is **BLOCKED**
+- Fraud alert displayed to seller
+- Admin receives SMS notification
+- Attempt logged in database
+
+### User Interface
+
+![Seller Transaction ID UI](https://github.com/user-attachments/assets/83e96199-e7d5-46c2-bdec-f5d947bb8c0b)
+
+The seller dashboard includes:
+
+1. **Registration Form**
+   - MonCash Transaction ID input (12 digits, numeric only)
+   - Ticket Number input (manual or scanned)
+   - Register button
+   - Camera scanner button
+
+2. **Session Counter**
+   - Displays tickets registered in current session
+   - Helps sellers track their progress
+
+3. **Success Feedback**
+   - Green alert showing registered ticket details
+   - Txn ID confirmation
+   - Ticket category display
+
+4. **Fraud Alerts**
+   - Red alert with warning icon
+   - Shows original ticket that used the Txn ID
+   - Displays who assigned it and when
+   - Notes that admin has been notified
+
+### Camera Scanner Integration
+
+The camera scanner has been updated to support the new workflow:
+
+1. Seller clicks "📷 Use Camera"
+2. Camera opens and scans ticket barcode
+3. **Ticket number is populated in the form** (not auto-submitted)
+4. Seller must still enter Transaction ID
+5. Seller clicks "Register Ticket" to complete
+
+This ensures sellers cannot bypass the Txn ID requirement.
+
+### Multi-Language Support
+
+The interface supports three languages:
+- 🇺🇸 **English**: "One Transaction ID per ticket"
+- 🇭🇹 **Haitian Creole**: "Yon Nimewo Tranzaksyon pou chak tikè"
+- 🇫🇷 **French**: "Un ID de transaction par billet"
+
+Sellers can switch languages using the dropdown in the header.
+
+### Fraud Prevention Features
+
+#### 1. Duplicate Transaction ID Detection
+- System checks if Txn ID has been used before
+- Shows which ticket it was used for
+- Displays original seller and timestamp
+
+#### 2. Ticket Already Assigned Detection
+- Prevents assigning Txn ID to already-sold ticket
+- Shows existing Txn ID on the ticket
+
+#### 3. Audit Logging
+All verification attempts are logged with:
+- Transaction ID
+- Ticket number (if applicable)
+- Seller information
+- Timestamp
+- Status (success/fraud_attempt)
+- Fraud type and details (if applicable)
+
+#### 4. SMS Fraud Alerts
+When fraud is detected, admin receives SMS:
+```
+🚨 FRAUD ALERT
+
+Type: DUPLICATE_TXN
+Txn ID: 123456789012
+Seller: John Doe
+Phone: 509-1234-5678
+
+Details: {"attempted_ticket":"002","original_ticket":"001"}
+
+Review admin panel immediately.
+```
+
+### Error Messages
+
+| Error Code | Message | Meaning |
+|------------|---------|---------|
+| `INVALID_TXN_FORMAT` | "Transaction ID must be exactly 12 digits" | Txn ID is not 12 numeric digits |
+| `TICKET_REQUIRED` | "Ticket number is required" | Ticket field is empty |
+| `TXN_ALREADY_USED` | "This Transaction ID has already been used for ticket X" | Txn ID was used for another ticket |
+| `TICKET_ALREADY_ASSIGNED` | "This ticket is already assigned to Txn ID: X" | Ticket already has a Txn ID |
+| `PAYMENT_NOT_APPROVED` | "Payment status is 'pending'. Only approved payments can be used." | Associated payment not approved yet |
+| `PAYMENT_ALREADY_USED` | "This payment already has ticket X assigned" | Payment record already linked |
+
+### Best Practices for Sellers
+
+1. **Always Get Transaction ID First**
+   - Ask customer for their MonCash Transaction ID
+   - Verify it's 12 digits before scanning ticket
+
+2. **One Txn ID Per Ticket**
+   - Never reuse a Transaction ID
+   - Each customer payment = unique Txn ID
+
+3. **Verify Customer Payment**
+   - Ask customer to show payment confirmation
+   - Check the Txn ID on their phone
+
+4. **Handle Errors Properly**
+   - If fraud alert appears, **DO NOT OVERRIDE**
+   - Contact admin immediately
+   - Do not complete the sale
+
+5. **Keep Records**
+   - Session counter shows your daily progress
+   - Take note of successful registrations
+
+### Admin Monitoring
+
+Admins can monitor seller activity through:
+
+1. **Fraud Log Dashboard** (Future feature)
+   - View all fraud attempts
+   - Filter by seller, date, type
+   - Export to CSV
+
+2. **SMS Alerts**
+   - Real-time notifications of fraud attempts
+   - Configure admin phone numbers in `.env`:
+     ```
+     ADMIN_NOTIFICATION_PHONES=509-1111-2222,509-3333-4444
+     ```
+
+3. **Database Queries**
+   Query the verification log:
+   ```sql
+   -- View all fraud attempts
+   SELECT * FROM txn_verification_log 
+   WHERE status = 'fraud_attempt'
+   ORDER BY verification_time DESC;
+   
+   -- View fraud attempts by seller
+   SELECT seller_name, COUNT(*) as attempts
+   FROM txn_verification_log 
+   WHERE status = 'fraud_attempt'
+   GROUP BY seller_name
+   ORDER BY attempts DESC;
+   ```
+
+### Security Considerations
+
+1. **Txn ID Uniqueness**
+   - Database enforces unique constraint on `txn_id` column
+   - Index created for fast lookup
+   - Prevents race conditions
+
+2. **Audit Trail**
+   - All attempts logged permanently
+   - Cannot be deleted or modified
+   - Includes fraud details for investigation
+
+3. **SMS Alerts**
+   - Real-time notification to admins
+   - Configurable recipient list
+   - Works even if email is down
+
+4. **Session Tracking**
+   - Each seller's session tracked separately
+   - Counter resets on logout
+   - Helps identify suspicious patterns
+
+### Troubleshooting
+
+**Q: Seller says customer paid but Txn ID shows as already used**
+
+A: This could be:
+- Customer gave wrong Txn ID (check their phone)
+- Customer trying to reuse old Txn ID (ask for new payment)
+- Seller made typo (verify Txn ID carefully)
+
+**Q: Fraud alert appears but seller claims it's legitimate**
+
+A: **NEVER override fraud alert**. Contact admin who can:
+- Review the original transaction
+- Check with original seller
+- Investigate in database
+- Clear false positive if confirmed
+
+**Q: Camera scanner doesn't populate ticket field**
+
+A: 
+- Ensure camera permissions are granted
+- Try manual entry instead
+- Check scanner library loaded (see console)
+
+**Q: SMS fraud alerts not being sent**
+
+A: Verify configuration:
+```bash
+# Check .env file
+SMS_PROVIDER=twilio  # or 'custom'
+ADMIN_NOTIFICATION_PHONES=509-1111-2222,509-3333-4444
+
+# For Twilio
+TWILIO_ACCOUNT_SID=your_sid
+TWILIO_AUTH_TOKEN=your_token
+TWILIO_PHONE_NUMBER=+1234567890
+```
+
+### API Reference
+
+For developers integrating with the system:
+
+**Endpoint**: `POST /api/tickets/register-with-txn`
+
+**Request**:
+```json
+{
+  "txn_id": "123456789012",
+  "ticket_barcode": "ABC-001234"
+}
+```
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "message": "Ticket registered successfully",
+  "ticket": {
+    "ticket_number": "ABC-001234",
+    "txn_id": "123456789012",
+    "seller": "John Doe",
+    "category": "Bronze",
+    "registered_at": "2026-01-05T12:30:00.000Z"
+  }
+}
+```
+
+**Fraud Alert Response** (400):
+```json
+{
+  "error": "TXN_ALREADY_USED",
+  "message": "This Transaction ID has already been used for ticket ABC-001234",
+  "fraud_alert": true,
+  "details": {
+    "original_ticket": "ABC-001234",
+    "assigned_by": "Jane Seller",
+    "assigned_at": "2026-01-05T10:00:00.000Z",
+    "customer": "John Customer"
+  }
+}
+```
+
+**Error Response** (400):
+```json
+{
+  "error": "INVALID_TXN_FORMAT",
+  "message": "Transaction ID must be exactly 12 digits"
+}
+```
+
+### Database Schema
+
+**Tickets Table** (updated):
+```sql
+ALTER TABLE tickets ADD COLUMN txn_id TEXT UNIQUE;
+CREATE INDEX idx_tickets_txn_id ON tickets(txn_id);
+```
+
+**Transaction Verification Log** (new):
+```sql
+CREATE TABLE txn_verification_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  txn_id TEXT NOT NULL,
+  ticket_number TEXT,
+  seller_phone TEXT NOT NULL,
+  seller_name TEXT NOT NULL,
+  verification_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  status TEXT NOT NULL,
+  fraud_type TEXT,
+  fraud_details TEXT
+);
+
+CREATE INDEX idx_txn_log_txn_id ON txn_verification_log(txn_id);
+CREATE INDEX idx_txn_log_status ON txn_verification_log(status);
+```
+
+### Support
+
+For technical issues:
+- Check server logs: `journalctl -u raffle-app -f`
+- Review database logs: Query `txn_verification_log` table
+- Contact development team
+
+For seller training:
+- Provide this guide to all sellers
+- Conduct hands-on training session
+- Monitor first few days closely
+
+---
+
+**Last Updated**: January 5, 2026  
+**Version**: 2.0 - MonCash Transaction ID Verification System
