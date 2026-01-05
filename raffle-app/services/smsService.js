@@ -369,6 +369,54 @@ ${payment_status === 'pending' ? 'Action: Please review and approve in admin pan
 }
 
 /**
+ * Send fraud alert SMS to admins
+ * 
+ * @param {Object} fraudData - Fraud attempt details
+ * @param {string} fraudData.txn_id - Transaction ID involved
+ * @param {string} fraudData.seller_name - Seller who attempted fraud
+ * @param {string} fraudData.seller_phone - Seller's phone number
+ * @param {string} fraudData.fraud_type - Type of fraud detected
+ * @param {Object} fraudData.details - Additional fraud details
+ */
+async function sendFraudAlert(fraudData) {
+  const adminPhones = process.env.ADMIN_NOTIFICATION_PHONES?.split(',') || [];
+  
+  if (adminPhones.length === 0) {
+    console.warn('⚠️  No admin phones configured for fraud alerts');
+    return { success: false, error: 'No admin phones configured' };
+  }
+  
+  const message = `🚨 FRAUD ALERT
+
+Type: ${fraudData.fraud_type}
+Txn ID: ${fraudData.txn_id}
+Seller: ${fraudData.seller_name}
+Phone: ${fraudData.seller_phone}
+
+Details: ${JSON.stringify(fraudData.details)}
+
+Review admin panel immediately.`;
+  
+  const results = [];
+  for (const phone of adminPhones) {
+    if (phone.trim()) {
+      try {
+        const result = await sendSMS(phone.trim(), message);
+        results.push(result);
+      } catch (error) {
+        console.error(`Failed to send fraud alert to ${phone}:`, error.message);
+        results.push({ success: false, error: error.message });
+      }
+    }
+  }
+  
+  return {
+    success: results.some(r => r.success),
+    results: results
+  };
+}
+
+/**
  * Check if SMS service is configured
  */
 function isConfigured() {
@@ -394,5 +442,6 @@ module.exports = {
   sendPaymentApproved,
   sendPaymentRejected,
   notifyAdminsNewPayment,
+  sendFraudAlert,
   isConfigured
 };
