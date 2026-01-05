@@ -1,23 +1,29 @@
 # Payment Integration Guide
 
-This document provides comprehensive setup instructions for the payment integration features, including MonCash, NatCash, and SMS notifications.
+This document provides comprehensive setup instructions for the payment integration features, including MonCash, NatCash, SMS notifications, and **automated webhook processing**.
 
 ## Table of Contents
 
 1. [Overview](#overview)
 2. [Payment Methods](#payment-methods)
 3. [Setup Instructions](#setup-instructions)
-4. [Testing](#testing)
-5. [Admin Workflow](#admin-workflow)
-6. [Troubleshooting](#troubleshooting)
+4. [Webhook Integration](#webhook-integration)
+5. [Testing](#testing)
+6. [Admin Workflow](#admin-workflow)
+7. [Troubleshooting](#troubleshooting)
+8. [Security Considerations](#security-considerations)
+9. [Production Checklist](#production-checklist)
 
 ## Overview
 
-The raffle application now supports three payment integration options:
+The raffle application now supports **automated payment processing with webhooks** for seamless ticket sales:
 
-### Automated Payments
-- **MonCash API**: Automated payments through MonCash (Haiti's mobile money service)
-- **NatCash API**: Automated payments through NatCash
+### Automated Payments with Webhooks ✨ NEW
+- **MonCash API**: Automated payments with webhook callbacks for instant confirmation
+- **NatCash API**: Automated payments with webhook callbacks for instant confirmation
+- **Zero Manual Intervention**: Payments are automatically verified and tickets assigned
+- **Real-time Processing**: Webhook notifications trigger immediate ticket assignment
+- **SMS Confirmations**: Buyers receive instant confirmation messages
 
 ### Manual Payments
 - **MonCash USSD/Manual**: Buyers make payments via USSD (*202#) or mobile app and submit reference for admin verification
@@ -61,6 +67,81 @@ SMS notifications are sent for:
 - Payment approval
 - Payment rejection (with reason)
 - Admin alerts for new payments
+
+## Webhook Integration
+
+### How Webhooks Work
+
+Webhooks enable **automated payment processing** without admin intervention:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    AUTOMATED PAYMENT FLOW                        │
+└─────────────────────────────────────────────────────────────────┘
+
+1. Buyer initiates payment
+   ↓
+2. App creates payment record (status: pending)
+   ↓
+3. Buyer redirected to MonCash/NatCash gateway
+   ↓
+4. Buyer completes payment
+   ↓
+5. Payment gateway sends webhook to app ← AUTOMATIC
+   ↓
+6. App verifies webhook signature
+   ↓
+7. App checks payment status
+   ↓
+8. If successful:
+   - Update payment status to "approved"
+   - Assign tickets automatically
+   - Send SMS confirmation to buyer
+   ↓
+9. Return 200 OK to gateway
+   ↓
+✓ Complete - No admin action needed!
+```
+
+### Webhook Security
+
+Webhooks use **HMAC-SHA256 signatures** to ensure authenticity:
+
+1. **Payment Provider Signs Webhook:**
+   - Creates HMAC signature of payload using shared secret
+   - Includes signature in HTTP header
+
+2. **Your App Verifies Signature:**
+   - Recreates HMAC signature using same secret
+   - Compares signatures to verify authenticity
+   - Rejects webhooks with invalid signatures
+
+3. **Idempotency Protection:**
+   - Checks payment status before processing
+   - Prevents duplicate ticket assignments
+   - Logs all webhook attempts for auditing
+
+### Webhook Endpoints
+
+- **MonCash:** `POST /api/webhooks/moncash`
+- **NatCash:** `POST /api/webhooks/natcash`
+
+Both endpoints:
+- Accept JSON payloads
+- Verify signatures
+- Process payments automatically
+- Always return 200 OK (prevents retries)
+- Log all events comprehensively
+
+### Key Features
+
+✅ **Automatic Verification** - No admin approval needed
+✅ **Instant Ticket Assignment** - Tickets assigned in seconds
+✅ **Duplicate Prevention** - Idempotent processing
+✅ **SMS Notifications** - Buyers notified immediately
+✅ **Comprehensive Logging** - Full audit trail
+✅ **Error Handling** - Graceful failure recovery
+✅ **Security** - Signature verification required
 
 ## Setup Instructions
 
@@ -162,7 +243,59 @@ CUSTOM_SMS_GATEWAY_SENDER=RaffleApp
 
 **Note:** The custom gateway implementation assumes a REST API. You may need to modify `raffle-app/services/smsService.js` to match your provider's API format.
 
-#### E. Disable SMS (Optional)
+#### E. Webhook Configuration (For Automated Payments)
+
+```env
+# Base URL for webhook callbacks - your deployed server URL
+WEBHOOK_BASE_URL=https://yourdomain.com
+
+# Webhook Secrets for signature verification
+# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+MONCASH_WEBHOOK_SECRET=your-moncash-webhook-secret
+NATCASH_WEBHOOK_SECRET=your-natcash-webhook-secret
+```
+
+**How to Set Up Webhooks:**
+
+1. **Generate Webhook Secrets:**
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+   Generate two secrets - one for MonCash, one for NatCash
+
+2. **Configure Base URL:**
+   - For local testing: `http://localhost:10000` (or use ngrok)
+   - For production: `https://yourdomain.com` or `https://your-app.onrender.com`
+
+3. **Register Webhook URLs with Payment Providers:**
+   - **MonCash Webhook URL:** `https://yourdomain.com/api/webhooks/moncash`
+   - **NatCash Webhook URL:** `https://yourdomain.com/api/webhooks/natcash`
+   
+   Register these URLs in your MonCash and NatCash merchant dashboards
+   
+4. **Configure Webhook Secrets:**
+   - Share your webhook secrets with MonCash and NatCash support
+   - They will use these to sign webhook payloads
+   - Keep these secrets confidential!
+
+**Local Testing with ngrok:**
+
+For local webhook testing before deployment:
+
+```bash
+# Install ngrok
+npm install -g ngrok
+
+# Start your server
+npm start
+
+# In another terminal, expose your local server
+ngrok http 10000
+```
+
+Copy the HTTPS URL from ngrok (e.g., `https://abc123.ngrok.io`) and use it as your `WEBHOOK_BASE_URL`.
+
+#### F. Disable SMS (Optional)
 
 If you want to disable SMS notifications temporarily:
 
@@ -174,7 +307,7 @@ SMS sending will be simulated (logged to console only).
 
 ### Step 3: Database Migration
 
-The payments table is automatically created when you start the server. No manual migration needed.
+The payments table with webhook tracking columns is automatically created when you start the server. No manual migration needed.
 
 ### Step 4: Start the Server
 
@@ -186,6 +319,7 @@ Check the console output for:
 - ✅ SMS service initialization
 - ✅ Payment methods configured
 - ✅ Database tables created
+- ✅ Webhook tracking columns added
 
 ### Step 5: Verify Setup
 
@@ -198,6 +332,16 @@ Check the console output for:
    Visit: `http://localhost:3000/payments-admin.html`
    - Login with admin credentials
    - Should see payment management dashboard
+
+3. **Test Webhook Endpoints:**
+   ```bash
+   # Test MonCash webhook (should respond with error about missing signature)
+   curl -X POST http://localhost:10000/api/webhooks/moncash \
+        -H "Content-Type: application/json" \
+        -d '{"test": "ping"}'
+   
+   # Should return: {"success":false,"error":"Missing order_id"}
+   ```
 
 ## Testing
 
@@ -234,6 +378,155 @@ Check the console output for:
 1. Set `SMS_PROVIDER=disabled`
 2. Submit a test payment
 3. Check server console logs for simulated SMS
+
+### Test Webhook Processing
+
+#### Test MonCash Webhook (Local)
+
+1. **Start your server with webhook configuration:**
+   ```bash
+   # In .env
+   WEBHOOK_BASE_URL=http://localhost:10000
+   MONCASH_WEBHOOK_SECRET=test_secret_12345
+   ```
+
+2. **Create a test payment:**
+   - Use the MonCash payment initiation endpoint
+   - Note the payment reference (orderId)
+
+3. **Simulate webhook callback:**
+   ```bash
+   # Create HMAC signature
+   node -e "
+   const crypto = require('crypto');
+   const payload = JSON.stringify({
+     orderId: 'PAY-XXX-YYY',
+     transactionId: 'MONCASH-12345',
+   amount: 100.00,
+     status: 'success'
+   });
+   const signature = crypto.createHmac('sha256', 'test_secret_12345')
+     .update(payload)
+     .digest('hex');
+   console.log('Signature:', signature);
+   console.log('Payload:', payload);
+   "
+   
+   # Send webhook with signature
+   curl -X POST http://localhost:10000/api/webhooks/moncash \
+        -H "Content-Type: application/json" \
+        -H "X-MonCash-Signature: YOUR_SIGNATURE_HERE" \
+        -d '{
+          "orderId": "PAY-XXX-YYY",
+          "transactionId": "MONCASH-12345",
+          "amount": 100.00,
+          "status": "success"
+        }'
+   ```
+
+4. **Verify Processing:**
+   - Check server console for webhook logs
+   - Verify payment status changed to "approved"
+   - Verify tickets were assigned
+   - Check for SMS notifications
+
+#### Test NatCash Webhook (Local)
+
+Same process as MonCash, but use:
+- Endpoint: `/api/webhooks/natcash`
+- Header: `X-NatCash-Signature`
+- Secret: `NATCASH_WEBHOOK_SECRET`
+
+#### Test Webhook with ngrok (Production-like)
+
+1. **Start ngrok:**
+   ```bash
+   ngrok http 10000
+   ```
+
+2. **Update webhook URL:**
+   ```env
+   WEBHOOK_BASE_URL=https://abc123.ngrok.io
+   ```
+
+3. **Register webhook with provider:**
+   - Go to MonCash/NatCash merchant dashboard
+   - Register: `https://abc123.ngrok.io/api/webhooks/moncash`
+   - Configure webhook secret
+
+4. **Make real test payment:**
+   - Use sandbox credentials
+   - Complete payment through gateway
+   - Provider will automatically call your webhook
+   - Monitor ngrok dashboard for incoming requests
+
+5. **Monitor logs:**
+   ```bash
+   # Terminal 1: Server logs
+   npm start
+   
+   # Terminal 2: ngrok dashboard
+   # Visit: http://localhost:4040
+   ```
+
+### Webhook Payload Examples
+
+#### MonCash Webhook Payload (Success)
+
+```json
+{
+  "transactionId": "MONCASH-TXN-123456789",
+  "orderId": "PAY-123ABC456",
+  "amount": 100.00,
+  "status": "success",
+  "payer": "50912345678",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+#### MonCash Webhook Payload (Failed)
+
+```json
+{
+  "transactionId": "MONCASH-TXN-987654321",
+  "orderId": "PAY-789XYZ012",
+  "amount": 100.00,
+  "status": "failed",
+  "payer": "50912345678",
+  "timestamp": "2024-01-15T10:35:00Z",
+  "error": "Insufficient funds"
+}
+```
+
+#### NatCash Webhook Payload (Success)
+
+```json
+{
+  "paymentId": "NATCASH-PAY-123456",
+  "orderId": "PAY-456DEF789",
+  "amount": 100.00,
+  "status": "completed",
+  "transactionRef": "NATCASH-REF-789",
+  "phone": "50998765432",
+  "timestamp": "2024-01-15T11:00:00Z"
+}
+```
+
+#### NatCash Webhook Payload (Failed)
+
+```json
+{
+  "paymentId": "NATCASH-PAY-654321",
+  "orderId": "PAY-321GHI654",
+  "amount": 100.00,
+  "status": "cancelled",
+  "transactionRef": "NATCASH-REF-456",
+  "phone": "50998765432",
+  "timestamp": "2024-01-15T11:05:00Z",
+  "reason": "User cancelled"
+}
+```
+
 
 ## Admin Workflow
 
@@ -384,6 +677,132 @@ Complete ✓
 3. Check server logs for SQL errors
 4. Verify DATABASE_URL is set correctly
 
+### Issue: Webhooks not receiving callbacks
+
+**Solution:**
+1. **Check Webhook URL Configuration:**
+   - Verify `WEBHOOK_BASE_URL` is set correctly in .env
+   - URL must be publicly accessible (not localhost)
+   - Use ngrok for local testing
+
+2. **Verify Webhook Registration:**
+   - Confirm webhook URLs are registered with MonCash/NatCash
+   - Check merchant dashboard for webhook settings
+   - Verify webhook URLs are correct (no typos)
+
+3. **Check Server Accessibility:**
+   ```bash
+   # Test if webhook endpoint is reachable
+   curl -X POST https://yourdomain.com/api/webhooks/moncash \
+        -H "Content-Type: application/json" \
+        -d '{"test": "ping"}'
+   ```
+
+4. **Review Firewall/Security Settings:**
+   - Ensure port 443/80 is open
+   - Check if hosting provider blocks incoming webhooks
+   - Whitelist payment gateway IPs if needed
+
+### Issue: Webhook signature verification failing
+
+**Solution:**
+1. **Check Webhook Secrets:**
+   - Verify secrets are configured correctly in .env
+   - Confirm secrets match what's registered with provider
+   - Ensure no extra spaces or quotes in .env
+
+2. **Review Signature Headers:**
+   - Check server logs for incoming signature header
+   - Verify header name matches expectations
+   - MonCash typically uses: `X-MonCash-Signature`
+   - NatCash typically uses: `X-NatCash-Signature`
+
+3. **Validate Payload Format:**
+   ```bash
+   # Test signature generation
+   node -e "
+   const crypto = require('crypto');
+   const secret = 'your-webhook-secret';
+   const payload = JSON.stringify({test: 'data'});
+   const sig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
+   console.log('Signature:', sig);
+   "
+   ```
+
+4. **Temporarily Disable Verification:**
+   - For debugging only, comment out secret in .env
+   - Check if webhook processes successfully
+   - Re-enable verification after debugging
+
+### Issue: Payment processed but tickets not assigned
+
+**Solution:**
+1. **Check Ticket Availability:**
+   - Verify tickets exist for requested category
+   - Check if tickets are marked as AVAILABLE
+   - Review `tickets` table in database
+
+2. **Review Server Logs:**
+   ```bash
+   # Check for errors during ticket assignment
+   grep "webhook" server.log | tail -50
+   grep "Payment processed" server.log | tail -20
+   ```
+
+3. **Verify Payment Status:**
+   - Check `payments` table for payment record
+   - Verify `payment_status` is 'approved'
+   - Check `ticket_numbers` field is populated
+
+4. **Check Webhook Processing:**
+   - Look for errors in `processWebhookPayment` function
+   - Verify database transaction completed
+   - Check for race conditions (multiple webhooks)
+
+### Issue: Duplicate webhook deliveries
+
+**Solution:**
+1. **Idempotency Built-in:**
+   - System automatically detects duplicate payments
+   - Checks `payment_status` before processing
+   - Logs duplicate attempts
+
+2. **Verify Duplicate Detection:**
+   ```sql
+   -- Check payment status
+   SELECT payment_reference, payment_status, webhook_attempts, webhook_received_at
+   FROM payments
+   WHERE payment_reference = 'PAY-XXX-YYY';
+   ```
+
+3. **Review Webhook Logs:**
+   - Check `webhook_attempts` counter in database
+   - Review `webhook_payload` for differences
+   - Confirm no tickets were assigned twice
+
+### Issue: Webhooks work in sandbox but not production
+
+**Solution:**
+1. **Update Credentials:**
+   - Switch to production API credentials
+   - Update `MONCASH_MODE` to 'production'
+   - Update `NATCASH_MODE` to 'production'
+
+2. **Re-register Webhooks:**
+   - Register production webhook URLs
+   - Use production webhook secrets
+   - Test with small real payment
+
+3. **Check Production Environment:**
+   - Verify SSL certificate is valid
+   - Ensure HTTPS is enabled
+   - Check production server logs
+
+4. **Monitor Gateway Dashboard:**
+   - Check payment provider's dashboard
+   - Look for webhook delivery failures
+   - Review error messages from provider
+
 ## Security Considerations
 
 1. **Never commit API keys** to version control
@@ -406,6 +825,18 @@ Before going live:
 - [ ] Admin approval workflow tested
 - [ ] HTTPS enabled on server
 - [ ] Database properly configured (PostgreSQL recommended)
+- [ ] **Webhook URLs registered with payment providers**
+- [ ] **Webhook secrets configured and shared with providers**
+- [ ] **Webhook endpoints tested with sandbox**
+- [ ] **WEBHOOK_BASE_URL set to production domain**
+- [ ] **Webhook signature verification tested**
+- [ ] **Automated payment flow tested end-to-end**
+- [ ] Backup strategy in place
+- [ ] Monitoring and logging configured
+- [ ] Admin team trained on approval process
+- [ ] Error handling tested
+- [ ] Phone numbers in correct international format
+- [ ] **Webhook failure alerts configured**
 - [ ] Backup strategy in place
 - [ ] Monitoring and logging configured
 - [ ] Admin team trained on approval process
