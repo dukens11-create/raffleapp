@@ -121,6 +121,12 @@ async function createMonCashPayment(paymentData) {
     const fetch = require('node-fetch');
     const endpoint = MONCASH_CONFIG.endpoints[MONCASH_CONFIG.mode];
     
+    // Build webhook URL
+    const webhookBaseUrl = process.env.WEBHOOK_BASE_URL || process.env.APP_URL || 'http://localhost:10000';
+    const webhookUrl = `${webhookBaseUrl}/api/webhooks/moncash`;
+    
+    console.log(`📥 MonCash webhook URL: ${webhookUrl}`);
+    
     const response = await fetch(`${endpoint}/v1/CreatePayment`, {
       method: 'POST',
       headers: {
@@ -129,7 +135,8 @@ async function createMonCashPayment(paymentData) {
       },
       body: JSON.stringify({
         amount: amount,
-        orderId: orderId
+        orderId: orderId,
+        webhookUrl: webhookUrl // Add webhook URL for automatic callbacks
       })
     });
     
@@ -144,7 +151,8 @@ async function createMonCashPayment(paymentData) {
       success: true,
       paymentToken: data.payment_token,
       redirectUrl: `${endpoint}/v1/Redirect?token=${data.payment_token}`,
-      mode: MONCASH_CONFIG.mode
+      mode: MONCASH_CONFIG.mode,
+      webhookUrl: webhookUrl
     };
   } catch (error) {
     console.error('MonCash payment error:', error.message);
@@ -212,6 +220,12 @@ async function createNatCashPayment(paymentData) {
     const fetch = require('node-fetch');
     const endpoint = NATCASH_CONFIG.endpoints[NATCASH_CONFIG.mode];
     
+    // Build webhook URL
+    const webhookBaseUrl = process.env.WEBHOOK_BASE_URL || process.env.APP_URL || 'http://localhost:10000';
+    const webhookUrl = `${webhookBaseUrl}/api/webhooks/natcash`;
+    
+    console.log(`📥 NatCash webhook URL: ${webhookUrl}`);
+    
     // ⚠️ IMPORTANT: This is a placeholder endpoint structure
     // TODO: Update this with actual NatCash API documentation before production use
     // Contact NatCash support for the correct API endpoint and request format
@@ -227,7 +241,8 @@ async function createNatCashPayment(paymentData) {
         amount: amount,
         order_id: orderId,
         phone_number: buyer_phone,
-        currency: 'HTG' // Haitian Gourde
+        currency: 'HTG', // Haitian Gourde
+        webhook_url: webhookUrl // Add webhook URL for automatic callbacks
       })
     });
     
@@ -243,7 +258,8 @@ async function createNatCashPayment(paymentData) {
       paymentId: data.payment_id || data.id,
       transactionRef: data.transaction_ref || data.reference,
       status: data.status,
-      mode: NATCASH_CONFIG.mode
+      mode: NATCASH_CONFIG.mode,
+      webhookUrl: webhookUrl
     };
   } catch (error) {
     console.error('NatCash payment error:', error.message);
@@ -255,13 +271,18 @@ async function createNatCashPayment(paymentData) {
       console.warn('⚠️  NatCash API error in sandbox mode');
       console.warn('   Using simulated response for testing purposes');
       console.warn('   Update NatCash API endpoints before production deployment');
+      
+      const webhookBaseUrl = process.env.WEBHOOK_BASE_URL || process.env.APP_URL || 'http://localhost:10000';
+      const webhookUrl = `${webhookBaseUrl}/api/webhooks/natcash`;
+      
       return {
         success: true,
         paymentId: `NATCASH_SIM_${Date.now()}`,
         transactionRef: `SIMULATED_${orderId}`,
         status: 'pending',
         mode: 'sandbox',
-        simulated: true
+        simulated: true,
+        webhookUrl: webhookUrl
       };
     }
     
@@ -324,6 +345,339 @@ function generatePaymentReference(prefix = 'PAY') {
   const timestamp = Date.now().toString(36).toUpperCase();
   const random = crypto.randomBytes(4).toString('hex').toUpperCase();
   return `${prefix}-${timestamp}-${random}`;
+}
+
+/**
+ * Verify MonCash Webhook Signature
+ * 
+ * MonCash uses HMAC-SHA256 for webhook signature verification
+ * 
+ * @param {Object} payload - Webhook payload
+ * @param {string} signature - Signature from webhook header
+ * @returns {boolean} True if signature is valid
+ */
+function verifyMonCashWebhook(payload, signature) {
+  if (!process.env.MONCASH_WEBHOOK_SECRET) {
+    console.warn('⚠️  MONCASH_WEBHOOK_SECRET not configured, skipping signature verification');
+    return true; // Allow in development without secret
+  }
+  
+  if (!signature) {
+    console.error('❌ No signature provided in webhook');
+    return false;
+  }
+  
+  try {
+    // Create HMAC signature of payload
+    const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.MONCASH_WEBHOOK_SECRET)
+      .update(payloadString)
+      .digest('hex');
+    
+    // Compare signatures (constant-time comparison to prevent timing attacks)
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
+  } catch (error) {
+    console.error('❌ MonCash webhook verification error:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Verify NatCash Webhook Signature
+ * 
+ * NatCash uses HMAC-SHA256 for webhook signature verification
+ * 
+ * @param {Object} payload - Webhook payload
+ * @param {string} signature - Signature from webhook header
+ * @returns {boolean} True if signature is valid
+ */
+function verifyNatCashWebhook(payload, signature) {
+  if (!process.env.NATCASH_WEBHOOK_SECRET) {
+    console.warn('⚠️  NATCASH_WEBHOOK_SECRET not configured, skipping signature verification');
+    return true; // Allow in development without secret
+  }
+  
+  if (!signature) {
+    console.error('❌ No signature provided in webhook');
+    return false;
+  }
+  
+  try {
+    // Create HMAC signature of payload
+    const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.NATCASH_WEBHOOK_SECRET)
+      .update(payloadString)
+      .digest('hex');
+    
+    // Compare signatures (constant-time comparison to prevent timing attacks)
+    return crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expectedSignature)
+    );
+  } catch (error) {
+    console.error('❌ NatCash webhook verification error:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Process Webhook Payment
+ * Common function to process webhook payments from any provider
+ * 
+ * @param {Object} paymentData - Payment data from webhook
+ * @param {string} paymentData.transactionId - Provider's transaction ID
+ * @param {string} paymentData.orderId - Our payment reference
+ * @param {string} paymentData.status - Payment status (success/failed)
+ * @param {number} paymentData.amount - Payment amount
+ * @param {string} paymentData.provider - Payment provider (moncash/natcash)
+ * @param {Object} db - Database connection
+ * @param {Object} smsService - SMS service for notifications
+ * @returns {Promise<Object>} Processing result
+ */
+async function processWebhookPayment(paymentData, db, smsService) {
+  const { transactionId, orderId, status, amount, provider, webhookPayload } = paymentData;
+  
+  console.log(`📥 Processing webhook payment: ${orderId} from ${provider}`);
+  
+  try {
+    // Get payment record from database
+    const payment = await db.get(
+      'SELECT * FROM payments WHERE payment_reference = ?',
+      [orderId]
+    );
+    
+    if (!payment) {
+      console.error(`❌ Payment not found: ${orderId}`);
+      return {
+        success: false,
+        error: 'Payment not found',
+        shouldRetry: false // Don't retry if payment doesn't exist
+      };
+    }
+    
+    // Check for duplicate processing (idempotency)
+    if (payment.payment_status === 'approved') {
+      console.log(`⚠️  Payment already processed: ${orderId}`);
+      return {
+        success: true,
+        message: 'Payment already processed',
+        duplicate: true
+      };
+    }
+    
+    // Validate amount matches
+    if (Math.abs(parseFloat(payment.amount) - parseFloat(amount)) > 0.01) {
+      console.error(`❌ Amount mismatch for ${orderId}: expected ${payment.amount}, got ${amount}`);
+      
+      // Update payment with mismatch info
+      await db.run(`
+        UPDATE payments 
+        SET payment_status = 'failed',
+            rejection_reason = 'Amount mismatch',
+            webhook_attempts = COALESCE(webhook_attempts, 0) + 1,
+            webhook_payload = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE payment_reference = ?
+      `, [JSON.stringify(webhookPayload), orderId]);
+      
+      return {
+        success: false,
+        error: 'Amount mismatch',
+        shouldRetry: false
+      };
+    }
+    
+    // Process based on status
+    if (status === 'success' || status === 'completed' || status === 'approved') {
+      // Payment successful - assign tickets
+      console.log(`✅ Payment successful: ${orderId}`);
+      
+      // Get available tickets in the requested category
+      const availableTickets = await db.all(`
+        SELECT ticket_number FROM tickets 
+        WHERE raffle_id = ? AND category = ? AND status = 'AVAILABLE'
+        ORDER BY ticket_number
+        LIMIT ?
+      `, [payment.raffle_id, payment.ticket_category, payment.ticket_quantity]);
+      
+      if (availableTickets.length < payment.ticket_quantity) {
+        console.error(`❌ Not enough tickets available for ${orderId}`);
+        
+        // Update payment status
+        await db.run(`
+          UPDATE payments 
+          SET payment_status = 'failed',
+              rejection_reason = 'Not enough tickets available',
+              webhook_attempts = COALESCE(webhook_attempts, 0) + 1,
+              webhook_payload = ?,
+              updated_at = CURRENT_TIMESTAMP
+          WHERE payment_reference = ?
+        `, [JSON.stringify(webhookPayload), orderId]);
+        
+        // Notify buyer
+        try {
+          await smsService.sendPaymentRejected({
+            buyer_phone: payment.buyer_phone,
+            buyer_name: payment.buyer_name,
+            amount: payment.amount,
+            payment_method: payment.payment_method,
+            reference: orderId,
+            rejection_reason: 'Not enough tickets available. Please contact support for refund.'
+          });
+        } catch (smsError) {
+          console.error('SMS error:', smsError);
+        }
+        
+        return {
+          success: false,
+          error: 'Not enough tickets available',
+          shouldRetry: false
+        };
+      }
+      
+      // Assign tickets to buyer
+      const ticketNumbers = availableTickets.map(t => t.ticket_number);
+      const ticketNumbersStr = ticketNumbers.join(', ');
+      
+      for (const ticket of availableTickets) {
+        await db.run(`
+          UPDATE tickets 
+          SET status = 'SOLD',
+              buyer_name = ?,
+              buyer_phone = ?,
+              buyer_email = ?,
+              payment_method = ?,
+              payment_verified = ${db.USE_POSTGRES ? 'TRUE' : '1'},
+              sold_at = CURRENT_TIMESTAMP
+          WHERE ticket_number = ?
+        `, [
+          payment.buyer_name,
+          payment.buyer_phone,
+          payment.buyer_email,
+          payment.payment_method,
+          ticket.ticket_number
+        ]);
+      }
+      
+      // Update payment status
+      await db.run(`
+        UPDATE payments 
+        SET payment_status = 'approved',
+            transaction_id = ?,
+            verified_at = CURRENT_TIMESTAMP,
+            ticket_numbers = ?,
+            webhook_attempts = COALESCE(webhook_attempts, 0) + 1,
+            webhook_payload = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE payment_reference = ?
+      `, [transactionId, ticketNumbersStr, JSON.stringify(webhookPayload), orderId]);
+      
+      console.log(`✅ Tickets assigned: ${ticketNumbersStr}`);
+      
+      // Send SMS notification to buyer
+      try {
+        await smsService.sendPaymentApproved({
+          buyer_phone: payment.buyer_phone,
+          buyer_name: payment.buyer_name,
+          amount: payment.amount,
+          payment_method: payment.payment_method,
+          reference: orderId,
+          ticket_numbers: ticketNumbersStr
+        });
+        console.log(`✅ SMS confirmation sent to buyer`);
+      } catch (smsError) {
+        console.error('❌ SMS error (non-critical):', smsError.message);
+        // Continue even if SMS fails
+      }
+      
+      return {
+        success: true,
+        message: 'Payment processed and tickets assigned',
+        ticketNumbers: ticketNumbers
+      };
+      
+    } else if (status === 'failed' || status === 'cancelled' || status === 'rejected') {
+      // Payment failed
+      console.log(`❌ Payment failed: ${orderId} - Status: ${status}`);
+      
+      // Update payment status
+      await db.run(`
+        UPDATE payments 
+        SET payment_status = 'failed',
+            transaction_id = ?,
+            rejection_reason = ?,
+            webhook_attempts = COALESCE(webhook_attempts, 0) + 1,
+            webhook_payload = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE payment_reference = ?
+      `, [transactionId, `Payment ${status}`, JSON.stringify(webhookPayload), orderId]);
+      
+      // Notify buyer
+      try {
+        await smsService.sendPaymentRejected({
+          buyer_phone: payment.buyer_phone,
+          buyer_name: payment.buyer_name,
+          amount: payment.amount,
+          payment_method: payment.payment_method,
+          reference: orderId,
+          rejection_reason: `Payment was ${status}`
+        });
+      } catch (smsError) {
+        console.error('SMS error:', smsError);
+      }
+      
+      return {
+        success: true,
+        message: 'Payment marked as failed',
+        paymentFailed: true
+      };
+      
+    } else {
+      // Unknown status - log and update webhook attempts
+      console.warn(`⚠️  Unknown payment status: ${status} for ${orderId}`);
+      
+      await db.run(`
+        UPDATE payments 
+        SET webhook_attempts = COALESCE(webhook_attempts, 0) + 1,
+            webhook_payload = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE payment_reference = ?
+      `, [JSON.stringify(webhookPayload), orderId]);
+      
+      return {
+        success: false,
+        error: 'Unknown payment status',
+        shouldRetry: true // Retry for unknown status
+      };
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error processing webhook payment ${orderId}:`, error);
+    
+    // Log error but try to update webhook attempts
+    try {
+      await db.run(`
+        UPDATE payments 
+        SET webhook_attempts = COALESCE(webhook_attempts, 0) + 1,
+            webhook_payload = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE payment_reference = ?
+      `, [JSON.stringify({ error: error.message, ...webhookPayload }), orderId]);
+    } catch (dbError) {
+      console.error('Failed to update webhook attempts:', dbError);
+    }
+    
+    return {
+      success: false,
+      error: error.message,
+      shouldRetry: true // Retry on errors
+    };
+  }
 }
 
 /**
@@ -417,10 +771,15 @@ module.exports = {
   // MonCash
   createMonCashPayment,
   verifyMonCashPayment,
+  verifyMonCashWebhook,
   
   // NatCash
   createNatCashPayment,
   verifyNatCashPayment,
+  verifyNatCashWebhook,
+  
+  // Webhook processing
+  processWebhookPayment,
   
   // Manual payments
   getManualPaymentInstructions,

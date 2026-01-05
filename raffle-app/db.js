@@ -430,6 +430,37 @@ async function initializeSchema() {
       console.warn('⚠️  Could not create some payment indexes:', error.message);
     }
     
+    // Add webhook tracking columns to payments table (for existing databases)
+    const webhookColumns = [
+      { name: 'webhook_attempts', type: 'INTEGER', default: '0' },
+      { name: 'webhook_payload', type: 'TEXT', default: null },
+      { name: 'webhook_received_at', type: USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME', default: null }
+    ];
+    
+    for (const col of webhookColumns) {
+      try {
+        if (USE_POSTGRES) {
+          const defaultClause = col.default !== null ? `DEFAULT ${col.default}` : '';
+          await run(`
+            ALTER TABLE payments 
+            ADD COLUMN IF NOT EXISTS ${col.name} ${col.type} ${defaultClause}
+          `);
+        } else {
+          // SQLite doesn't support IF NOT EXISTS for columns, so check first
+          const columns = await all(`PRAGMA table_info(payments)`);
+          const hasColumn = columns.some(c => c.name === col.name);
+          if (!hasColumn) {
+            const defaultClause = col.default !== null ? `DEFAULT ${col.default}` : '';
+            await run(`ALTER TABLE payments ADD COLUMN ${col.name} ${col.type} ${defaultClause}`);
+          }
+        }
+      } catch (error) {
+        // Column might already exist, that's okay
+        console.log(`Note: ${col.name} column already exists or could not be added to payments table`);
+      }
+    }
+    console.log('✅ Webhook tracking columns verified for payments table');
+    
     // Add fit_mode column if it doesn't exist (for existing databases)
     try {
       if (USE_POSTGRES) {
