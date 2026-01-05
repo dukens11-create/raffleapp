@@ -1891,6 +1891,147 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   }
 });
 
+// API: Register ticket with Txn ID (One-to-One relationship)
+app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
+  try {
+    const { txn_id, ticket_barcode } = req.body;
+    const seller_phone = req.session.user.phone;
+    const seller_name = req.session.user.name;
+    
+    console.log(`[REGISTER] Seller: ${seller_name}, Txn: ${txn_id}, Ticket: ${ticket_barcode}`);
+    
+    // === VALIDATION ===
+    
+    if (!txn_id || !/^\d{12}$/.test(txn_id)) {
+      return res.status(400).json({ 
+        error: 'INVALID_TXN_FORMAT',
+        message: 'Transaction ID must be exactly 12 digits'
+      });
+    }
+    
+    if (!ticket_barcode) {
+      return res.status(400).json({ 
+        error: 'TICKET_REQUIRED',
+        message: 'Ticket number is required'
+      });
+    }
+    
+    // === FRAUD CHECK 1: Txn ID Already Used ===
+    const existingTxn = await db.get(
+      `SELECT ticket_number, seller_name, sold_at, buyer_name
+       FROM tickets 
+       WHERE txn_id = ?`,
+      [txn_id]
+    );
+    
+    if (existingTxn) {
+      console.log(`[FRAUD] Duplicate Txn ID attempt: ${txn_id} by ${seller_name}`);
+      
+      // Log fraud attempt
+      await db.run(
+        `INSERT INTO fraud_log 
+         (txn_id, seller_phone, seller_name, fraud_type, original_ticket, attempted_ticket, logged_at)
+         VALUES (?, ?, ?, 'DUPLICATE_TXN', ?, ?, CURRENT_TIMESTAMP)`,
+        [txn_id, seller_phone, seller_name, existingTxn.ticket_number, ticket_barcode]
+      );
+      
+      // Send SMS alert to admin
+      try {
+        await smsService.sendFraudAlert({
+          type: 'DUPLICATE_TXN',
+          txn_id,
+          seller_name,
+          seller_phone,
+          original_ticket: existingTxn.ticket_number,
+          attempted_ticket: ticket_barcode
+        });
+      } catch (smsErr) {
+        console.error('[SMS] Fraud alert failed:', smsErr);
+      }
+      
+      return res.status(400).json({ 
+        error: 'TXN_ALREADY_USED',
+        message: `This Transaction ID was already used for ticket ${existingTxn.ticket_number}`,
+        fraud_alert: true,
+        details: {
+          original_ticket: existingTxn.ticket_number,
+          seller: existingTxn.seller_name,
+          date: existingTxn.sold_at
+        }
+      });
+    }
+    
+    // === VALIDATE TICKET ===
+    const validation = await bulkTicketService.validateTicketForSale(ticket_barcode);
+    
+    if (!validation.valid) {
+      return res.status(400).json({ 
+        error: validation.error,
+        message: validation.message
+      });
+    }
+    
+    const ticket = validation.ticket;
+    
+    // === FRAUD CHECK 2: Ticket Already Has Txn ID ===
+    if (ticket.txn_id) {
+      console.log(`[FRAUD] Ticket already assigned: ${ticket.ticket_number} has Txn ${ticket.txn_id}`);
+      
+      await db.run(
+        `INSERT INTO fraud_log 
+         (txn_id, seller_phone, seller_name, fraud_type, ticket_number, logged_at)
+         VALUES (?, ?, ?, 'TICKET_ALREADY_ASSIGNED', ?, CURRENT_TIMESTAMP)`,
+        [txn_id, seller_phone, seller_name, ticket.ticket_number]
+      );
+      
+      return res.status(400).json({ 
+        error: 'TICKET_ALREADY_ASSIGNED',
+        message: `Ticket ${ticket.ticket_number} is already registered with Txn ID: ${ticket.txn_id}`,
+        fraud_alert: true
+      });
+    }
+    
+    // === REGISTER TICKET ===
+    await db.run(
+      `UPDATE tickets 
+       SET status = 'SOLD', 
+           seller_name = ?, 
+           seller_phone = ?, 
+           txn_id = ?,
+           sold_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [seller_name, seller_phone, txn_id, ticket.id]
+    );
+    
+    // Log successful registration
+    await db.run(
+      `INSERT INTO txn_log 
+       (txn_id, ticket_number, seller_phone, seller_name, logged_at)
+       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [txn_id, ticket.ticket_number, seller_phone, seller_name]
+    );
+    
+    console.log(`[SUCCESS] Registered: Txn ${txn_id} → Ticket ${ticket.ticket_number}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Ticket registered successfully',
+      ticket: {
+        number: ticket.ticket_number,
+        category: ticket.category,
+        txn_id: txn_id
+      }
+    });
+    
+  } catch (error) {
+    console.error('[ERROR] Registration failed:', error);
+    res.status(500).json({ 
+      error: 'SERVER_ERROR',
+      message: 'Failed to register ticket'
+    });
+  }
+});
+
 // API: Submit seller concern
 app.post('/api/seller-concerns', requireAuth, async (req, res) => {
   try {
