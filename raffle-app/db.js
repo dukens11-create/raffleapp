@@ -485,6 +485,54 @@ async function initializeSchema() {
       }
     }
     
+    // Add txn_id column to tickets table for MonCash Transaction ID verification
+    console.log('💳 Adding txn_id column to tickets table...');
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS txn_id TEXT
+        `);
+        // Add unique constraint separately for PostgreSQL
+        try {
+          await run(`ALTER TABLE tickets ADD CONSTRAINT tickets_txn_id_unique UNIQUE (txn_id)`);
+        } catch (err) {
+          // Constraint might already exist
+          if (!err.message.includes('already exists')) {
+            console.warn('⚠️  Could not add unique constraint on txn_id:', err.message);
+          }
+        }
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasTxnId = columns.some(col => col.name === 'txn_id');
+        if (!hasTxnId) {
+          await run(`ALTER TABLE tickets ADD COLUMN txn_id TEXT`);
+        }
+        // Note: SQLite cannot add UNIQUE constraint to existing column, will create index instead
+      }
+      console.log('✅ txn_id column added successfully');
+    } catch (error) {
+      console.log('Note: txn_id column already exists or could not be added:', error.message);
+    }
+    
+    // Create txn_verification_log table for fraud detection audit trail
+    console.log('🔍 Creating txn_verification_log table...');
+    await run(`
+      CREATE TABLE IF NOT EXISTS txn_verification_log (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        txn_id TEXT NOT NULL,
+        ticket_number TEXT,
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        verification_time ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        status TEXT NOT NULL,
+        fraud_type TEXT,
+        fraud_details TEXT
+      )
+    `);
+    console.log('✅ txn_verification_log table created');
+    
     // Add performance indexes
     console.log('📊 Creating performance indexes...');
 
@@ -493,12 +541,17 @@ async function initializeSchema() {
       'CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_txn_id ON tickets(txn_id)',
       
       // Seller requests indexes
       'CREATE INDEX IF NOT EXISTS idx_seller_requests_status ON seller_requests(status)',
       
       // Draws indexes
-      'CREATE INDEX IF NOT EXISTS idx_draws_date ON draws(drawn_at)'
+      'CREATE INDEX IF NOT EXISTS idx_draws_date ON draws(drawn_at)',
+      
+      // Transaction verification log indexes
+      'CREATE INDEX IF NOT EXISTS idx_txn_log_txn_id ON txn_verification_log(txn_id)',
+      'CREATE INDEX IF NOT EXISTS idx_txn_log_status ON txn_verification_log(status)'
     ];
 
     for (const indexQuery of indexes) {

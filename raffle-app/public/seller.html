@@ -427,6 +427,98 @@
             border-radius: 5px;
             font-weight: 600;
         }
+
+        /* Transaction Registration Section Styles */
+        .ticket-registration-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .ticket-registration-section h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .ticket-registration-section > p {
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        .form-group small {
+            display: block;
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            color: #92400e;
+        }
+
+        .alert h4 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .alert p {
+            margin: 5px 0;
+        }
+
+        .quick-stats {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .quick-stats p {
+            color: #666;
+            margin: 0;
+        }
+
+        .quick-stats strong {
+            color: #667eea;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
@@ -452,6 +544,53 @@
             <div class="stat-card">
                 <div class="stat-label">Total Revenue</div>
                 <div class="stat-value currency" id="totalRevenue">0</div>
+            </div>
+        </div>
+
+        <!-- Transaction ID + Ticket Entry Section -->
+        <div class="ticket-registration-section">
+            <h2>🎟️ Register Ticket Sale</h2>
+            <p>Enter customer's 12-digit MonCash Txn ID and scan/enter ticket number</p>
+            
+            <form id="ticketRegistrationForm">
+                <div class="form-group">
+                    <label>MonCash Transaction ID (12 digits) *</label>
+                    <input 
+                        type="text" 
+                        id="txnIdInput" 
+                        placeholder="123456789012" 
+                        pattern="[0-9]{12}" 
+                        maxlength="12"
+                        required
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                    />
+                    <small>Required for each ticket - one Txn ID per ticket</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ticket Number or Scan *</label>
+                    <input 
+                        type="text" 
+                        id="ticketNumberInput" 
+                        placeholder="Enter ticket number or scan barcode"
+                        required
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                    />
+                </div>
+                
+                <div class="button-group">
+                    <button type="submit" class="btn btn-primary">Register Ticket</button>
+                    <button type="button" class="btn btn-secondary" onclick="openCameraScanner()">📷 Use Camera</button>
+                </div>
+            </form>
+            
+            <div id="registrationResult" style="display: none;">
+                <!-- Shows registration results -->
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="quick-stats">
+                <p>Tickets registered this session: <strong id="sessionTicketCount">0</strong></p>
             </div>
         </div>
 
@@ -615,7 +754,29 @@
                 cameraError: "Unable to access camera. Please check permissions.",
                 scannerLibraryError: "Scanner library not available. Please use Manual Ticket Entry below instead.",
                 enterManually: "Enter ticket number manually",
-                enterBarcode: "Enter barcode manually (scanner integration in progress):"
+                enterBarcode: "Enter barcode manually (scanner integration in progress):",
+                // Transaction ID Registration
+                registerTicketSale: "Register Ticket Sale",
+                registerDescription: "Enter customer's 12-digit MonCash Txn ID and scan/enter ticket number",
+                txnIdLabel: "MonCash Transaction ID (12 digits) *",
+                txnIdPlaceholder: "123456789012",
+                txnIdHelper: "Required for each ticket - one Txn ID per ticket",
+                ticketNumberLabel: "Ticket Number or Scan *",
+                ticketNumberPlaceholder: "Enter ticket number or scan barcode",
+                registerTicket: "Register Ticket",
+                useCamera: "📷 Use Camera",
+                ticketsRegisteredSession: "Tickets registered this session:",
+                // Alerts
+                fraudAlert: "FRAUD ALERT",
+                txnAlreadyUsed: "This Transaction ID has already been used",
+                attemptLogged: "This attempt has been logged and admin has been notified.",
+                ticketRegisteredSuccess: "Ticket Registered Successfully!",
+                ticket: "Ticket:",
+                txnId: "Txn ID:",
+                category: "Category:",
+                originalTicket: "Original Ticket:",
+                assignedBy: "Assigned By:",
+                date: "Date:"
             },
             ht: {
                 title: "Tablo Vandè",
@@ -656,7 +817,29 @@
                 cameraError: "Pa ka aksede kamera. Tanpri verifye pèmisyon yo.",
                 scannerLibraryError: "Bibliyotèk eskanè pa disponib. Tanpri itilize Antre Tikè Manyèlman.",
                 enterManually: "Antre nimewo tikè manyèlman",
-                enterBarcode: "Antre kòd manyèlman (entegrasyon eskanè an pwogrè):"
+                enterBarcode: "Antre kòd manyèlman (entegrasyon eskanè an pwogrè):",
+                // Transaction ID Registration
+                registerTicketSale: "Anrejistre Vant Tikè",
+                registerDescription: "Antre nimewo tranzaksyon MonCash 12 chif kliyan an epi eskane/antre nimewo tikè",
+                txnIdLabel: "Nimewo Tranzaksyon MonCash (12 chif) *",
+                txnIdPlaceholder: "123456789012",
+                txnIdHelper: "Obligatwa pou chak tikè - yon Nimewo Tranzaksyon pou chak tikè",
+                ticketNumberLabel: "Nimewo Tikè oswa Eskane *",
+                ticketNumberPlaceholder: "Antre nimewo tikè oswa eskane kòd",
+                registerTicket: "Anrejistre Tikè",
+                useCamera: "📷 Sèvi ak Kamera",
+                ticketsRegisteredSession: "Tikè anrejistre nan sesyon sa a:",
+                // Alerts
+                fraudAlert: "ALÈT FWÒ",
+                txnAlreadyUsed: "Nimewo Tranzaksyon sa a deja itilize",
+                attemptLogged: "Tantativ sa a te anrejistre epi admin te resevwa notifikasyon.",
+                ticketRegisteredSuccess: "Tikè Anrejistre avèk Siksè!",
+                ticket: "Tikè:",
+                txnId: "Nimewo Tranzaksyon:",
+                category: "Kategori:",
+                originalTicket: "Tikè Orijinal:",
+                assignedBy: "Asiye pa:",
+                date: "Dat:"
             },
             fr: {
                 title: "Tableau de Bord Vendeur",
@@ -697,7 +880,29 @@
                 cameraError: "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations.",
                 scannerLibraryError: "Bibliothèque de scanner non disponible. Veuillez utiliser la saisie manuelle.",
                 enterManually: "Entrer le numéro de billet manuellement",
-                enterBarcode: "Entrez le code-barres manuellement (intégration du scanner en cours):"
+                enterBarcode: "Entrez le code-barres manuellement (intégration du scanner en cours):",
+                // Transaction ID Registration
+                registerTicketSale: "Enregistrer Vente de Billet",
+                registerDescription: "Entrez l'ID de transaction MonCash à 12 chiffres du client et scannez/entrez le numéro de billet",
+                txnIdLabel: "ID de Transaction MonCash (12 chiffres) *",
+                txnIdPlaceholder: "123456789012",
+                txnIdHelper: "Requis pour chaque billet - un ID de transaction par billet",
+                ticketNumberLabel: "Numéro de Billet ou Scanner *",
+                ticketNumberPlaceholder: "Entrez le numéro de billet ou scannez le code-barres",
+                registerTicket: "Enregistrer Billet",
+                useCamera: "📷 Utiliser Caméra",
+                ticketsRegisteredSession: "Billets enregistrés dans cette session:",
+                // Alerts
+                fraudAlert: "ALERTE FRAUDE",
+                txnAlreadyUsed: "Cet ID de transaction a déjà été utilisé",
+                attemptLogged: "Cette tentative a été enregistrée et l'administrateur a été notifié.",
+                ticketRegisteredSuccess: "Billet Enregistré avec Succès!",
+                ticket: "Billet:",
+                txnId: "ID Tranzaksyon:",
+                category: "Catégorie:",
+                originalTicket: "Billet Original:",
+                assignedBy: "Assigné par:",
+                date: "Date:"
             }
         };
 
@@ -723,6 +928,18 @@
             // Stats
             document.querySelectorAll('.stat-label')[0].textContent = t.ticketsSold;
             document.querySelectorAll('.stat-label')[1].textContent = t.totalRevenue;
+            
+            // Transaction ID Registration section
+            document.querySelector('.ticket-registration-section h2').textContent = '🎟️ ' + t.registerTicketSale;
+            document.querySelector('.ticket-registration-section > p').textContent = t.registerDescription;
+            document.querySelector('label[for="txnIdInput"]').textContent = t.txnIdLabel;
+            document.getElementById('txnIdInput').placeholder = t.txnIdPlaceholder;
+            document.querySelector('#txnIdInput + small').textContent = t.txnIdHelper;
+            document.querySelector('label[for="ticketNumberInput"]').textContent = t.ticketNumberLabel;
+            document.getElementById('ticketNumberInput').placeholder = t.ticketNumberPlaceholder;
+            document.querySelector('#ticketRegistrationForm button[type="submit"]').textContent = t.registerTicket;
+            document.querySelector('#ticketRegistrationForm button[type="button"]').textContent = t.useCamera;
+            document.querySelector('.quick-stats p').innerHTML = t.ticketsRegisteredSession + ' <strong id="sessionTicketCount">0</strong>';
             
             // Scanner section
             document.querySelector('.scanner-section h2').textContent = '📷 ' + t.scanTicket;
@@ -907,38 +1124,22 @@
         async function processScannedTicket(barcode) {
             const resultDiv = document.getElementById('scanResult');
             const t = translations[currentLanguage];
-            resultDiv.innerHTML = '⏳ ' + t.processing;
-            resultDiv.style.color = '#666';
             
-            try {
-                const response = await fetch('/api/tickets/scan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ barcode: barcode })
-                });
-                
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    // Show specific error message from API
-                    const errorMsg = data.message || data.error || 'Failed to process ticket';
-                    console.error('Scan error details:', {
-                        status: response.status,
-                        error: data.error,
-                        message: data.message,
-                        barcode: barcode,
-                        response: data
-                    });
-                    throw new Error(errorMsg);
-                }
-                
-                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${barcode} ${t.ticketSoldSuccess}`;
-                resultDiv.style.color = 'green';
-                
-                // Refresh stats
-                await loadStats();
-            } catch (error) {
-                console.error('Scan error:', error);
+            // Populate the ticket number input in the registration form
+            document.getElementById('ticketNumberInput').value = barcode;
+            
+            // Show success message
+            resultDiv.innerHTML = `✅ Barcode scanned: ${barcode}. Now enter Transaction ID and submit.`;
+            resultDiv.style.color = 'green';
+            
+            // Focus on the Txn ID input
+            document.getElementById('txnIdInput').focus();
+            
+            // Clear scan result after 3 seconds
+            setTimeout(() => {
+                resultDiv.innerHTML = '';
+            }, 3000);
+        }
                 console.error('Barcode scanned:', barcode);
                 resultDiv.innerHTML = `❌ ${t.errorPrefix} ${error.message}`;
                 resultDiv.style.color = 'red';
@@ -1054,6 +1255,94 @@
                 resultDiv.style.background = '#fee2e2';
             }
         });
+
+        // Session ticket counter
+        let sessionTicketCount = 0;
+
+        // Handle ticket registration form (with Transaction ID)
+        document.getElementById('ticketRegistrationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await registerTicket();
+        });
+
+        async function registerTicket() {
+            const txnId = document.getElementById('txnIdInput').value.trim();
+            const ticketNumber = document.getElementById('ticketNumberInput').value.trim();
+            const resultDiv = document.getElementById('registrationResult');
+            
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '⏳ Verifying and registering...';
+            
+            try {
+                const response = await fetch('/api/tickets/register-with-txn', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        txn_id: txnId,
+                        ticket_barcode: ticketNumber
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    // FRAUD ALERT HANDLING
+                    if (data.fraud_alert) {
+                        resultDiv.innerHTML = `
+                            <div class="alert alert-danger">
+                                <h4>🚨 FRAUD ALERT</h4>
+                                <p><strong>${data.message}</strong></p>
+                                ${data.details ? `
+                                    <p>Original Ticket: <strong>${data.details.original_ticket}</strong></p>
+                                    <p>Assigned By: ${data.details.assigned_by}</p>
+                                    <p>Date: ${new Date(data.details.assigned_at).toLocaleString()}</p>
+                                ` : ''}
+                                <p><em>This attempt has been logged and admin has been notified.</em></p>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `<div class="alert alert-warning">❌ ${data.message}</div>`;
+                    }
+                    return;
+                }
+                
+                // SUCCESS
+                sessionTicketCount++;
+                document.getElementById('sessionTicketCount').textContent = sessionTicketCount;
+                
+                resultDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h4>✅ Ticket Registered Successfully!</h4>
+                        <p><strong>Ticket:</strong> ${data.ticket.ticket_number}</p>
+                        <p><strong>Txn ID:</strong> ${data.ticket.txn_id}</p>
+                        <p><strong>Category:</strong> ${data.ticket.category}</p>
+                    </div>
+                `;
+                
+                // Clear form for next ticket
+                document.getElementById('txnIdInput').value = '';
+                document.getElementById('ticketNumberInput').value = '';
+                document.getElementById('txnIdInput').focus();
+                
+                // Refresh stats
+                await loadStats();
+                
+                // Hide success message after 3 seconds
+                setTimeout(() => {
+                    resultDiv.style.display = 'none';
+                }, 3000);
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="alert alert-danger">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Camera scanner integration - populate ticket field instead of auto-submit
+        async function openCameraScanner() {
+            // Existing scanner code will populate ticketNumberInput field
+            // Then seller must still enter Txn ID before submitting
+            openBarcodeScanner();
+        }
 
         // Logout
         function logout() {
