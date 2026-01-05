@@ -412,6 +412,275 @@ Before going live:
 - [ ] Error handling tested
 - [ ] Phone numbers in correct international format
 
+## Admin Notifications for Transaction ID Verification
+
+The system provides comprehensive admin notifications for all MonCash Transaction ID (Txn ID) actions on the seller dashboard. This ensures admins are immediately aware of successful ticket registrations, fraud attempts, and payment issues.
+
+### Notification Types
+
+Admins receive SMS notifications for:
+
+1. **✅ Successful Registrations** - Every valid ticket registration with Txn ID
+2. **🚨 Fraud Alerts** - Duplicate Txn ID attempts or tickets already assigned
+3. **⚠️ Payment Issues** - Failed verifications requiring attention (optional)
+4. **📊 Hourly Summaries** - Activity overview (optional)
+
+### Configuration
+
+Set admin phone numbers and notification preferences in `.env`:
+
+```env
+# Admin notification phone numbers (comma-separated for multiple admins)
+ADMIN_NOTIFICATION_PHONES=509-1111-2222,509-3333-4444
+
+# Notification toggles
+NOTIFY_ALL_TXN_ACTIONS=true
+NOTIFY_SUCCESS=true
+NOTIFY_FRAUD=true
+NOTIFY_FAILURES=true
+SEND_HOURLY_SUMMARY=false
+```
+
+### SMS Notification Examples
+
+**Successful Registration:**
+```
+✅ TICKET REGISTERED
+
+Seller: Marie Jean
+Phone: 509-1234-5678
+Txn ID: 123456789012
+Ticket: 001
+Category: VIP
+Time: Jan 5, 2026 2:30 PM
+
+Total today: 12
+```
+
+**Fraud Alert - Duplicate Txn ID:**
+```
+🚨 FRAUD ALERT
+
+Type: DUPLICATE_TXN
+Txn ID: 123456789012
+Seller: Pierre Louis
+Phone: 509-9999-8888
+Time: Jan 5, 2026 2:35 PM
+
+Original Ticket: 001
+Original Seller: Marie Jean
+Attempted Ticket: 050
+
+⚠️ This Txn ID was already used!
+
+Review admin panel immediately.
+```
+
+**Fraud Alert - Ticket Already Assigned:**
+```
+🚨 FRAUD ALERT
+
+Type: TICKET_ALREADY_ASSIGNED
+Txn ID: 999888777666
+Seller: John Doe
+Phone: 509-5555-6666
+Time: Jan 5, 2026 2:40 PM
+
+Ticket: 025
+Already has Txn: 123456789012
+
+⚠️ Ticket already registered!
+
+Review admin panel immediately.
+```
+
+**Payment Issue:**
+```
+⚠️ TXN ISSUE
+
+Seller: John Doe
+Phone: 509-5555-6666
+Txn ID: 999888777666
+Error: Payment status: pending
+Time: Jan 5, 2026 3:00 PM
+
+Seller may need assistance.
+```
+
+**Hourly Summary (Optional):**
+```
+📊 HOURLY SUMMARY
+
+Tickets Registered: 45
+Fraud Attempts: 3
+Failed Attempts: 2
+
+Top Seller: Marie Jean (12 tickets)
+
+Period: Jan 5, 2-3 PM
+```
+
+### Admin Dashboard APIs
+
+The system provides REST APIs for viewing Txn ID activity:
+
+#### Get Recent Activity
+```
+GET /api/admin/txn-activity?filter=all&limit=50
+```
+
+Query parameters:
+- `filter`: `all`, `success`, `fraud`, or `failure`
+- `limit`: Number of records (default: 50)
+
+Response:
+```json
+{
+  "success": true,
+  "activities": [
+    {
+      "txn_id": "123456789012",
+      "ticket_number": "001",
+      "seller_name": "Marie Jean",
+      "seller_phone": "509-1234-5678",
+      "verification_time": "2026-01-05T14:30:00Z",
+      "status": "success",
+      "fraud_type": null,
+      "fraud_details": null
+    }
+  ],
+  "total": 1
+}
+```
+
+#### Get Statistics
+```
+GET /api/admin/txn-stats?period=today
+```
+
+Query parameters:
+- `period`: `today`, `week`, or `month`
+
+Response:
+```json
+{
+  "success": true,
+  "stats": {
+    "total": 50,
+    "successful": 45,
+    "fraud": 3,
+    "failed": 2,
+    "top_seller": "Marie Jean",
+    "top_seller_count": 12
+  }
+}
+```
+
+### Seller Dashboard Integration
+
+Sellers can register tickets with Txn IDs using the endpoint:
+
+```
+POST /api/tickets/register-with-txn
+```
+
+Request body:
+```json
+{
+  "txn_id": "123456789012",
+  "ticket_barcode": "00000001"
+}
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "message": "Ticket registered successfully",
+  "ticket": {
+    "ticket_number": "001",
+    "txn_id": "123456789012",
+    "seller": "Marie Jean",
+    "category": "VIP",
+    "registered_at": "2026-01-05T14:30:00.000Z"
+  }
+}
+```
+
+**Error Responses:**
+
+Duplicate Txn ID (Fraud):
+```json
+{
+  "error": "TXN_ALREADY_USED",
+  "message": "This Transaction ID has already been used for ticket 001",
+  "fraud_alert": true,
+  "details": {
+    "original_ticket": "001",
+    "assigned_by": "Marie Jean",
+    "assigned_at": "2026-01-05T14:30:00Z"
+  }
+}
+```
+
+Ticket Already Assigned (Fraud):
+```json
+{
+  "error": "TICKET_ALREADY_ASSIGNED",
+  "message": "This ticket is already assigned to Txn ID: 123456789012",
+  "fraud_alert": true
+}
+```
+
+### Database Schema
+
+The system uses two main database components for Txn ID tracking:
+
+**1. Tickets Table Enhancement:**
+- Added `txn_id` column to store the MonCash transaction ID
+- Indexed for fast lookups
+
+**2. Transaction Verification Log:**
+Table: `txn_verification_log`
+- `txn_id`: Transaction ID
+- `ticket_number`: Associated ticket
+- `seller_phone`: Seller's phone number
+- `seller_name`: Seller's name
+- `verification_time`: Timestamp of action
+- `status`: `success`, `fraud_attempt`, or `failure`
+- `fraud_type`: Type of fraud (if applicable)
+- `fraud_details`: JSON details about fraud
+- `error_type`: Type of error (if failed)
+- `error_message`: Error message
+
+### Best Practices
+
+1. **Multiple Admin Phones**: Configure multiple admin phone numbers for redundancy
+2. **Enable Selective Notifications**: Start with success and fraud alerts enabled, add failure notifications as needed
+3. **Review Fraud Alerts Immediately**: Investigate all fraud alerts to identify patterns
+4. **Export Activity Logs**: Periodically export logs for record-keeping
+5. **Monitor SMS Credits**: Ensure your SMS provider has sufficient credits
+6. **Test in Sandbox**: Test notification settings thoroughly before production use
+7. **Disable Hourly Summaries Initially**: Only enable hourly summaries if you prefer aggregated updates
+
+### Troubleshooting
+
+**No notifications received:**
+- Check `ADMIN_NOTIFICATION_PHONES` is set correctly
+- Verify `SMS_PROVIDER` is configured (twilio or custom)
+- Check notification toggles (`NOTIFY_SUCCESS`, `NOTIFY_FRAUD`, etc.)
+- Review server logs for SMS sending errors
+
+**Too many notifications:**
+- Set `NOTIFY_FAILURES=false` to reduce spam
+- Enable `SEND_HOURLY_SUMMARY=true` for aggregated updates
+- Adjust notification thresholds in code if needed
+
+**Fraud alerts not triggering:**
+- Verify `NOTIFY_FRAUD` is set to `true`
+- Check database has `txn_verification_log` table
+- Review server logs for fraud detection logic
+
 ## Support
 
 For issues or questions:

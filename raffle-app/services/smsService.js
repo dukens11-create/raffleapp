@@ -369,6 +369,173 @@ ${payment_status === 'pending' ? 'Action: Please review and approve in admin pan
 }
 
 /**
+ * Send Txn ID registration success notification to admin
+ */
+async function sendTxnSuccessNotification(txnData) {
+  const adminPhones = process.env.ADMIN_NOTIFICATION_PHONES?.split(',') || [];
+  if (adminPhones.length === 0) {
+    console.warn('⚠️  No admin phones configured for Txn success notifications');
+    return;
+  }
+  
+  // Check if success notifications are enabled
+  if (process.env.NOTIFY_SUCCESS === 'false') {
+    console.log('ℹ️  Success notifications are disabled');
+    return;
+  }
+  
+  const message = `✅ TICKET REGISTERED
+
+Seller: ${txnData.seller_name}
+Phone: ${txnData.seller_phone}
+Txn ID: ${txnData.txn_id}
+Ticket: ${txnData.ticket_number}
+Category: ${txnData.category || 'Standard'}
+Time: ${new Date().toLocaleString()}
+
+Total today: ${txnData.session_count || '-'}`;
+  
+  for (const phone of adminPhones) {
+    try {
+      await sendSMS(phone.trim(), message);
+      console.log(`✅ Success notification sent to ${phone}`);
+    } catch (err) {
+      console.error(`Failed to send success notification to ${phone}:`, err);
+    }
+  }
+}
+
+/**
+ * Send enhanced fraud alert with more details
+ */
+async function sendFraudAlert(fraudData) {
+  const adminPhones = process.env.ADMIN_NOTIFICATION_PHONES?.split(',') || [];
+  if (adminPhones.length === 0) {
+    console.warn('⚠️  No admin phones configured for fraud alerts');
+    return;
+  }
+  
+  // Check if fraud notifications are enabled
+  if (process.env.NOTIFY_FRAUD === 'false') {
+    console.log('ℹ️  Fraud notifications are disabled');
+    return;
+  }
+  
+  let message = `🚨 FRAUD ALERT
+
+Type: ${fraudData.fraud_type}
+Txn ID: ${fraudData.txn_id}
+Seller: ${fraudData.seller_name}
+Phone: ${fraudData.seller_phone}
+Time: ${new Date().toLocaleString()}
+
+`;
+
+  if (fraudData.fraud_type === 'DUPLICATE_TXN') {
+    message += `Original Ticket: ${fraudData.details.original_ticket}
+Original Seller: ${fraudData.details.original_seller || 'Unknown'}
+Attempted Ticket: ${fraudData.details.attempted_ticket}
+
+⚠️ This Txn ID was already used!`;
+  } else if (fraudData.fraud_type === 'TICKET_ALREADY_ASSIGNED') {
+    message += `Ticket: ${fraudData.details.ticket_number}
+Already has Txn: ${fraudData.details.existing_txn}
+
+⚠️ Ticket already registered!`;
+  }
+  
+  message += `\n\nReview admin panel immediately.`;
+  
+  for (const phone of adminPhones) {
+    try {
+      await sendSMS(phone.trim(), message);
+      console.log(`🚨 Fraud alert sent to ${phone}`);
+    } catch (err) {
+      console.error(`Failed to send fraud alert to ${phone}:`, err);
+    }
+  }
+}
+
+/**
+ * Send failed attempt notification (invalid format, payment issues)
+ */
+async function sendTxnFailureNotification(failureData) {
+  const adminPhones = process.env.ADMIN_NOTIFICATION_PHONES?.split(',') || [];
+  if (adminPhones.length === 0) {
+    console.warn('⚠️  No admin phones configured for failure notifications');
+    return;
+  }
+  
+  // Check if failure notifications are enabled
+  if (process.env.NOTIFY_FAILURES === 'false') {
+    console.log('ℹ️  Failure notifications are disabled');
+    return;
+  }
+  
+  // Only send for certain error types to avoid spam
+  const notifiableErrors = ['PAYMENT_NOT_FOUND', 'PAYMENT_NOT_APPROVED'];
+  if (!notifiableErrors.includes(failureData.error_type)) {
+    console.log(`ℹ️  Error type ${failureData.error_type} is not notifiable`);
+    return;
+  }
+  
+  const message = `⚠️ TXN ISSUE
+
+Seller: ${failureData.seller_name}
+Phone: ${failureData.seller_phone}
+Txn ID: ${failureData.txn_id}
+Error: ${failureData.error_message}
+Time: ${new Date().toLocaleString()}
+
+Seller may need assistance.`;
+  
+  for (const phone of adminPhones) {
+    try {
+      await sendSMS(phone.trim(), message);
+      console.log(`⚠️ Failure notification sent to ${phone}`);
+    } catch (err) {
+      console.error(`Failed to send failure notification to ${phone}:`, err);
+    }
+  }
+}
+
+/**
+ * Send hourly summary (optional - can be configured)
+ */
+async function sendHourlySummary(summaryData) {
+  const adminPhones = process.env.ADMIN_NOTIFICATION_PHONES?.split(',') || [];
+  if (adminPhones.length === 0) {
+    console.warn('⚠️  No admin phones configured for summaries');
+    return;
+  }
+  
+  // Check if hourly summaries are enabled
+  if (process.env.SEND_HOURLY_SUMMARY !== 'true') {
+    console.log('ℹ️  Hourly summaries are disabled');
+    return;
+  }
+  
+  const message = `📊 HOURLY SUMMARY
+
+Tickets Registered: ${summaryData.successful}
+Fraud Attempts: ${summaryData.fraud}
+Failed Attempts: ${summaryData.failed}
+
+Top Seller: ${summaryData.top_seller || 'N/A'}
+
+Period: ${summaryData.period}`;
+  
+  for (const phone of adminPhones) {
+    try {
+      await sendSMS(phone.trim(), message);
+      console.log(`📊 Summary sent to ${phone}`);
+    } catch (err) {
+      console.error(`Failed to send summary to ${phone}:`, err);
+    }
+  }
+}
+
+/**
  * Check if SMS service is configured
  */
 function isConfigured() {
@@ -394,5 +561,9 @@ module.exports = {
   sendPaymentApproved,
   sendPaymentRejected,
   notifyAdminsNewPayment,
-  isConfigured
+  isConfigured,
+  sendTxnSuccessNotification,
+  sendFraudAlert,
+  sendTxnFailureNotification,
+  sendHourlySummary
 };
