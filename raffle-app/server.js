@@ -2310,6 +2310,32 @@ app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req,
   }
 });
 
+// Analytics: Tickets by Category and Department (cross-tabulation)
+app.get('/analytics/tickets-by-category-department', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Get all approved payments with category and department information
+    const rows = await db.all(`
+      SELECT 
+        ticket_category as category,
+        buyer_department as department,
+        COUNT(*) as order_count,
+        SUM(ticket_quantity) as ticket_count,
+        SUM(amount) as total_revenue
+      FROM payments
+      WHERE payment_status = 'approved' 
+        AND ticket_category IS NOT NULL 
+        AND buyer_department IS NOT NULL
+      GROUP BY ticket_category, buyer_department
+      ORDER BY ticket_category, ticket_count DESC
+    `);
+    
+    res.json(rows);
+  } catch (err) {
+    console.error('Error in tickets-by-category-department:', err);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
 // ============================================================================
 // RAFFLE TICKET SYSTEM API ENDPOINTS
 // ============================================================================

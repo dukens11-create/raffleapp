@@ -628,6 +628,25 @@
       <canvas id="categoryChart" height="120"></canvas>
     </div>
     
+    <!-- Category x Department Analytics Section -->
+    <div class="section">
+      <h2 style="color:#1e293b;text-shadow:none;font-size:24px;font-weight:600;">
+        📊 Ticket Sales by Category & Department
+      </h2>
+      <p style="color:#64748b;margin-bottom:16px;">
+        Detailed breakdown of ticket sales across all categories and Haiti departments
+      </p>
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+        <button onclick="loadCategoryDepartmentData()" class="btn" style="background:#667eea;color:white;padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+          🔄 Refresh Data
+        </button>
+        <button onclick="exportCategoryDepartmentData()" class="btn" style="background:#10b981;color:white;padding:10px 20px;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+          📥 Export to Excel
+        </button>
+      </div>
+      <div id="categoryDepartmentTable" style="overflow-x:auto;"></div>
+    </div>
+    
     <!-- Scanner Modal -->
     <div id="scannerModal" class="scanner-modal">
       <div class="scanner-content">
@@ -1331,6 +1350,93 @@
                                 }).catch(err => console.error('Error loading category chart:', err));
                               }, 1000); // 1 second delay to prioritize other content
                             });
+                            
+                            // Category x Department Analytics Functions
+                            let categoryDepartmentData = [];
+                            
+                            async function loadCategoryDepartmentData() {
+                              try {
+                                const response = await fetch('/analytics/tickets-by-category-department');
+                                const data = await response.json();
+                                categoryDepartmentData = data;
+                                
+                                if (data.length === 0) {
+                                  document.getElementById('categoryDepartmentTable').innerHTML = 
+                                    '<p style="color:#64748b;text-align:center;padding:40px;">No data available yet. Sales data will appear once customers complete purchases.</p>';
+                                  return;
+                                }
+                                
+                                // Build table
+                                let html = `
+                                  <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;">
+                                    <thead>
+                                      <tr style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;">
+                                        <th style="padding:12px;text-align:left;">Category</th>
+                                        <th style="padding:12px;text-align:left;">Department</th>
+                                        <th style="padding:12px;text-align:center;">Orders</th>
+                                        <th style="padding:12px;text-align:center;">Tickets Sold</th>
+                                        <th style="padding:12px;text-align:right;">Revenue</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                `;
+                                
+                                data.forEach((row, index) => {
+                                  const bgColor = index % 2 === 0 ? '#f9fafb' : 'white';
+                                  html += `
+                                    <tr style="background:${bgColor};">
+                                      <td style="padding:12px;border-bottom:1px solid #e5e7eb;"><strong>${row.category || 'N/A'}</strong></td>
+                                      <td style="padding:12px;border-bottom:1px solid #e5e7eb;">${row.department || 'N/A'}</td>
+                                      <td style="padding:12px;text-align:center;border-bottom:1px solid #e5e7eb;">${row.order_count || 0}</td>
+                                      <td style="padding:12px;text-align:center;border-bottom:1px solid #e5e7eb;">${row.ticket_count || 0}</td>
+                                      <td style="padding:12px;text-align:right;border-bottom:1px solid #e5e7eb;">$${parseFloat(row.total_revenue || 0).toFixed(2)}</td>
+                                    </tr>
+                                  `;
+                                });
+                                
+                                html += '</tbody></table>';
+                                document.getElementById('categoryDepartmentTable').innerHTML = html;
+                                
+                              } catch (error) {
+                                console.error('Error loading category-department data:', error);
+                                document.getElementById('categoryDepartmentTable').innerHTML = 
+                                  '<p style="color:#ef4444;text-align:center;padding:20px;">Error loading data. Please try again.</p>';
+                              }
+                            }
+                            
+                            function exportCategoryDepartmentData() {
+                              if (categoryDepartmentData.length === 0) {
+                                alert('No data to export. Please load data first.');
+                                return;
+                              }
+                              
+                              // Prepare data for Excel export
+                              const exportData = categoryDepartmentData.map(row => ({
+                                'Category': row.category || 'N/A',
+                                'Department': row.department || 'N/A',
+                                'Orders': row.order_count || 0,
+                                'Tickets Sold': row.ticket_count || 0,
+                                'Revenue': parseFloat(row.total_revenue || 0).toFixed(2)
+                              }));
+                              
+                              // Create workbook
+                              const ws = XLSX.utils.json_to_sheet(exportData);
+                              const wb = XLSX.utils.book_new();
+                              XLSX.utils.book_append_sheet(wb, ws, 'Category x Department');
+                              
+                              // Generate filename with timestamp
+                              const timestamp = new Date().toISOString().slice(0, 10);
+                              const filename = `ticket_sales_by_category_department_${timestamp}.xlsx`;
+                              
+                              // Download file
+                              XLSX.writeFile(wb, filename);
+                            }
+                            
+                            // Load data on page load
+                            document.addEventListener('DOMContentLoaded', function() {
+                              loadCategoryDepartmentData();
+                            });
+                            
                             // Bulk delete tickets and users
                             document.addEventListener('DOMContentLoaded', function() {
                               if (document.getElementById('select-all-tickets')) {
