@@ -62,6 +62,29 @@ class Mutex {
 // Create mutex for ticket generation to prevent race conditions
 const ticketGenerationMutex = new Mutex();
 
+// Haiti Departments - Valid department values
+const HAITI_DEPARTMENTS = [
+  'Ouest',
+  'Sud',
+  'Nord',
+  'Artibonite',
+  'Centre',
+  "Grand'Anse",
+  'Nippes',
+  'Nord-Est',
+  'Nord-Ouest',
+  'Sud-Est'
+];
+
+/**
+ * Validate Haiti department
+ * @param {string} department - Department name to validate
+ * @returns {boolean} - True if valid department
+ */
+function isValidDepartment(department) {
+  return department && HAITI_DEPARTMENTS.includes(department);
+}
+
 // Load environment variables
 require('dotenv').config();
 
@@ -1775,6 +1798,114 @@ app.get('/api/seller-stats', requireAuth, requireAdmin, async (req, res) => {
     res.json(rows);
   } catch (err) {
     return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+/**
+ * GET /api/departments - Get list of Haiti departments
+ * Public endpoint to get the valid department options
+ */
+app.get('/api/departments', async (req, res) => {
+  res.json({
+    success: true,
+    departments: HAITI_DEPARTMENTS
+  });
+});
+
+/**
+ * GET /api/seller/department-stats - Get department statistics for a seller
+ * Returns ticket sales breakdown by Haiti department for the logged-in seller
+ */
+app.get('/api/seller/department-stats', requireAuth, async (req, res) => {
+  try {
+    const sellerPhone = req.session.user.phone;
+    
+    // Get department statistics for this seller's sales
+    const stats = await db.all(`
+      SELECT 
+        customer_department,
+        COUNT(*) as ticket_count,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE seller_phone = ? 
+        AND status = 'SOLD'
+        AND customer_department IS NOT NULL
+      GROUP BY customer_department
+      ORDER BY ticket_count DESC
+    `, [sellerPhone]);
+    
+    // Calculate total tickets sold by this seller
+    const total = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE seller_phone = ? AND status = 'SOLD'
+    `, [sellerPhone]);
+    
+    // Add percentage to each department
+    const statsWithPercentage = stats.map(dept => ({
+      ...dept,
+      percentage: total.total_tickets > 0 
+        ? Math.round((dept.ticket_count / total.total_tickets) * 100) 
+        : 0
+    }));
+    
+    res.json({
+      success: true,
+      departments: statsWithPercentage,
+      total: total
+    });
+  } catch (error) {
+    console.error('Error getting department stats:', error);
+    res.status(500).json({ error: 'Failed to get department statistics' });
+  }
+});
+
+/**
+ * GET /api/admin/department-stats - Get system-wide department statistics
+ * Admin-only endpoint for viewing all department statistics across all sellers
+ */
+app.get('/api/admin/department-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Get department statistics for all sales
+    const stats = await db.all(`
+      SELECT 
+        customer_department,
+        COUNT(*) as ticket_count,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE status = 'SOLD'
+        AND customer_department IS NOT NULL
+      GROUP BY customer_department
+      ORDER BY ticket_count DESC
+    `);
+    
+    // Calculate total tickets sold system-wide
+    const total = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE status = 'SOLD'
+    `);
+    
+    // Add percentage to each department
+    const statsWithPercentage = stats.map(dept => ({
+      ...dept,
+      percentage: total.total_tickets > 0 
+        ? Math.round((dept.ticket_count / total.total_tickets) * 100) 
+        : 0
+    }));
+    
+    res.json({
+      success: true,
+      departments: statsWithPercentage,
+      total: total
+    });
+  } catch (error) {
+    console.error('Error getting department stats:', error);
+    res.status(500).json({ error: 'Failed to get department statistics' });
   }
 });
 
@@ -4795,7 +4926,9 @@ app.post('/api/payments/moncash/initiate', [
   body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
   body('buyer_email').optional().isEmail().withMessage('Valid email required'),
   body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
-  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required')
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -4803,7 +4936,7 @@ app.post('/api/payments/moncash/initiate', [
   }
   
   try {
-    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity } = req.body;
+    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity, customer_department } = req.body;
     
     // Get active raffle
     const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
@@ -4820,13 +4953,13 @@ app.post('/api/payments/moncash/initiate', [
         raffle_id, payment_reference, payment_method, payment_type,
         amount, buyer_name, buyer_email, buyer_phone,
         ticket_category, ticket_quantity, payment_status,
-        payment_provider, payment_mode
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        payment_provider, payment_mode, customer_department
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       raffle.id, paymentReference, 'MonCash', 'automated',
       amount, buyer_name, buyer_email, buyer_phone,
       ticket_category, ticket_quantity, 'pending',
-      'moncash', paymentService.MONCASH_CONFIG.mode
+      'moncash', paymentService.MONCASH_CONFIG.mode, customer_department
     ]);
     
     // Initiate MonCash payment
@@ -4864,7 +4997,9 @@ app.post('/api/payments/natcash/initiate', [
   body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
   body('buyer_email').optional().isEmail().withMessage('Valid email required'),
   body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
-  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required')
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -4872,7 +5007,7 @@ app.post('/api/payments/natcash/initiate', [
   }
   
   try {
-    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity } = req.body;
+    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity, customer_department } = req.body;
     
     // Get active raffle
     const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
@@ -4889,13 +5024,13 @@ app.post('/api/payments/natcash/initiate', [
         raffle_id, payment_reference, payment_method, payment_type,
         amount, buyer_name, buyer_email, buyer_phone,
         ticket_category, ticket_quantity, payment_status,
-        payment_provider, payment_mode
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        payment_provider, payment_mode, customer_department
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       raffle.id, paymentReference, 'NatCash', 'automated',
       amount, buyer_name, buyer_email, buyer_phone,
       ticket_category, ticket_quantity, 'pending',
-      'natcash', paymentService.NATCASH_CONFIG.mode
+      'natcash', paymentService.NATCASH_CONFIG.mode, customer_department
     ]);
     
     // Initiate NatCash payment
@@ -4937,7 +5072,9 @@ app.post('/api/payments/manual/submit', [
   body('buyer_email').optional().isEmail().withMessage('Valid email required'),
   body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
   body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
-  body('transaction_reference').trim().notEmpty().withMessage('Transaction reference required')
+  body('transaction_reference').trim().notEmpty().withMessage('Transaction reference required'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -4947,7 +5084,7 @@ app.post('/api/payments/manual/submit', [
   try {
     const { 
       payment_method, amount, buyer_name, buyer_phone, buyer_email, 
-      ticket_category, ticket_quantity, transaction_reference, notes 
+      ticket_category, ticket_quantity, transaction_reference, notes, customer_department 
     } = req.body;
     
     // Get active raffle
@@ -4965,15 +5102,15 @@ app.post('/api/payments/manual/submit', [
         raffle_id, payment_reference, payment_method, payment_type,
         amount, buyer_name, buyer_email, buyer_phone,
         ticket_category, ticket_quantity, payment_status,
-        external_reference, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        external_reference, notes, customer_department
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       raffle.id, paymentReference, 
       payment_method === 'moncash' ? 'MonCash (Manual)' : 'NatCash (Manual)', 
       'manual',
       amount, buyer_name, buyer_email, buyer_phone,
       ticket_category, ticket_quantity, 'pending',
-      transaction_reference, notes
+      transaction_reference, notes, customer_department
     ]);
     
     // Send SMS notifications
@@ -5152,13 +5289,17 @@ app.post('/api/admin/payments/approve', requireAuth, requireAdmin, [
             buyer_email = ?,
             payment_method = ?,
             payment_verified = ${db.USE_POSTGRES ? 'TRUE' : '1'},
-            sold_at = CURRENT_TIMESTAMP
+            sold_at = CURRENT_TIMESTAMP,
+            customer_department = ?,
+            payment_reference = ?
         WHERE ticket_number = ?
       `, [
         payment.buyer_name,
         payment.buyer_phone,
         payment.buyer_email,
         payment.payment_method,
+        payment.customer_department,
+        payment_reference,
         ticket.ticket_number
       ]);
     }

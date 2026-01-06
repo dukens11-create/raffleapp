@@ -249,6 +249,7 @@ async function initializeSchema() {
         is_winner ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'FALSE' : '0'},
         prize_level TEXT,
         won_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        customer_department TEXT,
         created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
       )
     `);
@@ -413,6 +414,7 @@ async function initializeSchema() {
         rejection_reason TEXT,
         ticket_numbers TEXT,
         notes TEXT,
+        customer_department TEXT,
         created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
         updated_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
       )
@@ -494,6 +496,46 @@ async function initializeSchema() {
       console.log('✅ Added seller_name column to payments table');
     } catch (error) {
       console.log('Note: seller_name column already exists or could not be added');
+    }
+    
+    // Add customer_department column to tickets table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS customer_department TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasCustomerDepartment = columns.some(col => col.name === 'customer_department');
+        if (!hasCustomerDepartment) {
+          await run(`ALTER TABLE tickets ADD COLUMN customer_department TEXT`);
+        }
+      }
+      console.log('✅ Added customer_department column to tickets table');
+    } catch (error) {
+      console.log('Note: customer_department column already exists or could not be added');
+    }
+    
+    // Add customer_department column to payments table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE payments 
+          ADD COLUMN IF NOT EXISTS customer_department TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(payments)`);
+        const hasCustomerDepartment = columns.some(col => col.name === 'customer_department');
+        if (!hasCustomerDepartment) {
+          await run(`ALTER TABLE payments ADD COLUMN customer_department TEXT`);
+        }
+      }
+      console.log('✅ Added customer_department column to payments table');
+    } catch (error) {
+      console.log('Note: customer_department column already exists or could not be added');
     }
     
     // Add fit_mode column if it doesn't exist (for existing databases)
