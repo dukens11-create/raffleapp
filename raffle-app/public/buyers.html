@@ -795,6 +795,23 @@
           </div>
           
           <div class="form-group">
+            <label for="purchase-department">
+              <span class="lang-en">Department *</span>
+              <span class="lang-ht" style="display: none;">Depatman *</span>
+            </label>
+            <select id="purchase-department" required>
+              <option value="">
+                <span class="lang-en">Select your department...</span>
+                <span class="lang-ht" style="display: none;">Chwazi depatman ou...</span>
+              </option>
+            </select>
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+              <span class="lang-en">Which department are you from?</span>
+              <span class="lang-ht" style="display: none;">Ki depatman ou soti?</span>
+            </p>
+          </div>
+          
+          <div class="form-group">
             <label for="purchase-email">Email Address</label>
             <input type="email" id="purchase-email" placeholder="your@email.com">
             <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
@@ -1363,9 +1380,37 @@
         categorySelect.appendChild(option);
       });
       
+      // Load and populate departments
+      await loadDepartments();
+      
       // Add event listeners
       categorySelect.addEventListener('change', updateTotalAmount);
       document.getElementById('purchase-quantity').addEventListener('input', updateTotalAmount);
+    }
+    
+    // Load Haiti departments
+    async function loadDepartments() {
+      try {
+        const response = await fetch('/api/departments');
+        const data = await response.json();
+        
+        if (!response.ok || !data.success) {
+          console.error('Failed to load departments');
+          return;
+        }
+        
+        const departmentSelect = document.getElementById('purchase-department');
+        departmentSelect.innerHTML = '<option value="">Select your department...</option>';
+        
+        data.departments.forEach(dept => {
+          const option = document.createElement('option');
+          option.value = dept;
+          option.textContent = dept;
+          departmentSelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading departments:', error);
+      }
     }
     
     // Proceed to payment method selection
@@ -1374,6 +1419,7 @@
       const name = document.getElementById('purchase-name').value.trim();
       const phone = document.getElementById('purchase-phone').value.trim();
       const email = document.getElementById('purchase-email').value.trim();
+      const department = document.getElementById('purchase-department').value;
       const category = document.getElementById('purchase-category').value;
       const quantity = parseInt(document.getElementById('purchase-quantity').value);
       
@@ -1388,6 +1434,12 @@
       
       if (!phone) {
         errorEl.textContent = 'Please enter your phone number';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      if (!department) {
+        errorEl.textContent = 'Please select your department';
         errorEl.classList.add('show');
         return;
       }
@@ -1413,6 +1465,7 @@
         name: name,
         phone: phone,
         email: email,
+        department: department,
         category: category,
         categoryName: selectedCategory.category_name || selectedCategory.category_code,
         quantity: quantity,
@@ -1694,7 +1747,8 @@
             buyer_phone: purchaseData.phone,
             buyer_email: purchaseData.email,
             ticket_category: purchaseData.category,
-            ticket_quantity: purchaseData.quantity
+            ticket_quantity: purchaseData.quantity,
+            customer_department: purchaseData.department
           })
         });
         
@@ -1734,7 +1788,8 @@
             buyer_phone: purchaseData.phone,
             buyer_email: purchaseData.email,
             ticket_category: purchaseData.category,
-            ticket_quantity: purchaseData.quantity
+            ticket_quantity: purchaseData.quantity,
+            customer_department: purchaseData.department
           })
         });
         
@@ -1787,7 +1842,8 @@
             ticket_category: purchaseData.category,
             ticket_quantity: purchaseData.quantity,
             transaction_reference: reference,
-            notes: notes
+            notes: notes,
+            customer_department: purchaseData.department
           })
         });
         
