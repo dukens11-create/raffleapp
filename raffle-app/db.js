@@ -496,6 +496,26 @@ async function initializeSchema() {
       console.log('Note: seller_name column already exists or could not be added');
     }
     
+    // Add buyer_department column to payments table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE payments 
+          ADD COLUMN IF NOT EXISTS buyer_department TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(payments)`);
+        const hasBuyerDepartment = columns.some(col => col.name === 'buyer_department');
+        if (!hasBuyerDepartment) {
+          await run(`ALTER TABLE payments ADD COLUMN buyer_department TEXT`);
+        }
+      }
+      console.log('✅ Added buyer_department column to payments table');
+    } catch (error) {
+      console.log('Note: buyer_department column already exists or could not be added');
+    }
+    
     // Add fit_mode column if it doesn't exist (for existing databases)
     try {
       if (USE_POSTGRES) {

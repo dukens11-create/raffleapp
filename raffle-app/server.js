@@ -1652,26 +1652,49 @@ app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
 // API: Get ticket statistics
 app.get('/api/stats', requireAuth, async (req, res) => {
   try {
-    let ticketQuery, revenueQuery;
+    let ticketQuery, revenueQuery, departmentQuery;
     let params = [];
     
     if (req.session.user.role === 'admin') {
       ticketQuery = "SELECT COUNT(*) as total FROM tickets";
       revenueQuery = "SELECT SUM(amount) as total FROM tickets";
+      departmentQuery = `
+        SELECT buyer_department, COUNT(*) as ticket_count, SUM(ticket_quantity) as total_tickets
+        FROM payments 
+        WHERE payment_status = 'approved' AND buyer_department IS NOT NULL
+        GROUP BY buyer_department
+        ORDER BY total_tickets DESC
+      `;
     } else {
       ticketQuery = "SELECT COUNT(*) as total FROM tickets WHERE seller_phone = ?";
       revenueQuery = "SELECT SUM(amount) as total FROM tickets WHERE seller_phone = ?";
+      departmentQuery = `
+        SELECT buyer_department, COUNT(*) as ticket_count, SUM(ticket_quantity) as total_tickets
+        FROM payments 
+        WHERE payment_status = 'approved' AND buyer_department IS NOT NULL AND seller_name = ?
+        GROUP BY buyer_department
+        ORDER BY total_tickets DESC
+      `;
       params = [req.session.user.phone];
     }
     
     const ticketRow = await db.get(ticketQuery, params);
     const revenueRow = await db.get(revenueQuery, params);
     
+    // Get department breakdown
+    let departmentParams = [];
+    if (req.session.user.role !== 'admin') {
+      departmentParams = [req.session.user.name];
+    }
+    const departmentRows = await db.all(departmentQuery, departmentParams);
+    
     res.json({
       totalTickets: ticketRow.total || 0,
-      totalRevenue: revenueRow.total || 0
+      totalRevenue: revenueRow.total || 0,
+      departmentBreakdown: departmentRows || []
     });
   } catch (err) {
+    console.error('Stats API error:', err);
     return res.status(500).json({ error: 'Database error' });
   }
 });
@@ -4794,6 +4817,7 @@ app.post('/api/payments/moncash/initiate', [
   body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
   body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
   body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('buyer_department').trim().notEmpty().withMessage('Buyer department required'),
   body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
   body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required')
 ], async (req, res) => {
@@ -4803,7 +4827,7 @@ app.post('/api/payments/moncash/initiate', [
   }
   
   try {
-    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity } = req.body;
+    const { amount, buyer_name, buyer_phone, buyer_email, buyer_department, ticket_category, ticket_quantity } = req.body;
     
     // Get active raffle
     const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
@@ -4818,13 +4842,13 @@ app.post('/api/payments/moncash/initiate', [
     await db.run(`
       INSERT INTO payments (
         raffle_id, payment_reference, payment_method, payment_type,
-        amount, buyer_name, buyer_email, buyer_phone,
+        amount, buyer_name, buyer_email, buyer_phone, buyer_department,
         ticket_category, ticket_quantity, payment_status,
         payment_provider, payment_mode
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       raffle.id, paymentReference, 'MonCash', 'automated',
-      amount, buyer_name, buyer_email, buyer_phone,
+      amount, buyer_name, buyer_email, buyer_phone, buyer_department,
       ticket_category, ticket_quantity, 'pending',
       'moncash', paymentService.MONCASH_CONFIG.mode
     ]);
@@ -4863,6 +4887,7 @@ app.post('/api/payments/natcash/initiate', [
   body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
   body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
   body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('buyer_department').trim().notEmpty().withMessage('Buyer department required'),
   body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
   body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required')
 ], async (req, res) => {
@@ -4872,7 +4897,7 @@ app.post('/api/payments/natcash/initiate', [
   }
   
   try {
-    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity } = req.body;
+    const { amount, buyer_name, buyer_phone, buyer_email, buyer_department, ticket_category, ticket_quantity } = req.body;
     
     // Get active raffle
     const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
@@ -4887,13 +4912,13 @@ app.post('/api/payments/natcash/initiate', [
     await db.run(`
       INSERT INTO payments (
         raffle_id, payment_reference, payment_method, payment_type,
-        amount, buyer_name, buyer_email, buyer_phone,
+        amount, buyer_name, buyer_email, buyer_phone, buyer_department,
         ticket_category, ticket_quantity, payment_status,
         payment_provider, payment_mode
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       raffle.id, paymentReference, 'NatCash', 'automated',
-      amount, buyer_name, buyer_email, buyer_phone,
+      amount, buyer_name, buyer_email, buyer_phone, buyer_department,
       ticket_category, ticket_quantity, 'pending',
       'natcash', paymentService.NATCASH_CONFIG.mode
     ]);
@@ -4935,6 +4960,7 @@ app.post('/api/payments/manual/submit', [
   body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
   body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
   body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('buyer_department').trim().notEmpty().withMessage('Buyer department required'),
   body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
   body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
   body('transaction_reference').trim().notEmpty().withMessage('Transaction reference required')
@@ -4946,7 +4972,7 @@ app.post('/api/payments/manual/submit', [
   
   try {
     const { 
-      payment_method, amount, buyer_name, buyer_phone, buyer_email, 
+      payment_method, amount, buyer_name, buyer_phone, buyer_email, buyer_department,
       ticket_category, ticket_quantity, transaction_reference, notes 
     } = req.body;
     
@@ -4963,15 +4989,15 @@ app.post('/api/payments/manual/submit', [
     await db.run(`
       INSERT INTO payments (
         raffle_id, payment_reference, payment_method, payment_type,
-        amount, buyer_name, buyer_email, buyer_phone,
+        amount, buyer_name, buyer_email, buyer_phone, buyer_department,
         ticket_category, ticket_quantity, payment_status,
         external_reference, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       raffle.id, paymentReference, 
       payment_method === 'moncash' ? 'MonCash (Manual)' : 'NatCash (Manual)', 
       'manual',
-      amount, buyer_name, buyer_email, buyer_phone,
+      amount, buyer_name, buyer_email, buyer_phone, buyer_department,
       ticket_category, ticket_quantity, 'pending',
       transaction_reference, notes
     ]);

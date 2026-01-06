@@ -517,6 +517,14 @@
             </div>
         </div>
 
+        <!-- Department Statistics Section -->
+        <div class="card" style="background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;">
+            <h2 style="margin-bottom: 15px; color: #333; font-size: 20px;">📍 Tickets by Department (Haiti)</h2>
+            <div id="departmentStats">
+                <p style="color: #666;">Loading department statistics...</p>
+            </div>
+        </div>
+
         <!-- Transaction ID Verification Section (Step 1) -->
         <div class="txn-verification-section">
             <h2>💳 Step 1: Verify Payment</h2>
@@ -959,8 +967,44 @@
                 
                 document.getElementById('ticketsSold').textContent = data.totalTickets || 0;
                 document.getElementById('totalRevenue').textContent = (data.totalRevenue || 0).toFixed(2);
+                
+                // Display department breakdown
+                const departmentStatsDiv = document.getElementById('departmentStats');
+                if (data.departmentBreakdown && data.departmentBreakdown.length > 0) {
+                    let tableHtml = `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                                    <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">Department</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Tickets Sold</th>
+                                    <th style="padding: 12px; text-align: center; border-bottom: 2px solid #ddd;">Orders</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    data.departmentBreakdown.forEach((dept, index) => {
+                        const bgColor = index % 2 === 0 ? '#f9fafb' : 'white';
+                        tableHtml += `
+                            <tr style="background: ${bgColor};">
+                                <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;"><strong>${dept.buyer_department}</strong></td>
+                                <td style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">${dept.total_tickets || 0}</td>
+                                <td style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb;">${dept.ticket_count || 0}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHtml += `
+                            </tbody>
+                        </table>
+                    `;
+                    departmentStatsDiv.innerHTML = tableHtml;
+                } else {
+                    departmentStatsDiv.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">No department data available yet. Data will appear once customers complete purchases.</p>';
+                }
             } catch (error) {
                 console.error('Error loading stats:', error);
+                document.getElementById('departmentStats').innerHTML = '<p style="color: #ef4444;">Error loading department statistics</p>';
             }
         }
         
