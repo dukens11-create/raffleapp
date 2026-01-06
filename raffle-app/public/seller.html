@@ -286,6 +286,42 @@
             opacity: 0.5;
         }
 
+        .dept-stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .dept-stats-table th,
+        .dept-stats-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .dept-stats-table th {
+            background: #f9fafb;
+            color: #666;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .dept-stats-table td {
+            color: #333;
+        }
+
+        .dept-progress-bar {
+            background: #e5e7eb;
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .dept-progress-fill {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -514,6 +550,19 @@
             <div class="stat-card">
                 <div class="stat-label">Total Revenue</div>
                 <div class="stat-value currency" id="totalRevenue">0</div>
+            </div>
+        </div>
+
+        <!-- Department Statistics Section -->
+        <div class="main-content" style="margin-top: 20px;">
+            <h2 style="color: #333; font-size: 20px; margin-bottom: 16px;">📍 Sales by Department</h2>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+                See which Haiti departments your customers are from
+            </p>
+            <div id="departmentStats">
+                <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                    Loading department statistics...
+                </div>
             </div>
         </div>
 
@@ -959,8 +1008,88 @@
                 
                 document.getElementById('ticketsSold').textContent = data.totalTickets || 0;
                 document.getElementById('totalRevenue').textContent = (data.totalRevenue || 0).toFixed(2);
+                
+                // Load department statistics
+                loadDepartmentStats();
             } catch (error) {
                 console.error('Error loading stats:', error);
+            }
+        }
+        
+        // Load Department Statistics
+        async function loadDepartmentStats() {
+            const container = document.getElementById('departmentStats');
+            
+            try {
+                const response = await fetch('/api/seller/department-stats');
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error('Failed to load department statistics');
+                }
+                
+                if (!data.departments || data.departments.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">📍</div>
+                            <h3 style="color: #64748b; font-size: 16px; margin-bottom: 8px;">No Department Data Yet</h3>
+                            <p style="color: #94a3b8; font-size: 14px;">Department statistics will appear here once you start selling tickets.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Build table
+                let tableHTML = `
+                    <table class="dept-stats-table">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>Tickets</th>
+                                <th>Revenue</th>
+                                <th>Percentage</th>
+                                <th>Distribution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                data.departments.forEach(dept => {
+                    tableHTML += `
+                        <tr>
+                            <td><strong>${dept.customer_department}</strong></td>
+                            <td>${dept.ticket_count}</td>
+                            <td>$${parseFloat(dept.total_revenue || 0).toFixed(2)}</td>
+                            <td><strong>${dept.percentage}%</strong></td>
+                            <td>
+                                <div class="dept-progress-bar">
+                                    <div class="dept-progress-fill" style="width: ${dept.percentage}%"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += `
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 16px; padding: 12px; background: #f1f5f9; border-radius: 8px;">
+                        <p style="color: #64748b; font-size: 14px; margin: 0;">
+                            <strong>Total Sales:</strong> ${data.total.total_tickets} tickets • 
+                            <strong>Total Revenue:</strong> $${parseFloat(data.total.total_revenue || 0).toFixed(2)}
+                        </p>
+                    </div>
+                `;
+                
+                container.innerHTML = tableHTML;
+                
+            } catch (error) {
+                console.error('Error loading department stats:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <p>Failed to load department statistics</p>
+                    </div>
+                `;
             }
         }
         
