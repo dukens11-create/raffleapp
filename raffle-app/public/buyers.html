@@ -943,10 +943,41 @@
   </div>
   
   <script>
+    // ============================================================================
+    // UTILITY FUNCTIONS
+    // ============================================================================
+    
+    // Fetch with timeout wrapper to prevent infinite loading
+    async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+          throw new Error('Request timeout - please check your connection and try again');
+        }
+        throw error;
+      }
+    }
+    
+    // ============================================================================
+    // TAB SWITCHING
+    // ============================================================================
+    
     // Tab switching
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const tabName = tab.dataset.tab;
+        
+        console.log('[Buyers] Tab switched to:', tabName);
         
         // Update active tab
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -959,16 +990,25 @@
         document.getElementById(tabName).classList.add('active');
         
         // Load content for the tab if needed
-        if (tabName === 'raffle-info' && !window.raffleInfoLoaded) {
+        if (tabName === 'raffle-info' && !raffleData) {
+          console.log('[Buyers] Loading raffle info for first time...');
           loadRaffleInfo();
         } else if (tabName === 'available-tickets' && !window.availableTicketsLoaded) {
+          console.log('[Buyers] Loading available tickets...');
           loadAvailableTickets();
-        } else if (tabName === 'purchase' && !window.purchaseTabLoaded) {
-          populatePurchaseCategories();
-          window.purchaseTabLoaded = true;
+        } else if (tabName === 'purchase') {
+          console.log('[Buyers] Initializing purchase form...');
+          if (!window.purchaseTabLoaded) {
+            populatePurchaseCategories();
+            window.purchaseTabLoaded = true;
+          }
         }
       });
     });
+    
+    // ============================================================================
+    // RAFFLE INFO FUNCTIONS
+    // ============================================================================
     
     // Load raffle info
     let currentPage = 1;
@@ -977,20 +1017,30 @@
     const CACHE_DURATION = 60000; // Cache for 60 seconds
     
     async function loadRaffleInfo(forceRefresh = false) {
+      const container = document.getElementById('raffle-info-content');
+      
       try {
+        // Show loading state
+        container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading raffle information...</p></div>';
+        
+        console.log('[Buyers] Loading raffle info...');
+        
         // Use cached data if available and not expired
         const now = Date.now();
         if (!forceRefresh && raffleData && (now - raffleCacheTime) < CACHE_DURATION) {
-          // Render from cache
+          console.log('[Buyers] Using cached raffle data');
           renderRaffleInfo(raffleData);
           return;
         }
         
-        const response = await fetch('/api/public/raffle-info');
+        // Fetch with timeout
+        const response = await fetchWithTimeout('/api/public/raffle-info', {}, 10000);
         const data = await response.json();
         
+        console.log('[Buyers] Raffle info loaded:', data);
+        
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to load raffle info');
+          throw new Error(data.error || 'Failed to load raffle information');
         }
         
         // Cache the data for reuse
@@ -1001,11 +1051,17 @@
         
         window.raffleInfoLoaded = true;
       } catch (error) {
-        document.getElementById('raffle-info-content').innerHTML = `
+        console.error('[Buyers] Error loading raffle info:', error);
+        
+        // Show error with retry button
+        container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Raffle Information</h3>
-            <p>${error.message}</p>
+            <p style="margin-bottom: 16px;">${error.message || 'Please check your internet connection and try again.'}</p>
+            <button class="btn btn-primary" onclick="loadRaffleInfo(true)" style="display: inline-block;">
+              🔄 Retry
+            </button>
           </div>
         `;
       }
@@ -1074,19 +1130,26 @@
     
     // Load available tickets
     async function loadAvailableTickets(page = 1) {
+      const container = document.getElementById('available-tickets-content');
+      
       try {
+        // Show loading state
+        container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading available tickets...</p></div>';
+        
+        console.log('[Buyers] Loading available tickets, page:', page);
+        
         currentPage = page;
         const category = document.getElementById('category-filter').value;
         const url = `/api/public/available-tickets?page=${page}&limit=50${category ? '&category=' + category : ''}`;
         
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url, {}, 10000);
         const data = await response.json();
+        
+        console.log('[Buyers] Available tickets loaded:', data);
         
         if (!response.ok) {
           throw new Error(data.error || 'Failed to load tickets');
         }
-        
-        const container = document.getElementById('available-tickets-content');
         
         if (data.tickets.length === 0) {
           container.innerHTML = `
@@ -1138,11 +1201,15 @@
         
         window.availableTicketsLoaded = true;
       } catch (error) {
-        document.getElementById('available-tickets-content').innerHTML = `
+        console.error('[Buyers] Error loading available tickets:', error);
+        container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Tickets</h3>
-            <p>${error.message}</p>
+            <p style="margin-bottom: 16px;">${error.message}</p>
+            <button class="btn btn-primary" onclick="loadAvailableTickets(${page})" style="display: inline-block;">
+              🔄 Retry
+            </button>
           </div>
         `;
       }
@@ -1169,15 +1236,18 @@
       }
       
       try {
+        console.log('[Buyers] Looking up tickets with:', { email, phone, code });
         resultsEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching for your tickets...</p></div>';
         
-        const response = await fetch('/api/public/my-tickets', {
+        const response = await fetchWithTimeout('/api/public/my-tickets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, phone, buyer_code: code })
-        });
+        }, 10000);
         
         const data = await response.json();
+        
+        console.log('[Buyers] Ticket lookup result:', data);
         
         if (!response.ok) {
           throw new Error(data.error || 'Failed to lookup tickets');
@@ -1227,6 +1297,7 @@
           </div>
         `;
       } catch (error) {
+        console.error('[Buyers] Error looking up tickets:', error);
         resultsEl.innerHTML = '';
         errorEl.textContent = error.message;
         errorEl.classList.add('show');
@@ -1249,10 +1320,13 @@
       }
       
       try {
+        console.log('[Buyers] Verifying ticket:', ticketNumber);
         resultEl.innerHTML = '<div class="loading"><div class="spinner"></div><p>Verifying ticket...</p></div>';
         
-        const response = await fetch(`/api/public/verify-ticket/${encodeURIComponent(ticketNumber)}`);
+        const response = await fetchWithTimeout(`/api/public/verify-ticket/${encodeURIComponent(ticketNumber)}`, {}, 10000);
         const data = await response.json();
+        
+        console.log('[Buyers] Ticket verification result:', data);
         
         if (!data.valid) {
           resultEl.innerHTML = `
@@ -1295,6 +1369,7 @@
           </div>
         `;
       } catch (error) {
+        console.error('[Buyers] Error verifying ticket:', error);
         resultEl.innerHTML = '';
         errorEl.textContent = error.message || 'Failed to verify ticket. Please try again.';
         errorEl.classList.add('show');
@@ -1303,18 +1378,29 @@
     
     // Load raffle info and populate category filter on page load
     async function init() {
-      await loadRaffleInfo();
+      console.log('[Buyers] Initializing page...');
       
-      // Populate category filter from cached raffle data
-      if (raffleData && raffleData.categories) {
-        const categoryFilter = document.getElementById('category-filter');
-        raffleData.categories.forEach(cat => {
-          const option = document.createElement('option');
-          option.value = cat.category_code;
-          option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
-          categoryFilter.appendChild(option);
-        });
+      try {
+        // Try to load raffle info, but don't block the page if it fails
+        await loadRaffleInfo();
+        
+        // Populate category filter from cached raffle data
+        if (raffleData && raffleData.categories) {
+          console.log('[Buyers] Populating category filters...');
+          const categoryFilter = document.getElementById('category-filter');
+          raffleData.categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.category_code;
+            option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
+            categoryFilter.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error('[Buyers] Error during initialization:', error);
+        // Don't rethrow - page should still be usable
       }
+      
+      console.log('[Buyers] Page initialization complete');
     }
     
     // ============================================================================
@@ -1386,11 +1472,14 @@
     // Load Haiti departments
     async function loadDepartments() {
       try {
-        const response = await fetch('/api/departments');
+        console.log('[Buyers] Loading departments...');
+        const response = await fetchWithTimeout('/api/departments', {}, 10000);
         const data = await response.json();
         
+        console.log('[Buyers] Departments loaded:', data);
+        
         if (!response.ok || !data.success) {
-          console.error('Failed to load departments');
+          console.error('[Buyers] Failed to load departments');
           return;
         }
         
@@ -1404,7 +1493,7 @@
           departmentSelect.appendChild(option);
         });
       } catch (error) {
-        console.error('Error loading departments:', error);
+        console.error('[Buyers] Error loading departments:', error);
       }
     }
     
@@ -1480,8 +1569,13 @@
       const container = document.getElementById('payment-methods-container');
       
       try {
-        const response = await fetch('/api/payments/methods');
+        console.log('[Buyers] Loading payment methods...');
+        container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading payment methods...</p></div>';
+        
+        const response = await fetchWithTimeout('/api/payments/methods', {}, 10000);
         const data = await response.json();
+        
+        console.log('[Buyers] Payment methods loaded:', data);
         
         if (!data.success || data.methods.length === 0) {
           container.innerHTML = `
@@ -1517,12 +1611,15 @@
         html += '</div>';
         container.innerHTML = html;
       } catch (error) {
-        console.error('Error loading payment methods:', error);
+        console.error('[Buyers] Error loading payment methods:', error);
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Payment Methods</h3>
-            <p>${error.message}</p>
+            <p style="margin-bottom: 16px;">${error.message}</p>
+            <button class="btn btn-primary" onclick="loadPaymentMethods()" style="display: inline-block;">
+              🔄 Retry
+            </button>
           </div>
         `;
       }
@@ -1655,8 +1752,11 @@
     // Show manual payment instructions
     async function showManualPayment(container, method) {
       try {
-        const response = await fetch(`/api/payments/manual-instructions/${method}`);
+        console.log('[Buyers] Loading manual payment instructions for:', method);
+        const response = await fetchWithTimeout(`/api/payments/manual-instructions/${method}`, {}, 10000);
         const data = await response.json();
+        
+        console.log('[Buyers] Manual payment instructions loaded:', data);
         
         if (!data.success) {
           throw new Error('Instructions not available');
@@ -1712,12 +1812,15 @@
           </button>
         `;
       } catch (error) {
-        console.error('Error loading instructions:', error);
+        console.error('[Buyers] Error loading instructions:', error);
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Instructions Not Available</h3>
-            <p>${error.message}</p>
+            <p style="margin-bottom: 16px;">${error.message}</p>
+            <button class="btn btn-primary" onclick="showManualPayment(document.getElementById('payment-details-content'), '${method}')" style="display: inline-block;">
+              🔄 Retry
+            </button>
           </div>
         `;
       }
@@ -1733,7 +1836,8 @@
       infoEl.classList.add('show');
       
       try {
-        const response = await fetch('/api/payments/moncash/initiate', {
+        console.log('[Buyers] Initiating MonCash payment...');
+        const response = await fetchWithTimeout('/api/payments/moncash/initiate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1745,9 +1849,11 @@
             ticket_quantity: purchaseData.quantity,
             customer_department: purchaseData.department
           })
-        });
+        }, 10000);
         
         const data = await response.json();
+        
+        console.log('[Buyers] MonCash payment initiated:', data);
         
         if (!response.ok) {
           throw new Error(data.error || 'Payment initiation failed');
@@ -1756,6 +1862,7 @@
         // Redirect to MonCash
         window.location.href = data.redirectUrl;
       } catch (error) {
+        console.error('[Buyers] Error initiating MonCash payment:', error);
         infoEl.classList.remove('show');
         errorEl.textContent = error.message;
         errorEl.classList.add('show');
@@ -1774,7 +1881,8 @@
       infoEl.classList.add('show');
       
       try {
-        const response = await fetch('/api/payments/natcash/initiate', {
+        console.log('[Buyers] Initiating NatCash payment...');
+        const response = await fetchWithTimeout('/api/payments/natcash/initiate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1786,9 +1894,11 @@
             ticket_quantity: purchaseData.quantity,
             customer_department: purchaseData.department
           })
-        });
+        }, 10000);
         
         const data = await response.json();
+        
+        console.log('[Buyers] NatCash payment initiated:', data);
         
         if (!response.ok) {
           throw new Error(data.error || 'Payment initiation failed');
@@ -1802,6 +1912,7 @@
         `;
         successEl.classList.add('show');
       } catch (error) {
+        console.error('[Buyers] Error initiating NatCash payment:', error);
         infoEl.classList.remove('show');
         errorEl.textContent = error.message;
         errorEl.classList.add('show');
@@ -1825,7 +1936,8 @@
       }
       
       try {
-        const response = await fetch('/api/payments/manual/submit', {
+        console.log('[Buyers] Submitting manual payment...');
+        const response = await fetchWithTimeout('/api/payments/manual/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1840,9 +1952,11 @@
             notes: notes,
             customer_department: purchaseData.department
           })
-        });
+        }, 10000);
         
         const data = await response.json();
+        
+        console.log('[Buyers] Manual payment submitted:', data);
         
         if (!response.ok) {
           throw new Error(data.error || 'Submission failed');
@@ -1860,6 +1974,7 @@
           resetPurchaseForm();
         }, 5000);
       } catch (error) {
+        console.error('[Buyers] Error submitting manual payment:', error);
         errorEl.textContent = error.message;
         errorEl.classList.add('show');
       }
