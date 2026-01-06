@@ -518,6 +518,28 @@ async function initializeSchema() {
       console.log('Note: txn_id column already exists or could not be added:', error.message);
     }
     
+    // Add department column to tickets table for Haiti department tracking
+    console.log('🏛️ Adding department column to tickets table...');
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS department TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columnsResult = await query(`PRAGMA table_info(tickets)`, []);
+        const columns = Array.isArray(columnsResult) ? columnsResult : [];
+        const hasDepartment = columns.some(col => col.name === 'department');
+        if (!hasDepartment) {
+          await run(`ALTER TABLE tickets ADD COLUMN department TEXT`);
+        }
+      }
+      console.log('✅ department column added successfully');
+    } catch (error) {
+      console.log('Note: department column already exists or could not be added:', error.message);
+    }
+    
     // Create txn_verification_log table for fraud detection audit trail
     console.log('🔍 Creating txn_verification_log table...');
     await run(`
@@ -544,6 +566,7 @@ async function initializeSchema() {
       'CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_txn_id ON tickets(txn_id)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_department ON tickets(department)',
       
       // Seller requests indexes
       'CREATE INDEX IF NOT EXISTS idx_seller_requests_status ON seller_requests(status)',

@@ -578,6 +578,28 @@
                     />
                 </div>
                 
+                <div class="form-group">
+                    <label>Customer Department *</label>
+                    <select 
+                        id="departmentInput" 
+                        required
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                    >
+                        <option value="">Select department...</option>
+                        <option value="Artibonite">Artibonite</option>
+                        <option value="Centre">Centre</option>
+                        <option value="Grand'Anse">Grand'Anse</option>
+                        <option value="Nippes">Nippes</option>
+                        <option value="Nord">Nord</option>
+                        <option value="Nord-Est">Nord-Est</option>
+                        <option value="Nord-Ouest">Nord-Ouest</option>
+                        <option value="Ouest">Ouest</option>
+                        <option value="Sud">Sud</option>
+                        <option value="Sud-Est">Sud-Est</option>
+                    </select>
+                    <small>Select the Haiti department where customer is located</small>
+                </div>
+                
                 <div class="button-group">
                     <button type="submit" class="btn btn-primary">Register Ticket</button>
                     <button type="button" class="btn btn-secondary" onclick="openCameraScanner()">📷 Use Camera</button>
@@ -763,6 +785,9 @@
                 txnIdHelper: "Required for each ticket - one Txn ID per ticket",
                 ticketNumberLabel: "Ticket Number or Scan *",
                 ticketNumberPlaceholder: "Enter ticket number or scan barcode",
+                departmentLabel: "Customer Department *",
+                departmentPlaceholder: "Select department...",
+                departmentHelper: "Select the Haiti department where customer is located",
                 registerTicket: "Register Ticket",
                 useCamera: "📷 Use Camera",
                 ticketsRegisteredSession: "Tickets registered this session:",
@@ -774,6 +799,7 @@
                 ticket: "Ticket:",
                 txnId: "Txn ID:",
                 category: "Category:",
+                department: "Department:",
                 originalTicket: "Original Ticket:",
                 assignedBy: "Assigned By:",
                 date: "Date:"
@@ -826,6 +852,9 @@
                 txnIdHelper: "Obligatwa pou chak tikè - yon Nimewo Tranzaksyon pou chak tikè",
                 ticketNumberLabel: "Nimewo Tikè oswa Eskane *",
                 ticketNumberPlaceholder: "Antre nimewo tikè oswa eskane kòd",
+                departmentLabel: "Depatman Kliyan *",
+                departmentPlaceholder: "Chwazi depatman...",
+                departmentHelper: "Chwazi depatman Ayiti kote kliyan an ap viv",
                 registerTicket: "Anrejistre Tikè",
                 useCamera: "📷 Sèvi ak Kamera",
                 ticketsRegisteredSession: "Tikè anrejistre nan sesyon sa a:",
@@ -837,6 +866,7 @@
                 ticket: "Tikè:",
                 txnId: "Nimewo Tranzaksyon:",
                 category: "Kategori:",
+                department: "Depatman:",
                 originalTicket: "Tikè Orijinal:",
                 assignedBy: "Asiye pa:",
                 date: "Dat:"
@@ -889,6 +919,9 @@
                 txnIdHelper: "Requis pour chaque billet - un ID de transaction par billet",
                 ticketNumberLabel: "Numéro de Billet ou Scanner *",
                 ticketNumberPlaceholder: "Entrez le numéro de billet ou scannez le code-barres",
+                departmentLabel: "Département du Client *",
+                departmentPlaceholder: "Sélectionner le département...",
+                departmentHelper: "Sélectionnez le département d'Haïti où se trouve le client",
                 registerTicket: "Enregistrer Billet",
                 useCamera: "📷 Utiliser Caméra",
                 ticketsRegisteredSession: "Billets enregistrés dans cette session:",
@@ -900,6 +933,7 @@
                 ticket: "Billet:",
                 txnId: "ID Tranzaksyon:",
                 category: "Catégorie:",
+                department: "Département:",
                 originalTicket: "Billet Original:",
                 assignedBy: "Assigné par:",
                 date: "Date:"
@@ -937,6 +971,12 @@
             document.querySelector('#txnIdInput + small').textContent = t.txnIdHelper;
             document.querySelector('label[for="ticketNumberInput"]').textContent = t.ticketNumberLabel;
             document.getElementById('ticketNumberInput').placeholder = t.ticketNumberPlaceholder;
+            document.querySelector('label[for="departmentInput"]').textContent = t.departmentLabel;
+            document.querySelector('#departmentInput option[value=""]').textContent = t.departmentPlaceholder;
+            const departmentSmall = document.querySelector('label[for="departmentInput"]').nextElementSibling.nextElementSibling;
+            if (departmentSmall && departmentSmall.tagName === 'SMALL') {
+                departmentSmall.textContent = t.departmentHelper;
+            }
             document.querySelector('#ticketRegistrationForm button[type="submit"]').textContent = t.registerTicket;
             document.querySelector('#ticketRegistrationForm button[type="button"]').textContent = t.useCamera;
             document.querySelector('.quick-stats p').innerHTML = t.ticketsRegisteredSession + ' <strong id="sessionTicketCount">0</strong>';
@@ -1268,6 +1308,7 @@
         async function registerTicket() {
             const txnId = document.getElementById('txnIdInput').value.trim();
             const ticketNumber = document.getElementById('ticketNumberInput').value.trim();
+            const department = document.getElementById('departmentInput').value;
             const resultDiv = document.getElementById('registrationResult');
             
             resultDiv.style.display = 'block';
@@ -1279,7 +1320,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         txn_id: txnId,
-                        ticket_barcode: ticketNumber
+                        ticket_barcode: ticketNumber,
+                        department: department
                     })
                 });
                 
@@ -1316,12 +1358,14 @@
                         <p><strong>Ticket:</strong> ${data.ticket.ticket_number}</p>
                         <p><strong>Txn ID:</strong> ${data.ticket.txn_id}</p>
                         <p><strong>Category:</strong> ${data.ticket.category}</p>
+                        ${data.ticket.department ? `<p><strong>Department:</strong> ${data.ticket.department}</p>` : ''}
                     </div>
                 `;
                 
                 // Clear form for next ticket
                 document.getElementById('txnIdInput').value = '';
                 document.getElementById('ticketNumberInput').value = '';
+                document.getElementById('departmentInput').value = '';
                 document.getElementById('txnIdInput').focus();
                 
                 // Refresh stats

@@ -1917,7 +1917,7 @@ async function logFraudAttempt(txn_id, seller_phone, seller_name, fraud_type, de
 // API: Register ticket with Transaction ID (1 Txn = 1 Ticket)
 app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
   try {
-    const { txn_id, ticket_barcode } = req.body;
+    const { txn_id, ticket_barcode, department } = req.body;
     const seller_phone = req.session.user.phone;
     const seller_name = req.session.user.name;
     
@@ -1936,6 +1936,18 @@ app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
       return res.status(400).json({ 
         error: 'TICKET_REQUIRED',
         message: 'Ticket number is required'
+      });
+    }
+    
+    // 3. Validate department (optional but recommended)
+    const validDepartments = [
+      'Artibonite', 'Centre', 'Grand\'Anse', 'Nippes', 'Nord', 
+      'Nord-Est', 'Nord-Ouest', 'Ouest', 'Sud', 'Sud-Est'
+    ];
+    if (department && !validDepartments.includes(department)) {
+      return res.status(400).json({ 
+        error: 'INVALID_DEPARTMENT',
+        message: 'Invalid Haiti department selected'
       });
     }
     
@@ -2026,16 +2038,17 @@ app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
     
     // === ALL CHECKS PASSED - REGISTER TICKET ===
     
-    // Update ticket with Txn ID and mark as sold
+    // Update ticket with Txn ID, department, and mark as sold
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
            seller_name = ?, 
            seller_phone = ?, 
            txn_id = ?,
+           department = ?,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [seller_name, seller_phone, txn_id, ticket.id]
+      [seller_name, seller_phone, txn_id, department || null, ticket.id]
     );
     
     // If payment record exists, update it with ticket number
@@ -2070,6 +2083,7 @@ app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
         txn_id: txn_id,
         seller: seller_name,
         category: ticket.category,
+        department: department || null,
         registered_at: new Date().toISOString()
       }
     });
