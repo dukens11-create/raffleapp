@@ -592,6 +592,41 @@
             </div>
         </div>
 
+        <!-- Buyer Information Section (Step 1.5) - DISABLED until txn verified -->
+        <div class="txn-verification-section" id="buyerInfoSection" style="opacity: 0.5; pointer-events: none; display: none;">
+            <h2>📍 Step 1.5: Buyer Department</h2>
+            <p id="buyerInfoDescription">Select the buyer's department/location</p>
+            
+            <form id="buyerInfoForm">
+                <div class="form-group">
+                    <label for="buyerDepartmentInput" id="departmentLabel">Department / Depatman / Département</label>
+                    <input 
+                        list="departmentList" 
+                        id="buyerDepartmentInput" 
+                        placeholder="Search or select department..." 
+                        required
+                        autocomplete="off"
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                    />
+                    <datalist id="departmentList">
+                        <!-- Must match HAITI_DEPARTMENTS order in server.js and JavaScript -->
+                        <option value="Ouest">Ouest</option>
+                        <option value="Sud">Sud</option>
+                        <option value="Nord">Nord</option>
+                        <option value="Artibonite">Artibonite</option>
+                        <option value="Centre">Centre</option>
+                        <option value="Grand'Anse">Grand'Anse</option>
+                        <option value="Nippes">Nippes</option>
+                        <option value="Nord-Est">Nord-Est</option>
+                        <option value="Nord-Ouest">Nord-Ouest</option>
+                        <option value="Sud-Est">Sud-Est</option>
+                    </datalist>
+                    <div id="departmentError" style="color: #ef4444; font-size: 12px; margin-top: 5px; display: none;"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="confirmDepartmentBtn">Confirm Department</button>
+            </form>
+        </div>
+
         <!-- Barcode Scanner Section (Step 2) - DISABLED until txn verified -->
         <div class="scanner-section" id="ticketScanningSection" style="opacity: 0.5; pointer-events: none;">
             <h2>🎟️ Step 2: Scan Tickets</h2>
@@ -712,6 +747,21 @@
         // Global state for current verified payment
         let currentVerifiedPayment = null;
         let currentSeller = null;
+        let selectedDepartment = null; // Store selected department
+
+        // Haiti Departments list (must match server.js order)
+        const HAITI_DEPARTMENTS = [
+            'Ouest',
+            'Sud',
+            'Nord',
+            'Artibonite',
+            'Centre',
+            "Grand'Anse",
+            'Nippes',
+            'Nord-Est',
+            'Nord-Ouest',
+            'Sud-Est'
+        ];
 
         // Translation data
         const translations = {
@@ -775,7 +825,14 @@
                 cameraError: "Unable to access camera. Please check permissions.",
                 scannerLibraryError: "Scanner library not available. Please use Manual Ticket Entry below instead.",
                 enterManually: "Enter ticket number manually",
-                enterBarcode: "Enter barcode manually (scanner integration in progress):"
+                enterBarcode: "Enter barcode manually (scanner integration in progress):",
+                buyerDepartmentStep: "Step 1.5: Buyer Department",
+                buyerDepartmentDesc: "Select the buyer's department/location",
+                departmentLabel: "Department",
+                departmentPlaceholder: "Search or select department...",
+                confirmDepartment: "Confirm Department",
+                departmentRequired: "Please select a valid department from the list",
+                departmentConfirmed: "Department confirmed"
             },
             ht: {
                 title: "Tablo Vandè",
@@ -837,7 +894,14 @@
                 cameraError: "Pa ka aksede kamera. Tanpri verifye pèmisyon yo.",
                 scannerLibraryError: "Bibliyotèk eskanè pa disponib. Tanpri itilize Antre Tikè Manyèlman.",
                 enterManually: "Antre nimewo tikè manyèlman",
-                enterBarcode: "Antre kòd manyèlman (entegrasyon eskanè an pwogrè):"
+                enterBarcode: "Antre kòd manyèlman (entegrasyon eskanè an pwogrè):",
+                buyerDepartmentStep: "Etap 1.5: Depatman Achtè",
+                buyerDepartmentDesc: "Chwazi depatman/kote achtè a ye",
+                departmentLabel: "Depatman",
+                departmentPlaceholder: "Chèche oswa chwazi depatman...",
+                confirmDepartment: "Konfime Depatman",
+                departmentRequired: "Tanpri chwazi yon depatman valab nan lis la",
+                departmentConfirmed: "Depatman konfime"
             },
             fr: {
                 title: "Tableau de Bord Vendeur",
@@ -899,7 +963,14 @@
                 cameraError: "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations.",
                 scannerLibraryError: "Bibliothèque de scanner non disponible. Veuillez utiliser la saisie manuelle.",
                 enterManually: "Entrer le numéro de billet manuellement",
-                enterBarcode: "Entrez le code-barres manuellement (intégration du scanner en cours):"
+                enterBarcode: "Entrez le code-barres manuellement (intégration du scanner en cours):",
+                buyerDepartmentStep: "Étape 1.5: Département de l'Acheteur",
+                buyerDepartmentDesc: "Sélectionner le département/localisation de l'acheteur",
+                departmentLabel: "Département",
+                departmentPlaceholder: "Rechercher ou sélectionner département...",
+                confirmDepartment: "Confirmer Département",
+                departmentRequired: "Veuillez sélectionner un département valide de la liste",
+                departmentConfirmed: "Département confirmé"
             }
         };
 
@@ -942,6 +1013,16 @@
             document.querySelector('.concern-section h2').textContent = '⚠️ ' + t.reportConcern;
             document.querySelector('.concern-section p').textContent = t.reportDescription;
             document.querySelector('.concern-section .btn-warning').textContent = t.reportIssue;
+            
+            // Buyer department section
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            if (buyerInfoSection) {
+                buyerInfoSection.querySelector('h2').textContent = '📍 ' + t.buyerDepartmentStep;
+                buyerInfoSection.querySelector('#buyerInfoDescription').textContent = t.buyerDepartmentDesc;
+                buyerInfoSection.querySelector('#departmentLabel').textContent = t.departmentLabel;
+                buyerInfoSection.querySelector('#buyerDepartmentInput').placeholder = t.departmentPlaceholder;
+                buyerInfoSection.querySelector('#confirmDepartmentBtn').textContent = t.confirmDepartment;
+            }
             
             // Concern modal
             document.querySelector('.modal-header h3').textContent = t.concernTitle;
@@ -1134,7 +1215,7 @@
                     return;
                 }
                 
-                // SUCCESS - Store verified payment and enable scanning
+                // SUCCESS - Store verified payment
                 currentVerifiedPayment = data.payment;
                 
                 resultDiv.innerHTML = `
@@ -1150,27 +1231,111 @@
                     </div>
                 `;
                 
-                // Enable ticket scanning section
-                const scanSection = document.getElementById('ticketScanningSection');
-                scanSection.style.opacity = '1';
-                scanSection.style.pointerEvents = 'auto';
-                scanSection.querySelector('p').textContent = translations[currentLanguage].scanDescription;
-                
-                // Enable manual entry section
-                const manualSection = document.getElementById('manualEntrySection');
-                manualSection.style.opacity = '1';
-                manualSection.style.pointerEvents = 'auto';
-                manualSection.querySelector('p').textContent = translations[currentLanguage].manualDescription;
+                // Check if payment already has department (from buyer's purchase)
+                if (data.payment.customer_department) {
+                    // Department already set - skip department form, enable scanning directly
+                    selectedDepartment = data.payment.customer_department;
+                    console.log('[TXN-VERIFY] Department already set from payment:', selectedDepartment);
+                    enableTicketScanning();
+                } else {
+                    // No department - show department selection form
+                    console.log('[TXN-VERIFY] No department in payment, showing department form');
+                    showDepartmentSelection();
+                }
                 
             } catch (error) {
                 resultDiv.innerHTML = `<div class="alert alert-danger">❌ ${t.errorPrefix} ${error.message}</div>`;
             }
         });
         
+        function showDepartmentSelection() {
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            buyerInfoSection.style.display = 'block';
+            buyerInfoSection.style.opacity = '1';
+            buyerInfoSection.style.pointerEvents = 'auto';
+            
+            // Keep scanning sections disabled until department is confirmed
+            const scanSection = document.getElementById('ticketScanningSection');
+            scanSection.style.opacity = '0.5';
+            scanSection.style.pointerEvents = 'none';
+            
+            const manualSection = document.getElementById('manualEntrySection');
+            manualSection.style.opacity = '0.5';
+            manualSection.style.pointerEvents = 'none';
+        }
+        
+        function enableTicketScanning() {
+            // Hide department section
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            buyerInfoSection.style.display = 'none';
+            
+            // Enable ticket scanning section
+            const scanSection = document.getElementById('ticketScanningSection');
+            scanSection.style.opacity = '1';
+            scanSection.style.pointerEvents = 'auto';
+            scanSection.querySelector('p').textContent = translations[currentLanguage].scanDescription;
+            
+            // Enable manual entry section
+            const manualSection = document.getElementById('manualEntrySection');
+            manualSection.style.opacity = '1';
+            manualSection.style.pointerEvents = 'auto';
+            manualSection.querySelector('p').textContent = translations[currentLanguage].manualDescription;
+        }
+        
+        // Buyer info form submission
+        document.getElementById('buyerInfoForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const departmentInput = document.getElementById('buyerDepartmentInput').value.trim();
+            const errorDiv = document.getElementById('departmentError');
+            const t = translations[currentLanguage];
+            
+            // Validate department
+            if (!departmentInput || !HAITI_DEPARTMENTS.includes(departmentInput)) {
+                errorDiv.textContent = t.departmentRequired;
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Success - store department and enable scanning
+            selectedDepartment = departmentInput;
+            errorDiv.style.display = 'none';
+            console.log('[BUYER-INFO] Department selected:', selectedDepartment);
+            
+            // Show success message
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            const successMsg = document.createElement('div');
+            successMsg.className = 'alert alert-success';
+            successMsg.style.marginTop = '10px';
+            successMsg.innerHTML = `✅ ${t.departmentConfirmed}: <strong>${selectedDepartment}</strong>`;
+            buyerInfoSection.appendChild(successMsg);
+            
+            // Disable form after submission
+            document.getElementById('buyerInfoForm').style.display = 'none';
+            
+            // Enable scanning sections
+            setTimeout(() => {
+                enableTicketScanning();
+            }, 1000);
+        });
+        
         function resetVerification() {
             currentVerifiedPayment = null;
+            selectedDepartment = null;
             document.getElementById('txnIdInput').value = '';
             document.getElementById('txnVerificationResult').style.display = 'none';
+            
+            // Reset and hide department section
+            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            buyerInfoSection.style.display = 'none';
+            buyerInfoSection.style.opacity = '0.5';
+            buyerInfoSection.style.pointerEvents = 'none';
+            document.getElementById('buyerDepartmentInput').value = '';
+            document.getElementById('departmentError').style.display = 'none';
+            document.getElementById('buyerInfoForm').style.display = 'block';
+            // Remove any success messages
+            const successMsgs = buyerInfoSection.querySelectorAll('.alert-success');
+            successMsgs.forEach(msg => msg.remove());
             
             const scanSection = document.getElementById('ticketScanningSection');
             scanSection.style.opacity = '0.5';
@@ -1288,13 +1453,20 @@
             resultDiv.style.color = '#666';
             
             try {
+                const requestBody = { 
+                    barcode: barcode,
+                    payment_reference: currentVerifiedPayment.payment_reference
+                };
+                
+                // Add department if selected (only for payments without department)
+                if (selectedDepartment) {
+                    requestBody.buyer_department = selectedDepartment;
+                }
+                
                 const response = await fetch('/api/tickets/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        barcode: barcode,
-                        payment_reference: currentVerifiedPayment.payment_reference
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const data = await response.json();
@@ -1415,13 +1587,20 @@
             resultDiv.style.display = 'block';
             
             try {
+                const requestBody = { 
+                    barcode: ticketNumber,
+                    payment_reference: currentVerifiedPayment.payment_reference
+                };
+                
+                // Add department if selected (only for payments without department)
+                if (selectedDepartment) {
+                    requestBody.buyer_department = selectedDepartment;
+                }
+                
                 const response = await fetch('/api/tickets/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        barcode: ticketNumber,
-                        payment_reference: currentVerifiedPayment.payment_reference
-                    })
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const data = await response.json();

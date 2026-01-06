@@ -2098,7 +2098,7 @@ app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
 // API: Scan ticket barcode (seller only)
 app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   try {
-    const { barcode, payment_reference } = req.body;
+    const { barcode, payment_reference, buyer_department } = req.body;
     
     console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
     
@@ -2129,6 +2129,21 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
         message: 'Payment reference not found'
       });
     }
+    
+    // Determine which department to use
+    // Priority: 1) Payment's department (from buyer's purchase), 2) Seller-provided department
+    const departmentToUse = payment.customer_department || buyer_department || null;
+    
+    // Validate department if provided
+    if (departmentToUse && !isValidDepartment(departmentToUse)) {
+      console.log('[SCAN] Error: Invalid department');
+      return res.status(400).json({ 
+        error: 'INVALID_DEPARTMENT',
+        message: 'Invalid department. Must be one of the 10 Haiti departments.'
+      });
+    }
+    
+    console.log(`[SCAN] Department to use: ${departmentToUse || 'none'}`);
     
     // Count tickets already assigned to this payment
     const assignedCount = await db.get(
@@ -2173,16 +2188,17 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       });
     }
     
-    // Mark as sold and link to payment
+    // Mark as sold and link to payment, including department
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
            seller_name = ?, 
            seller_phone = ?, 
            payment_reference = ?,
+           customer_department = ?,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [req.session.user.name, req.session.user.phone, payment_reference, ticket.id]
+      [req.session.user.name, req.session.user.phone, payment_reference, departmentToUse, ticket.id]
     );
     
     // Update payment record with ticket numbers
