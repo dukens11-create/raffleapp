@@ -990,7 +990,7 @@
         document.getElementById(tabName).classList.add('active');
         
         // Load content for the tab if needed
-        if (tabName === 'raffle-info' && !raffleData) {
+        if (tabName === 'raffle-info' && !window.raffleInfoLoaded) {
           console.log('[Buyers] Loading raffle info for first time...');
           loadRaffleInfo();
         } else if (tabName === 'available-tickets' && !window.availableTicketsLoaded) {
