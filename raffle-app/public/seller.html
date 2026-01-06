@@ -609,15 +609,16 @@
                         style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
                     />
                     <datalist id="departmentList">
+                        <!-- Must match HAITI_DEPARTMENTS order in server.js and JavaScript -->
+                        <option value="Ouest">Ouest</option>
+                        <option value="Sud">Sud</option>
+                        <option value="Nord">Nord</option>
                         <option value="Artibonite">Artibonite</option>
                         <option value="Centre">Centre</option>
                         <option value="Grand'Anse">Grand'Anse</option>
                         <option value="Nippes">Nippes</option>
-                        <option value="Nord">Nord</option>
                         <option value="Nord-Est">Nord-Est</option>
                         <option value="Nord-Ouest">Nord-Ouest</option>
-                        <option value="Ouest">Ouest</option>
-                        <option value="Sud">Sud</option>
                         <option value="Sud-Est">Sud-Est</option>
                     </datalist>
                     <div id="departmentError" style="color: #ef4444; font-size: 12px; margin-top: 5px; display: none;"></div>
@@ -748,17 +749,17 @@
         let currentSeller = null;
         let selectedDepartment = null; // Store selected department
 
-        // Haiti Departments list
+        // Haiti Departments list (must match server.js order)
         const HAITI_DEPARTMENTS = [
+            'Ouest',
+            'Sud',
+            'Nord',
             'Artibonite',
             'Centre',
             "Grand'Anse",
             'Nippes',
-            'Nord',
             'Nord-Est',
             'Nord-Ouest',
-            'Ouest',
-            'Sud',
             'Sud-Est'
         ];
 
