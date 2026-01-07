@@ -1256,7 +1256,9 @@ app.post('/api/seller-registration', authLimiter, sellerIdUpload.single('idPictu
     if (!errors.isEmpty()) {
       // Clean up uploaded file if validation fails
       if (req.file) {
-        fs.unlinkSync(req.file.path);
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error('Error deleting file:', err);
+        });
       }
       return res.status(400).json({ 
         error: 'Validation failed', 
@@ -1281,7 +1283,9 @@ app.post('/api/seller-registration', authLimiter, sellerIdUpload.single('idPictu
     
     if (existingUser) {
       // Clean up uploaded file
-      fs.unlinkSync(idPicturePath);
+      fs.unlink(idPicturePath, (err) => {
+        if (err) console.error('Error deleting file:', err);
+      });
       return res.status(400).json({ 
         error: 'Phone number already registered',
         timestamp: new Date().toISOString()
@@ -1293,7 +1297,9 @@ app.post('/api/seller-registration', authLimiter, sellerIdUpload.single('idPictu
     
     if (existingRequest) {
       // Clean up uploaded file
-      fs.unlinkSync(idPicturePath);
+      fs.unlink(idPicturePath, (err) => {
+        if (err) console.error('Error deleting file:', err);
+      });
       return res.status(400).json({ 
         error: 'Registration request already pending',
         timestamp: new Date().toISOString()
@@ -1318,11 +1324,9 @@ app.post('/api/seller-registration', authLimiter, sellerIdUpload.single('idPictu
     console.error('Registration error:', error);
     // Clean up uploaded file on error
     if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-      } catch (unlinkError) {
-        console.error('Error cleaning up file:', unlinkError);
-      }
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error('Error cleaning up file:', err);
+      });
     }
     res.status(500).json({ 
       error: 'An error occurred during registration',
