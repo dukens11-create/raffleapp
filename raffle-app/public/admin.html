@@ -1048,6 +1048,7 @@
           <th>Phone</th>
           <th>Email</th>
           <th>Address</th>
+          <th>ID Picture</th>
           <th>Request Date</th>
           <th>Status</th>
           <th>Actions</th>
@@ -2224,7 +2225,7 @@
         const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);
         
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
           return;
         }
         
@@ -2243,11 +2244,18 @@
             actionsHtml = `<small style="color: #64748b;">Reviewed: ${reviewedDate}<br>By: ${request.reviewed_by || 'N/A'}</small>`;
           }
           
+          // Create ID picture display
+          let idPictureHtml = 'N/A';
+          if (request.id_picture_path) {
+            idPictureHtml = `<a href="${request.id_picture_path}" target="_blank" style="color: #667eea; text-decoration: underline;">View ID</a>`;
+          }
+          
           row.innerHTML = `
             <td>${request.full_name}</td>
             <td>${request.phone}</td>
             <td>${request.email}</td>
             <td>${request.address || 'N/A'}</td>
+            <td>${idPictureHtml}</td>
             <td>${requestDate}</td>
             <td><span class="status-badge status-${request.status}">${request.status}</span></td>
             <td>${actionsHtml}</td>
@@ -2336,7 +2344,7 @@
       }
       
       if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
         return;
       }
       
@@ -2355,11 +2363,18 @@
           actionsHtml = `<small style="color: #64748b;">Reviewed: ${reviewedDate}<br>By: ${request.reviewed_by || 'N/A'}</small>`;
         }
         
+        // Create ID picture display
+        let idPictureHtml = 'N/A';
+        if (request.id_picture_path) {
+          idPictureHtml = `<a href="${request.id_picture_path}" target="_blank" style="color: #667eea; text-decoration: underline;">View ID</a>`;
+        }
+        
         row.innerHTML = `
           <td>${request.full_name}</td>
           <td>${request.phone}</td>
           <td>${request.email}</td>
           <td>${request.address || 'N/A'}</td>
+          <td>${idPictureHtml}</td>
           <td>${requestDate}</td>
           <td><span class="status-badge status-${request.status}">${request.status}</span></td>
           <td>${actionsHtml}</td>
