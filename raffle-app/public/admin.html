@@ -1008,11 +1008,37 @@
   <div class="section">
     <h2>📝 Seller Registration Requests</h2>
     
-    <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+    <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
       <button class="filter-btn active" data-filter="pending" style="background: #f59e0b; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Pending</button>
       <button class="filter-btn" data-filter="approved" style="background: #10b981; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Approved</button>
       <button class="filter-btn" data-filter="rejected" style="background: #ef4444; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">Rejected</button>
       <button class="filter-btn" data-filter="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; color: white;">All</button>
+      
+      <!-- Department Filter -->
+      <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+        <label for="departmentFilter" style="font-size: 14px; color: #64748b; font-weight: 500;">Filter by Department:</label>
+        <input 
+          list="departmentFilterList" 
+          id="departmentFilter" 
+          placeholder="All Departments" 
+          autocomplete="off"
+          style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; min-width: 200px;"
+          oninput="filterSellerRequestsByDepartment(this.value)"
+        />
+        <datalist id="departmentFilterList">
+          <option value="">All Departments</option>
+          <option value="Artibonite">Artibonite</option>
+          <option value="Centre">Centre</option>
+          <option value="Grand'Anse">Grand'Anse</option>
+          <option value="Nippes">Nippes</option>
+          <option value="Nord">Nord</option>
+          <option value="Nord-Est">Nord-Est</option>
+          <option value="Nord-Ouest">Nord-Ouest</option>
+          <option value="Ouest">Ouest</option>
+          <option value="Sud">Sud</option>
+          <option value="Sud-Est">Sud-Est</option>
+        </datalist>
+      </div>
     </div>
     
     <table id="sellerRequestsTable">
@@ -1021,6 +1047,7 @@
           <th>Name</th>
           <th>Phone</th>
           <th>Email</th>
+          <th>Address</th>
           <th>Request Date</th>
           <th>Status</th>
           <th>Actions</th>
@@ -2187,13 +2214,17 @@
         const response = await fetch('/api/seller-requests');
         const requests = await response.json();
         
+        // Store requests globally for filtering
+        allSellerRequests = requests;
+        currentStatusFilter = filter;
+        
         const tbody = document.getElementById('requestsTableBody');
         tbody.innerHTML = '';
         
         const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);
         
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
           return;
         }
         
@@ -2216,12 +2247,16 @@
             <td>${request.full_name}</td>
             <td>${request.phone}</td>
             <td>${request.email}</td>
+            <td>${request.address || 'N/A'}</td>
             <td>${requestDate}</td>
             <td><span class="status-badge status-${request.status}">${request.status}</span></td>
             <td>${actionsHtml}</td>
           `;
           tbody.appendChild(row);
         });
+        
+        // Clear department filter when loading new data
+        document.getElementById('departmentFilter').value = '';
         
       } catch (error) {
         console.error('Error loading requests:', error);
@@ -2278,6 +2313,59 @@
       } catch (error) {
         showNotify('❌ Error rejecting request: ' + error.message, '#ef4444');
       }
+    }
+    
+    // Global variable to store all requests for filtering
+    let allSellerRequests = [];
+    let currentStatusFilter = 'pending';
+    
+    // Filter seller requests by department
+    function filterSellerRequestsByDepartment(departmentValue) {
+      const tbody = document.getElementById('requestsTableBody');
+      tbody.innerHTML = '';
+      
+      // Apply both status and department filters
+      let filtered = currentStatusFilter === 'all' ? allSellerRequests : allSellerRequests.filter(r => r.status === currentStatusFilter);
+      
+      // Apply department filter if a department is selected
+      if (departmentValue && departmentValue.trim() !== '') {
+        filtered = filtered.filter(r => {
+          if (!r.address) return false;
+          return r.address.toLowerCase().includes(departmentValue.toLowerCase());
+        });
+      }
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
+        return;
+      }
+      
+      filtered.forEach(request => {
+        const row = document.createElement('tr');
+        const requestDate = new Date(request.request_date).toLocaleDateString();
+        
+        let actionsHtml = '';
+        if (request.status === 'pending') {
+          actionsHtml = `
+            <button onclick="approveRequest(${request.id})" class="btn-success btn-sm">✅ Approve</button>
+            <button onclick="rejectRequest(${request.id})" class="btn-danger btn-sm">❌ Reject</button>
+          `;
+        } else {
+          const reviewedDate = request.reviewed_date ? new Date(request.reviewed_date).toLocaleDateString() : '';
+          actionsHtml = `<small style="color: #64748b;">Reviewed: ${reviewedDate}<br>By: ${request.reviewed_by || 'N/A'}</small>`;
+        }
+        
+        row.innerHTML = `
+          <td>${request.full_name}</td>
+          <td>${request.phone}</td>
+          <td>${request.email}</td>
+          <td>${request.address || 'N/A'}</td>
+          <td>${requestDate}</td>
+          <td><span class="status-badge status-${request.status}">${request.status}</span></td>
+          <td>${actionsHtml}</td>
+        `;
+        tbody.appendChild(row);
+      });
     }
     
     // Filter buttons event listeners

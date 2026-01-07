@@ -1217,7 +1217,7 @@ const validateSellerRegistration = [
   body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
   body('phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Phone must be 10-15 digits'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
-  body('experience').optional().trim().isLength({ max: 500 }).escape().withMessage('Experience must be less than 500 characters'),
+  body('address').trim().isLength({ min: 5, max: 200 }).escape().withMessage('Address must be between 5 and 200 characters'),
 ];
 
 app.post('/api/seller-registration', authLimiter, validateSellerRegistration, async (req, res) => {
@@ -1232,7 +1232,7 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
       });
     }
     
-    const { fullName, phone, email, experience } = req.body;
+    const { fullName, phone, email, address } = req.body;
     
     // Check if phone already exists in users
     const existingUser = await db.get('SELECT id FROM users WHERE phone = ?', [phone]);
@@ -1256,9 +1256,9 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
     
     // Insert registration request
     await db.run(`
-      INSERT INTO seller_requests (full_name, phone, email, experience, status)
+      INSERT INTO seller_requests (full_name, phone, email, address, status)
       VALUES (?, ?, ?, ?, 'pending')
-    `, [fullName, phone, email, experience || '']);
+    `, [fullName, phone, email, address]);
     
     console.log(`New seller registration request from: ${fullName} (${phone})`);
     

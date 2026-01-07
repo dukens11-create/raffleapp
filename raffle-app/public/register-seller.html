@@ -255,8 +255,8 @@
                 <input type="email" id="email" name="email" required data-translate-placeholder="emailPlaceholder" placeholder="Enter your email address">
             </div>
             <div class="form-group">
-                <label for="experience" data-translate="whySeller">Why do you want to become a seller? (Optional)</label>
-                <textarea id="experience" name="experience" data-translate-placeholder="whySellerPlaceholder" placeholder="Tell us about your experience or motivation..."></textarea>
+                <label for="address" data-translate="address">Address *</label>
+                <input type="text" id="address" name="address" required data-translate-placeholder="addressPlaceholder" placeholder="Enter your address">
             </div>
             <button type="submit" id="submitBtn" data-translate="submitRequest">Submit Request</button>
             <div id="message"></div>
@@ -274,7 +274,7 @@
             const fullName = document.getElementById('fullName').value;
             const phone = document.getElementById('phone').value;
             const email = document.getElementById('email').value;
-            const experience = document.getElementById('experience').value;
+            const address = document.getElementById('address').value;
             const messageDiv = document.getElementById('message');
             const submitBtn = document.getElementById('submitBtn');
             
@@ -286,7 +286,7 @@
                 const response = await fetch('/api/seller-registration', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fullName, phone, email, experience })
+                    body: JSON.stringify({ fullName, phone, email, address })
                 });
                 
                 const data = await response.json();
@@ -328,8 +328,8 @@
                 phonePlaceholder: "Enter your phone number",
                 email: "Email Address *",
                 emailPlaceholder: "Enter your email address",
-                whySeller: "Why do you want to become a seller? (Optional)",
-                whySellerPlaceholder: "Tell us about your experience or motivation...",
+                address: "Address *",
+                addressPlaceholder: "Enter your address",
                 submitRequest: "Submit Request",
                 submitting: "Submitting...",
                 alreadyHaveAccess: "Already have access?",
@@ -348,8 +348,8 @@
                 phonePlaceholder: "Antre nimewo telefòn ou",
                 email: "Adrès Imèl *",
                 emailPlaceholder: "Antre adrès imèl ou",
-                whySeller: "Poukisa ou vle vin yon vandè? (Opsyonèl)",
-                whySellerPlaceholder: "Pale nou de eksperyans ou oswa motivasyon ou...",
+                address: "Adrès *",
+                addressPlaceholder: "Antre adrès ou",
                 submitRequest: "Soumèt Demann",
                 submitting: "Ap soumèt...",
                 alreadyHaveAccess: "Ou deja gen aksè?",
@@ -368,8 +368,8 @@
                 phonePlaceholder: "Entrez votre numéro de téléphone",
                 email: "Adresse E-mail *",
                 emailPlaceholder: "Entrez votre adresse e-mail",
-                whySeller: "Pourquoi voulez-vous devenir vendeur? (Optionnel)",
-                whySellerPlaceholder: "Parlez-nous de votre expérience ou motivation...",
+                address: "Adresse *",
+                addressPlaceholder: "Entrez votre adresse",
                 submitRequest: "Soumettre la Demande",
                 submitting: "Soumission...",
                 alreadyHaveAccess: "Vous avez déjà accès?",
