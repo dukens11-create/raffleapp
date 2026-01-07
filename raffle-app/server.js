@@ -1212,19 +1212,54 @@ app.get('/logout', (req, res) => {
 });
 
 // Seller Registration APIs
+// Configure multer for seller ID picture uploads
+const sellerIdStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'uploads', 'seller-ids');
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'id-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const sellerIdUpload = multer({
+  storage: sellerIdStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: function (req, file, cb) {
+    // Accept images only
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
 // Submit registration request with validation
 const validateSellerRegistration = [
   body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
   body('phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Phone must be 10-15 digits'),
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
-  body('experience').optional().trim().isLength({ max: 500 }).escape().withMessage('Experience must be less than 500 characters'),
+  body('address').trim().isLength({ min: 5, max: 200 }).escape().withMessage('Address must be between 5 and 200 characters'),
 ];
 
-app.post('/api/seller-registration', authLimiter, validateSellerRegistration, async (req, res) => {
+app.post('/api/seller-registration', authLimiter, sellerIdUpload.single('idPicture'), validateSellerRegistration, async (req, res) => {
   try {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      // Clean up uploaded file if validation fails
+      if (req.file) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error('Error deleting file:', err);
+        });
+      }
       return res.status(400).json({ 
         error: 'Validation failed', 
         details: errors.array(),
@@ -1232,12 +1267,25 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
       });
     }
     
-    const { fullName, phone, email, experience } = req.body;
+    // Check if ID picture was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'ID picture is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { fullName, phone, email, address } = req.body;
+    const idPicturePath = req.file.path;
     
     // Check if phone already exists in users
     const existingUser = await db.get('SELECT id FROM users WHERE phone = ?', [phone]);
     
     if (existingUser) {
+      // Clean up uploaded file
+      fs.unlink(idPicturePath, (err) => {
+        if (err) console.error('Error deleting file:', err);
+      });
       return res.status(400).json({ 
         error: 'Phone number already registered',
         timestamp: new Date().toISOString()
@@ -1248,6 +1296,10 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
     const existingRequest = await db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = \'pending\'', [phone]);
     
     if (existingRequest) {
+      // Clean up uploaded file
+      fs.unlink(idPicturePath, (err) => {
+        if (err) console.error('Error deleting file:', err);
+      });
       return res.status(400).json({ 
         error: 'Registration request already pending',
         timestamp: new Date().toISOString()
@@ -1256,9 +1308,9 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
     
     // Insert registration request
     await db.run(`
-      INSERT INTO seller_requests (full_name, phone, email, experience, status)
-      VALUES (?, ?, ?, ?, 'pending')
-    `, [fullName, phone, email, experience || '']);
+      INSERT INTO seller_requests (full_name, phone, email, address, id_picture_path, status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    `, [fullName, phone, email, address, idPicturePath]);
     
     console.log(`New seller registration request from: ${fullName} (${phone})`);
     
@@ -1270,6 +1322,12 @@ app.post('/api/seller-registration', authLimiter, validateSellerRegistration, as
     
   } catch (error) {
     console.error('Registration error:', error);
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error('Error cleaning up file:', err);
+      });
+    }
     res.status(500).json({ 
       error: 'An error occurred during registration',
       timestamp: new Date().toISOString()
@@ -3710,6 +3768,9 @@ app.use('/uploads/templates', requireAuth, requireAdmin, express.static(path.joi
 
 // Serve uploaded design images
 app.use('/uploads/designs', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'designs')));
+
+// Serve uploaded seller ID pictures (admin only)
+app.use('/uploads/seller-ids', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'seller-ids')));
 
 // ============================================================================
 // CUSTOM TICKET DESIGNS ENDPOINTS (Category-specific)

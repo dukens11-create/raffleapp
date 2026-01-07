@@ -538,6 +538,46 @@ async function initializeSchema() {
       console.log('Note: customer_department column already exists or could not be added');
     }
     
+    // Add address column to seller_requests table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE seller_requests 
+          ADD COLUMN IF NOT EXISTS address TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(seller_requests)`);
+        const hasAddress = columns.some(col => col.name === 'address');
+        if (!hasAddress) {
+          await run(`ALTER TABLE seller_requests ADD COLUMN address TEXT`);
+        }
+      }
+      console.log('✅ Added address column to seller_requests table');
+    } catch (error) {
+      console.log('Note: address column already exists or could not be added');
+    }
+    
+    // Add id_picture_path column to seller_requests table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE seller_requests 
+          ADD COLUMN IF NOT EXISTS id_picture_path TEXT
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(seller_requests)`);
+        const hasIdPicture = columns.some(col => col.name === 'id_picture_path');
+        if (!hasIdPicture) {
+          await run(`ALTER TABLE seller_requests ADD COLUMN id_picture_path TEXT`);
+        }
+      }
+      console.log('✅ Added id_picture_path column to seller_requests table');
+    } catch (error) {
+      console.log('Note: id_picture_path column already exists or could not be added');
+    }
+    
     // Add fit_mode column if it doesn't exist (for existing databases)
     try {
       if (USE_POSTGRES) {

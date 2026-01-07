@@ -98,6 +98,17 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
+        input[type="file"] {
+            padding: 8px;
+            cursor: pointer;
+        }
+        
+        .file-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
         textarea {
             min-height: 80px;
             resize: vertical;
@@ -255,8 +266,13 @@
                 <input type="email" id="email" name="email" required data-translate-placeholder="emailPlaceholder" placeholder="Enter your email address">
             </div>
             <div class="form-group">
-                <label for="experience" data-translate="whySeller">Why do you want to become a seller? (Optional)</label>
-                <textarea id="experience" name="experience" data-translate-placeholder="whySellerPlaceholder" placeholder="Tell us about your experience or motivation..."></textarea>
+                <label for="address" data-translate="address">Address *</label>
+                <input type="text" id="address" name="address" required data-translate-placeholder="addressPlaceholder" placeholder="Enter your address">
+            </div>
+            <div class="form-group">
+                <label for="idPicture" data-translate="idPicture">Front ID Picture *</label>
+                <input type="file" id="idPicture" name="idPicture" accept="image/*" required>
+                <div class="file-info" data-translate="idPictureInfo">Please upload a clear photo of the front of your ID (JPEG, PNG, or similar)</div>
             </div>
             <button type="submit" id="submitBtn" data-translate="submitRequest">Submit Request</button>
             <div id="message"></div>
@@ -274,19 +290,41 @@
             const fullName = document.getElementById('fullName').value;
             const phone = document.getElementById('phone').value;
             const email = document.getElementById('email').value;
-            const experience = document.getElementById('experience').value;
+            const address = document.getElementById('address').value;
+            const idPictureFile = document.getElementById('idPicture').files[0];
             const messageDiv = document.getElementById('message');
             const submitBtn = document.getElementById('submitBtn');
             
+            // Validate file
+            if (!idPictureFile) {
+                messageDiv.textContent = 'Please select an ID picture';
+                messageDiv.className = 'error';
+                return;
+            }
+            
+            // Check file size (max 5MB)
+            if (idPictureFile.size > 5 * 1024 * 1024) {
+                messageDiv.textContent = 'ID picture must be less than 5MB';
+                messageDiv.className = 'error';
+                return;
+            }
+            
             // Disable submit button
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Submitting...';
+            submitBtn.textContent = 'Uploading...';
             
             try {
+                // Create FormData for file upload
+                const formData = new FormData();
+                formData.append('fullName', fullName);
+                formData.append('phone', phone);
+                formData.append('email', email);
+                formData.append('address', address);
+                formData.append('idPicture', idPictureFile);
+                
                 const response = await fetch('/api/seller-registration', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fullName, phone, email, experience })
+                    body: formData
                 });
                 
                 const data = await response.json();
@@ -328,8 +366,10 @@
                 phonePlaceholder: "Enter your phone number",
                 email: "Email Address *",
                 emailPlaceholder: "Enter your email address",
-                whySeller: "Why do you want to become a seller? (Optional)",
-                whySellerPlaceholder: "Tell us about your experience or motivation...",
+                address: "Address *",
+                addressPlaceholder: "Enter your address",
+                idPicture: "Front ID Picture *",
+                idPictureInfo: "Please upload a clear photo of the front of your ID (JPEG, PNG, or similar)",
                 submitRequest: "Submit Request",
                 submitting: "Submitting...",
                 alreadyHaveAccess: "Already have access?",
@@ -348,8 +388,10 @@
                 phonePlaceholder: "Antre nimewo telefòn ou",
                 email: "Adrès Imèl *",
                 emailPlaceholder: "Antre adrès imèl ou",
-                whySeller: "Poukisa ou vle vin yon vandè? (Opsyonèl)",
-                whySellerPlaceholder: "Pale nou de eksperyans ou oswa motivasyon ou...",
+                address: "Adrès *",
+                addressPlaceholder: "Antre adrès ou",
+                idPicture: "Foto Devan Kat Idantite *",
+                idPictureInfo: "Tanpri voye yon foto klè devan kat idantite ou (JPEG, PNG, oswa menm jan)",
                 submitRequest: "Soumèt Demann",
                 submitting: "Ap soumèt...",
                 alreadyHaveAccess: "Ou deja gen aksè?",
@@ -368,8 +410,10 @@
                 phonePlaceholder: "Entrez votre numéro de téléphone",
                 email: "Adresse E-mail *",
                 emailPlaceholder: "Entrez votre adresse e-mail",
-                whySeller: "Pourquoi voulez-vous devenir vendeur? (Optionnel)",
-                whySellerPlaceholder: "Parlez-nous de votre expérience ou motivation...",
+                address: "Adresse *",
+                addressPlaceholder: "Entrez votre adresse",
+                idPicture: "Photo Recto de la Carte d'Identité *",
+                idPictureInfo: "Veuillez télécharger une photo claire du recto de votre carte d'identité (JPEG, PNG ou similaire)",
                 submitRequest: "Soumettre la Demande",
                 submitting: "Soumission...",
                 alreadyHaveAccess: "Vous avez déjà accès?",
