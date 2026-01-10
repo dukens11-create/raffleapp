@@ -514,14 +514,14 @@ function validateRequest(req, res, next) {
     '/api/public/raffle-info',
     '/api/public/available-tickets',
     '/api/public/my-tickets',
-    '/api/public/verify-ticket/',
+    '/api/public/verify-ticket',
     '/api/payments/methods',
-    '/api/payments/status/',
-    '/api/payments/manual-instructions/',
+    '/api/payments/status',
+    '/api/payments/manual-instructions',
     '/api/departments'
   ];
   
-  if (publicApiPaths.some(path => req.path.startsWith(path))) {
+  if (publicApiPaths.some(path => req.path === path || req.path.startsWith(path + '/'))) {
     return next();
   }
   
