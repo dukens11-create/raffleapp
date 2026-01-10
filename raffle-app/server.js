@@ -1492,14 +1492,14 @@ app.get('/seller', requireAuth, (req, res) => {
 });
 
 // Buyers Dashboard - Public page (no authentication required)
-app.get('/buyers', publicPageLimiter, (req, res) => {
+const serveBuyersPortal = (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
-});
+};
+
+app.get('/buyers', publicPageLimiter, serveBuyersPortal);
 
 // Buyers Dashboard - Alternative route with .html extension
-app.get('/buyers.html', publicPageLimiter, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
-});
+app.get('/buyers.html', publicPageLimiter, serveBuyersPortal);
 
 // API: Get all sellers
 app.get('/api/sellers', requireAuth, requireAdmin, async (req, res) => {
