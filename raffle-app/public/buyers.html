@@ -1518,7 +1518,7 @@
         console.log('[Buyers] Departments loaded:', data);
         
         if (!response.ok || !data.success) {
-          throw new Error('Failed to load departments');
+          throw new Error(data?.message || `Failed to load departments (Status: ${response.status})`);
         }
         
         departmentSelect.innerHTML = '<option value="">Select your department...</option>';
