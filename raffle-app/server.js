@@ -503,6 +503,35 @@ function validateRequest(req, res, next) {
     return next();
   }
   
+  // Skip validation for public HTML pages (buyers portal, etc.)
+  const publicPages = ['/buyers.html', '/buyers', '/login.html', '/register-seller.html'];
+  if (publicPages.includes(req.path)) {
+    return next();
+  }
+  
+  // Skip validation for public API endpoints used by buyers portal
+  // These endpoints need to be publicly accessible for the buyers portal to function
+  const publicApiPaths = [
+    '/api/public/raffle-info',
+    '/api/public/available-tickets',
+    '/api/public/my-tickets',
+    '/api/public/verify-ticket',      // Also matches /api/public/verify-ticket/:ticketNumber
+    '/api/payments/methods',
+    '/api/payments/status',            // Also matches /api/payments/status/:reference
+    '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
+    '/api/departments'
+  ];
+  
+  // Check if request path matches any public API endpoint (exact or with parameters)
+  // Using '/' ensures we match path segments, not just prefixes (e.g., won't match /api/payments/status-check)
+  const isPublicApi = publicApiPaths.some(path => 
+    req.path === path || req.path.startsWith(path + '/')
+  );
+  
+  if (isPublicApi) {
+    return next();
+  }
+  
   // Check for suspicious patterns
   const userAgent = req.headers['user-agent'] || '';
   
@@ -1470,9 +1499,14 @@ app.get('/seller', requireAuth, (req, res) => {
 });
 
 // Buyers Dashboard - Public page (no authentication required)
-app.get('/buyers', publicPageLimiter, (req, res) => {
+const serveBuyersPortal = (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
-});
+};
+
+app.get('/buyers', publicPageLimiter, serveBuyersPortal);
+
+// Buyers Dashboard - Alternative route with .html extension
+app.get('/buyers.html', publicPageLimiter, serveBuyersPortal);
 
 // API: Get all sellers
 app.get('/api/sellers', requireAuth, requireAdmin, async (req, res) => {
