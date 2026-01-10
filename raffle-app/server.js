@@ -503,6 +503,28 @@ function validateRequest(req, res, next) {
     return next();
   }
   
+  // Skip validation for public HTML pages (buyers portal, etc.)
+  const publicPages = ['/buyers.html', '/buyers', '/login.html', '/register-seller.html'];
+  if (publicPages.includes(req.path)) {
+    return next();
+  }
+  
+  // Skip validation for public API endpoints used by buyers portal
+  const publicApiPaths = [
+    '/api/public/raffle-info',
+    '/api/public/available-tickets',
+    '/api/public/my-tickets',
+    '/api/public/verify-ticket/',
+    '/api/payments/methods',
+    '/api/payments/status/',
+    '/api/payments/manual-instructions/',
+    '/api/departments'
+  ];
+  
+  if (publicApiPaths.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  
   // Check for suspicious patterns
   const userAgent = req.headers['user-agent'] || '';
   
@@ -1471,6 +1493,11 @@ app.get('/seller', requireAuth, (req, res) => {
 
 // Buyers Dashboard - Public page (no authentication required)
 app.get('/buyers', publicPageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
+});
+
+// Buyers Dashboard - Alternative route with .html extension
+app.get('/buyers.html', publicPageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
 });
 
