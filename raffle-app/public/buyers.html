@@ -710,6 +710,19 @@
       </div>
     </div>
     
+    <!-- Global Error Banner -->
+    <div id="global-error-banner" class="alert alert-error" style="margin-bottom: 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+        <div style="flex: 1;">
+          <strong>⚠️ Critical Error</strong>
+          <p id="global-error-message" style="margin: 4px 0 0 0;"></p>
+        </div>
+        <button class="btn btn-primary" onclick="retryInitialization()" style="white-space: nowrap;">
+          🔄 Retry
+        </button>
+      </div>
+    </div>
+    
     <!-- Tabs -->
     <div class="tabs">
       <button class="tab active" data-tab="raffle-info">
@@ -1397,10 +1410,32 @@
         }
       } catch (error) {
         console.error('[Buyers] Error during initialization:', error);
-        // Don't rethrow - page should still be usable
+        // Show global error banner for critical initialization failure
+        showGlobalError('Unable to load raffle information. Please check your connection and try again.');
       }
       
       console.log('[Buyers] Page initialization complete');
+    }
+    
+    // Show global error banner
+    function showGlobalError(message) {
+      const banner = document.getElementById('global-error-banner');
+      const messageEl = document.getElementById('global-error-message');
+      messageEl.textContent = message;
+      banner.classList.add('show');
+    }
+    
+    // Hide global error banner
+    function hideGlobalError() {
+      const banner = document.getElementById('global-error-banner');
+      banner.classList.remove('show');
+    }
+    
+    // Retry initialization
+    async function retryInitialization() {
+      console.log('[Buyers] Retrying initialization...');
+      hideGlobalError();
+      await init();
     }
     
     // ============================================================================
@@ -1471,6 +1506,8 @@
     
     // Load Haiti departments
     async function loadDepartments() {
+      const departmentSelect = document.getElementById('purchase-department');
+      
       try {
         console.log('[Buyers] Loading departments...');
         const response = await fetchWithTimeout('/api/departments', {}, 10000);
@@ -1479,11 +1516,9 @@
         console.log('[Buyers] Departments loaded:', data);
         
         if (!response.ok || !data.success) {
-          console.error('[Buyers] Failed to load departments');
-          return;
+          throw new Error('Failed to load departments');
         }
         
-        const departmentSelect = document.getElementById('purchase-department');
         departmentSelect.innerHTML = '<option value="">Select your department...</option>';
         
         data.departments.forEach(dept => {
@@ -1494,6 +1529,24 @@
         });
       } catch (error) {
         console.error('[Buyers] Error loading departments:', error);
+        // Show error option in dropdown with retry capability
+        departmentSelect.innerHTML = `
+          <option value="" disabled selected>⚠️ Unable to load departments</option>
+          <option value="__retry__">🔄 Click here to retry loading departments</option>
+        `;
+        
+        // Add event listener to retry when user selects the retry option
+        departmentSelect.addEventListener('change', function retryHandler(e) {
+          if (e.target.value === '__retry__') {
+            departmentSelect.removeEventListener('change', retryHandler);
+            loadDepartments();
+          }
+        }, { once: true });
+        
+        // Show error message to user
+        const errorEl = document.getElementById('purchase-error');
+        errorEl.textContent = 'Unable to load departments. Please check your connection. You can retry by clicking the dropdown.';
+        errorEl.classList.add('show');
       }
     }
     
