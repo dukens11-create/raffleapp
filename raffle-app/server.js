@@ -1474,6 +1474,11 @@ app.get('/buyers', publicPageLimiter, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
 });
 
+// Buyers Dashboard - Alternative route with .html extension for direct access
+app.get('/buyers.html', publicPageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
+});
+
 // API: Get all sellers
 app.get('/api/sellers', requireAuth, requireAdmin, async (req, res) => {
   try {
