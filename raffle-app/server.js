@@ -510,18 +510,25 @@ function validateRequest(req, res, next) {
   }
   
   // Skip validation for public API endpoints used by buyers portal
+  // These endpoints need to be publicly accessible for the buyers portal to function
   const publicApiPaths = [
     '/api/public/raffle-info',
     '/api/public/available-tickets',
     '/api/public/my-tickets',
-    '/api/public/verify-ticket',
+    '/api/public/verify-ticket',      // Also matches /api/public/verify-ticket/:ticketNumber
     '/api/payments/methods',
-    '/api/payments/status',
-    '/api/payments/manual-instructions',
+    '/api/payments/status',            // Also matches /api/payments/status/:reference
+    '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
     '/api/departments'
   ];
   
-  if (publicApiPaths.some(path => req.path === path || req.path.startsWith(path + '/'))) {
+  // Check if request path matches any public API endpoint (exact or with parameters)
+  // Using '/' ensures we match path segments, not just prefixes (e.g., won't match /api/payments/status-check)
+  const isPublicApi = publicApiPaths.some(path => 
+    req.path === path || req.path.startsWith(path + '/')
+  );
+  
+  if (isPublicApi) {
     return next();
   }
   
