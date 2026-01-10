@@ -30,16 +30,17 @@ Both routes serve the same content and require **NO AUTHENTICATION**.
 The buyers portal routes are configured in `server.js`:
 
 ```javascript
-// Buyers Dashboard - Public page (no authentication required)
-app.get('/buyers', publicPageLimiter, (req, res) => {
+// Buyers Dashboard handler - Public page (no authentication required)
+const serveBuyersPage = (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
-});
+};
 
-// Buyers Dashboard - Alternative route with .html extension
-app.get('/buyers.html', publicPageLimiter, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
-});
+// Buyers Dashboard routes - Both /buyers and /buyers.html serve the same page
+app.get('/buyers', publicPageLimiter, serveBuyersPage);
+app.get('/buyers.html', publicPageLimiter, serveBuyersPage);
 ```
+
+This implementation uses a shared handler function to eliminate code duplication and improve maintainability.
 
 ### Security Features
 
