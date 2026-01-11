@@ -760,13 +760,41 @@
       <div class="card">
         <h2>Available Tickets for Purchase</h2>
         
-        <div class="filter-row">
-          <select id="category-filter">
-            <option value="">All Categories</option>
-          </select>
-          <button class="btn btn-primary" onclick="loadAvailableTickets()" style="width: auto;">
-            🔄 Refresh
-          </button>
+        <!-- Advanced Filters -->
+        <div style="margin-bottom: 20px; padding: 20px; background: rgba(102, 126, 234, 0.05); border-radius: 12px; border: 1px solid rgba(102, 126, 234, 0.1);">
+          <h3 style="margin: 0 0 16px 0; font-size: 18px; color: #1e293b;">🔍 Filter Tickets</h3>
+          
+          <div class="filter-row">
+            <div style="flex: 1; min-width: 200px;">
+              <label for="category-filter" style="display: block; font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 8px;">Category</label>
+              <select id="category-filter">
+                <option value="">All Categories</option>
+              </select>
+            </div>
+            
+            <div style="flex: 1; min-width: 200px;">
+              <label for="price-filter" style="display: block; font-size: 14px; font-weight: 600; color: #475569; margin-bottom: 8px;">Price Range</label>
+              <select id="price-filter">
+                <option value="">All Prices</option>
+                <option value="0-50">Under $50</option>
+                <option value="50-100">$50 - $100</option>
+                <option value="100-250">$100 - $250</option>
+                <option value="250-999999">Over $250</option>
+              </select>
+            </div>
+          </div>
+          
+          <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="applyFilters()" style="width: auto; padding: 10px 24px;">
+              🔍 Apply Filters
+            </button>
+            <button onclick="clearFilters()" style="width: auto; padding: 10px 24px; background: #64748b; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;">
+              🔄 Clear Filters
+            </button>
+            <button class="btn btn-primary" onclick="loadAvailableTickets()" style="width: auto; padding: 10px 24px;">
+              🔄 Refresh
+            </button>
+          </div>
         </div>
         
         <div id="available-tickets-content">
@@ -1251,7 +1279,7 @@
         `;
     }
     
-    // Load available tickets
+    // Load available tickets with professional pagination
     async function loadAvailableTickets(page = 1) {
       const container = document.getElementById('available-tickets-content');
       
@@ -1263,7 +1291,13 @@
         
         currentPage = page;
         const category = document.getElementById('category-filter').value;
-        const url = `/api/public/available-tickets?page=${page}&limit=50${category ? '&category=' + category : ''}`;
+        const priceFilter = document.getElementById('price-filter').value;
+        const perPage = 50; // Default per page
+        
+        // Build URL with filters
+        let url = `/api/public/available-tickets?page=${page}&per_page=${perPage}`;
+        if (category) url += `&category=${category}`;
+        if (priceFilter) url += `&price_range=${priceFilter}`;
         
         const response = await fetchWithTimeout(url, {}, 10000);
         const data = await response.json();
@@ -1279,13 +1313,26 @@
             <div class="empty-state">
               <div class="empty-state-icon">🎫</div>
               <h3>No Available Tickets</h3>
-              <p>All tickets in this category have been sold or there are no tickets available.</p>
+              <p>No tickets match your current filters. Try adjusting your search criteria.</p>
+              <button class="btn btn-primary" onclick="clearFilters()" style="display: inline-block; margin-top: 16px;">
+                Clear Filters
+              </button>
             </div>
           `;
           return;
         }
         
+        // Calculate showing range
+        const startItem = (page - 1) * data.pagination.per_page + 1;
+        const endItem = Math.min(page * data.pagination.per_page, data.pagination.total_tickets);
+        
         container.innerHTML = `
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="color: #64748b; font-size: 14px;">
+              Showing ${startItem}-${endItem} of ${data.pagination.total_tickets.toLocaleString()} tickets
+            </div>
+          </div>
+          
           <div class="table-container">
             <table>
               <thead>
@@ -1294,6 +1341,7 @@
                   <th>Category</th>
                   <th>Price</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -1303,6 +1351,11 @@
                     <td>${ticket.category || 'N/A'}</td>
                     <td><strong>$${parseFloat(ticket.price).toFixed(2)}</strong></td>
                     <td><span class="status-badge status-${ticket.status.toLowerCase()}">${ticket.status}</span></td>
+                    <td>
+                      <button class="btn btn-primary" onclick="quickBuyTicket('${ticket.ticket_number}', '${ticket.category}', ${ticket.price})" style="padding: 6px 12px; font-size: 14px; width: auto;">
+                        🛒 Quick Buy
+                      </button>
+                    </td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -1311,12 +1364,29 @@
           
           ${data.pagination.total_pages > 1 ? `
             <div class="pagination">
-              <button onclick="loadAvailableTickets(${page - 1})" ${page === 1 ? 'disabled' : ''}>
-                ← Previous
+              <button onclick="loadAvailableTickets(1)" ${page === 1 ? 'disabled' : ''} style="padding: 8px 12px; font-size: 14px;">
+                « First
               </button>
-              <span class="page-info">Page ${page} of ${data.pagination.total_pages}</span>
-              <button onclick="loadAvailableTickets(${page + 1})" ${page >= data.pagination.total_pages ? 'disabled' : ''}>
+              <button onclick="loadAvailableTickets(${page - 1})" ${!data.pagination.has_prev ? 'disabled' : ''} style="padding: 8px 12px; font-size: 14px;">
+                ← Prev
+              </button>
+              <span class="page-info" style="padding: 8px 16px;">
+                Page ${page} of ${data.pagination.total_pages.toLocaleString()}
+              </span>
+              <button onclick="loadAvailableTickets(${page + 1})" ${!data.pagination.has_next ? 'disabled' : ''} style="padding: 8px 12px; font-size: 14px;">
                 Next →
+              </button>
+              <button onclick="loadAvailableTickets(${data.pagination.total_pages})" ${page === data.pagination.total_pages ? 'disabled' : ''} style="padding: 8px 12px; font-size: 14px;">
+                Last »
+              </button>
+            </div>
+            
+            <div style="margin-top: 16px; text-align: center;">
+              <label for="jump-to-page" style="font-size: 14px; margin-right: 8px; color: #64748b;">Jump to page:</label>
+              <input type="number" id="jump-to-page" min="1" max="${data.pagination.total_pages}" value="${page}" 
+                     style="width: 80px; padding: 6px 12px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 14px; text-align: center;">
+              <button onclick="jumpToPage()" style="margin-left: 8px; padding: 6px 16px; font-size: 14px; width: auto;">
+                Go
               </button>
             </div>
           ` : ''}
@@ -1335,6 +1405,66 @@
             </button>
           </div>
         `;
+      }
+    }
+    
+    // Jump to specific page
+    function jumpToPage() {
+      const input = document.getElementById('jump-to-page');
+      const page = parseInt(input.value);
+      if (page && page > 0) {
+        loadAvailableTickets(page);
+      }
+    }
+    
+    // Apply filters
+    function applyFilters() {
+      console.log('[Buyers] Applying filters...');
+      loadAvailableTickets(1); // Reset to page 1 when filters change
+    }
+    
+    // Clear all filters
+    function clearFilters() {
+      console.log('[Buyers] Clearing filters...');
+      document.getElementById('category-filter').value = '';
+      document.getElementById('price-filter').value = '';
+      loadAvailableTickets(1);
+    }
+    
+    // Quick buy function - pre-populate purchase form
+    function quickBuyTicket(ticketNumber, category, price) {
+      console.log('[Buyers] Quick buy ticket:', ticketNumber, category, price);
+      
+      // Switch to purchase tab
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      const purchaseTab = document.querySelector('.tab[data-tab="purchase"]');
+      const purchaseContent = document.getElementById('purchase');
+      
+      if (purchaseTab) purchaseTab.classList.add('active');
+      if (purchaseContent) purchaseContent.classList.add('active');
+      
+      // Pre-populate form with ticket details
+      const categorySelect = document.getElementById('purchase-category');
+      if (categorySelect) {
+        categorySelect.value = category;
+        updateTotalAmount(); // Update total based on category
+      }
+      
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Show info message
+      const infoEl = document.getElementById('purchase-info');
+      if (infoEl) {
+        infoEl.textContent = `Selected ticket from category ${category} at $${price.toFixed(2)}. Complete your information below to purchase.`;
+        infoEl.classList.add('show');
+        
+        // Clear after 5 seconds
+        setTimeout(() => {
+          infoEl.classList.remove('show');
+        }, 5000);
       }
     }
     
