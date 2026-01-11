@@ -4784,7 +4784,7 @@ app.get('/api/public/raffle-info', async (req, res) => {
       error: "Failed to fetch raffle info. Please try again."
     };
     if (process.env.DEBUG_MODE === 'true') {
-      response.details = String(err);
+      response.details = err.message;
     }
     res.status(500).json(response);
   }
