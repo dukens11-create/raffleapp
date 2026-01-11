@@ -227,6 +227,71 @@ raffleapp/
 └── README.md            # This file
 ```
 
+## Admin Scripts
+
+### Mark Tickets Available Online
+
+The `markTicketsAvailable.js` script makes tickets available for purchase in the buyer portal. This script should be run after deploying the application to expose tickets for online sales.
+
+#### Usage
+
+```bash
+# Navigate to the raffle-app directory
+cd raffle-app
+
+# Preview changes (dry-run mode)
+npm run mark-available:dry-run
+
+# Apply changes to make last 100,000 tickets per category available
+npm run mark-available
+
+# Or run directly with custom options
+node scripts/markTicketsAvailable.js --limit=50000
+```
+
+#### What it does
+
+For each ticket category in the database:
+1. Selects the **last 100,000 tickets** (by `created_at` timestamp, newest first)
+2. Updates those tickets to:
+   - Set `available_online = true` (makes them visible in buyer portal)
+   - Set `status = 'AVAILABLE'` (unless already sold)
+
+#### Options
+
+- `--dry-run` - Preview changes without applying them
+- `--reset` - Mark all tickets as NOT available online (reverses the operation)
+- `--limit=N` - Override the default 100,000 ticket limit per category
+
+#### Examples
+
+```bash
+# Preview what would be updated
+node scripts/markTicketsAvailable.js --dry-run
+
+# Make 100,000 tickets per category available (default)
+node scripts/markTicketsAvailable.js
+
+# Make only 50,000 tickets per category available
+node scripts/markTicketsAvailable.js --limit=50000
+
+# Reset all tickets to not available online
+node scripts/markTicketsAvailable.js --reset
+```
+
+#### Database Support
+
+The script automatically detects and works with:
+- **PostgreSQL** (when `DATABASE_URL` environment variable is set)
+- **SQLite** (when `DATABASE_URL` is not set)
+
+#### Notes
+
+- The script preserves the status of sold tickets
+- Progress is displayed for each category
+- A summary table shows the results after completion
+- Safe to run multiple times (idempotent operation)
+
 ## API Endpoints
 
 ### Authentication
