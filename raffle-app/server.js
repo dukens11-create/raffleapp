@@ -4831,6 +4831,15 @@ app.get('/api/public/available-tickets', async (req, res) => {
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
+    // Helper function to parse and validate price range
+    const parsePriceRange = (rangeStr) => {
+      if (!rangeStr) return null;
+      const [minPrice, maxPrice] = rangeStr.split('-').map(p => parseFloat(p));
+      return (!isNaN(minPrice) && !isNaN(maxPrice)) ? { minPrice, maxPrice } : null;
+    };
+    
+    const priceFilter = parsePriceRange(priceRange);
+    
     // Build optimized query with indexes
     // Using category and status indexes for fast filtering
     let query = `
@@ -4845,13 +4854,10 @@ app.get('/api/public/available-tickets', async (req, res) => {
       params.push(category);
     }
     
-    // Parse and apply price range filter
-    if (priceRange) {
-      const [minPrice, maxPrice] = priceRange.split('-').map(p => parseFloat(p));
-      if (!isNaN(minPrice) && !isNaN(maxPrice)) {
-        query += ' AND price >= ? AND price <= ?';
-        params.push(minPrice, maxPrice);
-      }
+    // Apply price range filter
+    if (priceFilter) {
+      query += ' AND price >= ? AND price <= ?';
+      params.push(priceFilter.minPrice, priceFilter.maxPrice);
     }
     
     // Order by ticket_number for consistent pagination
@@ -4874,12 +4880,9 @@ app.get('/api/public/available-tickets', async (req, res) => {
       countParams.push(category);
     }
     
-    if (priceRange) {
-      const [minPrice, maxPrice] = priceRange.split('-').map(p => parseFloat(p));
-      if (!isNaN(minPrice) && !isNaN(maxPrice)) {
-        countQuery += ' AND price >= ? AND price <= ?';
-        countParams.push(minPrice, maxPrice);
-      }
+    if (priceFilter) {
+      countQuery += ' AND price >= ? AND price <= ?';
+      countParams.push(priceFilter.minPrice, priceFilter.maxPrice);
     }
     
     const countResult = await db.get(countQuery, countParams);

@@ -3372,9 +3372,12 @@
           const response = await fetch('/api/admin/tickets/generation-progress');
           const progress = await response.json();
           
-          // Calculate total progress
+          // Calculate total progress dynamically based on actual progress
           const total = progress.abc + progress.efg + progress.jkl + progress.xyz;
-          const percent = Math.round((progress.completed / 1500000) * 100); // Assuming 1.5M total
+          // Calculate percentage based on completed vs a reasonable max estimate
+          // Use the completed count directly for accurate progress
+          const maxExpected = progress.completed > 0 ? Math.max(progress.completed, 400000 * 4) : 1500000;
+          const percent = progress.completed > 0 ? Math.round((progress.completed / maxExpected) * 100) : 0;
           
           // Update progress bar
           progressBar.style.width = `${percent}%`;
@@ -3477,54 +3480,6 @@
       document.addEventListener('DOMContentLoaded', loadTicketStats);
     } else {
       loadTicketStats();
-    }
-        alert('Please enter start and end numbers');
-        return;
-      }
-      
-      const count = parseInt(end) - parseInt(start) + 1;
-      const pages = Math.ceil(count / 8);
-      
-      if (count > 1000 && !confirm(`Generate ${count} tickets (${pages} pages)?`)) {
-        return;
-      }
-      
-      button.disabled = true;
-      button.innerHTML = '⏳ Generating...';
-      status.style.display = 'block';
-      status.textContent = `Generating ${count} tickets...`;
-      
-      try {
-        const response = await fetch('/api/admin/tickets/print-xyz-portrait', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ startNumber: start, endNumber: end, designId })
-        });
-        
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to generate PDF');
-        }
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `XYZ-portrait-${start}-to-${end}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        status.textContent = `✅ Generated ${count} tickets on ${pages} pages!`;
-        setTimeout(() => status.style.display = 'none', 5000);
-        
-      } catch (error) {
-        status.textContent = `❌ Error: ${error.message}`;
-      } finally {
-        button.disabled = false;
-        button.innerHTML = '🖨️ Generate Portrait PDF (8-up)';
-      }
     }
     
   </script>
