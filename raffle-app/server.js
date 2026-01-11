@@ -4808,7 +4808,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
       SELECT id, ticket_number as number, category, price
       FROM tickets 
       WHERE raffle_id = ? 
-        AND status = 'AVAILABLE'
+        AND UPPER(status) = 'AVAILABLE'
         AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
     `;
     const params = [raffle.id];
@@ -4828,7 +4828,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
       SELECT COUNT(*) as total 
       FROM tickets 
       WHERE raffle_id = ? 
-        AND status = 'AVAILABLE'
+        AND UPPER(status) = 'AVAILABLE'
         AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
     `;
     const countParams = [raffle.id];
