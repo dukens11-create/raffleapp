@@ -15,7 +15,7 @@ const availableTickets = [
 app.get('/api/public/raffle-info', (req, res) => {
   const filtered = availableTickets.filter(t =>
     t.status === 'available' &&
-    t.available_online &&
+    t.available_online === true &&
     t.raffle_id === 1 &&
     t.category_id === 2
   );
