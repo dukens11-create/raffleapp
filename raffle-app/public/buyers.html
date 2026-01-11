@@ -1223,11 +1223,11 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
               <div>
                 <div style="font-size: 16px; opacity: 0.9; margin-bottom: 4px;">🌐 Available for Online Purchase</div>
-                <div style="font-size: 36px; font-weight: 700;">${(data.stats && data.stats.online_available_now || 0).toLocaleString()}</div>
+                <div style="font-size: 36px; font-weight: 700;">${((data.stats && data.stats.online_available_now) || 0).toLocaleString()}</div>
               </div>
               <div style="text-align: right;">
                 <div style="font-size: 14px; opacity: 0.8;">Total Online Tickets</div>
-                <div style="font-size: 20px; font-weight: 600;">${(data.stats && data.stats.online_available_total || 0).toLocaleString()}</div>
+                <div style="font-size: 20px; font-weight: 600;">${((data.stats && data.stats.online_available_total) || 0).toLocaleString()}</div>
               </div>
             </div>
             <button onclick="document.querySelector('[data-tab=\"purchase\"]').click()" style="background: white; color: #10b981; width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 16px; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
@@ -1255,15 +1255,15 @@
           <div class="stats-grid">
             <div class="stat-card">
               <h3>Total Tickets</h3>
-              <div class="value">${(data.stats && data.stats.total_tickets || 0).toLocaleString()}</div>
+              <div class="value">${((data.stats && data.stats.total_tickets) || 0).toLocaleString()}</div>
             </div>
             <div class="stat-card">
               <h3>All Available</h3>
-              <div class="value">${(data.stats && data.stats.available_tickets || 0).toLocaleString()}</div>
+              <div class="value">${((data.stats && data.stats.available_tickets) || 0).toLocaleString()}</div>
             </div>
             <div class="stat-card">
               <h3>Sold</h3>
-              <div class="value">${(data.stats && data.stats.sold_tickets || 0).toLocaleString()}</div>
+              <div class="value">${((data.stats && data.stats.sold_tickets) || 0).toLocaleString()}</div>
             </div>
           </div>
         `;
