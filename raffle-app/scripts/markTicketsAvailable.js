@@ -45,6 +45,10 @@
 
 const db = require('../db');
 
+// Helper functions for database-specific boolean values
+const TRUE_VALUE = () => db.USE_POSTGRES ? 'TRUE' : '1';
+const FALSE_VALUE = () => db.USE_POSTGRES ? 'FALSE' : '0';
+
 // Parse command line arguments
 const DRY_RUN = process.argv.includes('--dry-run');
 const RESET = process.argv.includes('--reset');
@@ -54,7 +58,7 @@ let TICKETS_PER_CATEGORY = 100000;
 const limitArg = process.argv.find(arg => arg.startsWith('--limit='));
 if (limitArg) {
   const limitValue = parseInt(limitArg.split('=')[1]);
-  if (limitValue && limitValue > 0) {
+  if (!isNaN(limitValue) && limitValue > 0) {
     TICKETS_PER_CATEGORY = limitValue;
   } else {
     console.error('❌ Invalid --limit value. Must be a positive number.');
@@ -101,7 +105,7 @@ async function markTicketsAvailable(ticketIds) {
   const sql = `
     UPDATE tickets
     SET 
-      available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'},
+      available_online = ${TRUE_VALUE()},
       status = CASE 
         WHEN status = 'SOLD' THEN status
         ELSE 'AVAILABLE'
@@ -125,7 +129,7 @@ async function countTicketsToUpdate(ticketIds) {
     SELECT COUNT(*) as count
     FROM tickets
     WHERE id IN (${placeholders})
-      AND (available_online = ${db.USE_POSTGRES ? 'FALSE' : '0'} 
+      AND (available_online = ${FALSE_VALUE()} 
            OR status != 'AVAILABLE')
   `, ticketIds);
   
@@ -138,8 +142,8 @@ async function countTicketsToUpdate(ticketIds) {
 async function resetAllTickets() {
   const result = await db.run(`
     UPDATE tickets 
-    SET available_online = ${db.USE_POSTGRES ? 'FALSE' : '0'}
-    WHERE available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+    SET available_online = ${FALSE_VALUE()}
+    WHERE available_online = ${TRUE_VALUE()}
   `);
   
   return result.changes || 0;
@@ -152,7 +156,7 @@ async function countResetTickets() {
   const result = await db.get(`
     SELECT COUNT(*) as count 
     FROM tickets 
-    WHERE available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+    WHERE available_online = ${TRUE_VALUE()}
   `);
   
   return result.count || 0;
@@ -166,8 +170,8 @@ async function displaySummary() {
     SELECT 
       category,
       COUNT(*) as total,
-      SUM(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 ELSE 0 END) as online_available,
-      SUM(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 ELSE 0 END) as available_for_purchase,
+      SUM(CASE WHEN available_online = ${TRUE_VALUE()} THEN 1 ELSE 0 END) as online_available,
+      SUM(CASE WHEN status = 'AVAILABLE' AND available_online = ${TRUE_VALUE()} THEN 1 ELSE 0 END) as available_for_purchase,
       SUM(CASE WHEN status = 'SOLD' THEN 1 ELSE 0 END) as sold
     FROM tickets
     WHERE category IS NOT NULL AND category != ''

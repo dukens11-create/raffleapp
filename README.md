@@ -255,7 +255,7 @@ For each ticket category in the database:
 1. Selects the **last 100,000 tickets** (by `created_at` timestamp, newest first)
 2. Updates those tickets to:
    - Set `available_online = true` (makes them visible in buyer portal)
-   - Set `status = 'available'` (unless already sold)
+   - Set `status = 'AVAILABLE'` (unless already sold)
 
 #### Options
 
