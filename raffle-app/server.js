@@ -514,8 +514,10 @@ function validateRequest(req, res, next) {
   const publicApiPaths = [
     '/api/public/raffle-info',
     '/api/public/available-tickets',
+    '/api/public/ticket-availability',  // New: Get available ticket counts by category
     '/api/public/my-tickets',
     '/api/public/verify-ticket',      // Also matches /api/public/verify-ticket/:ticketNumber
+    '/api/public/purchase',           // New: Purchase initiation endpoints
     '/api/payments/methods',
     '/api/payments/status',            // Also matches /api/payments/status/:reference
     '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
@@ -5035,6 +5037,332 @@ app.get('/api/public/verify-ticket/:ticketNumber', async (req, res) => {
   } catch (error) {
     console.error('Error verifying ticket:', error);
     res.status(500).json({ error: 'Failed to verify ticket' });
+  }
+});
+
+// ============================================================================
+// BUYER PORTAL - TICKET AVAILABILITY & PURCHASE ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/public/ticket-availability - Get available ticket counts by category
+ * Shows how many tickets are available for online purchase from the last 100K pool
+ * 
+ * Response format:
+ * {
+ *   categories: [
+ *     { category: 'ABC', available: 95000, total_online: 100000, price: 10 },
+ *     { category: 'EFG', available: 98000, total_online: 100000, price: 20 },
+ *     ...
+ *   ],
+ *   total_available: 390000
+ * }
+ */
+app.get('/api/public/ticket-availability', async (req, res) => {
+  try {
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Get available ticket counts by category
+    // Only count tickets that are marked as available_online and still AVAILABLE
+    // Join with ticket_categories to get the correct price for each category
+    const categoryStats = await db.all(`
+      SELECT 
+        t.category,
+        COUNT(*) as available,
+        tc.price as price
+      FROM tickets t
+      LEFT JOIN ticket_categories tc ON t.raffle_id = tc.raffle_id AND t.category = tc.category_code
+      WHERE t.raffle_id = ? 
+        AND t.status = 'AVAILABLE'
+        AND t.available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      GROUP BY t.category, tc.price
+      ORDER BY t.category
+    `, [raffle.id]);
+    
+    // Also get total online tickets per category (including sold ones)
+    const categoryTotals = await db.all(`
+      SELECT 
+        category,
+        COUNT(*) as total_online
+      FROM tickets 
+      WHERE raffle_id = ? 
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      GROUP BY category
+      ORDER BY category
+    `, [raffle.id]);
+    
+    // Merge the results
+    const categories = categoryStats.map(stat => {
+      const total = categoryTotals.find(t => t.category === stat.category);
+      return {
+        category: stat.category,
+        available: parseInt(stat.available || 0),
+        total_online: parseInt(total?.total_online || 0),
+        price: parseFloat(stat.price || 0)
+      };
+    });
+    
+    // Calculate total available across all categories
+    const total_available = categories.reduce((sum, cat) => sum + cat.available, 0);
+    
+    res.json({
+      success: true,
+      categories: categories,
+      total_available: total_available
+    });
+  } catch (error) {
+    console.error('Error fetching ticket availability:', error);
+    res.status(500).json({ error: 'Failed to fetch ticket availability' });
+  }
+});
+
+/**
+ * POST /api/public/purchase/initiate - Initiate ticket purchase with atomic allocation
+ * 
+ * This endpoint:
+ * 1. Validates the purchase request (category, quantity, buyer info)
+ * 2. Checks if enough tickets are available from the last 100K pool
+ * 3. Atomically reserves the requested number of tickets
+ * 4. Creates a payment record
+ * 5. Initiates payment with the selected provider (MonCash/NatCash)
+ * 6. Links reserved tickets to the payment reference
+ * 
+ * Request body:
+ * {
+ *   payment_method: 'moncash' | 'natcash',
+ *   buyer_name: string,
+ *   buyer_phone: string,
+ *   buyer_email: string (optional),
+ *   ticket_category: 'ABC' | 'EFG' | 'JKL' | 'XYZ',
+ *   ticket_quantity: number (1-10),
+ *   customer_department: string (Haiti department)
+ * }
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   payment_reference: string,
+ *   tickets_allocated: [ticket_numbers],
+ *   payment_details: { ... } // Provider-specific details
+ * }
+ */
+app.post('/api/public/purchase/initiate', [
+  body('payment_method').isIn(['moncash', 'natcash']).withMessage('Valid payment method required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').isIn(['ABC', 'EFG', 'JKL', 'XYZ']).withMessage('Valid ticket category required'),
+  body('ticket_quantity').isInt({ min: 1, max: 10 }).withMessage('Quantity must be between 1 and 10'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { 
+      payment_method, 
+      buyer_name, 
+      buyer_phone, 
+      buyer_email, 
+      ticket_category, 
+      ticket_quantity, 
+      customer_department 
+    } = req.body;
+    
+    console.log(`[PURCHASE] Initiating purchase: ${buyer_name}, ${ticket_quantity}x ${ticket_category}, via ${payment_method}`);
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Get ticket category info to calculate amount
+    const category = await db.get(
+      'SELECT * FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+      [raffle.id, ticket_category]
+    );
+    
+    if (!category) {
+      return res.status(400).json({ error: 'Invalid ticket category' });
+    }
+    
+    const amount = parseFloat(category.price) * ticket_quantity;
+    
+    // ========================================================================
+    // ATOMIC TICKET ALLOCATION
+    // ========================================================================
+    // Lock tickets to prevent race conditions during allocation
+    await ticketGenerationMutex.lock();
+    
+    // Declare paymentReference outside try block so it's available for rollback
+    let paymentReference = null;
+    
+    try {
+      // Check available tickets in this category (last 100K pool only)
+      const availableTickets = await db.all(`
+        SELECT id, ticket_number
+        FROM tickets 
+        WHERE raffle_id = ? 
+          AND category = ?
+          AND status = 'AVAILABLE'
+          AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+          AND payment_reference IS NULL
+        ORDER BY ticket_number
+        LIMIT ?
+      `, [raffle.id, ticket_category, ticket_quantity]);
+      
+      if (availableTickets.length < ticket_quantity) {
+        ticketGenerationMutex.unlock();
+        return res.status(400).json({ 
+          error: 'Insufficient tickets available',
+          requested: ticket_quantity,
+          available: availableTickets.length
+        });
+      }
+      
+      // Generate payment reference
+      paymentReference = paymentService.generatePaymentReference(
+        payment_method.toUpperCase()
+      );
+      
+      // Create payment record
+      await db.run(`
+        INSERT INTO payments (
+          raffle_id, payment_reference, payment_method, payment_type,
+          amount, buyer_name, buyer_email, buyer_phone,
+          ticket_category, ticket_quantity, payment_status,
+          payment_provider, payment_mode, customer_department
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        raffle.id, 
+        paymentReference, 
+        payment_method === 'moncash' ? 'MonCash' : 'NatCash',
+        'automated',
+        amount, 
+        buyer_name, 
+        buyer_email, 
+        buyer_phone,
+        ticket_category, 
+        ticket_quantity, 
+        'pending',
+        payment_method,
+        payment_method === 'moncash' ? paymentService.MONCASH_CONFIG.mode : paymentService.NATCASH_CONFIG.mode,
+        customer_department
+      ]);
+      
+      // Atomically assign tickets to this payment
+      const ticketIds = availableTickets.map(t => t.id);
+      const ticketNumbers = availableTickets.map(t => t.ticket_number);
+      
+      // Update tickets with payment_reference (reserves them)
+      const placeholders = ticketIds.map(() => '?').join(',');
+      await db.run(`
+        UPDATE tickets 
+        SET payment_reference = ?,
+            status = 'RESERVED'
+        WHERE id IN (${placeholders})
+      `, [paymentReference, ...ticketIds]);
+      
+      console.log(`[PURCHASE] Reserved ${ticketIds.length} tickets: ${ticketNumbers.join(', ')}`);
+      
+      // ========================================================================
+      // INITIATE PAYMENT WITH PROVIDER
+      // ========================================================================
+      let paymentResult;
+      
+      if (payment_method === 'moncash') {
+        // Initiate MonCash payment
+        paymentResult = await paymentService.createMonCashPayment({
+          amount: amount,
+          orderId: paymentReference
+        });
+        
+        // Update payment with MonCash transaction details
+        await db.run(`
+          UPDATE payments 
+          SET transaction_id = ?, external_reference = ?
+          WHERE payment_reference = ?
+        `, [paymentResult.paymentToken, paymentResult.paymentToken, paymentReference]);
+        
+      } else if (payment_method === 'natcash') {
+        // Initiate NatCash payment
+        paymentResult = await paymentService.createNatCashPayment({
+          amount: amount,
+          orderId: paymentReference,
+          buyer_phone: buyer_phone
+        });
+        
+        // Update payment with NatCash transaction details
+        await db.run(`
+          UPDATE payments 
+          SET transaction_id = ?, external_reference = ?
+          WHERE payment_reference = ?
+        `, [paymentResult.paymentId, paymentResult.transactionRef, paymentReference]);
+      }
+      
+      // Release the mutex after successful payment initiation
+      ticketGenerationMutex.unlock();
+      
+      // Return success with allocated tickets and payment details
+      res.json({
+        success: true,
+        payment_reference: paymentReference,
+        tickets_allocated: ticketNumbers,
+        quantity: ticket_quantity,
+        category: ticket_category,
+        amount: amount,
+        payment_details: paymentResult
+      });
+      
+      console.log(`[PURCHASE] Success: Payment ${paymentReference}, ${ticketNumbers.length} tickets allocated`);
+      
+    } catch (error) {
+      // Release mutex on error (check if still locked)
+      if (ticketGenerationMutex.isLocked()) {
+        ticketGenerationMutex.unlock();
+      }
+      
+      console.error('[PURCHASE] Error during allocation:', error);
+      
+      // Rollback: Release any reserved tickets if payment initiation fails
+      // Only attempt rollback if paymentReference was generated
+      if (paymentReference) {
+        try {
+          await db.run(`
+            UPDATE tickets 
+            SET payment_reference = NULL,
+                status = 'AVAILABLE'
+            WHERE payment_reference = ? AND status = 'RESERVED'
+          `, [paymentReference]);
+          console.log(`[PURCHASE] Rolled back ticket reservations for ${paymentReference}`);
+        } catch (rollbackError) {
+          console.error('[PURCHASE] Rollback failed:', rollbackError);
+        }
+      }
+      
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('Error initiating purchase:', error);
+    res.status(500).json({ 
+      error: 'Failed to initiate purchase', 
+      message: error.message 
+    });
   }
 });
 

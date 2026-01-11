@@ -832,6 +832,7 @@
             <select id="purchase-category" required>
               <option value="">Select a category...</option>
             </select>
+            <div id="availability-info"></div>
           </div>
           
           <div class="form-group">
@@ -1604,7 +1605,7 @@
       }
     }
     
-    // Populate purchase form with raffle categories
+    // Populate purchase form with raffle categories and availability
     async function populatePurchaseCategories() {
       // Wait for raffleData to be loaded
       if (!raffleData || !raffleData.categories) {
@@ -1613,15 +1614,71 @@
       }
       
       const categorySelect = document.getElementById('purchase-category');
-      categorySelect.innerHTML = '<option value="">Select a category...</option>';
+      categorySelect.innerHTML = '<option value="">Loading availability...</option>';
       
-      raffleData.categories.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat.category_code;
-        option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
-        option.dataset.price = cat.price;
-        categorySelect.appendChild(option);
-      });
+      try {
+        // Fetch real-time ticket availability from the last 100K pool
+        console.log('[Buyers] Fetching ticket availability...');
+        const availResponse = await fetchWithTimeout('/api/public/ticket-availability', {}, 10000);
+        const availData = await availResponse.json();
+        
+        if (!availResponse.ok || !availData.success) {
+          throw new Error('Failed to fetch ticket availability');
+        }
+        
+        console.log('[Buyers] Ticket availability:', availData);
+        
+        // Store availability data for later use
+        window.ticketAvailability = availData.categories;
+        
+        // Populate categories with availability info
+        categorySelect.innerHTML = '<option value="">Select a category...</option>';
+        
+        raffleData.categories.forEach(cat => {
+          const availInfo = availData.categories.find(a => a.category === cat.category_code);
+          const available = availInfo ? availInfo.available : 0;
+          
+          const option = document.createElement('option');
+          option.value = cat.category_code;
+          
+          // Show category with price and availability
+          option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)} (${available.toLocaleString()} available)`;
+          option.dataset.price = cat.price;
+          option.dataset.available = available;
+          
+          // Disable if no tickets available
+          if (available === 0) {
+            option.disabled = true;
+            option.textContent += ' - SOLD OUT';
+          }
+          
+          categorySelect.appendChild(option);
+        });
+        
+        // Show total availability info below the dropdown
+        const totalAvailable = availData.total_available || 0;
+        const availInfoEl = document.getElementById('availability-info');
+        if (availInfoEl) {
+          availInfoEl.innerHTML = `
+            <div style="font-size: 13px; color: #475569; margin-top: 8px;">
+              📊 <strong>${totalAvailable.toLocaleString()}</strong> tickets available online from the last 100,000 of each category
+            </div>
+          `;
+        }
+        
+      } catch (error) {
+        console.error('[Buyers] Error fetching availability:', error);
+        
+        // Fallback to showing categories without availability
+        categorySelect.innerHTML = '<option value="">Select a category...</option>';
+        raffleData.categories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.category_code;
+          option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
+          option.dataset.price = cat.price;
+          categorySelect.appendChild(option);
+        });
+      }
       
       // Load and populate departments
       await loadDepartments();
@@ -1718,6 +1775,17 @@
       
       if (!quantity || quantity < 1 || quantity > 10) {
         errorEl.textContent = 'Please enter a valid quantity (1-10)';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      // Check availability against selected quantity
+      const categorySelect = document.getElementById('purchase-category');
+      const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+      const available = parseInt(selectedOption.dataset.available || 0);
+      
+      if (available < quantity) {
+        errorEl.textContent = `Only ${available} ticket${available !== 1 ? 's' : ''} available in this category. Please adjust your quantity.`;
         errorEl.classList.add('show');
         return;
       }
@@ -2014,16 +2082,18 @@
       const infoEl = document.getElementById('purchase-info');
       
       errorEl.classList.remove('show');
-      infoEl.textContent = 'Processing payment...';
+      infoEl.textContent = 'Reserving tickets and processing payment...';
       infoEl.classList.add('show');
       
       try {
-        console.log('[Buyers] Initiating MonCash payment...');
-        const response = await fetchWithTimeout('/api/payments/moncash/initiate', {
+        console.log('[Buyers] Initiating MonCash payment with atomic ticket allocation...');
+        
+        // Use the new unified purchase API that handles atomic allocation
+        const response = await fetchWithTimeout('/api/public/purchase/initiate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            amount: purchaseData.amount,
+            payment_method: 'moncash',
             buyer_name: purchaseData.name,
             buyer_phone: purchaseData.phone,
             buyer_email: purchaseData.email,
@@ -2031,7 +2101,7 @@
             ticket_quantity: purchaseData.quantity,
             customer_department: purchaseData.department
           })
-        }, 10000);
+        }, 15000); // Longer timeout for ticket allocation
         
         const data = await response.json();
         
@@ -2041,8 +2111,20 @@
           throw new Error(data.error || 'Payment initiation failed');
         }
         
-        // Redirect to MonCash
-        window.location.href = data.redirectUrl;
+        // Show success info with allocated tickets
+        infoEl.innerHTML = `
+          ✅ ${data.quantity} ticket${data.quantity > 1 ? 's' : ''} reserved! 
+          <br><small>Payment Reference: ${data.payment_reference}</small>
+          <br><small>Redirecting to MonCash...</small>
+        `;
+        
+        // Store payment reference for later tracking
+        sessionStorage.setItem('lastPaymentReference', data.payment_reference);
+        
+        // Redirect to MonCash payment gateway
+        setTimeout(() => {
+          window.location.href = data.payment_details.redirectUrl;
+        }, 1500);
       } catch (error) {
         console.error('[Buyers] Error initiating MonCash payment:', error);
         infoEl.classList.remove('show');
@@ -2054,21 +2136,23 @@
     // Initiate NatCash automated payment
     async function initiateNatCashPayment() {
       const errorEl = document.getElementById('purchase-error');
-      const successEl = document.getElementById('purchase-success');
       const infoEl = document.getElementById('purchase-info');
+      const successEl = document.getElementById('purchase-success');
       
       errorEl.classList.remove('show');
       successEl.classList.remove('show');
-      infoEl.textContent = 'Sending payment request...';
+      infoEl.textContent = 'Reserving tickets and processing payment...';
       infoEl.classList.add('show');
       
       try {
-        console.log('[Buyers] Initiating NatCash payment...');
-        const response = await fetchWithTimeout('/api/payments/natcash/initiate', {
+        console.log('[Buyers] Initiating NatCash payment with atomic ticket allocation...');
+        
+        // Use the new unified purchase API that handles atomic allocation
+        const response = await fetchWithTimeout('/api/public/purchase/initiate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            amount: purchaseData.amount,
+            payment_method: 'natcash',
             buyer_name: purchaseData.name,
             buyer_phone: purchaseData.phone,
             buyer_email: purchaseData.email,
@@ -2076,7 +2160,7 @@
             ticket_quantity: purchaseData.quantity,
             customer_department: purchaseData.department
           })
-        }, 10000);
+        }, 15000); // Longer timeout for ticket allocation
         
         const data = await response.json();
         
@@ -2087,12 +2171,31 @@
         }
         
         infoEl.classList.remove('show');
+        
+        // Show success with payment instructions
         successEl.innerHTML = `
-          <strong>Payment Request Sent!</strong><br>
-          Reference: ${data.paymentReference}<br>
-          Please check your phone to complete the payment.
+          <strong>✅ Payment Request Sent!</strong>
+          <br><br>
+          ${data.quantity} ticket${data.quantity > 1 ? 's' : ''} have been reserved for you.
+          <br><br>
+          <div style="background: rgba(102, 126, 234, 0.1); padding: 16px; border-radius: 8px; margin: 12px 0;">
+            <div style="font-size: 14px; margin-bottom: 8px;">Payment Reference:</div>
+            <div style="font-size: 20px; font-weight: 700; color: #667eea; font-family: monospace;">${data.payment_reference}</div>
+          </div>
+          <br>
+          A payment request has been sent to your phone (${purchaseData.phone}).
+          <br><br>
+          Please approve the payment on your NatCash app to complete your purchase.
+          <br><br>
+          <strong>Transaction ID:</strong> ${data.payment_details.paymentId}
+          <br>
+          <strong>Status:</strong> ${data.payment_details.status}
         `;
         successEl.classList.add('show');
+        
+        // Store payment reference for later tracking
+        sessionStorage.setItem('lastPaymentReference', data.payment_reference);
+        
       } catch (error) {
         console.error('[Buyers] Error initiating NatCash payment:', error);
         infoEl.classList.remove('show');
