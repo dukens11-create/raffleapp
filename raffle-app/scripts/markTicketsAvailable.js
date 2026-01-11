@@ -10,7 +10,7 @@
  *   2. For each category, selecting the last 100,000 tickets (by created_at DESC)
  *   3. Updating those tickets to set:
  *      - available_online = true
- *      - status = 'available' (only if currently not 'SOLD')
+ *      - status = 'AVAILABLE' (only if currently not 'SOLD')
  * 
  * CONFIGURATION:
  *   Database connection is configured via environment variables:
@@ -97,14 +97,14 @@ async function markTicketsAvailable(ticketIds) {
   // Build a list of placeholders for the IN clause
   const placeholders = ticketIds.map(() => '?').join(',');
   
-  // Update tickets: set available_online=true and status='available' (unless already SOLD)
+  // Update tickets: set available_online=true and status='AVAILABLE' (unless already SOLD)
   const sql = `
     UPDATE tickets
     SET 
       available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'},
       status = CASE 
         WHEN status = 'SOLD' THEN status
-        ELSE 'available'
+        ELSE 'AVAILABLE'
       END
     WHERE id IN (${placeholders})
   `;
@@ -126,7 +126,7 @@ async function countTicketsToUpdate(ticketIds) {
     FROM tickets
     WHERE id IN (${placeholders})
       AND (available_online = ${db.USE_POSTGRES ? 'FALSE' : '0'} 
-           OR status != 'available')
+           OR status != 'AVAILABLE')
   `, ticketIds);
   
   return result.count || 0;
@@ -167,7 +167,7 @@ async function displaySummary() {
       category,
       COUNT(*) as total,
       SUM(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 ELSE 0 END) as online_available,
-      SUM(CASE WHEN status = 'available' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 ELSE 0 END) as available_for_purchase,
+      SUM(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 ELSE 0 END) as available_for_purchase,
       SUM(CASE WHEN status = 'SOLD' THEN 1 ELSE 0 END) as sold
     FROM tickets
     WHERE category IS NOT NULL AND category != ''
