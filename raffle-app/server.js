@@ -4773,12 +4773,17 @@ app.get('/api/public/raffle-info', async (req, res) => {
   try {
     const result = await db.get("SELECT * FROM raffles WHERE status = 'active' LIMIT 1");
     if (!result) {
-      return res.status(404).json({ error: 'No active raffle found.' });
+      return res.status(404).json({
+        error: "No active raffle found. Please check if a raffle is set to active in your database."
+      });
     }
     res.json(result);
   } catch (err) {
-    console.error('Failed to fetch raffle info:', err);
-    res.status(500).json({ error: 'Failed to fetch raffle info' });
+    console.error('Error fetching active raffle:', err);
+    res.status(500).json({
+      error: "Failed to fetch raffle info. Please try again.",
+      details: String(err)
+    });
   }
 });
 
