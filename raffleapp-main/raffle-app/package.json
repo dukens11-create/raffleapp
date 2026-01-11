@@ -1,0 +1,47 @@
+{
+  "name": "raffle-app",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "cross-env NODE_ENV=production node --max-old-space-size=1024 server.js",
+    "dev": "nodemon server.js",
+    "migrate:barcodes": "node migrations/migrate_to_8digit_barcodes.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bwip-js": "^4.8.0",
+    "connect-pg-simple": "^9.0.1",
+    "connect-sqlite3": "^0.9.16",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "cross-env": "^10.1.0",
+    "csurf": "^1.11.0",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "express-session": "^1.18.2",
+    "express-validator": "^7.3.1",
+    "helmet": "^8.1.0",
+    "ml-regression": "^6.3.0",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "node-cron": "^4.2.1",
+    "node-fetch": "^2.7.0",
+    "nodemailer": "^7.0.12",
+    "pdfkit": "^0.17.2",
+    "pg": "^8.11.3",
+    "pg-hstore": "^2.3.4",
+    "pm2": "^6.0.14",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.33.0",
+    "sqlite3": "^5.1.7",
+    "stripe": "^20.1.0",
+    "twilio": "^5.4.0",
+    "winston": "^3.19.0",
+    "xlsx": "^0.18.5",
+    "xss-clean": "^0.1.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

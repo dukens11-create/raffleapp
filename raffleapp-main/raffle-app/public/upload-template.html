@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Custom Template - Raffle App</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/styles/template-upload.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <img src="logo.png" alt="Logo">
+        <h1>🎨 Custom Ticket Design Uploader</h1>
+      </div>
+      <div class="nav-links">
+        <a href="/admin.html">← Back to Admin</a>
+        <a href="/manage-templates.html">📋 Manage Templates</a>
+      </div>
+    </header>
+
+    <div class="card">
+      <div class="card-title">Upload New Ticket Template</div>
+      <div class="card-subtitle">
+        Upload custom-designed front and back images for your raffle tickets. 
+        Recommended size: 1650 x 525 pixels (5.5" x 1.75" at 300 DPI)
+      </div>
+
+      <form id="uploadForm" enctype="multipart/form-data">
+        <div class="form-group">
+          <label for="templateName">Template Name</label>
+          <input 
+            type="text" 
+            id="templateName" 
+            name="templateName" 
+            placeholder="e.g., ABC Gold Design or Main Raffle 2025"
+            required
+          >
+        </div>
+
+        <div class="upload-section">
+          <h3>Front Side Design (Buyer Ticket)</h3>
+          <p class="upload-hint">
+            <strong>Accepted formats:</strong> PNG, JPG, PDF<br>
+            <strong>Recommended size:</strong> 1650 x 525 pixels (5.5" x 1.75" @ 300DPI)
+          </p>
+          <div class="file-input-container">
+            <input 
+              type="file" 
+              id="frontImage" 
+              name="frontImage" 
+              accept="image/png,image/jpeg,application/pdf"
+              required
+            >
+            <label for="frontImage" class="file-label">
+              <span class="file-icon">📁</span>
+              <span class="file-text">Choose Front Side Image</span>
+            </label>
+            <span id="frontFileName" class="file-name"></span>
+          </div>
+          <div id="frontPreview" class="preview-container" style="display: none;">
+            <h4>Front Side Preview:</h4>
+            <img id="frontPreviewImg" alt="Front preview">
+            <div class="tearoff-line">┆┆┆┆┆┆┆┆ Tear-off line ┆┆┆┆┆┆┆┆</div>
+          </div>
+        </div>
+
+        <div class="upload-section">
+          <h3>Back Side Design (Seller Stub)</h3>
+          <p class="upload-hint">
+            <strong>Accepted formats:</strong> PNG, JPG, PDF<br>
+            <strong>Recommended size:</strong> 1650 x 525 pixels (5.5" x 1.75" @ 300DPI)
+          </p>
+          <div class="file-input-container">
+            <input 
+              type="file" 
+              id="backImage" 
+              name="backImage" 
+              accept="image/png,image/jpeg,application/pdf"
+              required
+            >
+            <label for="backImage" class="file-label">
+              <span class="file-icon">📁</span>
+              <span class="file-text">Choose Back Side Image</span>
+            </label>
+            <span id="backFileName" class="file-name"></span>
+          </div>
+          <div id="backPreview" class="preview-container" style="display: none;">
+            <h4>Back Side Preview:</h4>
+            <img id="backPreviewImg" alt="Back preview">
+            <div class="tearoff-line">┆┆┆┆┆┆┆┆ Tear-off line ┆┆┆┆┆┆┆┆</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Image Fitting Options</label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="fitMode" value="aspect" checked>
+              <span class="radio-label">
+                <strong>Maintain Aspect Ratio</strong>
+                <span class="radio-description">Preserves proportions, may add padding</span>
+              </span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="fitMode" value="stretch">
+              <span class="radio-label">
+                <strong>Stretch to Fit</strong>
+                <span class="radio-description">Fills entire template, may distort image</span>
+              </span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="fitMode" value="crop">
+              <span class="radio-label">
+                <strong>Center and Crop</strong>
+                <span class="radio-description">Fills template, crops excess edges</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">
+            💾 Save Template
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="resetForm()">
+            🗑️ Clear
+          </button>
+        </div>
+      </form>
+
+      <div id="uploadStatus" class="upload-status" style="display: none;"></div>
+    </div>
+  </div>
+
+  <script>
+    // File input handlers
+    const frontInput = document.getElementById('frontImage');
+    const backInput = document.getElementById('backImage');
+    const frontFileName = document.getElementById('frontFileName');
+    const backFileName = document.getElementById('backFileName');
+    const frontPreview = document.getElementById('frontPreview');
+    const backPreview = document.getElementById('backPreview');
+    const frontPreviewImg = document.getElementById('frontPreviewImg');
+    const backPreviewImg = document.getElementById('backPreviewImg');
+
+    frontInput.addEventListener('change', (e) => handleFileSelect(e, 'front'));
+    backInput.addEventListener('change', (e) => handleFileSelect(e, 'back'));
+
+    function handleFileSelect(event, side) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      // Update file name display
+      const fileNameElement = side === 'front' ? frontFileName : backFileName;
+      fileNameElement.textContent = file.name;
+
+      // Show preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const previewContainer = side === 'front' ? frontPreview : backPreview;
+        const previewImg = side === 'front' ? frontPreviewImg : backPreviewImg;
+        
+        previewImg.src = e.target.result;
+        previewContainer.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Form submission
+    document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const statusDiv = document.getElementById('uploadStatus');
+
+      // Show loading status
+      statusDiv.textContent = 'Uploading and processing images...';
+      statusDiv.className = 'upload-status status-loading';
+      statusDiv.style.display = 'block';
+
+      try {
+        const response = await fetch('/api/admin/templates/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          statusDiv.textContent = '✅ Template uploaded successfully!';
+          statusDiv.className = 'upload-status status-success';
+          
+          // Redirect to manage templates after 2 seconds
+          setTimeout(() => {
+            window.location.href = '/manage-templates.html';
+          }, 2000);
+        } else {
+          statusDiv.textContent = `❌ Error: ${data.error}`;
+          statusDiv.className = 'upload-status status-error';
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        statusDiv.textContent = `❌ Upload failed: ${error.message}`;
+        statusDiv.className = 'upload-status status-error';
+      }
+    });
+
+    function resetForm() {
+      document.getElementById('uploadForm').reset();
+      frontFileName.textContent = '';
+      backFileName.textContent = '';
+      frontPreview.style.display = 'none';
+      backPreview.style.display = 'none';
+      document.getElementById('uploadStatus').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

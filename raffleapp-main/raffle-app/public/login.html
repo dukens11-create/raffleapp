@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Raffle App</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RaffleApp">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/icons/icon-128x128.png">
+    
+    <!-- Standard Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-96x96.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-72x72.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 48px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 420px;
+        }
+        
+        .logo-container {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .logo-image {
+            max-width: 200px;
+            max-height: 80px;
+            width: auto;
+            height: auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 32px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* Input state indicators */
+        input.has-value {
+            border-color: #10b981;
+            background-color: #f0fdf4;
+        }
+        
+        input.has-error {
+            border-color: #ef4444;
+            background-color: #fef2f2;
+        }
+        
+        /* Prevent form shake and reset */
+        #loginForm {
+            animation: none !important;
+        }
+        
+        #loginForm.submitting button {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        /* Custom error shake - only if we want it */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        #message.error {
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        /* Password toggle button specific styles */
+        #togglePassword {
+            margin-top: 8px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #667eea;
+            padding: 8px 12px;
+            width: auto;
+            text-align: left;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 44px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        #togglePassword:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        
+        #togglePassword .icon {
+            font-size: 20px;
+        }
+        
+        #message {
+            margin-top: 15px;
+            text-align: center;
+            font-weight: 500;
+            white-space: pre-line;
+        }
+        
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #555;
+        }
+        
+        .register-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+        
+        .register-link p {
+            margin: 5px 0;
+        }
+        
+        .help-section {
+            margin-top: 24px;
+            text-align: center;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .help-section p {
+            margin: 8px 0;
+        }
+        
+        .help-section a {
+            color: #667eea;
+            text-decoration: underline;
+        }
+        
+        .help-section a:hover {
+            color: #764ba2;
+        }
+        
+        /* Pulse animation for fallback redirect link */
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        /* Responsive design */
+        @media (max-width: 480px) {
+            .container {
+                padding: 32px 24px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .logo-image {
+                max-width: 160px;
+                max-height: 64px;
+            }
+        }
+        
+        /* PWA Install Button Styles */
+        .install-prompt {
+            margin-top: 24px;
+            text-align: center;
+        }
+        
+        .install-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .install-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
+        }
+        
+        .install-btn:active {
+            transform: translateY(0);
+        }
+        /* Language Selector Styles */
+        .language-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .lang-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            width: auto;
+            min-height: 40px;
+        }
+        
+        .lang-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.1);
+        }
+        
+        .lang-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <!-- Language Selector -->
+    <div class="language-selector">
+        <button class="lang-btn" data-lang="en" title="English" aria-label="Switch to English">🇺🇸</button>
+        <button class="lang-btn" data-lang="ht" title="Kreyòl Ayisyen" aria-label="Switch to Haitian Creole">🇭🇹</button>
+        <button class="lang-btn" data-lang="fr" title="Français" aria-label="Switch to French">🇫🇷</button>
+    </div>
+    
+    <div class="container">
+        <!-- Logo -->
+        <div class="logo-container">
+            <img src="/logo.png" alt="RaffleApp Logo" class="logo-image">
+        </div>
+        
+        <!-- Heading -->
+        <h1 data-translate="welcomeBack">Welcome Back</h1>
+        <p class="subtitle" data-translate="signInSubtitle">Sign in to your RaffleApp account</p>
+        
+        <form id="loginForm" autocomplete="off">
+            <div class="form-group">
+                <label for="phone" data-translate="phoneNumber">Phone Number</label>
+                <input 
+                    type="tel" 
+                    id="phone" 
+                    name="phone"
+                    required 
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                    data-translate-placeholder="phonePlaceholder"
+                    placeholder="Enter your phone number">
+            </div>
+            <div class="form-group">
+                <label for="password" data-translate="password">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password"
+                    required 
+                    autocomplete="new-password"
+                    data-translate-placeholder="passwordPlaceholder"
+                    placeholder="Enter your password">
+                <button 
+                    type="button" 
+                    id="togglePassword" 
+                    onclick="togglePasswordVisibility()"
+                    data-translate-title="showPassword"
+                    title="Show password"
+                    aria-label="Toggle password visibility">
+                    <span class="icon" aria-hidden="true">👁️</span>
+                    <span data-translate="showPassword">Show password</span>
+                </button>
+            </div>
+            <button type="submit" data-translate="loginButton">Login</button>
+            <div id="message"></div>
+        </form>
+        <div class="register-link">
+            <p><span data-translate="noAccess">Don't have access?</span> <a href="/register-seller.html" data-translate="requestAccess">Request Seller Access</a></p>
+            <p style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e2e8f0;">
+                <span>Are you a buyer?</span> <a href="/buyers" style="color: #10b981; font-weight: 700;">🎟️ Visit Buyers Portal</a>
+            </p>
+        </div>
+
+        
+        <!-- PWA Install Button -->
+        <div id="installPrompt" class="install-prompt" style="display: none;">
+            <button id="installButton" class="install-btn">
+                📱 Install App
+            </button>
+            <p style="font-size: 14px; color: rgba(255,255,255,0.8); text-align: center; margin-top: 8px;">
+                Install for quick access from your home screen
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Log page load
+        console.log('=== LOGIN PAGE LOADED ===');
+        console.log('Phone input:', document.getElementById('phone'));
+        console.log('Password input:', document.getElementById('password'));
+        console.log('Form:', document.getElementById('loginForm'));
+        
+        // Form submission handler
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('=== LOGIN FORM SUBMISSION STARTED ===');
+            
+            const phoneInput = document.getElementById('phone');
+            const passwordInput = document.getElementById('password');
+            const messageDiv = document.getElementById('message');
+            
+            // Get values and trim whitespace
+            const phone = phoneInput.value.trim();
+            const password = passwordInput.value.trim();
+            
+            console.log('Phone input element:', phoneInput);
+            console.log('Password input element:', passwordInput);
+            console.log('Phone value:', phone);
+            console.log('Phone length:', phone.length);
+            console.log('Password length:', password.length);
+            console.log('Password value (first 3 chars):', password.substring(0, 3));
+            
+            // Validate inputs
+            if (!phone || phone.length === 0) {
+                console.error('Phone is empty!');
+                messageDiv.textContent = 'Please enter your phone number';
+                messageDiv.style.color = 'red';
+                return;
+            }
+            
+            if (!password || password.length === 0) {
+                console.error('Password is empty!');
+                messageDiv.textContent = 'Please enter your password';
+                messageDiv.style.color = 'red';
+                return;
+            }
+            
+            // Show loading state
+            messageDiv.textContent = 'Logging in...';
+            messageDiv.style.color = '#667eea';
+            
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Logging in...';
+            
+            console.log('📤 Sending login request to /api/login');
+            console.log('Request body:', { phone, password: '***' });
+            
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ phone, password })
+                });
+                
+                console.log('📥 Response status:', response.status);
+                console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+                
+                const contentType = response.headers.get('content-type');
+                console.log('📄 Content-Type:', contentType);
+                
+                // Check if response is JSON
+                if (!contentType || !contentType.includes('application/json')) {
+                    console.error('❌ Expected JSON but got:', contentType);
+                    const text = await response.text();
+                    console.error('Response body:', text.substring(0, 500));
+                    
+                    // Re-enable button
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'Login';
+                    
+                    messageDiv.textContent = 'Server returned invalid response. Please check server logs.';
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log('📦 Response data:', data);
+                
+                // Re-enable button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Login';
+                
+                // Check if there's an error (non-2xx status or error field)
+                if (!response.ok || data.error || !data.success) {
+                    console.error('❌ Login error from server:', data.error || 'Unknown error');
+                    let errorMessage = data.error || 'Login failed. Please try again.';
+                    
+                    // Add helpful hints based on error type
+                    if (errorMessage.includes('Too many')) {
+                        errorMessage += '\n\nToo many failed attempts. Wait 60 minutes or contact support.';
+                    } else if (errorMessage.includes('Invalid')) {
+                        errorMessage += '\n\nDouble-check your phone number and password.';
+                    } else if (errorMessage.includes('Session expired')) {
+                        errorMessage += '\n\nYour session has expired. Please login again.';
+                    } else if (errorMessage.includes('required')) {
+                        errorMessage += '\n\nBoth phone number and password are required.';
+                    }
+                    
+                    messageDiv.textContent = errorMessage;
+                    messageDiv.style.color = 'red';
+                    return;
+                }
+                
+                // Check if there's a redirect URL
+                if (data.success && data.redirect) {
+                    console.log('✅ Login successful! Redirecting to:', data.redirect);
+                    
+                    // Validate redirect URL to prevent XSS
+                    const redirectUrl = data.redirect;
+                    const isValidRedirect = redirectUrl.startsWith('/') || redirectUrl.startsWith(window.location.origin);
+                    
+                    if (!isValidRedirect) {
+                        console.error('Invalid redirect URL:', redirectUrl);
+                        messageDiv.textContent = 'Invalid redirect URL - security check failed';
+                        messageDiv.style.color = 'red';
+                        return;
+                    }
+                    
+                    // Show success message with immediate fallback link (using DOM for security)
+                    messageDiv.innerHTML = '✅ Login successful!<br><br>';
+                    messageDiv.style.color = 'green';
+                    
+                    // Create link element safely using DOM
+                    const link = document.createElement('a');
+                    link.href = redirectUrl;
+                    link.id = 'redirectLink';
+                    link.textContent = 'Click Here to Access Dashboard →';
+                    link.style.cssText = 'display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin: 16px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.3s ease; min-height: 44px; min-width: 200px; text-align: center;';
+                    messageDiv.appendChild(link);
+                    
+                    messageDiv.appendChild(document.createElement('br'));
+                    
+                    const small = document.createElement('small');
+                    small.style.cssText = 'color: #666; display: block; margin-top: 12px;';
+                    small.textContent = 'Redirecting in 1.5 seconds... or tap button above';
+                    messageDiv.appendChild(small);
+                    
+                    // Attempt redirect after 1500ms delay for mobile compatibility
+                    setTimeout(() => {
+                        try {
+                            console.log('Attempting redirect to:', redirectUrl);
+                            window.location.href = redirectUrl;
+                        } catch (e) {
+                            console.error('Redirect failed:', e);
+                            // Fallback: try window.location.assign
+                            window.location.assign(redirectUrl);
+                        }
+                    }, 1500);
+                    
+                    // Fallback: If still on page after 3 seconds, emphasize the manual link
+                    setTimeout(() => {
+                        const linkEl = document.getElementById('redirectLink');
+                        const smallEl = messageDiv.querySelector('small');
+                        if (linkEl) {
+                            linkEl.style.animation = 'pulse 1s infinite';
+                            console.log('Manual redirect button available');
+                        }
+                        if (smallEl) {
+                            smallEl.textContent = 'Tap the button above if not redirected automatically';
+                        }
+                    }, 3000);
+                } else {
+                    console.error('No redirect URL in response');
+                    messageDiv.textContent = 'Login response invalid - check console for details';
+                    messageDiv.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Login exception:', error);
+                console.error('Error stack:', error.stack);
+                
+                // Re-enable button
+                submitButton.disabled = false;
+                submitButton.textContent = 'Login';
+                
+                messageDiv.textContent = 'Connection error: ' + error.message + '. Check console for details.';
+                messageDiv.style.color = 'red';
+            }
+            
+            console.log('=== LOGIN FORM SUBMISSION ENDED ===');
+        });
+        
+        // Add input change listeners
+        document.getElementById('phone').addEventListener('input', function() {
+            console.log('Phone input changed:', this.value);
+            if (this.value.trim().length > 0) {
+                this.classList.add('has-value');
+            } else {
+                this.classList.remove('has-value');
+            }
+        });
+        
+        document.getElementById('password').addEventListener('input', function() {
+            console.log('Password input changed, length:', this.value.length);
+            if (this.value.trim().length > 0) {
+                this.classList.add('has-value');
+            } else {
+                this.classList.remove('has-value');
+            }
+        });
+        
+        // Toggle password visibility
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password');
+            const toggleButton = document.getElementById('togglePassword');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleButton.innerHTML = '<span class="icon" aria-hidden="true">🙈</span><span>Hide password</span>';
+                toggleButton.title = 'Hide password';
+            } else {
+                passwordInput.type = 'password';
+                toggleButton.innerHTML = '<span class="icon" aria-hidden="true">👁️</span><span>Show password</span>';
+                toggleButton.title = 'Show password';
+            }
+        }
+        
+    </script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then((registration) => {
+                        console.log('✅ Service Worker registered:', registration);
+                    })
+                    .catch((error) => {
+                        console.log('❌ Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- PWA Install Prompt -->
+    <script>
+        // PWA Install Prompt - Improved Version
+        console.log('🔧 Initializing PWA install button...');
+        
+        let deferredPrompt = null;
+        const installPromptDiv = document.getElementById('installPrompt');
+        const installButton = document.getElementById('installButton');
+
+        // Check if already installed
+        const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+                           window.navigator.standalone === true;
+        
+        console.log('📱 Installation status:', isInstalled ? 'Already installed' : 'Not installed');
+
+        // Detect platform
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        console.log('📱 Platform:', { isIOS, isAndroid, isSafari });
+
+        if (isInstalled) {
+            console.log('✅ App already installed - hiding install button');
+            installPromptDiv.style.display = 'none';
+        } else {
+            // ALWAYS show the button if not installed
+            console.log('📱 App not installed - showing install button');
+            installPromptDiv.style.display = 'block';
+            
+            // Update button text based on platform
+            if (isIOS) {
+                installButton.innerHTML = '📱 Install App (iOS)';
+            } else if (isAndroid) {
+                installButton.innerHTML = '📱 Install App (Android)';
+            } else {
+                installButton.innerHTML = '📱 Install App';
+            }
+        }
+
+        // Listen for beforeinstallprompt (Chrome/Edge on Android/Desktop)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('✅ beforeinstallprompt event fired');
+            e.preventDefault();
+            deferredPrompt = e;
+            installPromptDiv.style.display = 'block';
+        });
+
+        // Install button click handler
+        if (installButton) {
+            installButton.addEventListener('click', async () => {
+                console.log('📱 Install button clicked');
+                
+                if (isIOS) {
+                    // iOS Safari instructions
+                    const instructions = isInstalled 
+                        ? 'App is already installed! Check your home screen.'
+                        : 'To install on iOS:\n\n' +
+                          '1. Tap the Share button (📤) at the bottom\n' +
+                          '2. Scroll down and tap "Add to Home Screen"\n' +
+                          '3. Tap "Add" in the top right\n\n' +
+                          'The app icon will appear on your home screen!';
+                    alert(instructions);
+                    return;
+                }
+                
+                // Android Chrome/Edge with deferredPrompt
+                if (deferredPrompt) {
+                    console.log('📱 Showing native install prompt');
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User ${outcome === 'accepted' ? 'accepted' : 'dismissed'} install`);
+                    
+                    if (outcome === 'accepted') {
+                        installPromptDiv.style.display = 'none';
+                    }
+                    deferredPrompt = null;
+                } else {
+                    // Fallback instructions for other browsers
+                    const instructions = isAndroid
+                        ? 'To install on Android:\n\n' +
+                          '1. Tap the menu (⋮) in the top right\n' +
+                          '2. Tap "Install app" or "Add to Home screen"\n' +
+                          '3. Tap "Install"\n\n' +
+                          'The app will appear on your home screen!'
+                        : 'To install this app:\n\n' +
+                          'Chrome/Edge: Look for install icon (⊕) in address bar\n' +
+                          'Firefox: Check menu → "Install"\n' +
+                          'Safari (iOS): Share button → "Add to Home Screen"';
+                    alert(instructions);
+                }
+            });
+        }
+
+        // Track when app is installed
+        window.addEventListener('appinstalled', () => {
+            console.log('✅ App installed successfully!');
+            installPromptDiv.style.display = 'none';
+        });
+    </script>
+    
+    <!-- Language Translation Script -->
+    <script>
+        // Comprehensive translations for login page
+        const translations = {
+            en: {
+                welcomeBack: "Welcome Back",
+                signInSubtitle: "Sign in to your RaffleApp account",
+                phoneNumber: "Phone Number",
+                phonePlaceholder: "Enter your phone number",
+                password: "Password",
+                passwordPlaceholder: "Enter your password",
+                showPassword: "Show password",
+                hidePassword: "Hide password",
+                loginButton: "Login",
+                loggingIn: "Logging in...",
+                noAccess: "Don't have access?",
+                requestAccess: "Request Seller Access",
+                installApp: "📱 Install App",
+                installAppIOS: "📱 Install App (iOS)",
+                installAppAndroid: "📱 Install App (Android)",
+                installPrompt: "Install for quick access from your home screen",
+                // Messages
+                enterPhone: "Please enter your phone number",
+                enterPassword: "Please enter your password",
+                loginSuccess: "✅ Login successful!",
+                clickHere: "Click Here to Access Dashboard →",
+                redirecting: "Redirecting in 1.5 seconds... or tap button above",
+                tapButton: "Tap the button above if not redirected automatically"
+            },
+            ht: {
+                welcomeBack: "Byenvini Ankò",
+                signInSubtitle: "Konekte nan kont RaffleApp ou",
+                phoneNumber: "Nimewo Telefòn",
+                phonePlaceholder: "Antre nimewo telefòn ou",
+                password: "Modpas",
+                passwordPlaceholder: "Antre modpas ou",
+                showPassword: "Montre modpas",
+                hidePassword: "Kache modpas",
+                loginButton: "Konekte",
+                loggingIn: "Ap konekte...",
+                noAccess: "Ou pa gen aksè?",
+                requestAccess: "Mande Aksè Vandè",
+                installApp: "📱 Enstale App",
+                installAppIOS: "📱 Enstale App (iOS)",
+                installAppAndroid: "📱 Enstale App (Android)",
+                installPrompt: "Enstale pou aksè rapid nan ekran akèy ou",
+                // Messages
+                enterPhone: "Tanpri antre nimewo telefòn ou",
+                enterPassword: "Tanpri antre modpas ou",
+                loginSuccess: "✅ Koneksyon reyisi!",
+                clickHere: "Klike Isit la pou Jwenn Tablo Bò →",
+                redirecting: "Ap redirije nan 1.5 segonn... oswa tape bouton anlè a",
+                tapButton: "Tape bouton anlè a si ou pa redirije otomatikman"
+            },
+            fr: {
+                welcomeBack: "Bienvenue",
+                signInSubtitle: "Connectez-vous à votre compte RaffleApp",
+                phoneNumber: "Numéro de Téléphone",
+                phonePlaceholder: "Entrez votre numéro de téléphone",
+                password: "Mot de passe",
+                passwordPlaceholder: "Entrez votre mot de passe",
+                showPassword: "Afficher le mot de passe",
+                hidePassword: "Masquer le mot de passe",
+                loginButton: "Connexion",
+                loggingIn: "Connexion en cours...",
+                noAccess: "Vous n'avez pas d'accès?",
+                requestAccess: "Demander l'Accès Vendeur",
+                installApp: "📱 Installer l'Application",
+                installAppIOS: "📱 Installer l'Application (iOS)",
+                installAppAndroid: "📱 Installer l'Application (Android)",
+                installPrompt: "Installez pour un accès rapide depuis votre écran d'accueil",
+                // Messages
+                enterPhone: "Veuillez entrer votre numéro de téléphone",
+                enterPassword: "Veuillez entrer votre mot de passe",
+                loginSuccess: "✅ Connexion réussie!",
+                clickHere: "Cliquez Ici pour Accéder au Tableau de Bord →",
+                redirecting: "Redirection dans 1.5 secondes... ou appuyez sur le bouton ci-dessus",
+                tapButton: "Appuyez sur le bouton ci-dessus si vous n'êtes pas redirigé automatiquement"
+            }
+        };
+        
+        // Get current language from localStorage or default to English
+        function getCurrentLanguage() {
+            return localStorage.getItem('raffleAppLanguage') || 'en';
+        }
+        
+        // Set language
+        function setLanguage(lang) {
+            localStorage.setItem('raffleAppLanguage', lang);
+            
+            // Update all elements with data-translate attribute
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+            
+            // Update placeholders
+            document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-translate-placeholder');
+                if (translations[lang] && translations[lang][key]) {
+                    element.placeholder = translations[lang][key];
+                }
+            });
+            
+            // Update titles
+            document.querySelectorAll('[data-translate-title]').forEach(element => {
+                const key = element.getAttribute('data-translate-title');
+                if (translations[lang] && translations[lang][key]) {
+                    element.title = translations[lang][key];
+                }
+            });
+            
+            // Update active button
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update install button text if it exists
+            const installButton = document.getElementById('installButton');
+            if (installButton) {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isAndroid = /Android/.test(navigator.userAgent);
+                
+                if (isIOS) {
+                    installButton.innerHTML = translations[lang].installAppIOS;
+                } else if (isAndroid) {
+                    installButton.innerHTML = translations[lang].installAppAndroid;
+                } else {
+                    installButton.innerHTML = translations[lang].installApp;
+                }
+            }
+        }
+        
+        // Initialize language on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentLang = getCurrentLanguage();
+            setLanguage(currentLang);
+        });
+        
+        // Add click handlers for language buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lang = btn.getAttribute('data-lang');
+                setLanguage(lang);
+            });
+        });
+        
+        // Override the original toggle password function to use translations
+        window.togglePasswordVisibility = function() {
+            const passwordInput = document.getElementById('password');
+            const toggleButton = document.getElementById('togglePassword');
+            const currentLang = getCurrentLanguage();
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleButton.innerHTML = `<span class="icon" aria-hidden="true">🙈</span><span data-translate="hidePassword">${translations[currentLang].hidePassword}</span>`;
+                toggleButton.title = translations[currentLang].hidePassword;
+            } else {
+                passwordInput.type = 'password';
+                toggleButton.innerHTML = `<span class="icon" aria-hidden="true">👁️</span><span data-translate="showPassword">${translations[currentLang].showPassword}</span>`;
+                toggleButton.title = translations[currentLang].showPassword;
+            }
+        };
+        
+        // Update form submission messages with translations
+        const originalFormSubmit = document.getElementById('loginForm').onsubmit;
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            const currentLang = getCurrentLanguage();
+            const messageDiv = document.getElementById('message');
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            
+            // Store original button text
+            const originalButtonText = submitButton.textContent;
+            
+            // Override button text during submission
+            const originalDisabled = submitButton.disabled;
+            const checkSubmitting = setInterval(() => {
+                if (submitButton.disabled && submitButton.textContent.includes('Logging')) {
+                    submitButton.textContent = translations[currentLang].loggingIn;
+                }
+            }, 100);
+            
+            // Clean up interval after 10 seconds
+            setTimeout(() => clearInterval(checkSubmitting), 10000);
+        }, true); // Use capture phase to run before other handlers
+    </script>
+</body>
+</html>

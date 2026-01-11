@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Management - Admin</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      color: #1e293b;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    /* Header */
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .header img.logo {
+      height: 48px;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: #667eea;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: all 0.3s;
+      background: rgba(102, 126, 234, 0.1);
+    }
+    
+    .back-link:hover {
+      background: rgba(102, 126, 234, 0.2);
+      transform: translateX(-4px);
+    }
+    
+    /* Card */
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+    
+    .card h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+    
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    
+    .stat-card {
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      color: white;
+      text-align: center;
+    }
+    
+    .stat-card.warning {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    }
+    
+    .stat-card.success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .stat-card.danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    .stat-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+    
+    .stat-card .value {
+      font-size: 32px;
+      font-weight: 700;
+    }
+    
+    /* Table */
+    .table-container {
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    thead {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+    }
+    
+    th {
+      font-weight: 600;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    tbody tr {
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    tbody tr:hover {
+      background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .status-pending {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .status-approved {
+      background: #dcfce7;
+      color: #166534;
+    }
+    
+    .status-rejected {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: center;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-success {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-success:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(16, 185, 129, 0.4);
+    }
+    
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-danger:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+    }
+    
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    
+    .btn-secondary:hover {
+      background: #cbd5e1;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding: 4px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .tab {
+      padding: 14px 24px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.3s;
+      white-space: nowrap;
+    }
+    
+    .tab:hover {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+    
+    .tab.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Alert Messages */
+    .alert {
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .alert.show {
+      display: block;
+    }
+    
+    .alert-success {
+      background: #dcfce7;
+      color: #166534;
+      border-left: 4px solid #22c55e;
+    }
+    
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border-left: 4px solid #ef4444;
+    }
+    
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+      border-left: 4px solid #3b82f6;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+    }
+    
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(102, 126, 234, 0.2);
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #64748b;
+    }
+    
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    .empty-state h3 {
+      font-size: 20px;
+      margin-bottom: 8px;
+      color: #475569;
+    }
+    
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .modal-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: #64748b;
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.3s;
+    }
+    
+    .close-btn:hover {
+      background: rgba(0, 0, 0, 0.05);
+      color: #1e293b;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+    
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s;
+      background: white;
+    }
+    
+    input:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .header {
+        padding: 20px;
+      }
+      
+      .header h1 {
+        font-size: 20px;
+      }
+      
+      .card {
+        padding: 20px;
+      }
+      
+      .table-container {
+        font-size: 14px;
+      }
+      
+      th, td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <img src="logo.png" alt="Logo" class="logo">
+        <h1>💳 Payment Management</h1>
+      </div>
+      <div class="header-actions">
+        <a href="/admin.html" class="back-link">
+          ← Back to Admin
+        </a>
+      </div>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card warning">
+        <h3>Pending Payments</h3>
+        <div class="value" id="stat-pending">0</div>
+      </div>
+      <div class="stat-card success">
+        <h3>Approved Today</h3>
+        <div class="value" id="stat-approved">0</div>
+      </div>
+      <div class="stat-card danger">
+        <h3>Rejected</h3>
+        <div class="value" id="stat-rejected">0</div>
+      </div>
+      <div class="stat-card">
+        <h3>Total Revenue</h3>
+        <div class="value" id="stat-revenue">$0</div>
+      </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="pending">
+        ⏳ Pending Approval
+      </button>
+      <button class="tab" data-tab="approved">
+        ✅ Approved
+      </button>
+      <button class="tab" data-tab="rejected">
+        ❌ Rejected
+      </button>
+      <button class="tab" data-tab="all">
+        📋 All Payments
+      </button>
+    </div>
+    
+    <!-- Tab Content: Pending Approval -->
+    <div id="pending" class="tab-content active">
+      <div class="card">
+        <h2>Payments Awaiting Approval</h2>
+        
+        <div class="alert alert-error" id="pending-error"></div>
+        <div class="alert alert-success" id="pending-success"></div>
+        
+        <button class="btn btn-primary" onclick="loadPendingPayments()" style="margin-bottom: 20px;">
+          🔄 Refresh
+        </button>
+        
+        <div id="pending-content">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading pending payments...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tab Content: Approved -->
+    <div id="approved" class="tab-content">
+      <div class="card">
+        <h2>Approved Payments</h2>
+        <div id="approved-content">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading approved payments...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tab Content: Rejected -->
+    <div id="rejected" class="tab-content">
+      <div class="card">
+        <h2>Rejected Payments</h2>
+        <div id="rejected-content">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading rejected payments...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tab Content: All -->
+    <div id="all" class="tab-content">
+      <div class="card">
+        <h2>All Payments</h2>
+        <div id="all-content">
+          <div class="loading">
+            <div class="spinner"></div>
+            <p>Loading all payments...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Approve Modal -->
+  <div id="approve-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Approve Payment</h2>
+        <button class="close-btn" onclick="closeApproveModal()">&times;</button>
+      </div>
+      
+      <div class="alert alert-error" id="approve-error"></div>
+      
+      <div id="approve-details"></div>
+      
+      <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <button class="btn btn-success" onclick="confirmApprove()" style="flex: 1;">
+          ✅ Confirm Approval
+        </button>
+        <button class="btn btn-secondary" onclick="closeApproveModal()" style="flex: 1;">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Reject Modal -->
+  <div id="reject-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Reject Payment</h2>
+        <button class="close-btn" onclick="closeRejectModal()">&times;</button>
+      </div>
+      
+      <div class="alert alert-error" id="reject-error"></div>
+      
+      <div id="reject-details"></div>
+      
+      <div class="form-group">
+        <label for="rejection-reason">Rejection Reason *</label>
+        <textarea id="rejection-reason" placeholder="Explain why this payment is being rejected..." required></textarea>
+      </div>
+      
+      <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <button class="btn btn-danger" onclick="confirmReject()" style="flex: 1;">
+          ❌ Confirm Rejection
+        </button>
+        <button class="btn btn-secondary" onclick="closeRejectModal()" style="flex: 1;">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let currentPaymentRef = null;
+    
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        
+        // Update active tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // Update active content
+        document.querySelectorAll('.tab-content').forEach(content => {
+          content.classList.remove('active');
+        });
+        document.getElementById(tabName).classList.add('active');
+        
+        // Load content for the tab
+        if (tabName === 'pending') {
+          loadPendingPayments();
+        } else if (tabName === 'approved') {
+          loadPayments('approved');
+        } else if (tabName === 'rejected') {
+          loadPayments('rejected');
+        } else if (tabName === 'all') {
+          loadPayments('all');
+        }
+      });
+    });
+    
+    // Load pending payments
+    async function loadPendingPayments() {
+      const container = document.getElementById('pending-content');
+      const errorEl = document.getElementById('pending-error');
+      const successEl = document.getElementById('pending-success');
+      
+      errorEl.classList.remove('show');
+      successEl.classList.remove('show');
+      
+      try {
+        container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading pending payments...</p></div>';
+        
+        const response = await fetch('/api/admin/payments/pending');
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to load payments');
+        }
+        
+        if (data.payments.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">✅</div>
+              <h3>No Pending Payments</h3>
+              <p>All payments have been processed</p>
+            </div>
+          `;
+          return;
+        }
+        
+        container.innerHTML = `
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Reference</th>
+                  <th>Buyer</th>
+                  <th>Phone</th>
+                  <th>Method</th>
+                  <th>Amount</th>
+                  <th>Category</th>
+                  <th>Qty</th>
+                  <th>Date</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.payments.map(payment => `
+                  <tr>
+                    <td><strong>${payment.payment_reference}</strong></td>
+                    <td>${payment.buyer_name}</td>
+                    <td>${payment.buyer_phone}</td>
+                    <td>${payment.payment_method}</td>
+                    <td><strong>$${parseFloat(payment.amount).toFixed(2)}</strong></td>
+                    <td>${payment.ticket_category}</td>
+                    <td>${payment.ticket_quantity}</td>
+                    <td>${new Date(payment.created_at).toLocaleDateString()}</td>
+                    <td>
+                      <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-success" onclick="showApproveModal('${payment.payment_reference}')" style="font-size: 12px; padding: 6px 12px;">
+                          ✅ Approve
+                        </button>
+                        <button class="btn btn-danger" onclick="showRejectModal('${payment.payment_reference}')" style="font-size: 12px; padding: 6px 12px;">
+                          ❌ Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (error) {
+        console.error('Error loading pending payments:', error);
+        container.innerHTML = '';
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Load payments by status
+    async function loadPayments(status) {
+      const container = document.getElementById(`${status}-content`);
+      
+      try {
+        container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading payments...</p></div>';
+        
+        // This would need a backend endpoint to filter by status
+        // For now, just show a placeholder
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <h3>Coming Soon</h3>
+            <p>Full payment history will be available here</p>
+          </div>
+        `;
+      } catch (error) {
+        console.error('Error loading payments:', error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <h3>Unable to Load Payments</h3>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Show approve modal
+    async function showApproveModal(reference) {
+      currentPaymentRef = reference;
+      const modal = document.getElementById('approve-modal');
+      const detailsEl = document.getElementById('approve-details');
+      const errorEl = document.getElementById('approve-error');
+      
+      errorEl.classList.remove('show');
+      
+      try {
+        const response = await fetch(`/api/payments/status/${reference}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error('Payment not found');
+        }
+        
+        const payment = data.payment;
+        
+        detailsEl.innerHTML = `
+          <div style="background: rgba(102, 126, 234, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h4 style="margin-bottom: 12px;">Payment Details</h4>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Reference:</span>
+              <strong>${payment.payment_reference}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Buyer:</span>
+              <strong>${payment.buyer_name || 'N/A'}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Phone:</span>
+              <strong>${payment.buyer_phone || 'N/A'}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Method:</span>
+              <strong>${payment.payment_method}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Amount:</span>
+              <strong style="font-size: 20px; color: #667eea;">$${parseFloat(payment.amount).toFixed(2)}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Category:</span>
+              <strong>${payment.ticket_category}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Quantity:</span>
+              <strong>${payment.ticket_quantity} ticket(s)</strong>
+            </div>
+          </div>
+          
+          <div class="alert alert-info show">
+            <strong>Note:</strong> Approving this payment will automatically assign ${payment.ticket_quantity} ticket(s) from the ${payment.ticket_category} category to this buyer.
+          </div>
+        `;
+        
+        modal.classList.add('active');
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Show reject modal
+    async function showRejectModal(reference) {
+      currentPaymentRef = reference;
+      const modal = document.getElementById('reject-modal');
+      const detailsEl = document.getElementById('reject-details');
+      const errorEl = document.getElementById('reject-error');
+      
+      errorEl.classList.remove('show');
+      document.getElementById('rejection-reason').value = '';
+      
+      try {
+        const response = await fetch(`/api/payments/status/${reference}`);
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error('Payment not found');
+        }
+        
+        const payment = data.payment;
+        
+        detailsEl.innerHTML = `
+          <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+            <h4 style="margin-bottom: 12px;">Payment to Reject</h4>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Reference:</span>
+              <strong>${payment.payment_reference}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Buyer:</span>
+              <strong>${payment.buyer_name || 'N/A'}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span>Amount:</span>
+              <strong>$${parseFloat(payment.amount).toFixed(2)}</strong>
+            </div>
+          </div>
+        `;
+        
+        modal.classList.add('active');
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Confirm approve
+    async function confirmApprove() {
+      const errorEl = document.getElementById('approve-error');
+      const successEl = document.getElementById('pending-success');
+      
+      errorEl.classList.remove('show');
+      
+      try {
+        const response = await fetch('/api/admin/payments/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payment_reference: currentPaymentRef
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Approval failed');
+        }
+        
+        closeApproveModal();
+        successEl.textContent = `Payment approved! Tickets assigned: ${data.ticketNumbers.join(', ')}`;
+        successEl.classList.add('show');
+        
+        // Reload pending payments
+        loadPendingPayments();
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Confirm reject
+    async function confirmReject() {
+      const reason = document.getElementById('rejection-reason').value.trim();
+      const errorEl = document.getElementById('reject-error');
+      const successEl = document.getElementById('pending-success');
+      
+      errorEl.classList.remove('show');
+      
+      if (!reason) {
+        errorEl.textContent = 'Please provide a rejection reason';
+        errorEl.classList.add('show');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/admin/payments/reject', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            payment_reference: currentPaymentRef,
+            rejection_reason: reason
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Rejection failed');
+        }
+        
+        closeRejectModal();
+        successEl.textContent = 'Payment rejected and buyer notified';
+        successEl.classList.add('show');
+        
+        // Reload pending payments
+        loadPendingPayments();
+      } catch (error) {
+        errorEl.textContent = error.message;
+        errorEl.classList.add('show');
+      }
+    }
+    
+    // Close modals
+    function closeApproveModal() {
+      document.getElementById('approve-modal').classList.remove('active');
+      currentPaymentRef = null;
+    }
+    
+    function closeRejectModal() {
+      document.getElementById('reject-modal').classList.remove('active');
+      currentPaymentRef = null;
+    }
+    
+    // Initialize
+    loadPendingPayments();
+  </script>
+</body>
+</html>

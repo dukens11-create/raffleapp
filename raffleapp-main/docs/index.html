@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Raffle App - A web-based raffle ticket management system for organizing and managing raffle draws">
+    <title>Raffle App - Ticket Management System</title>
+    <style>
+        /* ========================================
+           CUSTOMIZATION INSTRUCTIONS:
+           
+           To customize this page:
+           1. Change the main title in the <h1> tag
+           2. Update the description in the <p class="subtitle"> tag
+           3. Modify colors in the :root CSS variables below
+           4. Add or remove feature cards in the features section
+           5. Update links in the navigation and footer
+           6. Replace background gradient colors for different theme
+           
+           Color Scheme Variables (change these to customize):
+           --primary-color: Main brand color
+           --secondary-color: Accent color
+           --text-color: Main text color
+           --bg-gradient-start: Background gradient start
+           --bg-gradient-end: Background gradient end
+        ======================================== */
+        
+        :root {
+            --primary-color: #4a90e2;
+            --secondary-color: #7b68ee;
+            --text-color: #333;
+            --light-text: #666;
+            --bg-gradient-start: #667eea;
+            --bg-gradient-end: #764ba2;
+            --card-bg: #ffffff;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        header {
+            padding: 60px 0;
+            text-align: center;
+            color: white;
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.4rem;
+            margin-bottom: 40px;
+            opacity: 0.95;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 15px 35px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px var(--shadow);
+        }
+        
+        .btn-primary {
+            background: white;
+            color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px var(--shadow);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+        }
+        
+        .btn-secondary:hover {
+            background: white;
+            color: var(--primary-color);
+        }
+        
+        .features {
+            background: white;
+            padding: 80px 0;
+            margin-top: -50px;
+            border-radius: 30px 30px 0 0;
+        }
+        
+        .features h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 60px;
+            color: var(--text-color);
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+        
+        .feature-card {
+            padding: 30px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            box-shadow: 0 5px 20px var(--shadow);
+            transition: transform 0.3s ease;
+            text-align: center;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .feature-card p {
+            color: var(--light-text);
+            line-height: 1.6;
+        }
+        
+        .quick-start {
+            background: #f8f9fa;
+            padding: 60px 0;
+        }
+        
+        .quick-start h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 40px;
+            color: var(--text-color);
+        }
+        
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 25px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        
+        .code-block code {
+            display: block;
+        }
+        
+        footer {
+            background: #2c3e50;
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+        }
+        
+        footer p {
+            margin-bottom: 15px;
+        }
+        
+        footer a {
+            color: #4a90e2;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        footer a:hover {
+            color: #7b68ee;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .subtitle {
+                font-size: 1.1rem;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .btn {
+                width: 100%;
+                max-width: 300px;
+            }
+            
+            .features h2,
+            .quick-start h2 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🎫 Raffle App</h1>
+            <p class="subtitle">A powerful web-based raffle ticket management system for organizing and managing raffle draws with ease</p>
+            <div class="cta-buttons">
+                <a href="https://github.com/dukens11-create/raffleapp" class="btn btn-primary">View on GitHub</a>
+                <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </header>
+    
+    <section class="features" id="features">
+        <div class="container">
+            <h2>Key Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎫</div>
+                    <h3>Ticket Management</h3>
+                    <p>Comprehensive ticket sales tracking with real-time updates and detailed reporting capabilities</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <h3>Multi-User Support</h3>
+                    <p>Support for multiple users with distinct roles including admin and seller accounts</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🎰</div>
+                    <h3>Automated Draws</h3>
+                    <p>Conduct fair and automated raffle draws with built-in winner selection algorithms</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Analytics & Reporting</h3>
+                    <p>Detailed sales reports and analytics to track performance and identify trends</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Mobile Responsive</h3>
+                    <p>Fully responsive design that works seamlessly on desktop, tablet, and mobile devices</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">🔐</div>
+                    <h3>Secure Authentication</h3>
+                    <p>Robust authentication system to keep your data safe and secure</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="quick-start">
+        <div class="container">
+            <h2>Quick Start</h2>
+            <div class="code-block">
+                <code># Clone the repository
+git clone https://github.com/dukens11-create/raffleapp.git
+cd raffleapp
+
+# Install dependencies
+npm install
+
+# Start the application
+npm start</code>
+            </div>
+            <p style="text-align: center; color: var(--light-text); margin-top: 20px;">
+                The application will be available at <strong>http://localhost:3000</strong>
+            </p>
+        </div>
+    </section>
+    
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 Raffle App. Open source and available under the MIT License.</p>
+            <p>
+                <a href="https://github.com/dukens11-create/raffleapp">GitHub Repository</a> | 
+                <a href="https://github.com/dukens11-create/raffleapp#readme">Documentation</a> | 
+                <a href="https://github.com/dukens11-create/raffleapp/issues">Report Issues</a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

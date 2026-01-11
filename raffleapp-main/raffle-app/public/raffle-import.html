@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Import/Export - Raffle App</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    
+    header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 24px 32px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    header img {
+      height: 48px;
+    }
+    
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 16px;
+    }
+    
+    .nav-links a {
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+    
+    .nav-links a:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+    
+    .card-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 24px;
+    }
+    
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .btn-secondary {
+      background: #64748b;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #475569;
+      transform: translateY(-2px);
+    }
+    
+    .btn:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .alert {
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .alert-error {
+      background: #fee;
+      color: #c00;
+    }
+    
+    .alert-info {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .file-upload {
+      border: 2px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      background: #f8fafc;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 20px;
+    }
+    
+    .file-upload:hover {
+      border-color: #667eea;
+      background: #f1f5f9;
+    }
+    
+    .file-upload.dragover {
+      border-color: #667eea;
+      background: #e0e7ff;
+    }
+    
+    .file-upload-icon {
+      font-size: 48px;
+      color: #94a3b8;
+      margin-bottom: 16px;
+    }
+    
+    .file-upload-text {
+      font-size: 16px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    
+    .file-upload-subtext {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    
+    #file-input {
+      display: none;
+    }
+    
+    .selected-file {
+      background: #f1f5f9;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    
+    select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .export-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    
+    .info-box {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+      margin-bottom: 20px;
+    }
+    
+    .info-box-title {
+      font-weight: 600;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .info-box-text {
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .nav-links {
+        flex-direction: column;
+        width: 100%;
+      }
+      
+      .nav-links a {
+        text-align: center;
+      }
+      
+      .export-options {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-left">
+        <img src="logo.png" alt="Logo">
+        <h1>Import/Export</h1>
+      </div>
+      <div class="nav-links">
+        <a href="/raffle-dashboard.html">Dashboard</a>
+        <a href="/raffle-print.html">Print Center</a>
+        <a href="/admin.html">Main Admin</a>
+      </div>
+    </header>
+    
+    <!-- Import Section -->
+    <div class="card">
+      <h2 class="card-title">Import Tickets</h2>
+      
+      <div id="import-alert" style="display: none;"></div>
+      
+      <div class="info-box">
+        <div class="info-box-title">📋 Import Instructions</div>
+        <div class="info-box-text">
+          Download the template below, fill in your ticket data, and upload the completed file.
+          The system will validate and import your tickets in batches of 1,000.
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 24px;">
+        <a href="/api/admin/tickets/template" class="btn btn-secondary" download>
+          📥 Download Template
+        </a>
+      </div>
+      
+      <div class="file-upload" id="file-upload">
+        <div class="file-upload-icon">📄</div>
+        <div class="file-upload-text">Click to select or drag & drop Excel/CSV file</div>
+        <div class="file-upload-subtext">Supports .xlsx, .xls, and .csv files (max 10MB)</div>
+      </div>
+      
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+      
+      <div class="selected-file" id="selected-file">
+        <strong>Selected file:</strong> <span id="file-name"></span>
+      </div>
+      
+      <button id="import-btn" class="btn btn-primary" style="display: none;">
+        Import Tickets
+      </button>
+    </div>
+    
+    <!-- Export Section -->
+    <div class="card">
+      <h2 class="card-title">Export Tickets</h2>
+      
+      <div id="export-alert" style="display: none;"></div>
+      
+      <div class="info-box">
+        <div class="info-box-title">📤 Export Instructions</div>
+        <div class="info-box-text">
+          Export ticket data to Excel format. You can filter by category, status, or printed state.
+          All ticket information including barcodes and QR codes will be included.
+        </div>
+      </div>
+      
+      <div class="export-options">
+        <div class="form-group">
+          <label for="export-category">Category (Optional)</label>
+          <select id="export-category">
+            <option value="">All Categories</option>
+            <option value="ABC">ABC - Bronze</option>
+            <option value="EFG">EFG - Silver</option>
+            <option value="JKL">JKL - Gold</option>
+            <option value="XYZ">XYZ - Platinum</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="export-status">Status (Optional)</label>
+          <select id="export-status">
+            <option value="">All Statuses</option>
+            <option value="AVAILABLE">Available</option>
+            <option value="SOLD">Sold</option>
+            <option value="RESERVED">Reserved</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label for="export-printed">Printed Status (Optional)</label>
+        <select id="export-printed">
+          <option value="">All</option>
+          <option value="true">Printed Only</option>
+          <option value="false">Not Printed Only</option>
+        </select>
+      </div>
+      
+      <button id="export-btn" class="btn btn-primary">
+        📥 Export to Excel
+      </button>
+    </div>
+  </div>
+  
+  <script>
+    // Import functionality
+    const fileUpload = document.getElementById('file-upload');
+    const fileInput = document.getElementById('file-input');
+    const selectedFileDiv = document.getElementById('selected-file');
+    const fileNameSpan = document.getElementById('file-name');
+    const importBtn = document.getElementById('import-btn');
+    
+    // Show alert
+    function showAlert(elementId, message, type = 'info') {
+      const alertDiv = document.getElementById(elementId);
+      alertDiv.className = `alert alert-${type}`;
+      alertDiv.textContent = message;
+      alertDiv.style.display = 'block';
+      
+      if (type === 'success') {
+        setTimeout(() => {
+          alertDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+    
+    // File upload click
+    fileUpload.addEventListener('click', () => {
+      fileInput.click();
+    });
+    
+    // File selection
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        fileNameSpan.textContent = file.name;
+        selectedFileDiv.style.display = 'block';
+        importBtn.style.display = 'inline-block';
+      }
+    });
+    
+    // Drag and drop
+    fileUpload.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileUpload.classList.add('dragover');
+    });
+    
+    fileUpload.addEventListener('dragleave', () => {
+      fileUpload.classList.remove('dragover');
+    });
+    
+    fileUpload.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileUpload.classList.remove('dragover');
+      
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        fileInput.files = e.dataTransfer.files;
+        fileNameSpan.textContent = file.name;
+        selectedFileDiv.style.display = 'block';
+        importBtn.style.display = 'inline-block';
+      }
+    });
+    
+    // Import tickets
+    importBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        showAlert('import-alert', 'Please select a file', 'error');
+        return;
+      }
+      
+      importBtn.disabled = true;
+      importBtn.textContent = 'Importing...';
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('raffle_id', 1);
+      
+      try {
+        const response = await fetch('/api/admin/tickets/import', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(result.error || 'Import failed');
+        }
+        
+        if (result.results.errors.length > 0) {
+          showAlert('import-alert', 
+            `Import completed with warnings. Created: ${result.results.created}, Updated: ${result.results.updated}, Errors: ${result.results.errors.length}`,
+            'info'
+          );
+        } else {
+          showAlert('import-alert',
+            `Import successful! Created: ${result.results.created}, Updated: ${result.results.updated}`,
+            'success'
+          );
+        }
+        
+        // Reset form
+        fileInput.value = '';
+        selectedFileDiv.style.display = 'none';
+        importBtn.style.display = 'none';
+        
+      } catch (error) {
+        console.error('Import error:', error);
+        showAlert('import-alert', 'Error: ' + error.message, 'error');
+      } finally {
+        importBtn.disabled = false;
+        importBtn.textContent = 'Import Tickets';
+      }
+    });
+    
+    // Export functionality
+    document.getElementById('export-btn').addEventListener('click', async () => {
+      const exportBtn = document.getElementById('export-btn');
+      exportBtn.disabled = true;
+      exportBtn.textContent = 'Exporting...';
+      
+      try {
+        const params = new URLSearchParams({
+          raffle_id: 1
+        });
+        
+        const category = document.getElementById('export-category').value;
+        if (category) params.append('category', category);
+        
+        const status = document.getElementById('export-status').value;
+        if (status) params.append('status', status);
+        
+        const printed = document.getElementById('export-printed').value;
+        if (printed) params.append('printed', printed);
+        
+        const response = await fetch(`/api/admin/tickets/export?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error('Export failed');
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `tickets-export-${Date.now()}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showAlert('export-alert', 'Export completed successfully!', 'success');
+        
+      } catch (error) {
+        console.error('Export error:', error);
+        showAlert('export-alert', 'Error: ' + error.message, 'error');
+      } finally {
+        exportBtn.disabled = false;
+        exportBtn.textContent = '📥 Export to Excel';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,6878 @@
+const express = require('express');
+const bodyParser = require('body-parser');
+const session = require('express-session');
+const bcrypt = require('bcrypt');
+const crypto = require('crypto');
+const db = require('./db');
+const path = require('path');
+const fs = require('fs');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const { body, validationResult } = require('express-validator');
+const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
+const cors = require('cors');
+const pgSession = require('connect-pg-simple')(session);
+const emailService = require('./services/emailService');
+const paymentService = require('./services/paymentService');
+const smsService = require('./services/smsService');
+const multer = require('multer');
+const sharp = require('sharp');
+const PDFDocument = require('pdfkit');
+
+// Simple Mutex class for preventing race conditions
+// Note: For high-concurrency scenarios, consider using a production-grade mutex library
+class Mutex {
+  constructor() {
+    this.locked = false;
+    this.queue = [];
+  }
+
+  async lock() {
+    return new Promise((resolve) => {
+      // Use setImmediate to ensure atomicity in the event loop
+      setImmediate(() => {
+        if (!this.locked) {
+          this.locked = true;
+          resolve();
+        } else {
+          this.queue.push(resolve);
+        }
+      });
+    });
+  }
+
+  unlock() {
+    setImmediate(() => {
+      if (this.queue.length > 0) {
+        const resolve = this.queue.shift();
+        this.locked = true; // Keep locked for next in queue
+        resolve();
+      } else {
+        this.locked = false;
+      }
+    });
+  }
+
+  isLocked() {
+    return this.locked;
+  }
+}
+
+// Create mutex for ticket generation to prevent race conditions
+const ticketGenerationMutex = new Mutex();
+
+// Haiti Departments - Valid department values
+const HAITI_DEPARTMENTS = [
+  'Ouest',
+  'Sud',
+  'Nord',
+  'Artibonite',
+  'Centre',
+  "Grand'Anse",
+  'Nippes',
+  'Nord-Est',
+  'Nord-Ouest',
+  'Sud-Est'
+];
+
+/**
+ * Validate Haiti department
+ * @param {string} department - Department name to validate
+ * @returns {boolean} - True if valid department
+ */
+function isValidDepartment(department) {
+  return department && HAITI_DEPARTMENTS.includes(department);
+}
+
+// Load environment variables
+require('dotenv').config();
+
+// ============================================
+// Environment Variable Validation (Flexible)
+// ============================================
+
+function validateEnvironment() {
+  const errors = [];
+  const warnings = [];
+  
+  console.log('🔍 Validating environment variables...\n');
+  
+  // ============================================
+  // CRITICAL VARIABLES (Server won't start without these)
+  // ============================================
+  
+  // Database URL is absolutely required
+  if (!process.env.DATABASE_URL) {
+    errors.push('DATABASE_URL - Database connection string is required');
+    errors.push('  Set to: postgresql://user:pass@host:port/db or sqlite:./raffle.db');
+  }
+  
+  // ============================================
+  // AUTO-GENERATE SESSION_SECRET IF MISSING
+  // ============================================
+  
+  if (!process.env.SESSION_SECRET) {
+    process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+    warnings.push('SESSION_SECRET was auto-generated for this session');
+    warnings.push('  ⚠️  PRODUCTION WARNING: Set a persistent SESSION_SECRET in environment variables');
+    warnings.push('  ⚠️  Current sessions will be lost on restart');
+    warnings.push(`  Generated value: ${process.env.SESSION_SECRET.substring(0, 16)}...`);
+  } else if (process.env.SESSION_SECRET.length < 32) {
+    warnings.push('SESSION_SECRET should be at least 32 characters for security');
+    warnings.push(`  Current length: ${process.env.SESSION_SECRET.length} characters`);
+  }
+  
+  // ============================================
+  // OPTIONAL BUT RECOMMENDED VARIABLES
+  // ============================================
+  
+  // Node environment
+  if (!process.env.NODE_ENV) {
+    process.env.NODE_ENV = 'production';
+    warnings.push('NODE_ENV not set - defaulting to: production');
+  }
+  
+  // Port
+  if (!process.env.PORT) {
+    process.env.PORT = '10000';
+    warnings.push('PORT not set - defaulting to: 10000');
+  }
+  
+  // Admin setup token
+  if (!process.env.ADMIN_SETUP_TOKEN) {
+    warnings.push('ADMIN_SETUP_TOKEN not set - /api/setup-admin endpoint will be DISABLED');
+    warnings.push('  To enable: Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"');
+  }
+  
+  // CORS configuration
+  if (!process.env.ALLOWED_ORIGINS) {
+    if (process.env.NODE_ENV === 'production') {
+      process.env.ALLOWED_ORIGINS = '';
+      warnings.push('ALLOWED_ORIGINS not set - CORS will allow same-origin only (secure default)');
+    } else {
+      process.env.ALLOWED_ORIGINS = '*';
+      warnings.push('ALLOWED_ORIGINS not set - allowing all origins in development mode');
+    }
+  }
+  
+  // Email configuration
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    warnings.push('EMAIL_USER or EMAIL_PASS not set - email notifications will be DISABLED');
+  }
+  
+  if (!process.env.SMTP_HOST) {
+    process.env.SMTP_HOST = 'smtp.gmail.com';
+    warnings.push('SMTP_HOST not set - defaulting to: smtp.gmail.com');
+  }
+  
+  if (!process.env.SMTP_PORT) {
+    process.env.SMTP_PORT = '587';
+    warnings.push('SMTP_PORT not set - defaulting to: 587');
+  }
+  
+  // Application URL
+  if (!process.env.APP_URL) {
+    if (process.env.RENDER_EXTERNAL_URL) {
+      process.env.APP_URL = process.env.RENDER_EXTERNAL_URL;
+      warnings.push(`APP_URL not set - using Render URL: ${process.env.APP_URL}`);
+    } else {
+      process.env.APP_URL = 'http://localhost:10000';
+      warnings.push('APP_URL not set - defaulting to: http://localhost:10000');
+    }
+  }
+  
+  // ============================================
+  // DISPLAY RESULTS
+  // ============================================
+  
+  if (errors.length > 0) {
+    console.error('\n❌ CRITICAL: Missing required environment variables:\n');
+    errors.forEach(err => console.error(`   ${err}`));
+    console.error('\n⚠️  Server cannot start. Set the required variables and restart.\n');
+    console.error('💡 Quick fix for Render:');
+    console.error('   1. Go to Dashboard → Your Service → Environment');
+    console.error('   2. Add: DATABASE_URL=<your_postgres_url>');
+    console.error('   3. Click "Save Changes"\n');
+    process.exit(1);
+  }
+  
+  if (warnings.length > 0) {
+    console.warn('\n⚠️  Environment configuration warnings:\n');
+    warnings.forEach(warn => console.warn(`   ${warn}`));
+    console.warn('');
+  }
+  
+  console.log('✅ Environment validation passed');
+  console.log(`✅ Server will start in ${process.env.NODE_ENV} mode`);
+  console.log(`✅ Listening on port ${process.env.PORT}\n`);
+}
+
+// Run environment validation
+validateEnvironment();
+
+const app = express();
+
+// Trust proxy - required for Render deployment
+app.set('trust proxy', 1);
+
+const PORT = process.env.PORT || 3000;
+const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
+
+// Global error handlers for uncaught errors
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION:', error);
+  console.error('Stack:', error.stack);
+  // In production, you might want to log to external service
+  // For now, keep the process running but log the error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION at:', promise);
+  console.error('Reason:', reason);
+  // Log the error but don't crash
+});
+
+// Validate database setup on startup
+async function validateDatabaseSetup() {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('🔍 DATABASE SETUP VALIDATION');
+  console.log('═══════════════════════════════════════');
+  
+  const isProduction = process.env.NODE_ENV === 'production';
+  const hasPostgres = process.env.DATABASE_URL ? true : false;
+  
+  if (isProduction && !hasPostgres) {
+    console.log('');
+    console.log('⚠️  CRITICAL WARNING:');
+    console.log('   Running in PRODUCTION with SQLite');
+    console.log('   Data will be LOST on every restart!');
+    console.log('');
+    console.log('🔧 TO FIX:');
+    console.log('   1. Create PostgreSQL database on Render');
+    console.log('   2. Add DATABASE_URL environment variable');
+    console.log('   3. Redeploy service');
+    console.log('');
+    console.log('📚 Full Guide: See raffle-app/MIGRATION.md');
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  } else if (hasPostgres) {
+    console.log('✅ Production database configured correctly');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  }
+}
+
+/**
+ * Run database migrations
+ */
+async function runMigrations() {
+  console.log('🔄 Running database migrations...');
+  
+  // Only run migrations for PostgreSQL
+  if (!db.USE_POSTGRES) {
+    console.log('⚠️  Skipping migrations - SQLite database detected');
+    return;
+  }
+  
+  const migrations = [
+    'add_raffle_id_to_tickets.sql',
+    'add_print_count_column.sql'
+  ];
+  
+  let successCount = 0;
+  let failCount = 0;
+  let skippedCount = 0;
+  
+  for (const migrationFile of migrations) {
+    const filePath = path.join(__dirname, 'migrations', migrationFile);
+    
+    if (fs.existsSync(filePath)) {
+      const sql = fs.readFileSync(filePath, 'utf8');
+      try {
+        await db.run(sql);
+        console.log(`✅ Migration completed: ${migrationFile}`);
+        successCount++;
+      } catch (error) {
+        console.error(`❌ Migration failed (${migrationFile}):`, error.message);
+        failCount++;
+        // Don't crash - migrations are idempotent
+      }
+    } else {
+      console.warn(`⚠️  Migration file not found: ${filePath}`);
+      skippedCount++;
+    }
+  }
+  
+  // Log summary with appropriate status
+  const status = failCount > 0 ? '❌' : (skippedCount > 0 ? '⚠️' : '✅');
+  console.log(`${status} Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);
+}
+
+/**
+ * Check and create admin user if missing
+ */
+async function ensureAdminUser() {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('🔍 CHECKING ADMIN USER');
+  console.log('═══════════════════════════════════════');
+  
+  try {
+    // Check if admin exists
+    const adminExists = await db.get(
+      'SELECT * FROM users WHERE role = ?',
+      ['admin']
+    );
+    
+    if (adminExists) {
+      console.log('✅ Admin user exists:', adminExists.phone);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return;
+    }
+    
+    console.log('⚠️  No admin user found');
+    console.log('');
+    console.log('To create an admin user, use one of these methods:');
+    console.log('');
+    console.log('1. Via API (requires ADMIN_SETUP_TOKEN):');
+    console.log('   POST /api/setup-admin');
+    console.log('   Body: { "token": "YOUR_ADMIN_SETUP_TOKEN" }');
+    console.log('');
+    console.log('2. Default credentials will be:');
+    console.log('   Phone: 1234567890');
+    console.log('   Password: admin123');
+    console.log('');
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+  } catch (error) {
+    console.error('❌ Error checking admin user:', error);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  }
+}
+
+// Initialize database schema, run migrations, validate setup, and check admin user
+db.initializeSchema()
+  .then(() => runMigrations())
+  .then(() => validateDatabaseSetup())
+  .then(() => ensureAdminUser())
+  .catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
+
+// Security: Helmet for basic security headers (CSP handled by custom middleware below)
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled - using custom CSP middleware instead
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+  },
+}));
+
+// CORS Configuration with hardcoded custom domain support
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : [
+      // ✅ HARDCODE custom domains as fallback
+      'https://www.enejipamticket.com',
+      'https://enejipamticket.com',
+      'https://raffleapp-e4ev.onrender.com'
+    ];
+
+// Also add environment URL if available
+if (process.env.RENDER_EXTERNAL_URL && !allowedOrigins.includes(process.env.RENDER_EXTERNAL_URL)) {
+  allowedOrigins.push(process.env.RENDER_EXTERNAL_URL);
+}
+
+if (process.env.APP_URL && !allowedOrigins.includes(process.env.APP_URL)) {
+  allowedOrigins.push(process.env.APP_URL);
+}
+
+// Development origins
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:3000');
+  allowedOrigins.push('http://localhost:5000');
+  allowedOrigins.push('http://127.0.0.1:3000');
+  allowedOrigins.push('http://127.0.0.1:5000');
+}
+
+console.log('✅ CORS allowed origins:', allowedOrigins);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Check if origin is allowed
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Allow any *.onrender.com subdomain (HTTPS only for security)
+    if (origin.startsWith('https://') && origin.endsWith('.onrender.com')) {
+      return callback(null, true);
+    }
+    
+    // Log rejection for debugging
+    console.warn('❌ CORS: Origin rejected:', origin);
+    console.warn('❌ Allowed origins:', allowedOrigins);
+    
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600, // 10 minutes
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+console.log('✅ CORS middleware configured');
+
+// Rate limiting - General API limiter
+const apiLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 100 requests per window
+  message: 'Too many requests from this IP, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too many requests, please try again later',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Rate limiting - Strict limiter for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5, // 5 attempts per window
+  message: 'Too many login attempts, please try again later',
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`Auth rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too many login attempts, please try again later',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Rate limiting - Gentle limiter for public pages (prevent abuse while allowing normal access)
+const publicPageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // Very generous limit - 200 page loads per 15 minutes
+  message: 'Too many page requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${new Date().toISOString()} ${req.method} ${req.path} ${res.statusCode} ${duration}ms - ${req.ip}`);
+  });
+  
+  next();
+});
+
+// Request validation middleware - Bot detection and payload size check
+function validateRequest(req, res, next) {
+  // Skip validation for public endpoints
+  if (req.path === '/api/setup-admin' || 
+      req.path === '/api/clear-login-attempts' ||
+      req.path.startsWith('/api/login-status/') ||
+      req.path === '/health') {
+    return next();
+  }
+  
+  // Skip validation for public HTML pages (buyers portal, etc.)
+  const publicPages = ['/buyers.html', '/buyers', '/login.html', '/register-seller.html'];
+  if (publicPages.includes(req.path)) {
+    return next();
+  }
+  
+  // Skip validation for public API endpoints used by buyers portal
+  // These endpoints need to be publicly accessible for the buyers portal to function
+  const publicApiPaths = [
+    '/api/public/raffle-info',
+    '/api/public/available-tickets',
+    '/api/public/ticket-availability',  // New: Get available ticket counts by category
+    '/api/public/my-tickets',
+    '/api/public/verify-ticket',      // Also matches /api/public/verify-ticket/:ticketNumber
+    '/api/public/purchase',           // New: Purchase initiation endpoints
+    '/api/payments/methods',
+    '/api/payments/status',            // Also matches /api/payments/status/:reference
+    '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
+    '/api/departments'
+  ];
+  
+  // Check if request path matches any public API endpoint (exact or with parameters)
+  // Using '/' ensures we match path segments, not just prefixes (e.g., won't match /api/payments/status-check)
+  const isPublicApi = publicApiPaths.some(path => 
+    req.path === path || req.path.startsWith(path + '/')
+  );
+  
+  if (isPublicApi) {
+    return next();
+  }
+  
+  // Check for suspicious patterns
+  const userAgent = req.headers['user-agent'] || '';
+  
+  // Block known bot signatures (but allow legitimate browsers)
+  const suspiciousBotSignatures = ['scraper', 'crawler', 'spider', 'bot'];
+  const legitimateAgents = ['mozilla', 'chrome', 'safari', 'firefox', 'edge'];
+  
+  const hasLegitimateAgent = legitimateAgents.some(sig => 
+    userAgent.toLowerCase().includes(sig)
+  );
+  
+  const hasSuspiciousBot = suspiciousBotSignatures.some(sig => 
+    userAgent.toLowerCase().includes(sig)
+  );
+  
+  if (hasSuspiciousBot && !hasLegitimateAgent) {
+    console.warn(`Suspicious bot detected: ${userAgent} from IP: ${req.ip}`);
+    return res.status(403).json({ 
+      error: 'Forbidden',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  // Check for excessively large payloads
+  if (req.body && JSON.stringify(req.body).length > 1000000) {
+    console.warn(`Excessive payload size from IP: ${req.ip}`);
+    return res.status(413).json({ 
+      error: 'Payload too large',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  next();
+}
+
+// Brute force protection for login
+const loginAttempts = new Map();
+
+function checkBruteForce(identifier) {
+  const attempts = loginAttempts.get(identifier) || { count: 0, firstAttempt: Date.now() };
+  
+  // Reset after 1 hour
+  if (Date.now() - attempts.firstAttempt > 60 * 60 * 1000) {
+    loginAttempts.delete(identifier);
+    return false;
+  }
+  
+  // Block after 5 failed attempts
+  return attempts.count >= 5;
+}
+
+function recordFailedAttempt(identifier) {
+  const attempts = loginAttempts.get(identifier) || { count: 0, firstAttempt: Date.now() };
+  attempts.count++;
+  loginAttempts.set(identifier, attempts);
+}
+
+function clearFailedAttempts(identifier) {
+  loginAttempts.delete(identifier);
+}
+
+// Middleware
+// Increased body parser limits for file uploads (base64 encoded images)
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(cookieParser());
+
+// Session store configuration
+let sessionStore;
+
+if (process.env.DATABASE_URL) {
+  // Production: Use PostgreSQL session store
+  sessionStore = new pgSession({
+    conString: process.env.DATABASE_URL,
+    tableName: 'session', // Table name for sessions
+    createTableIfMissing: true, // Auto-create session table
+    pruneSessionInterval: 60 * 15, // Clean up expired sessions every 15 minutes
+  });
+  console.log('✅ Using PostgreSQL session store');
+} else {
+  // Development: Use memory store (with warning)
+  console.warn('⚠️  WARNING: Using MemoryStore for sessions (development only)');
+  console.warn('   Sessions will be lost on server restart');
+  console.warn('   Add DATABASE_URL for persistent sessions');
+  sessionStore = undefined; // Express will use default MemoryStore
+}
+
+// Session configuration with enhanced security
+app.use(session({
+  store: sessionStore,
+  secret: process.env.SESSION_SECRET || 'raffle-secret-key-2024',
+  resave: false,
+  saveUninitialized: false,
+  name: 'sessionId', // Rename session cookie to prevent fingerprinting
+  cookie: { 
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // Only use secure cookies in production
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax', // Changed from 'strict' for mobile compatibility
+  },
+  rolling: true, // Reset expiry on activity
+}));
+
+// Session timeout middleware
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+app.use((req, res, next) => {
+  if (req.session.user) {
+    const now = Date.now();
+    const lastActivity = req.session.lastActivity || now;
+    
+    if (now - lastActivity > SESSION_TIMEOUT) {
+      console.log(`Session expired for user: ${req.session.user.phone}`);
+      req.session.destroy((err) => {
+        if (err) console.error('Error destroying session:', err);
+      });
+      return res.status(401).json({ 
+        error: 'Session expired. Please login again.',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    req.session.lastActivity = now;
+  }
+  next();
+});
+
+// Content Security Policy middleware for enhanced security
+app.use((req, res, next) => {
+  // Set Content Security Policy headers
+  const cspDirectives = [
+    // Default: only load resources from same origin
+    "default-src 'self'",
+    
+    // Scripts: allow inline scripts (needed for HTML files) and CDNs
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    
+    // Styles: allow inline styles and Google Fonts
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    
+    // Fonts: allow Google Fonts
+    "font-src 'self' https://fonts.gstatic.com",
+    
+    // Images: allow from same origin, data URIs, and any HTTPS source
+    "img-src 'self' data: https: blob:",
+    
+    // Media: allow camera streams and blob URLs
+    "media-src 'self' blob: mediastream:",
+    
+    // Connect: allow API calls and WebSocket connections
+    "connect-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+    
+    // Frame ancestors: prevent clickjacking
+    "frame-ancestors 'self'",
+    
+    // Base URI: prevent base tag injection
+    "base-uri 'self'",
+    
+    // Form actions: only allow form submissions to same origin
+    "form-action 'self'",
+    
+    // Upgrade insecure requests (HTTP to HTTPS)
+    "upgrade-insecure-requests"
+  ];
+  
+  res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
+  
+  // Additional security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=*, microphone=*, geolocation=()');
+  
+  next();
+});
+
+// ===== PUBLIC ENDPOINTS (NO RATE LIMITING) =====
+
+// Admin Setup Endpoint - SECURED with token authentication
+// POST /api/setup-admin - Create admin user (requires ADMIN_SETUP_TOKEN)
+app.post('/api/setup-admin', async (req, res) => {
+  console.log('=== SETUP ADMIN ENDPOINT CALLED ===');
+  console.log('IP:', req.ip);
+  console.log('User-Agent:', req.headers['user-agent']);
+  
+  try {
+    // Check if endpoint is enabled
+    if (!process.env.ADMIN_SETUP_TOKEN) {
+      console.warn('⚠️  /api/setup-admin called but ADMIN_SETUP_TOKEN not set');
+      return res.status(503).json({ 
+        success: false,
+        error: 'Admin setup endpoint is disabled',
+        message: 'Set ADMIN_SETUP_TOKEN environment variable to enable this endpoint',
+        hint: 'Generate token with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+      });
+    }
+    
+    const { token } = req.body;
+    
+    // Validate token
+    if (!token || token !== process.env.ADMIN_SETUP_TOKEN) {
+      console.warn('❌ Unauthorized admin setup attempt from IP:', req.ip);
+      return res.status(403).json({ 
+        success: false,
+        error: 'Forbidden - Invalid or missing setup token',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log('✅ Valid token provided');
+    console.log('Setup admin endpoint called');
+    
+    // Delete existing admin
+    await db.run("DELETE FROM users WHERE role = 'admin'");
+    
+    // Create new admin
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+    await db.run(
+      "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, ?)",
+      ['Admin', '1234567890', hashedPassword, 'admin']
+    );
+    
+    console.log('✅ Admin account created/reset - Phone: 1234567890');
+    console.log('⚠️  Default password set - CHANGE IMMEDIATELY after first login');
+    
+    // DO NOT return credentials in response for security
+    res.json({ 
+      success: true, 
+      message: 'Admin account created successfully. Use default credentials to login and change password immediately.',
+      defaultPhone: '1234567890'
+    });
+    
+  } catch (error) {
+    console.error('=== SETUP ADMIN ERROR ===');
+    console.error('Setup admin error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to set up admin user',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Clear Login Attempts Endpoint - Public for recovery
+app.post('/api/clear-login-attempts', async (req, res) => {
+  console.log('=== CLEAR LOGIN ATTEMPTS ENDPOINT CALLED ===');
+  console.log('IP:', req.ip);
+  console.log('User-Agent:', req.headers['user-agent']);
+  
+  try {
+    const { phone } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number required' });
+    }
+    
+    clearFailedAttempts(phone);
+    
+    console.log('Login attempts cleared for:', phone);
+    
+    res.json({ 
+      success: true, 
+      message: 'Login attempts cleared for ' + phone 
+    });
+    
+  } catch (error) {
+    console.error('Clear attempts error:', error);
+    res.status(500).json({ error: 'Failed to clear attempts' });
+  }
+});
+
+// Login Status Diagnostic Endpoint - Public for diagnostics
+app.get('/api/login-status/:phone', async (req, res) => {
+  console.log('=== LOGIN STATUS ENDPOINT CALLED ===');
+  console.log('IP:', req.ip);
+  console.log('User-Agent:', req.headers['user-agent']);
+  console.log('Phone:', req.params.phone);
+  
+  try {
+    const { phone } = req.params;
+    
+    // Check if user exists
+    const user = await db.get("SELECT id, name, role FROM users WHERE phone = ?", [phone]);
+    
+    // Check brute force status
+    const attempts = loginAttempts.get(phone) || { count: 0, firstAttempt: Date.now() };
+    const isBlocked = checkBruteForce(phone);
+    const timeUntilReset = isBlocked 
+      ? Math.max(0, 60 * 60 * 1000 - (Date.now() - attempts.firstAttempt))
+      : 0;
+    
+    res.json({
+      userExists: !!user,
+      userName: user ? user.name : null,
+      userRole: user ? user.role : null,
+      failedAttempts: attempts.count,
+      isBlocked: isBlocked,
+      timeUntilResetMs: timeUntilReset,
+      timeUntilResetMin: Math.ceil(timeUntilReset / 60000)
+    });
+    
+  } catch (error) {
+    console.error('Login status check error:', error);
+    res.status(500).json({ error: 'Failed to check status' });
+  }
+});
+
+// Health check endpoint - Public
+// Health check endpoint with database validation
+app.get('/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    database: {
+      type: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite',
+      connected: false,
+      persistent: false
+    },
+    environment: process.env.NODE_ENV || 'development',
+    criticalIssues: []
+  };
+
+  try {
+    // Test database connection
+    await db.get('SELECT 1 as test');
+    health.database.connected = true;
+    health.database.persistent = process.env.DATABASE_URL ? true : false;
+    
+    // CRITICAL: Check for SQLite in production
+    if (!process.env.DATABASE_URL) {
+      health.status = 'degraded';
+      health.criticalIssues.push({
+        severity: 'CRITICAL',
+        issue: 'Using SQLite - Data will be LOST on restart',
+        action: 'Set DATABASE_URL environment variable to PostgreSQL connection string',
+        documentation: '/api/database-status for detailed steps'
+      });
+      
+      health.warnings = [
+        '🚨 CRITICAL: Using SQLite in production',
+        '🚨 ALL DATA (sellers, tickets, users) WILL BE LOST on restart',
+        '🔧 ACTION REQUIRED: Connect PostgreSQL database',
+        '📚 Visit /api/database-status for fix instructions'
+      ];
+    }
+    
+    res.json(health);
+  } catch (error) {
+    health.status = 'error';
+    health.database.error = error.message;
+    res.status(503).json(health);
+  }
+});
+
+// Detailed database diagnostic endpoint
+app.get('/api/database-status', async (req, res) => {
+  const status = {
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    database: {
+      configured: {
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        databaseUrlPreview: process.env.DATABASE_URL 
+          ? process.env.DATABASE_URL.substring(0, 20) + '...' 
+          : 'NOT SET',
+        usingPostgres: !!process.env.DATABASE_URL,
+        usingSqlite: !process.env.DATABASE_URL
+      },
+      connection: {
+        connected: false,
+        error: null
+      },
+      persistence: {
+        isPersistent: !!process.env.DATABASE_URL,
+        dataWillSurviveRestart: !!process.env.DATABASE_URL,
+        warning: !process.env.DATABASE_URL 
+          ? '⚠️ CRITICAL: Using SQLite - ALL DATA WILL BE LOST ON RESTART' 
+          : null
+      }
+    },
+    sessions: {
+      store: process.env.DATABASE_URL ? 'PostgreSQL' : 'MemoryStore',
+      persistent: false, // Will be true after PR #69 is merged
+      warning: 'Sessions stored in memory - users will be logged out on restart (Fix in PR #69)'
+    },
+    actionRequired: []
+  };
+
+  // Test database connection
+  try {
+    await db.get('SELECT 1 as test');
+    status.database.connection.connected = true;
+  } catch (error) {
+    status.database.connection.connected = false;
+    status.database.connection.error = error.message;
+  }
+
+  // Determine action required
+  if (!process.env.DATABASE_URL) {
+    status.actionRequired.push({
+      priority: 'CRITICAL',
+      issue: 'No PostgreSQL connection',
+      impact: 'ALL user data (sellers, tickets, requests) is being LOST on every restart',
+      solution: 'Add DATABASE_URL environment variable with PostgreSQL connection string',
+      steps: [
+        '1. Go to Render Dashboard → Your PostgreSQL database',
+        '2. Copy the INTERNAL connection string',
+        '3. Go to Web Service → Environment tab',
+        '4. Add: Key=DATABASE_URL, Value=[internal connection string]',
+        '5. Save changes (will trigger automatic redeploy)'
+      ]
+    });
+  }
+
+  if (!status.sessions.persistent) {
+    status.actionRequired.push({
+      priority: 'HIGH',
+      issue: 'Sessions not persistent',
+      impact: 'Users are logged out on every restart',
+      solution: 'Merge PR #69 to use PostgreSQL session store',
+      steps: [
+        '1. Review PR #69: Fix session loss when Render restarts',
+        '2. Merge the pull request',
+        '3. Wait for automatic deployment'
+      ]
+    });
+  }
+
+  const httpCode = status.actionRequired.length > 0 ? 503 : 200;
+  res.status(httpCode).json(status);
+});
+
+// Session debug endpoint - check if session is working
+app.get('/api/session-check', (req, res) => {
+  res.json({
+    hasSession: !!req.session,
+    hasUser: !!req.session?.user,
+    user: req.session?.user ? {
+      id: req.session.user.id,
+      name: req.session.user.name,
+      role: req.session.user.role
+    } : null,
+    sessionID: req.sessionID,
+    cookies: req.headers.cookie || 'no cookies',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ===== NOW APPLY RATE LIMITING =====
+
+// Apply validation middleware to all routes
+app.use(validateRequest);
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
+
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Standardized error response helper
+function sendErrorResponse(res, statusCode, message, details = null) {
+  const response = {
+    error: message,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (details && process.env.DEBUG_MODE === 'true') {
+    response.details = details;
+  }
+  
+  return res.status(statusCode).json(response);
+}
+
+// Standardized success response helper
+function sendSuccessResponse(res, data, message = null) {
+  const response = {
+    success: true,
+    timestamp: new Date().toISOString(),
+    ...data
+  };
+  
+  if (message) {
+    response.message = message;
+  }
+  
+  return res.json(response);
+}
+
+// Authentication middleware
+function requireAuth(req, res, next) {
+  if (req.session.user) {
+    console.log(`Auth check passed for: ${req.session.user.phone}`);
+    next();
+  } else {
+    console.log(`Auth check failed - no session user. SessionID: ${req.sessionID}, Path: ${req.path}`);
+    res.redirect('/');
+  }
+}
+
+function requireAdmin(req, res, next) {
+  if (req.session.user && req.session.user.role === 'admin') {
+    console.log(`Admin check passed for: ${req.session.user.phone}`);
+    next();
+  } else {
+    console.log(`Admin check failed. User: ${req.session.user?.phone || 'none'}, Role: ${req.session.user?.role || 'none'}`);
+    return sendErrorResponse(res, 403, 'Access denied - Admin privileges required');
+  }
+}
+
+// Helper function to generate secure password
+function generatePassword() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let password = 'Seller@';
+  for (let i = 0; i < 6; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+}
+
+// Helper function to send credentials
+async function sendCredentials(email, phone, name, password) {
+  // Send email with credentials
+  const result = await emailService.sendCredentialsEmail(email, phone, name, password);
+  
+  if (result.success) {
+    console.log(`✅ Credentials email sent successfully to ${email}`);
+  } else {
+    console.error(`❌ Failed to send email to ${email}, credentials logged to console`);
+  }
+  
+  return result;
+}
+
+// Helper function to send rejection notification
+async function sendRejectionNotification(email, phone, name, reason) {
+  // Send rejection email
+  const result = await emailService.sendRejectionEmail(email, phone, name, reason);
+  
+  if (result.success) {
+    console.log(`✅ Rejection email sent successfully to ${email}`);
+  } else {
+    console.error(`❌ Failed to send email to ${email}, notification logged to console`);
+  }
+  
+  return result;
+}
+
+// Routes
+
+// Home page - login
+app.get('/', (req, res) => {
+  if (req.session.user) {
+    if (req.session.user.role === 'admin') {
+      res.redirect('/admin');
+    } else {
+      res.redirect('/seller?name=' + encodeURIComponent(req.session.user.name));
+    }
+  } else {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+  }
+});
+
+// Shared login handler function
+async function handleLogin(req, res) {
+  try {
+    const { phone, password } = req.body;
+    
+    console.log('🔐 Login attempt:', { phone, endpoint: req.path });
+    
+    // Validate inputs
+    if (!phone || !password) {
+      console.log('❌ Validation failed: Missing credentials');
+      return res.status(400).json({ 
+        success: false,
+        error: 'Phone number and password are required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check brute force protection
+    if (checkBruteForce(phone)) {
+      console.warn(`❌ Brute force detected for phone: ${phone}`);
+      return res.status(429).json({ 
+        success: false,
+        error: 'Too many failed attempts. Please try again later.',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Debug logging
+    if (DEBUG_MODE) {
+      console.log('Login attempt:', {
+        phone,
+        bruteForceLocked: checkBruteForce(phone),
+        attempts: loginAttempts.get(phone)
+      });
+    }
+    
+    // Find user by phone
+    const user = await db.get("SELECT * FROM users WHERE phone = ?", [phone]);
+    
+    if (!user) {
+      recordFailedAttempt(phone);
+      console.log('❌ User not found:', phone);
+      return res.status(401).json({ 
+        success: false,
+        error: 'Invalid phone number or password',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Debug logging
+    console.log('✅ User found:', {
+      phone: user.phone,
+      role: user.role,
+      hasPassword: !!user.password
+    });
+    
+    try {
+      // Verify password
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      
+      if (!passwordMatch) {
+        recordFailedAttempt(phone);
+        console.log('❌ Invalid password for:', phone);
+        return res.status(401).json({ 
+          success: false,
+          error: 'Invalid phone number or password',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      // Clear failed attempts on successful login
+      clearFailedAttempts(phone);
+      
+      // Create session
+      req.session.user = {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role
+      };
+      
+      req.session.lastActivity = Date.now();
+      
+      console.log(`✅ Login successful: ${user.phone} (${user.role})`);
+      
+      // Explicitly save session before sending response
+      await new Promise((resolve, reject) => {
+        req.session.save((err) => {
+          if (err) {
+            console.error('❌ Session save error:', err);
+            reject(err);
+          } else {
+            console.log('✅ Session saved successfully for user:', user.phone);
+            resolve();
+          }
+        });
+      });
+      
+      // Return success with user data (NO PASSWORD)
+      const redirectUrl = user.role === 'admin' 
+        ? '/admin.html' 
+        : '/seller.html';
+      
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          phone: user.phone,
+          role: user.role
+        },
+        redirect: redirectUrl,
+        timestamp: new Date().toISOString()
+      });
+      
+    } catch (bcryptError) {
+      console.error('❌ Bcrypt error:', bcryptError);
+      recordFailedAttempt(phone);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Authentication error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('❌ Login error:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Login failed. Please try again.',
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+// Login endpoints (both /login and /api/login for compatibility)
+app.post('/login', authLimiter, handleLogin);
+app.post('/api/login', authLimiter, handleLogin);
+
+// Logout
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
+// Seller Registration APIs
+// Configure multer for seller ID picture uploads
+const sellerIdStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'uploads', 'seller-ids');
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp and original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'id-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const sellerIdUpload = multer({
+  storage: sellerIdStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: function (req, file, cb) {
+    // Accept images only
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
+// Submit registration request with validation
+const validateSellerRegistration = [
+  body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
+  body('phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Phone must be 10-15 digits'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('address').trim().isLength({ min: 5, max: 200 }).escape().withMessage('Address must be between 5 and 200 characters'),
+];
+
+app.post('/api/seller-registration', authLimiter, sellerIdUpload.single('idPicture'), validateSellerRegistration, async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      // Clean up uploaded file if validation fails
+      if (req.file) {
+        fs.unlink(req.file.path, (err) => {
+          if (err) console.error('Error deleting file:', err);
+        });
+      }
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array(),
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check if ID picture was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'ID picture is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { fullName, phone, email, address } = req.body;
+    const idPicturePath = req.file.path;
+    
+    // Check if phone already exists in users
+    const existingUser = await db.get('SELECT id FROM users WHERE phone = ?', [phone]);
+    
+    if (existingUser) {
+      // Clean up uploaded file
+      fs.unlink(idPicturePath, (err) => {
+        if (err) console.error('Error deleting file:', err);
+      });
+      return res.status(400).json({ 
+        error: 'Phone number already registered',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check if pending request exists
+    const existingRequest = await db.get('SELECT id FROM seller_requests WHERE phone = ? AND status = \'pending\'', [phone]);
+    
+    if (existingRequest) {
+      // Clean up uploaded file
+      fs.unlink(idPicturePath, (err) => {
+        if (err) console.error('Error deleting file:', err);
+      });
+      return res.status(400).json({ 
+        error: 'Registration request already pending',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Insert registration request
+    await db.run(`
+      INSERT INTO seller_requests (full_name, phone, email, address, id_picture_path, status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    `, [fullName, phone, email, address, idPicturePath]);
+    
+    console.log(`New seller registration request from: ${fullName} (${phone})`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Registration request submitted successfully. You will be notified once approved.',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+    // Clean up uploaded file on error
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error('Error cleaning up file:', err);
+      });
+    }
+    res.status(500).json({ 
+      error: 'An error occurred during registration',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get all seller requests (admin only)
+app.get('/api/seller-requests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const requests = await db.all(`
+      SELECT * FROM seller_requests 
+      ORDER BY 
+        CASE status 
+          WHEN 'pending' THEN 1 
+          WHEN 'approved' THEN 2 
+          WHEN 'rejected' THEN 3 
+        END,
+        request_date DESC
+    `);
+    res.json(requests);
+  } catch (error) {
+    console.error('Error in get seller requests:', error);
+    res.status(500).json({ 
+      error: 'An error occurred',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Approve seller request
+app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const adminPhone = req.session.user.phone;
+    const { notes } = req.body;
+    
+    // Get request details
+    const request = await db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId]);
+    
+    if (!request) {
+      return res.status(404).json({ 
+        error: 'Request not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    if (request.status !== 'pending') {
+      return res.status(400).json({ 
+        error: 'Request already processed',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Generate random password
+    const generatedPassword = generatePassword();
+    const hashedPassword = await bcrypt.hash(generatedPassword, 10);
+    
+    // Create seller user account
+    await db.run(`
+      INSERT INTO users (phone, password, role, name, email, registered_via, approved_by, approved_date)
+      VALUES (?, ?, 'seller', ?, ?, 'registration', ?, ${db.getCurrentTimestamp()})
+    `, [request.phone, hashedPassword, request.full_name, request.email, adminPhone]);
+    
+    // Update request status
+    await db.run(`
+      UPDATE seller_requests 
+      SET status = 'approved', 
+          reviewed_by = ?, 
+          reviewed_date = ${db.getCurrentTimestamp()},
+          approval_notes = ?
+      WHERE id = ?
+    `, [adminPhone, notes || '', requestId]);
+    
+    // Send credentials
+    await sendCredentials(request.email, request.phone, request.full_name, generatedPassword);
+    
+    console.log(`Seller request approved: ${request.full_name} (${request.phone})`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Seller approved and credentials sent',
+      credentials: {
+        phone: request.phone,
+        password: generatedPassword,
+        email: request.email
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('Approval error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during approval',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Reject seller request
+app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const adminPhone = req.session.user.phone;
+    const { reason } = req.body;
+    
+    const request = await db.get('SELECT * FROM seller_requests WHERE id = ?', [requestId]);
+    
+    if (!request || request.status !== 'pending') {
+      return res.status(400).json({ error: 'Invalid request' });
+    }
+    
+    await db.run(`
+      UPDATE seller_requests 
+      SET status = 'rejected', 
+          reviewed_by = ?, 
+          reviewed_date = ${db.getCurrentTimestamp()},
+          approval_notes = ?
+      WHERE id = ?
+    `, [adminPhone, reason || '', requestId]);
+    
+    // Send rejection notification
+    await sendRejectionNotification(request.email, request.phone, request.full_name, reason);
+    
+    res.json({ success: true, message: 'Request rejected' });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin dashboard
+app.get('/admin', requireAuth, requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Seller page
+app.get('/seller', requireAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'seller.html'));
+});
+
+// Buyers Dashboard - Public page (no authentication required)
+const serveBuyersPortal = (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'buyers.html'));
+};
+
+app.get('/buyers', publicPageLimiter, serveBuyersPortal);
+
+// Buyers Dashboard - Alternative route with .html extension
+app.get('/buyers.html', publicPageLimiter, serveBuyersPortal);
+
+// API: Get all sellers
+app.get('/api/sellers', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all("SELECT id, name, phone, created_at FROM users WHERE role = 'seller'");
+    res.json(rows);
+  } catch (error) {
+    console.error('Error in get sellers:', error);
+    res.status(500).json({ 
+      error: 'An error occurred',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// API: Add seller with validation
+const validateSeller = [
+  body('name').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Name must be between 2 and 100 characters'),
+  body('phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Phone must be 10-15 digits'),
+  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+];
+
+app.post('/api/sellers', requireAuth, requireAdmin, validateSeller, async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array(),
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { name, phone, password } = req.body;
+    
+    const hash = await bcrypt.hash(password, 10);
+    
+    try {
+      const result = await db.run(
+        "INSERT INTO users (name, phone, password, role) VALUES (?, ?, ?, 'seller')",
+        [name, phone, hash]
+      );
+      
+      console.log(`Seller created: ${name} (${phone}) by admin`);
+      res.json({ success: true, id: result.lastID });
+    } catch (err) {
+      if (db.isUniqueConstraintError(err)) {
+        return res.status(400).json({ 
+          error: 'Phone number already exists',
+          timestamp: new Date().toISOString()
+        });
+      }
+      console.error('Error creating seller:', err);
+      return res.status(500).json({ 
+        error: 'Database error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error adding seller:', error);
+    res.status(500).json({ 
+      error: 'An error occurred while adding seller',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// API: Update seller
+app.put('/api/sellers/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, phone, password } = req.body;
+    
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Name and phone are required' });
+    }
+    
+    if (password) {
+      const hash = await bcrypt.hash(password, 10);
+      
+      try {
+        await db.run(
+          "UPDATE users SET name = ?, phone = ?, password = ? WHERE id = ? AND role = 'seller'",
+          [name, phone, hash, id]
+        );
+        res.json({ success: true });
+      } catch (err) {
+        if (db.isUniqueConstraintError(err)) {
+          return res.status(400).json({ error: 'Phone number already exists' });
+        }
+        return res.status(500).json({ error: 'Database error' });
+      }
+    } else {
+      try {
+        await db.run(
+          "UPDATE users SET name = ?, phone = ? WHERE id = ? AND role = 'seller'",
+          [name, phone, id]
+        );
+        res.json({ success: true });
+      } catch (err) {
+        if (db.isUniqueConstraintError(err)) {
+          return res.status(400).json({ error: 'Phone number already exists' });
+        }
+        return res.status(500).json({ error: 'Database error' });
+      }
+    }
+  } catch (error) {
+    console.error('Error updating seller:', error);
+    res.status(500).json({ error: 'An error occurred' });
+  }
+});
+
+// API: Delete seller
+app.delete('/api/sellers/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    await db.run("DELETE FROM users WHERE id = ? AND role = 'seller'", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API: Get all tickets
+app.get('/api/tickets', requireAuth, async (req, res) => {
+  try {
+    let query = "SELECT * FROM tickets ORDER BY ticket_number";
+    let params = [];
+    
+    if (req.session.user.role === 'seller') {
+      query = "SELECT * FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+      params = [req.session.user.phone];
+    }
+    
+    const rows = await db.all(query, params);
+    res.json(rows);
+  } catch (error) {
+    console.error('Error in get tickets:', error);
+    res.status(500).json({ 
+      error: 'An error occurred',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// API: Add ticket with validation
+const validateTicket = [
+  body('ticket_number').trim().notEmpty().withMessage('Ticket number is required'),
+  body('buyer_name').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Buyer name must be between 2 and 100 characters'),
+  body('buyer_phone').trim().matches(/^[0-9]{10,15}$/).withMessage('Buyer phone must be 10-15 digits'),
+  body('amount').isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
+];
+
+app.post('/api/tickets', requireAuth, validateTicket, async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ 
+        error: 'Validation failed', 
+        details: errors.array(),
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { ticket_number, buyer_name, buyer_phone, amount } = req.body;
+    
+    const seller_name = req.session.user.name;
+    const seller_phone = req.session.user.phone;
+    
+    try {
+      const result = await db.run(
+        "INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount) VALUES (?, ?, ?, ?, ?, ?)",
+        [ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount]
+      );
+      
+      console.log(`Ticket created: ${ticket_number} by ${seller_name}`);
+      res.json({ success: true, id: result.lastID });
+    } catch (err) {
+      if (db.isUniqueConstraintError(err)) {
+        return res.status(400).json({ 
+          error: 'Ticket number already exists',
+          timestamp: new Date().toISOString()
+        });
+      }
+      console.error('Error creating ticket:', err);
+      return res.status(500).json({ 
+        error: 'Database error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error adding ticket:', error);
+    res.status(500).json({ 
+      error: 'An error occurred while adding ticket',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// API: Update ticket
+app.put('/api/tickets/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  const { buyer_name, buyer_phone, amount } = req.body;
+  
+  if (!buyer_name || !buyer_phone || !amount) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+  
+  try {
+    let query, params;
+    
+    if (req.session.user.role === 'admin') {
+      query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ?";
+      params = [buyer_name, buyer_phone, amount, id];
+    } else {
+      query = "UPDATE tickets SET buyer_name = ?, buyer_phone = ?, amount = ? WHERE id = ? AND seller_phone = ?";
+      params = [buyer_name, buyer_phone, amount, id, req.session.user.phone];
+    }
+    
+    const result = await db.run(query, params);
+    if (result.changes === 0) {
+      return res.status(403).json({ error: 'Not authorized to update this ticket' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API: Delete ticket
+app.delete('/api/tickets/:id', requireAuth, async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    let query, params;
+    
+    if (req.session.user.role === 'admin') {
+      query = "DELETE FROM tickets WHERE id = ?";
+      params = [id];
+    } else {
+      query = "DELETE FROM tickets WHERE id = ? AND seller_phone = ?";
+      params = [id, req.session.user.phone];
+    }
+    
+    const result = await db.run(query, params);
+    if (result.changes === 0) {
+      return res.status(403).json({ error: 'Not authorized to delete this ticket' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API: Get ticket statistics
+app.get('/api/stats', requireAuth, async (req, res) => {
+  try {
+    let ticketQuery, revenueQuery;
+    let params = [];
+    
+    if (req.session.user.role === 'admin') {
+      ticketQuery = "SELECT COUNT(*) as total FROM tickets";
+      revenueQuery = "SELECT SUM(amount) as total FROM tickets";
+    } else {
+      ticketQuery = "SELECT COUNT(*) as total FROM tickets WHERE seller_phone = ?";
+      revenueQuery = "SELECT SUM(amount) as total FROM tickets WHERE seller_phone = ?";
+      params = [req.session.user.phone];
+    }
+    
+    const ticketRow = await db.get(ticketQuery, params);
+    const revenueRow = await db.get(revenueQuery, params);
+    
+    res.json({
+      totalTickets: ticketRow.total || 0,
+      totalRevenue: revenueRow.total || 0
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API: Get all draws
+app.get('/api/draws', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all("SELECT * FROM draws ORDER BY drawn_at DESC");
+    res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API: Conduct draw
+app.post('/api/draw', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { prize_name } = req.body;
+    
+    if (!prize_name) {
+      return res.status(400).json({ 
+        error: 'Prize name is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Get all active tickets
+    const tickets = await db.all("SELECT * FROM tickets WHERE status = 'active'");
+    
+    if (tickets.length === 0) {
+      return res.status(400).json({ 
+        error: 'No active tickets available',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Random selection
+    const winner = tickets[Math.floor(Math.random() * tickets.length)];
+    
+    // Get next draw number
+    const row = await db.get("SELECT MAX(draw_number) as max_draw FROM draws");
+    const draw_number = (row.max_draw || 0) + 1;
+    
+    // Insert draw result
+    await db.run(
+      "INSERT INTO draws (draw_number, ticket_number, prize_name, winner_name, winner_phone) VALUES (?, ?, ?, ?, ?)",
+      [draw_number, winner.ticket_number, prize_name, winner.buyer_name, winner.buyer_phone]
+    );
+    
+    // Mark ticket as won
+    await db.run(
+      "UPDATE tickets SET status = 'won' WHERE id = ?",
+      [winner.id]
+    );
+    
+    console.log(`Draw conducted: ${prize_name} - Winner: ${winner.buyer_name} (Ticket: ${winner.ticket_number})`);
+    
+    res.json({
+      success: true,
+      draw: {
+        draw_number,
+        ticket_number: winner.ticket_number,
+        prize_name,
+        winner_name: winner.buyer_name,
+        winner_phone: winner.buyer_phone
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Draw error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during draw',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// API: Get available tickets for draw
+app.get('/api/available-tickets', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all("SELECT ticket_number FROM tickets WHERE status = 'active' ORDER BY ticket_number");
+    res.json(rows.map(row => row.ticket_number));
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// API: Get seller statistics
+app.get('/api/seller-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT 
+        seller_name,
+        seller_phone,
+        COUNT(*) as ticket_count,
+        SUM(amount) as total_revenue
+      FROM tickets
+      GROUP BY seller_phone
+      ORDER BY total_revenue DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+/**
+ * GET /api/departments - Get list of Haiti departments
+ * Public endpoint to get the valid department options
+ */
+app.get('/api/departments', async (req, res) => {
+  res.json({
+    success: true,
+    departments: HAITI_DEPARTMENTS
+  });
+});
+
+/**
+ * GET /api/seller/department-stats - Get department statistics for a seller
+ * Returns ticket sales breakdown by Haiti department for the logged-in seller
+ */
+app.get('/api/seller/department-stats', requireAuth, async (req, res) => {
+  try {
+    const sellerPhone = req.session.user.phone;
+    
+    // Get department statistics for this seller's sales
+    const stats = await db.all(`
+      SELECT 
+        customer_department,
+        COUNT(*) as ticket_count,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE seller_phone = ? 
+        AND status = 'SOLD'
+        AND customer_department IS NOT NULL
+      GROUP BY customer_department
+      ORDER BY ticket_count DESC
+    `, [sellerPhone]);
+    
+    // Calculate total tickets sold by this seller
+    const total = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE seller_phone = ? AND status = 'SOLD'
+    `, [sellerPhone]);
+    
+    // Add percentage to each department
+    const statsWithPercentage = stats.map(dept => ({
+      ...dept,
+      percentage: total.total_tickets > 0 
+        ? Math.round((dept.ticket_count / total.total_tickets) * 100) 
+        : 0
+    }));
+    
+    res.json({
+      success: true,
+      departments: statsWithPercentage,
+      total: total
+    });
+  } catch (error) {
+    console.error('Error getting department stats:', error);
+    res.status(500).json({ error: 'Failed to get department statistics' });
+  }
+});
+
+/**
+ * GET /api/admin/department-stats - Get system-wide department statistics
+ * Admin-only endpoint for viewing all department statistics across all sellers
+ */
+app.get('/api/admin/department-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Get department statistics for all sales
+    const stats = await db.all(`
+      SELECT 
+        customer_department,
+        COUNT(*) as ticket_count,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE status = 'SOLD'
+        AND customer_department IS NOT NULL
+      GROUP BY customer_department
+      ORDER BY ticket_count DESC
+    `);
+    
+    // Calculate total tickets sold system-wide
+    const total = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        SUM(price) as total_revenue
+      FROM tickets
+      WHERE status = 'SOLD'
+    `);
+    
+    // Add percentage to each department
+    const statsWithPercentage = stats.map(dept => ({
+      ...dept,
+      percentage: total.total_tickets > 0 
+        ? Math.round((dept.ticket_count / total.total_tickets) * 100) 
+        : 0
+    }));
+    
+    res.json({
+      success: true,
+      departments: statsWithPercentage,
+      total: total
+    });
+  } catch (error) {
+    console.error('Error getting department stats:', error);
+    res.status(500).json({ error: 'Failed to get department statistics' });
+  }
+});
+
+// API: Bulk import ticket
+app.post('/api/tickets/bulk', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber, buyerName, buyerPhone, amount, category, seller, status, barcode } = req.body;
+    
+    // Validate required fields (allow amount to be 0)
+    if (!ticketNumber || !buyerName || !buyerPhone || amount === undefined || amount === null) {
+      return res.status(400).json({ 
+        error: 'Missing required fields',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Validate amount is a number
+    if (typeof amount !== 'number' || isNaN(amount) || amount < 0) {
+      return res.status(400).json({ 
+        error: 'Amount must be a non-negative number',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check if ticket number already exists
+    const existing = await db.get('SELECT id FROM tickets WHERE ticket_number = ?', [ticketNumber]);
+    
+    if (existing) {
+      return res.status(400).json({ 
+        error: 'Ticket number already exists',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Insert ticket with barcode
+    const result = await db.run(`
+      INSERT INTO tickets (ticket_number, buyer_name, buyer_phone, seller_name, seller_phone, amount, category, status, barcode, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ${db.getCurrentTimestamp()})
+    `, [
+      ticketNumber, 
+      buyerName, 
+      buyerPhone, 
+      seller || 'Admin', 
+      req.session.user.phone, 
+      amount, 
+      category || 'Standard', 
+      status || 'sold', 
+      barcode
+    ]);
+    
+    console.log(`Bulk ticket imported: ${ticketNumber}`);
+    res.json({ 
+      success: true, 
+      id: result.lastID,
+      ticketNumber: ticketNumber
+    });
+  } catch (error) {
+    console.error('Bulk import error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during import',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// API: Verify MonCash Transaction ID before ticket scanning
+app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
+  try {
+    const { txn_id } = req.body;
+    const seller_phone = req.session.user.phone;
+    const seller_name = req.session.user.name;
+    
+    console.log(`[TXN-VERIFY] Seller ${seller_name} verifying txn_id: ${txn_id}`);
+    
+    // Validation: Must be exactly 12 digits
+    if (!txn_id || !/^\d{12}$/.test(txn_id)) {
+      console.log('[TXN-VERIFY] Invalid format');
+      return res.status(400).json({ 
+        error: 'INVALID_FORMAT',
+        message: 'Transaction ID must be exactly 12 digits'
+      });
+    }
+    
+    // FRAUD CHECK 1: Check if this Txn ID has already been used
+    const existingPayment = await db.get(
+      `SELECT * FROM payments WHERE transaction_id = ?`,
+      [txn_id]
+    );
+    
+    if (!existingPayment) {
+      console.log('[TXN-VERIFY] Payment not found');
+      return res.status(404).json({ 
+        error: 'PAYMENT_NOT_FOUND',
+        message: 'No payment found with this Transaction ID. Customer must complete payment first.'
+      });
+    }
+    
+    console.log(`[TXN-VERIFY] Payment found: ${existingPayment.payment_reference}`);
+    
+    // FRAUD CHECK 2: Verify payment is approved
+    if (existingPayment.payment_status !== 'approved') {
+      console.log(`[TXN-VERIFY] Payment not approved: ${existingPayment.payment_status}`);
+      return res.status(400).json({ 
+        error: 'PAYMENT_NOT_APPROVED',
+        message: `Payment status is "${existingPayment.payment_status}". Only approved payments can be used.`
+      });
+    }
+    
+    // FRAUD CHECK 3: Check if tickets already assigned to this payment
+    const assignedTickets = await db.all(
+      `SELECT ticket_number FROM tickets WHERE payment_reference = ?`,
+      [existingPayment.payment_reference]
+    );
+    
+    const ticketsAlreadyAssigned = assignedTickets.length;
+    const ticketsAllowed = existingPayment.ticket_quantity;
+    const ticketsRemaining = ticketsAllowed - ticketsAlreadyAssigned;
+    
+    console.log(`[TXN-VERIFY] Tickets: ${ticketsAlreadyAssigned}/${ticketsAllowed} assigned`);
+    
+    // FRAUD CHECK 4: All tickets already assigned - prevent reuse
+    if (ticketsRemaining <= 0) {
+      console.log('[TXN-VERIFY] 🚨 FRAUD ALERT: All tickets already assigned');
+      
+      const fraudDetails = {
+        txn_id: txn_id,
+        seller_name: seller_name,
+        seller_phone: seller_phone,
+        customer: existingPayment.buyer_name,
+        tickets: assignedTickets.map(t => t.ticket_number).join(', '),
+        assigned_by: existingPayment.seller_name || 'Unknown',
+        assigned_at: existingPayment.verified_at
+      };
+      
+      // Send fraud alert to admins (non-blocking)
+      smsService.sendFraudAlert(fraudDetails).catch(err => {
+        console.error('[TXN-VERIFY] Failed to send fraud alert:', err);
+      });
+      
+      return res.status(400).json({ 
+        error: 'TXN_ALREADY_USED',
+        message: `This Transaction ID has already been used. All ${ticketsAllowed} tickets have been assigned.`,
+        fraud_alert: true,
+        details: {
+          customer: existingPayment.buyer_name,
+          assigned_tickets: assignedTickets.map(t => t.ticket_number),
+          assigned_by: existingPayment.seller_name || 'Unknown',
+          assigned_at: existingPayment.verified_at
+        }
+      });
+    }
+    
+    // FRAUD CHECK 5: Log this verification attempt for audit trail
+    await db.run(
+      `INSERT INTO txn_verification_log 
+       (txn_id, payment_reference, seller_phone, seller_name, tickets_remaining)
+       VALUES (?, ?, ?, ?, ?)`,
+      [txn_id, existingPayment.payment_reference, seller_phone, seller_name, ticketsRemaining]
+    );
+    
+    console.log('[TXN-VERIFY] ✅ Verification successful');
+    
+    // Success - return payment details
+    res.json({
+      success: true,
+      payment: {
+        payment_reference: existingPayment.payment_reference,
+        txn_id: txn_id,
+        buyer_name: existingPayment.buyer_name,
+        buyer_phone: existingPayment.buyer_phone,
+        amount: existingPayment.amount,
+        payment_method: existingPayment.payment_method,
+        ticket_category: existingPayment.ticket_category,
+        tickets_allowed: ticketsAllowed,
+        tickets_assigned: ticketsAlreadyAssigned,
+        tickets_remaining: ticketsRemaining,
+        verified_at: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('[TXN-VERIFY] Error:', error);
+    res.status(500).json({ 
+      error: 'SERVER_ERROR',
+      message: 'Failed to verify transaction'
+    });
+  }
+});
+
+// API: Scan ticket barcode (seller only)
+app.post('/api/tickets/scan', requireAuth, async (req, res) => {
+  try {
+    const { barcode, payment_reference, buyer_department } = req.body;
+    
+    console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
+    
+    if (!barcode) {
+      console.log('[SCAN] Error: No barcode provided');
+      return res.status(400).json({ error: 'Barcode is required' });
+    }
+    
+    // NEW: Require payment_reference
+    if (!payment_reference) {
+      console.log('[SCAN] Error: No payment_reference provided');
+      return res.status(400).json({ 
+        error: 'PAYMENT_NOT_VERIFIED',
+        message: 'Please verify payment (Transaction ID) before scanning tickets'
+      });
+    }
+    
+    // Validate payment_reference exists and has tickets remaining
+    const payment = await db.get(
+      `SELECT * FROM payments WHERE payment_reference = ?`,
+      [payment_reference]
+    );
+    
+    if (!payment) {
+      console.log('[SCAN] Error: Invalid payment reference');
+      return res.status(404).json({ 
+        error: 'INVALID_PAYMENT',
+        message: 'Payment reference not found'
+      });
+    }
+    
+    // Determine which department to use
+    // Priority: 1) Payment's department (from buyer's purchase), 2) Seller-provided department
+    const departmentToUse = payment.customer_department || buyer_department || null;
+    
+    // Validate department if provided
+    if (departmentToUse && !isValidDepartment(departmentToUse)) {
+      console.log('[SCAN] Error: Invalid department');
+      return res.status(400).json({ 
+        error: 'INVALID_DEPARTMENT',
+        message: 'Invalid department. Must be one of the 10 Haiti departments.'
+      });
+    }
+    
+    console.log(`[SCAN] Department to use: ${departmentToUse || 'none'}`);
+    
+    // Count tickets already assigned to this payment
+    const assignedCount = await db.get(
+      `SELECT COUNT(*) as count FROM tickets WHERE payment_reference = ?`,
+      [payment_reference]
+    );
+    
+    console.log(`[SCAN] Payment ${payment_reference}: ${assignedCount.count}/${payment.ticket_quantity} tickets assigned`);
+    
+    // FRAUD CHECK: Prevent over-assignment
+    if (assignedCount.count >= payment.ticket_quantity) {
+      console.log('[SCAN] 🚨 FRAUD ALERT: Ticket limit exceeded');
+      return res.status(400).json({ 
+        error: 'TICKET_LIMIT_EXCEEDED',
+        message: `All ${payment.ticket_quantity} tickets for this payment have been assigned`,
+        fraud_alert: true
+      });
+    }
+    
+    // Validate barcode using new 8-digit validation
+    console.log(`[SCAN] Validating barcode...`);
+    const validation = await bulkTicketService.validateTicketForSale(barcode);
+    
+    if (!validation.valid) {
+      console.log(`[SCAN] Validation failed: ${validation.error} - ${validation.message}`);
+      return res.status(400).json({ 
+        error: validation.error,
+        message: validation.message
+      });
+    }
+    
+    const ticket = validation.ticket;
+    console.log(`[SCAN] Ticket found: ${ticket.ticket_number}, status: ${ticket.status}`);
+    
+    // FRAUD CHECK: Ensure ticket not already linked to another payment
+    if (ticket.payment_reference && ticket.payment_reference !== payment_reference) {
+      console.log('[SCAN] 🚨 FRAUD ALERT: Ticket already linked to different payment');
+      return res.status(400).json({ 
+        error: 'TICKET_ALREADY_LINKED',
+        message: 'This ticket is already assigned to a different payment',
+        fraud_alert: true
+      });
+    }
+    
+    // Mark as sold and link to payment, including department
+    await db.run(
+      `UPDATE tickets 
+       SET status = 'SOLD', 
+           seller_name = ?, 
+           seller_phone = ?, 
+           payment_reference = ?,
+           customer_department = ?,
+           sold_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`,
+      [req.session.user.name, req.session.user.phone, payment_reference, departmentToUse, ticket.id]
+    );
+    
+    // Update payment record with ticket numbers
+    const updatedTickets = await db.all(
+      `SELECT ticket_number FROM tickets WHERE payment_reference = ?`,
+      [payment_reference]
+    );
+    const ticketNumbers = updatedTickets.map(t => t.ticket_number).join(', ');
+    
+    await db.run(
+      `UPDATE payments SET ticket_numbers = ?, seller_name = ? WHERE payment_reference = ?`,
+      [ticketNumbers, req.session.user.name, payment_reference]
+    );
+    
+    console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name}`);
+    
+    // Return success with remaining count
+    const newCount = assignedCount.count + 1;
+    const remaining = payment.ticket_quantity - newCount;
+    
+    res.json({ 
+      success: true, 
+      message: 'Ticket assigned successfully',
+      ticket: ticket.ticket_number,
+      tickets_assigned: newCount,
+      tickets_remaining: remaining,
+      all_tickets_assigned: remaining === 0
+    });
+  } catch (error) {
+    console.error('[SCAN] Error processing ticket:', error);
+    console.error('[SCAN] Stack trace:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to process ticket',
+      message: 'An unexpected error occurred. Please try again or contact support.',
+      hint: 'Check server logs for details'
+    });
+  }
+});
+
+// API: Submit seller concern
+app.post('/api/seller-concerns', requireAuth, async (req, res) => {
+  try {
+    const { issue_type, ticket_number, description } = req.body;
+    
+    if (!issue_type || !description) {
+      return res.status(400).json({ error: 'Issue type and description are required' });
+    }
+    
+    const result = await db.run(`
+      INSERT INTO seller_concerns (seller_id, seller_name, seller_phone, issue_type, ticket_number, description, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending')
+    `, [
+      req.session.user.id,
+      req.session.user.name,
+      req.session.user.phone,
+      issue_type,
+      ticket_number || null,
+      description
+    ]);
+    
+    console.log(`Concern reported by ${req.session.user.name}: ${issue_type}`);
+    
+    // Send email notification to admin
+    const adminEmail = process.env.EMAIL_USER;
+    if (adminEmail) {
+      await emailService.sendConcernNotification(
+        adminEmail,
+        req.session.user.name,
+        issue_type,
+        description,
+        ticket_number
+      );
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Concern submitted successfully',
+      id: result.lastID
+    });
+  } catch (error) {
+    console.error('Submit concern error:', error);
+    res.status(500).json({ error: 'Failed to submit concern' });
+  }
+});
+
+// API: Get all concerns (admin only)
+app.get('/api/seller-concerns', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const concerns = await db.all(`
+      SELECT * FROM seller_concerns 
+      ORDER BY 
+        CASE status 
+          WHEN 'pending' THEN 1 
+          WHEN 'resolved' THEN 2 
+        END,
+        created_at DESC
+    `);
+    res.json(concerns);
+  } catch (error) {
+    console.error('Get concerns error:', error);
+    res.status(500).json({ error: 'Failed to fetch concerns' });
+  }
+});
+
+// API: Resolve concern (admin only)
+app.put('/api/seller-concerns/:id/resolve', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { admin_notes } = req.body;
+    
+    await db.run(`
+      UPDATE seller_concerns 
+      SET status = 'resolved', 
+          resolved_by = ?, 
+          resolved_at = ${db.getCurrentTimestamp()},
+          admin_notes = ?
+      WHERE id = ?
+    `, [req.session.user.phone, admin_notes || '', id]);
+    
+    res.json({ success: true, message: 'Concern resolved' });
+  } catch (error) {
+    console.error('Resolve concern error:', error);
+    res.status(500).json({ error: 'Failed to resolve concern' });
+  }
+});
+
+// Legacy endpoints (for backward compatibility with frontend)
+app.get('/tickets', requireAuth, async (req, res) => {
+  try {
+    let query = "SELECT ticket_number as number, category, status, barcode FROM tickets ORDER BY ticket_number";
+    let params = [];
+    
+    if (req.session.user.role === 'seller') {
+      query = "SELECT ticket_number as number, category, status, barcode FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+      params = [req.session.user.phone];
+    }
+    
+    const rows = await db.all(query, params);
+    res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all("SELECT name, phone, role FROM users ORDER BY name");
+    res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
+  // Return empty array for now - audit logs table doesn't exist yet
+  res.json([]);
+});
+
+app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Add LIMIT to prevent loading all sellers
+    const rows = await db.all(`
+      SELECT seller_name as sold_by, COUNT(*) as count
+      FROM tickets
+      GROUP BY seller_name
+      ORDER BY count DESC
+      LIMIT 50
+    `);
+    res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/seller-leaderboard', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Add LIMIT to prevent loading all sellers
+    const rows = await db.all(`
+      SELECT seller_name as sold_by, COUNT(*) as tickets_sold
+      FROM tickets
+      GROUP BY seller_name
+      ORDER BY tickets_sold DESC
+      LIMIT 50
+    `);
+    res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/list-backups', requireAuth, requireAdmin, (req, res) => {
+  // Return empty array for now - backup functionality not implemented
+  res.json([]);
+});
+
+app.get('/analytics/sales-by-day', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Limit to last 30 days only to reduce memory usage
+    const query = db.USE_POSTGRES
+      ? `SELECT DATE(created_at) as day, COUNT(*) as count
+         FROM tickets
+         WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+         GROUP BY DATE(created_at)
+         ORDER BY day ASC
+         LIMIT 30`
+      : `SELECT DATE(created_at) as day, COUNT(*) as count
+         FROM tickets
+         WHERE created_at >= date('now', '-30 days')
+         GROUP BY DATE(created_at)
+         ORDER BY day ASC
+         LIMIT 30`;
+    
+    const rows = await db.all(query);
+    res.json(rows);
+  } catch (err) {
+    console.error('Error in sales-by-day:', err);
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+app.get('/analytics/tickets-by-category', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.all(`
+      SELECT category, COUNT(*) as count
+      FROM tickets
+      WHERE category IS NOT NULL
+      GROUP BY category
+      ORDER BY count DESC
+    `);
+    res.json(rows);
+  } catch (err) {
+    return res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// ============================================================================
+// RAFFLE TICKET SYSTEM API ENDPOINTS
+// ============================================================================
+
+const ticketService = require('./services/ticketService');
+const printService = require('./services/printService');
+const importExportService = require('./services/importExportService');
+const bulkTicketService = require('./services/bulkTicketService');
+// Note: multer is already imported at the top of the file
+
+// Configure multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Admin Raffle Endpoints
+
+// GET /api/admin/raffles - List all raffles
+app.get('/api/admin/raffles', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffles = await db.all('SELECT * FROM raffles ORDER BY created_at DESC');
+    res.json(raffles);
+  } catch (error) {
+    console.error('Error fetching raffles:', error);
+    res.status(500).json({ error: 'Failed to fetch raffles' });
+  }
+});
+
+// POST /api/admin/raffles - Create a new raffle
+app.post('/api/admin/raffles', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { name, description, start_date, draw_date, total_tickets } = req.body;
+    
+    const result = await db.run(
+      `INSERT INTO raffles (name, description, start_date, draw_date, total_tickets, status)
+       VALUES (?, ?, ?, ?, ?, 'draft')`,
+      [name, description, start_date, draw_date, total_tickets || 1500000]
+    );
+    
+    const raffle = await db.get('SELECT * FROM raffles WHERE id = ?', [result.lastID]);
+    res.json(raffle);
+  } catch (error) {
+    console.error('Error creating raffle:', error);
+    res.status(500).json({ error: 'Failed to create raffle' });
+  }
+});
+
+// GET /api/admin/raffles/:id/stats - Get raffle statistics
+app.get('/api/admin/raffles/:id/stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffleId = req.params.id;
+    
+    // Get raffle info
+    const raffle = await db.get('SELECT * FROM raffles WHERE id = ?', [raffleId]);
+    if (!raffle) {
+      return res.status(404).json({ error: 'Raffle not found' });
+    }
+    
+    // Get category statistics
+    const categories = await db.all(`
+      SELECT 
+        tc.id,
+        tc.category_code,
+        tc.category_name,
+        tc.price,
+        tc.total_tickets,
+        tc.color,
+        COUNT(t.id) as tickets_created,
+        COUNT(CASE WHEN t.status = 'SOLD' THEN 1 END) as tickets_sold,
+        COUNT(CASE WHEN t.status = 'AVAILABLE' THEN 1 END) as tickets_available,
+        COUNT(CASE WHEN t.printed = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as tickets_printed,
+        SUM(CASE WHEN t.status = 'SOLD' THEN t.price ELSE 0 END) as revenue
+      FROM ticket_categories tc
+      LEFT JOIN tickets t ON tc.id = t.category_id AND t.raffle_id = ?
+      WHERE tc.raffle_id = ?
+      GROUP BY tc.id, tc.category_code, tc.category_name, tc.price, tc.total_tickets, tc.color
+      ORDER BY tc.category_code
+    `, [raffleId, raffleId]);
+    
+    // Calculate totals
+    const totals = {
+      total_tickets: 0,
+      tickets_created: 0,
+      tickets_sold: 0,
+      tickets_available: 0,
+      tickets_printed: 0,
+      total_revenue: 0,
+      potential_revenue: 0
+    };
+    
+    categories.forEach(cat => {
+      totals.total_tickets += cat.total_tickets;
+      totals.tickets_created += cat.tickets_created || 0;
+      totals.tickets_sold += cat.tickets_sold || 0;
+      totals.tickets_available += cat.tickets_available || 0;
+      totals.tickets_printed += cat.tickets_printed || 0;
+      totals.total_revenue += parseFloat(cat.revenue || 0);
+      totals.potential_revenue += cat.total_tickets * cat.price;
+    });
+    
+    res.json({
+      raffle,
+      categories,
+      totals
+    });
+  } catch (error) {
+    console.error('Error fetching raffle stats:', error);
+    res.status(500).json({ error: 'Failed to fetch raffle statistics' });
+  }
+});
+
+// Ticket Management Endpoints
+
+// POST /api/admin/tickets/import - Import tickets from Excel/CSV
+app.post('/api/admin/tickets/import', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const raffleId = req.body.raffle_id || 1;
+    const fileType = req.file.mimetype;
+    
+    // Parse file
+    const data = importExportService.parseImportFile(req.file.buffer, fileType);
+    
+    // Validate data
+    const validation = importExportService.validateImportData(data);
+    
+    if (validation.errors.length > 0) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        errors: validation.errors,
+        valid: validation.valid.length,
+        invalid: validation.invalid.length
+      });
+    }
+    
+    // Import valid tickets
+    const results = await importExportService.importTickets(validation.valid, raffleId);
+    
+    res.json({
+      success: true,
+      results
+    });
+  } catch (error) {
+    console.error('Error importing tickets:', error);
+    res.status(500).json({ error: 'Failed to import tickets: ' + error.message });
+  }
+});
+
+// GET /api/admin/tickets/count - Get ticket count for diagnostics
+app.get('/api/admin/tickets/count', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffleId = req.query.raffle_id || 1;
+    const count = await db.get(
+      'SELECT COUNT(*) as total FROM tickets WHERE raffle_id = ?',
+      [raffleId]
+    );
+    res.json({ 
+      raffle_id: raffleId,
+      total_tickets: count.total,
+      message: count.total === 0 ? 'No tickets found - generate tickets first' : 'Tickets available'
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/tickets/export - Export tickets to Excel
+app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('📥 Export request received:', req.query);
+    
+    // Parse limit and offset parameters
+    const limit = parseInt(req.query.limit) || 10000;
+    const offset = parseInt(req.query.offset) || 0;
+    
+    // Validate limit to prevent OOM
+    if (limit > 50000) {
+      return res.status(400).json({ 
+        error: 'Export limit cannot exceed 50,000 tickets. Please use filters to narrow your export.',
+        maxLimit: 50000,
+        requestedLimit: limit
+      });
+    }
+    
+    // Validate offset
+    if (offset < 0) {
+      return res.status(400).json({ 
+        error: 'Offset cannot be negative',
+        requestedOffset: offset
+      });
+    }
+    
+    const filters = {
+      raffle_id: req.query.raffle_id || 1,
+      category: req.query.category,
+      status: req.query.status,
+      printed: req.query.printed === 'true' ? true : req.query.printed === 'false' ? false : undefined,
+      limit: limit,
+      offset: offset
+    };
+    
+    console.log('📊 Fetching tickets with filters:', filters);
+    
+    const buffer = await importExportService.exportTickets(filters);
+    
+    if (!buffer || buffer.length === 0) {
+      console.warn('⚠️ No tickets found or empty buffer returned');
+      return res.status(404).json({ 
+        error: 'No tickets found to export',
+        filters: filters
+      });
+    }
+    
+    console.log(`✅ Export successful: ${buffer.length} bytes`);
+    
+    const filename = `raffle-tickets-export-${new Date().toISOString().split('T')[0]}.xlsx`;
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+    
+  } catch (error) {
+    console.error('❌ Error exporting tickets:', error);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to export tickets',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/admin/tickets/template - Download import template
+app.get('/api/admin/tickets/template', requireAuth, requireAdmin, (req, res) => {
+  try {
+    const buffer = importExportService.generateTemplate();
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=ticket-import-template.xlsx');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error generating template:', error);
+    res.status(500).json({ error: 'Failed to generate template' });
+  }
+});
+
+// GET /api/admin/tickets/number-barcode - Export ticket numbers and barcodes as CSV (STREAMING)
+// Returns a CSV file with only ticket_number and barcode columns, sorted by ticket_number
+// Uses streaming to handle large datasets (1M+ tickets) without OOM crashes
+app.get('/api/admin/tickets/number-barcode', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('📥 CSV export request received for ticket numbers and barcodes (STREAMING)');
+    
+    // Check if tickets exist before starting streaming
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult ? countResult.total : 0;
+    
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found in database');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'There are no tickets in the system. Please generate or import tickets first.'
+      });
+    }
+    
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets for CSV export`);
+    
+    // Set response headers for CSV download
+    const filename = 'tickets_number_barcode.csv';
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Helper function to format CSV field (escape and quote if needed)
+    const formatCsvField = (value) => {
+      const stringValue = String(value || '');
+      // Escape double quotes by doubling them
+      const escapedValue = stringValue.replace(/"/g, '""');
+      // Wrap in quotes if contains comma, newline, or quote
+      const needsQuotes = /[",\n]/.test(stringValue);
+      return needsQuotes ? `"${escapedValue}"` : escapedValue;
+    };
+    
+    // Write header row
+    res.write('ticket_number,barcode\n');
+    
+    let totalProcessed = 0;
+    
+    // Stream tickets row-by-row without loading all into memory
+    await db.streamRows(
+      'SELECT ticket_number, barcode FROM tickets ORDER BY ticket_number ASC',
+      [],
+      (ticket) => {
+        const ticketNumber = formatCsvField(ticket.ticket_number);
+        const barcode = formatCsvField(ticket.barcode);
+        res.write(`${ticketNumber},${barcode}\n`);
+        totalProcessed++;
+        
+        // Log progress every 10,000 tickets
+        if (totalProcessed % 10000 === 0) {
+          console.log(`📊 Streamed ${totalProcessed.toLocaleString()} tickets...`);
+        }
+      },
+      { batchSize: 1000 }
+    );
+    
+    // End response
+    res.end();
+    
+    console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
+    
+  } catch (error) {
+    console.error('❌ Error exporting CSV:', error);
+    console.error('Stack:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to export CSV',
+        message: error.message
+      });
+    }
+  }
+});
+
+// GET /api/admin/tickets/export-all-barcodes - Export ALL ticket numbers and barcodes as TXT (STREAMING)
+// Uses streaming to handle large datasets without OOM crashes
+app.get('/api/admin/tickets/export-all-barcodes', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log('📥 Starting streaming export of all ticket barcodes...');
+    
+    // Check if tickets exist before starting streaming
+    const countResult = await db.get('SELECT COUNT(*) as total FROM tickets');
+    const totalTickets = countResult ? countResult.total : 0;
+    
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found in database');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'There are no tickets in the system. Please generate or import tickets first.'
+      });
+    }
+    
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets for export`);
+    
+    // Set headers for file download
+    const timestamp = new Date().toISOString().split('T')[0];
+    const filename = `all-tickets-barcodes-${timestamp}.txt`;
+    
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    let totalProcessed = 0;
+    
+    // Stream tickets row-by-row without loading all into memory
+    await db.streamRows(
+      'SELECT ticket_number, barcode FROM tickets ORDER BY ticket_number ASC',
+      [],
+      (ticket) => {
+        // Write line: "TICKET-NUMBER  BARCODE"
+        res.write(`${ticket.ticket_number}  ${ticket.barcode}\n`);
+        totalProcessed++;
+        
+        // Log progress every 10,000 tickets
+        if (totalProcessed % 10000 === 0) {
+          console.log(`📊 Streamed ${totalProcessed.toLocaleString()} tickets...`);
+        }
+      },
+      { batchSize: 1000 }
+    );
+    
+    // End response
+    res.end();
+    
+    console.log(`✅ Export complete: ${filename} with ${totalProcessed.toLocaleString()} tickets`);
+    
+  } catch (error) {
+    console.error('❌ Error exporting all ticket barcodes:', error);
+    console.error('Stack:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to export ticket barcodes',
+        message: error.message
+      });
+    }
+  }
+});
+
+// Print Endpoints
+
+// POST /api/admin/tickets/print - Generate and return PDF for printing
+app.post('/api/admin/tickets/print', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { from, to, paperType } = req.body;
+    
+    // Validate input
+    if (!from || !to) {
+      return res.status(400).json({ error: 'Missing required parameters: from and to ticket numbers are required' });
+    }
+    
+    if (!paperType || !['AVERY_16145', 'PRINTWORKS'].includes(paperType)) {
+      return res.status(400).json({ error: 'Invalid or missing paper type. Must be AVERY_16145 or PRINTWORKS' });
+    }
+    
+    // Get tickets in range ordered by ticket_number
+    const tickets = await ticketService.getTicketsByRange(from, to);
+    
+    if (!tickets || tickets.length === 0) {
+      return res.status(404).json({ error: 'No tickets found in the specified range' });
+    }
+    
+    // Generate simple PDF with ticket information
+    const doc = new PDFDocument({
+      size: 'LETTER',
+      margin: 50
+    });
+    
+    // Set response headers for PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename=tickets.pdf');
+    
+    // Pipe PDF to response
+    doc.pipe(res);
+    
+    // Add title
+    doc.fontSize(20).text('Raffle Tickets Print Preview', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12).text(`Paper Type: ${paperType}`, { align: 'center' });
+    doc.fontSize(12).text(`Range: ${from} to ${to}`, { align: 'center' });
+    doc.fontSize(12).text(`Total Tickets: ${tickets.length}`, { align: 'center' });
+    doc.moveDown(2);
+    
+    // Add each ticket on a new page
+    tickets.forEach((ticket, index) => {
+      if (index > 0) {
+        doc.addPage();
+      }
+      
+      // Draw ticket border
+      doc.rect(50, 50, doc.page.width - 100, doc.page.height - 100).stroke();
+      
+      // Ticket information
+      doc.fontSize(24).font('Helvetica-Bold')
+         .text('RAFFLE TICKET', 70, 70, { align: 'center', width: doc.page.width - 140 });
+      
+      doc.moveDown();
+      doc.fontSize(18).text(`Ticket #: ${ticket.ticket_number}`, 70, 120);
+      doc.fontSize(14).font('Helvetica').text(`Category: ${ticket.category}`, 70, 160);
+      doc.text(`Price: $${parseFloat(ticket.price || 0).toFixed(2)}`, 70, 190);
+      doc.text(`Status: ${ticket.status || 'AVAILABLE'}`, 70, 220);
+      
+      if (ticket.buyer_name) {
+        doc.text(`Buyer: ${ticket.buyer_name}`, 70, 250);
+      }
+      
+      if (ticket.barcode) {
+        doc.fontSize(12).text(`Barcode: ${ticket.barcode}`, 70, 290);
+      }
+      
+      // Add footer
+      doc.fontSize(10).text('Keep this ticket for entry into the raffle', 70, doc.page.height - 100, {
+        align: 'center',
+        width: doc.page.width - 140
+      });
+    });
+    
+    // Finalize PDF
+    doc.end();
+    
+  } catch (error) {
+    console.error('Error generating print PDF:', error);
+    
+    // If headers not sent yet, send error response
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+  }
+});
+
+// POST /api/admin/tickets/print/generate - Generate and download PDF immediately
+app.post('/api/admin/tickets/print/generate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      raffle_id,
+      category,
+      start_ticket,
+      end_ticket,
+      paper_type,
+      use_custom_template,
+      template_id,
+      layout,
+      design_id,
+      barcode_width,
+      barcode_height
+    } = req.body;
+    
+    // Validate input
+    if (!category || !start_ticket || !end_ticket) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+    
+    if (!['AVERY_16145', 'PRINTWORKS', 'LETTER_8_TICKETS', 'DEFAULT_TEAROFF'].includes(paper_type)) {
+      return res.status(400).json({ error: 'Invalid paper type' });
+    }
+    
+    // Get tickets in range
+    let tickets = await ticketService.getTicketsByRange(start_ticket, end_ticket);
+    
+    // If no tickets exist, create them
+    if (tickets.length === 0) {
+      // Parse ticket range
+      const startParts = start_ticket.split('-');
+      const endParts = end_ticket.split('-');
+      
+      if (startParts[0] !== endParts[0]) {
+        return res.status(400).json({ error: 'Ticket range must be within the same category' });
+      }
+      
+      const categoryCode = startParts[0];
+      const startNum = parseInt(startParts[1]);
+      const endNum = parseInt(endParts[1]);
+      
+      // Get category info
+      const categoryInfo = await db.get(
+        'SELECT id, price FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [raffle_id || 1, categoryCode]
+      );
+      
+      if (!categoryInfo) {
+        return res.status(404).json({ error: 'Category not found' });
+      }
+      
+      // Create tickets
+      await ticketService.createTicketsForRange({
+        raffle_id: raffle_id || 1,
+        category_id: categoryInfo.id,
+        category: categoryCode,
+        price: categoryInfo.price,
+        startNum,
+        endNum
+      });
+      
+      // Fetch newly created tickets
+      tickets = await ticketService.getTicketsByRange(start_ticket, end_ticket);
+    }
+    
+    // Create print job - use GRID_20_TICKETS paper type if grid layout is selected
+    const effectivePaperType = (layout === 'grid' || layout === 'grid_20') ? 'GRID_20_TICKETS' : paper_type;
+    
+    const printJobId = await printService.createPrintJob({
+      admin_id: req.session.user.id,
+      raffle_id: raffle_id || 1,
+      category,
+      ticket_range_start: start_ticket,
+      ticket_range_end: end_ticket,
+      total_tickets: tickets.length,
+      paper_type: effectivePaperType
+    });
+    
+    // Get custom design if design_id is provided
+    let customDesign = null;
+    if (design_id) {
+      customDesign = await db.get('SELECT * FROM ticket_designs WHERE id = ? AND is_active = 1', [design_id]);
+    }
+    
+    // Prepare barcode settings
+    const barcodeSettings = {
+      width: barcode_width || 90,
+      height: barcode_height || 20
+    };
+    
+    let doc;
+    
+    // Check if using grid layout
+    if (layout === 'grid' || layout === 'grid_20') {
+      // Generate PDF with grid layout: 4 columns × 5 rows = 20 tickets per page
+      const pdfBuffer = await printService.generateGridPDF(tickets);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=tickets-grid-${category}-${start_ticket}-to-${end_ticket}.pdf`);
+      res.send(pdfBuffer);
+      
+      // Mark tickets as printed
+      for (const ticket of tickets) {
+        await ticketService.markAsPrinted(ticket.ticket_number);
+      }
+      
+      return;
+    }
+    
+    // Check if using custom template
+    if (use_custom_template && template_id) {
+      const customTemplate = await db.get('SELECT * FROM ticket_templates WHERE id = ?', [template_id]);
+      
+      if (!customTemplate) {
+        return res.status(404).json({ error: 'Custom template not found' });
+      }
+      
+      // Generate PDF with custom template
+      doc = await printService.generateCustomTemplatePDF(tickets, customTemplate, paper_type, printJobId);
+    } else {
+      // Generate PDF with default template (passing design and barcode settings)
+      doc = await printService.generatePrintPDF(tickets, paper_type, printJobId, customDesign, barcodeSettings);
+    }
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=tickets-${category}-${start_ticket}-to-${end_ticket}.pdf`);
+    
+    doc.pipe(res);
+    doc.end();
+    
+  } catch (error) {
+    console.error('Error generating print PDF:', error);
+    res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+  }
+});
+
+// GET /api/admin/print-jobs - List print jobs
+app.get('/api/admin/print-jobs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const filters = {
+      raffle_id: req.query.raffle_id,
+      status: req.query.status,
+      limit: req.query.limit ? parseInt(req.query.limit) : 50
+    };
+    
+    const jobs = await printService.getPrintJobs(filters);
+    res.json(jobs);
+  } catch (error) {
+    console.error('Error fetching print jobs:', error);
+    res.status(500).json({ error: 'Failed to fetch print jobs' });
+  }
+});
+
+// GET /api/admin/print-jobs/:id - Get print job details
+app.get('/api/admin/print-jobs/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const job = await printService.getPrintJob(req.params.id);
+    
+    if (!job) {
+      return res.status(404).json({ error: 'Print job not found' });
+    }
+    
+    res.json(job);
+  } catch (error) {
+    console.error('Error fetching print job:', error);
+    res.status(500).json({ error: 'Failed to fetch print job' });
+  }
+});
+
+// GET /api/admin/tickets/print-batch - Get tickets for printing
+app.get('/api/admin/tickets/print-batch', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, start, end } = req.query;
+    
+    if (!category || !start || !end) {
+      return res.status(400).json({ error: 'Missing required parameters: category, start, end' });
+    }
+    
+    // Build ticket range
+    const startTicket = `${category}-${String(start).padStart(9, '0')}`;
+    const endTicket = `${category}-${String(end).padStart(9, '0')}`;
+    
+    // Get tickets in range
+    const tickets = await ticketService.getTicketsByRange(startTicket, endTicket);
+    
+    // Generate QR codes for preview
+    const ticketsWithQR = await Promise.all(tickets.map(async (ticket) => {
+      const qrCode = await qrcodeService.generateQRCodeDataURL(
+        qrcodeService.generateVerificationURL(ticket.ticket_number),
+        { size: 150 }
+      );
+      
+      return {
+        id: ticket.id,
+        barcode: ticket.barcode || ticket.ticket_number,
+        category: ticket.category,
+        price: ticket.price,
+        qr_code: qrCode,
+        status: ticket.status,
+        ticket_number: ticket.ticket_number
+      };
+    }));
+    
+    // Calculate sheets needed (10 tickets per sheet for Avery 16145)
+    const sheets = Math.ceil(ticketsWithQR.length / 10);
+    
+    res.json({
+      tickets: ticketsWithQR,
+      sheets: sheets,
+      total_tickets: ticketsWithQR.length
+    });
+  } catch (error) {
+    console.error('Error fetching tickets for printing:', error);
+    res.status(500).json({ error: 'Failed to fetch tickets: ' + error.message });
+  }
+});
+
+// POST /api/admin/tickets/mark-printed - Mark tickets as printed
+app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticket_ids } = req.body;
+    
+    if (!ticket_ids || !Array.isArray(ticket_ids)) {
+      return res.status(400).json({ error: 'ticket_ids must be an array' });
+    }
+    
+    let marked = 0;
+    for (const ticketId of ticket_ids) {
+      try {
+        // Use COALESCE to safely handle NULL values in print_count
+        await db.run(
+          `UPDATE tickets 
+           SET printed = ${db.USE_POSTGRES ? 'TRUE' : '1'}, 
+               printed_at = ${db.getCurrentTimestamp()},
+               print_count = COALESCE(print_count, 0) + 1
+           WHERE id = ?`,
+          [ticketId]
+        );
+        marked++;
+      } catch (error) {
+        console.error(`Error marking ticket ${ticketId} as printed:`, error);
+      }
+    }
+    
+    res.json({
+      success: true,
+      marked: marked
+    });
+  } catch (error) {
+    console.error('Error marking tickets as printed:', error);
+    res.status(500).json({ error: 'Failed to mark tickets as printed: ' + error.message });
+  }
+});
+
+// ============================================================================
+// BULK TICKET GENERATION ENDPOINTS
+// ============================================================================
+
+// Track generation progress globally
+let generationProgress = {
+  total: 1500000,
+  completed: 0,
+  abc: 0,
+  efg: 0,
+  jkl: 0,
+  xyz: 0,
+  inProgress: false,
+  error: null
+};
+
+// POST /api/admin/tickets/generate-all - Generate all 1.5M tickets with barcodes and QR codes
+app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (req, res) => {
+  console.log('📥 POST /api/admin/tickets/generate-all received');
+  
+  // Check if generation is already in progress using mutex
+  if (ticketGenerationMutex.isLocked()) {
+    console.log('⚠️ Generation already in progress (mutex locked), rejecting request');
+    return res.status(409).json({ 
+      error: 'Generation already in progress. Please wait for current operation to complete.',
+      message: 'Use /api/admin/tickets/generation-progress to monitor status.',
+      progress: generationProgress,
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  try {
+    console.log('✅ Acquiring lock for ticket generation...');
+    await ticketGenerationMutex.lock();
+    console.log('✅ Lock acquired, starting ticket generation process...');
+    
+    // Reset progress
+    generationProgress.inProgress = true;
+    generationProgress.completed = 0;
+    generationProgress.abc = 0;
+    generationProgress.efg = 0;
+    generationProgress.jkl = 0;
+    generationProgress.xyz = 0;
+    generationProgress.error = null;
+    
+    console.log('📊 Progress reset:', generationProgress);
+    
+    res.json({ 
+      success: true,
+      message: 'Generation started. Use /api/admin/tickets/generation-progress to monitor progress.', 
+      total: 1500000,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('🚀 Launching background generation task...');
+    
+    // Run generation in background with error handling
+    setImmediate(() => {
+      generateAllTicketsBackground()
+        .catch(error => {
+          console.error('❌ CRITICAL: Background generation crashed:', error);
+          console.error('❌ Stack trace:', error.stack);
+          generationProgress.inProgress = false;
+          generationProgress.error = error.message;
+        })
+        .finally(() => {
+          // Always release the mutex when done
+          console.log('🔓 Releasing ticket generation mutex...');
+          ticketGenerationMutex.unlock();
+          console.log('✅ Mutex released');
+        });
+    });
+    
+  } catch (error) {
+    console.error('❌ Error starting generation:', error);
+    console.error('❌ Stack trace:', error.stack);
+    generationProgress.inProgress = false;
+    generationProgress.error = error.message;
+    
+    // Release mutex on error
+    ticketGenerationMutex.unlock();
+    
+    return res.status(500).json({ 
+      error: 'Failed to start generation', 
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/admin/tickets/generation-progress - Get current generation progress
+app.get('/api/admin/tickets/generation-progress', requireAuth, requireAdmin, (req, res) => {
+  res.json(generationProgress);
+});
+
+// POST /api/admin/tickets/generate-test - Generate test batch (1,000 tickets)
+app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (req, res) => {
+  console.log('🧪 TEST MODE: Generating 1,000 test tickets');
+  
+  try {
+    const ticketService = require('./services/ticketService');
+    
+    // Use raffle ID 1
+    const raffleId = 1;
+    const TICKETS_PER_CATEGORY = 250;
+    
+    // Step 1: Check if raffle exists
+    let raffle = await db.get('SELECT id FROM raffles WHERE id = ?', [raffleId]);
+    if (!raffle) {
+      return res.status(404).json({ 
+        error: 'Raffle not found. Please run full generation first to create raffle and categories.' 
+      });
+    }
+    console.log('✅ Raffle found:', raffle.id);
+    
+    // Step 2: Use all valid categories for testing (250 tickets per category = 1,000 total)
+    const testCategories = [
+      { code: 'ABC', price: 100 },
+      { code: 'EFG', price: 50 },
+      { code: 'JKL', price: 20 },
+      { code: 'XYZ', price: 10 }
+    ];
+    
+    let totalCreated = 0;
+    
+    // Generate tickets for each category
+    for (const cat of testCategories) {
+      // Get category record
+      const category = await db.get(
+        'SELECT id FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [raffleId, cat.code]
+      );
+      
+      if (!category) {
+        console.log(`⚠️ Category ${cat.code} not found, skipping...`);
+        continue;
+      }
+      
+      console.log(`🎫 Generating ${TICKETS_PER_CATEGORY} test tickets for ${cat.code}...`);
+      
+      // Get last ticket number for this category
+      const lastTicket = await db.get(
+        'SELECT ticket_number FROM tickets WHERE raffle_id = ? AND category_id = ? ORDER BY id DESC LIMIT 1',
+        [raffleId, category.id]
+      );
+      
+      let startNum = 1;
+      if (lastTicket) {
+        // Extract number from ticket like "ABC-000123" (6-digit format)
+        const match = lastTicket.ticket_number.match(/-(\d+)$/);
+        if (match) {
+          startNum = parseInt(match[1], 10) + 1;
+        }
+      }
+      
+      // Generate tickets for this category
+      const result = await ticketService.generateTickets({
+        raffle_id: raffleId,
+        category_id: category.id,
+        category: cat.code,
+        startNum: startNum,
+        endNum: startNum + TICKETS_PER_CATEGORY - 1,
+        price: cat.price,
+        progressCallback: (progress) => {
+          console.log(`  ${cat.code}: ${progress.created} / ${TICKETS_PER_CATEGORY} tickets`);
+        }
+      });
+      
+      totalCreated += result.created;
+      console.log(`✅ ${cat.code}: Generated ${result.created} tickets`);
+    }
+    
+    console.log('✅ TEST COMPLETE: Generated', totalCreated, 'total tickets');
+    
+    res.json({
+      success: true,
+      created: totalCreated,
+      message: `Test generation completed successfully! Generated ${totalCreated} tickets across all categories.`
+    });
+    
+  } catch (error) {
+    console.error('❌ TEST FAILED:', error.message);
+    console.error('❌ Stack:', error.stack);
+    res.status(500).json({ 
+      error: error.message,
+      details: 'Check server logs for full error details'
+    });
+  }
+});
+
+/**
+ * Background task to generate all tickets for all categories
+ */
+async function generateAllTicketsBackground() {
+  const ticketService = require('./services/ticketService');
+  
+  try {
+    console.log('');
+    console.log('='.repeat(60));
+    console.log('🚀 STARTING BULK TICKET GENERATION');
+    console.log('='.repeat(60));
+    console.log('');
+    
+    // Step 1: Check database connection
+    console.log('📡 Step 1: Testing database connection...');
+    try {
+      await db.get('SELECT 1 as test');
+      console.log('✅ Database connection OK');
+    } catch (dbError) {
+      console.error('❌ Database connection FAILED:', dbError.message);
+      throw new Error(`Database not accessible: ${dbError.message}`);
+    }
+    
+    // Step 2: Check if tables exist
+    console.log('📊 Step 2: Checking if required tables exist...');
+    try {
+      const tables = await db.all(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('raffles', 'ticket_categories', 'tickets')"
+      );
+      console.log('✅ Found tables:', tables.map(t => t.name).join(', '));
+      
+      if (tables.length < 3) {
+        console.log('⚠️ Missing tables, will attempt to create...');
+      }
+    } catch (tableError) {
+      console.error('❌ Error checking tables:', tableError.message);
+    }
+    
+    // Step 3: Check/create raffle
+    console.log('🎫 Step 3: Checking for raffle record...');
+    let raffle = await db.get('SELECT id FROM raffles WHERE id = 1');
+    
+    if (!raffle) {
+      console.log('⚠️ No raffle found, creating default raffle...');
+      try {
+        await db.run(
+          `INSERT INTO raffles (id, name, description, draw_date, status, created_at)
+           VALUES (1, 'Main Raffle', 'Main raffle event', ${db.getCurrentTimestamp()}, 'active', ${db.getCurrentTimestamp()})`
+        );
+        raffle = { id: 1 };
+        console.log('✅ Default raffle created with id: 1');
+      } catch (raffleError) {
+        console.error('❌ Failed to create raffle:', raffleError.message);
+        throw new Error(`Cannot create raffle: ${raffleError.message}`);
+      }
+    } else {
+      console.log('✅ Raffle exists with id:', raffle.id);
+    }
+    
+    // Step 4: Define and create categories
+    console.log('📝 Step 4: Setting up ticket categories...');
+    const categories = [
+      { code: 'ABC', price: 100, count: 375000 },
+      { code: 'EFG', price: 50, count: 375000 },
+      { code: 'JKL', price: 20, count: 375000 },
+      { code: 'XYZ', price: 10, count: 375000 }
+    ];
+    
+    console.log('✅ Categories defined:', categories.map(c => c.code).join(', '));
+    
+    // Step 5: Generate tickets for each category
+    for (const category of categories) {
+      console.log('');
+      console.log('-'.repeat(60));
+      console.log(`📝 Generating ${category.code} tickets...`);
+      console.log(`   Price: $${category.price}, Count: ${category.count.toLocaleString()}`);
+      console.log('-'.repeat(60));
+      
+      // Get or create category record
+      let categoryRecord = await db.get(
+        'SELECT id FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [raffle.id, category.code]
+      );
+      
+      if (!categoryRecord) {
+        console.log(`⚠️ Category ${category.code} not found in database, creating...`);
+        try {
+          const result = await db.run(
+            `INSERT INTO ticket_categories (raffle_id, category_code, category_name, price, total_tickets, created_at)
+             VALUES (?, ?, ?, ?, ?, ${db.getCurrentTimestamp()})`,
+            [raffle.id, category.code, `${category.code} Category`, category.price, category.count]
+          );
+          categoryRecord = { id: result.lastID };
+          console.log(`✅ Category ${category.code} created with id: ${categoryRecord.id}`);
+        } catch (catError) {
+          console.error(`❌ Failed to create category ${category.code}:`, catError.message);
+          throw new Error(`Cannot create category: ${catError.message}`);
+        }
+      } else {
+        console.log(`✅ Category ${category.code} exists with id: ${categoryRecord.id}`);
+      }
+      
+      // Generate tickets with progress callback
+      console.log(`🎫 Starting ticket generation for ${category.code}...`);
+      try {
+        await ticketService.generateTickets({
+          raffle_id: raffle.id,
+          category_id: categoryRecord.id,
+          category: category.code,
+          startNum: 1,
+          endNum: category.count,
+          price: category.price,
+          progressCallback: (progress) => {
+            // Update global progress
+            generationProgress[category.code.toLowerCase()] = progress.created;
+            generationProgress.completed = 
+              generationProgress.abc + 
+              generationProgress.efg + 
+              generationProgress.jkl + 
+              generationProgress.xyz;
+            
+            // Log every 10,000 tickets
+            if (progress.created % 10000 === 0) {
+              console.log(`   ${category.code}: ${progress.created.toLocaleString()} / ${category.count.toLocaleString()} (${progress.percent}%)`);
+            }
+          }
+        });
+        
+        console.log(`✅ Completed ${category.code}: ${category.count.toLocaleString()} tickets`);
+      } catch (genError) {
+        console.error(`❌ Error generating ${category.code} tickets:`, genError.message);
+        console.error('❌ Stack:', genError.stack);
+        throw new Error(`Failed to generate ${category.code} tickets: ${genError.message}`);
+      }
+    }
+    
+    generationProgress.inProgress = false;
+    console.log('');
+    console.log('='.repeat(60));
+    console.log('🎉 ALL 1.5M TICKETS GENERATED SUCCESSFULLY!');
+    console.log('='.repeat(60));
+    console.log('');
+    
+  } catch (error) {
+    console.error('');
+    console.error('='.repeat(60));
+    console.error('❌ TICKET GENERATION FAILED');
+    console.error('='.repeat(60));
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('='.repeat(60));
+    console.error('');
+    
+    generationProgress.inProgress = false;
+    generationProgress.error = error.message;
+  }
+}
+
+// ============================================================================
+// TEMPLATE MANAGEMENT ENDPOINTS
+// ============================================================================
+
+// Configure multer for template uploads
+const templateStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'uploads', 'templates');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${file.originalname}`;
+    cb(null, uniqueName);
+  }
+});
+
+const templateUpload = multer({ 
+  storage: templateStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|pdf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (extname && mimetype) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG, JPG, and PDF files allowed'));
+    }
+  }
+});
+
+// Image processing function
+async function processTemplateImage(inputPath, width, height, fitMode) {
+  const outputPath = inputPath.replace(/\.(jpg|jpeg|png|pdf)$/i, '-processed.png');
+  
+  let sharpInstance = sharp(inputPath);
+  
+  switch (fitMode) {
+    case 'stretch':
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'fill' });
+      break;
+    case 'aspect':
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'contain', background: '#ffffff' });
+      break;
+    case 'crop':
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'cover' });
+      break;
+    default:
+      sharpInstance = sharpInstance.resize(width, height, { fit: 'contain', background: '#ffffff' });
+  }
+  
+  await sharpInstance.png().toFile(outputPath);
+  
+  return outputPath;
+}
+
+// POST /api/admin/templates/upload - Upload new custom template
+app.post('/api/admin/templates/upload', requireAuth, requireAdmin, 
+  templateUpload.fields([
+    { name: 'frontImage', maxCount: 1 },
+    { name: 'backImage', maxCount: 1 }
+  ]), 
+  async (req, res) => {
+    try {
+      const { templateName, fitMode } = req.body;
+      
+      if (!req.files || !req.files['frontImage'] || !req.files['backImage']) {
+        return res.status(400).json({ error: 'Both front and back images are required' });
+      }
+      
+      const frontImage = req.files['frontImage'][0];
+      const backImage = req.files['backImage'][0];
+      
+      // Process images with Sharp (resize to exact dimensions)
+      const targetWidth = 1650;  // 5.5" at 300 DPI
+      const targetHeight = 525;  // 1.75" at 300 DPI
+      
+      const processedFrontPath = await processTemplateImage(
+        frontImage.path, 
+        targetWidth, 
+        targetHeight, 
+        fitMode || 'aspect'
+      );
+      const processedBackPath = await processTemplateImage(
+        backImage.path, 
+        targetWidth, 
+        targetHeight, 
+        fitMode || 'aspect'
+      );
+      
+      // Delete original files
+      fs.unlinkSync(frontImage.path);
+      fs.unlinkSync(backImage.path);
+      
+      // Save to database
+      const result = await db.run(
+        `INSERT INTO ticket_templates (name, front_image_path, back_image_path, fit_mode) 
+         VALUES (?, ?, ?, ?)`,
+        [templateName, processedFrontPath, processedBackPath, fitMode || 'aspect']
+      );
+      
+      res.json({
+        success: true,
+        templateId: result.lastID,
+        message: 'Template uploaded successfully'
+      });
+    } catch (error) {
+      console.error('Template upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// GET /api/admin/templates - List all templates
+app.get('/api/admin/templates', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const templates = await db.all('SELECT * FROM ticket_templates ORDER BY created_at DESC');
+    res.json({ templates });
+  } catch (error) {
+    console.error('Error fetching templates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/templates/:id - Get specific template
+app.get('/api/admin/templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const template = await db.get('SELECT * FROM ticket_templates WHERE id = ?', [req.params.id]);
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' });
+    }
+    res.json({ template });
+  } catch (error) {
+    console.error('Error fetching template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PUT /api/admin/templates/:id/activate - Set active template
+app.put('/api/admin/templates/:id/activate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Deactivate all templates
+    await db.run(`UPDATE ticket_templates SET is_active = ${db.USE_POSTGRES ? 'FALSE' : '0'}`);
+    // Activate selected template
+    await db.run(
+      `UPDATE ticket_templates SET is_active = ${db.USE_POSTGRES ? 'TRUE' : '1'} WHERE id = ?`, 
+      [req.params.id]
+    );
+    res.json({ success: true, message: 'Template activated' });
+  } catch (error) {
+    console.error('Error activating template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/admin/templates/:id - Delete template
+app.delete('/api/admin/templates/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const template = await db.get('SELECT * FROM ticket_templates WHERE id = ?', [req.params.id]);
+    if (template) {
+      // Delete files if they exist
+      try {
+        if (fs.existsSync(template.front_image_path)) {
+          fs.unlinkSync(template.front_image_path);
+        }
+        if (fs.existsSync(template.back_image_path)) {
+          fs.unlinkSync(template.back_image_path);
+        }
+      } catch (fileError) {
+        console.warn('Error deleting template files:', fileError);
+      }
+      
+      // Delete from DB
+      await db.run('DELETE FROM ticket_templates WHERE id = ?', [req.params.id]);
+    }
+    res.json({ success: true, message: 'Template deleted' });
+  } catch (error) {
+    console.error('Error deleting template:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve uploaded template images
+app.use('/uploads/templates', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'templates')));
+
+// Serve uploaded design images
+app.use('/uploads/designs', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'designs')));
+
+// Serve uploaded seller ID pictures (admin only)
+app.use('/uploads/seller-ids', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'seller-ids')));
+
+// ============================================================================
+// CUSTOM TICKET DESIGNS ENDPOINTS (Category-specific)
+// ============================================================================
+
+// POST /api/admin/ticket-designs/upload - Upload category-specific design
+app.post('/api/admin/ticket-designs/upload', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, front_image_base64, back_image_base64 } = req.body;
+
+    // Validate category
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ 
+        error: 'Invalid category. Must be ABC, EFG, JKL, or XYZ',
+        code: 'INVALID_CATEGORY'
+      });
+    }
+
+    // Validate images
+    if (!front_image_base64 || !back_image_base64) {
+      return res.status(400).json({ 
+        error: 'Both front and back images are required',
+        code: 'MISSING_IMAGES'
+      });
+    }
+
+    // Validate image size (base64 encoded)
+    const maxSize = 50 * 1024 * 1024; // 50MB total payload
+    const frontSize = front_image_base64.length;
+    const backSize = back_image_base64.length;
+    const totalSize = frontSize + backSize;
+    
+    if (totalSize > maxSize) {
+      console.warn(`Payload too large: ${(totalSize / 1024 / 1024).toFixed(2)} MB from IP: ${req.ip}`);
+      return res.status(413).json({ 
+        error: `Images too large. Total size: ${(totalSize / 1024 / 1024).toFixed(2)} MB. Maximum allowed: ${(maxSize / 1024 / 1024).toFixed(0)} MB.`,
+        code: 'FILE_TOO_LARGE',
+        details: {
+          frontSize: `${(frontSize / 1024 / 1024).toFixed(2)} MB`,
+          backSize: `${(backSize / 1024 / 1024).toFixed(2)} MB`,
+          totalSize: `${(totalSize / 1024 / 1024).toFixed(2)} MB`,
+          maxAllowed: `${(maxSize / 1024 / 1024).toFixed(0)} MB`
+        }
+      });
+    }
+    
+    // Log file sizes for debugging
+    console.log(`Uploading ${category} design: Front (${(frontSize / 1024 / 1024).toFixed(2)} MB), Back (${(backSize / 1024 / 1024).toFixed(2)} MB)`);
+
+    // Check if design already exists for this category
+    const existing = await db.get('SELECT * FROM ticket_designs WHERE category = ?', [category]);
+
+    if (existing) {
+      // Update existing design
+      await db.run(
+        `UPDATE ticket_designs 
+         SET front_image_base64 = ?, back_image_base64 = ?, updated_at = ${db.getCurrentTimestamp()}
+         WHERE category = ?`,
+        [front_image_base64, back_image_base64, category]
+      );
+      
+      console.log(`✅ ${category} design updated successfully`);
+      res.json({
+        success: true,
+        message: `${category} design updated successfully`,
+        designId: existing.id
+      });
+    } else {
+      // Insert new design
+      const result = await db.run(
+        `INSERT INTO ticket_designs (category, front_image_base64, back_image_base64) 
+         VALUES (?, ?, ?)`,
+        [category, front_image_base64, back_image_base64]
+      );
+      
+      console.log(`✅ ${category} design saved successfully`);
+      res.json({
+        success: true,
+        message: `${category} design saved successfully`,
+        designId: result.lastID
+      });
+    }
+  } catch (error) {
+    console.error('Design upload error:', error);
+    
+    // Handle specific error types
+    if (error.message && error.message.includes('payload')) {
+      return res.status(413).json({ 
+        error: 'Payload too large. Please use smaller images or compress them.',
+        code: 'PAYLOAD_TOO_LARGE'
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'Failed to save design: ' + error.message,
+      code: 'DATABASE_ERROR'
+    });
+  }
+});
+
+// GET /api/admin/ticket-designs - Get all category designs
+app.get('/api/admin/ticket-designs', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const designs = await db.all('SELECT * FROM ticket_designs ORDER BY category');
+    res.json({ designs });
+  } catch (error) {
+    console.error('Error fetching designs:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/ticket-designs/:category - Get design for specific category
+app.get('/api/admin/ticket-designs/:category', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const category = req.params.category.toUpperCase();
+    
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    const design = await db.get('SELECT * FROM ticket_designs WHERE category = ?', [category]);
+    
+    if (!design) {
+      return res.status(404).json({ error: 'Design not found for this category' });
+    }
+
+    res.json({ design });
+  } catch (error) {
+    console.error('Error fetching design:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/admin/ticket-designs/:category - Delete category design
+app.delete('/api/admin/ticket-designs/:category', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const category = req.params.category.toUpperCase();
+    
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    await db.run('DELETE FROM ticket_designs WHERE category = ?', [category]);
+    res.json({ success: true, message: `${category} design deleted successfully` });
+  } catch (error) {
+    console.error('Error deleting design:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST /api/admin/ticket-designs/process - Process and resize image
+app.post('/api/admin/ticket-designs/process', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, side, image, fitMode, targetWidth, targetHeight } = req.body;
+    
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+    
+    if (!['front', 'back'].includes(side)) {
+      return res.status(400).json({ error: 'Invalid side' });
+    }
+    
+    if (!image) {
+      return res.status(400).json({ error: 'Image data is required' });
+    }
+    
+    // Convert base64 to buffer
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+    
+    // Process with Sharp based on fit mode
+    let processedBuffer;
+    const width = targetWidth || 153;
+    const height = targetHeight || 396;
+    
+    switch(fitMode) {
+      case 'contain':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      case 'cover':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'cover'
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      case 'fill':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'fill'
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      case 'none':
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'inside',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+          })
+          .png()
+          .toBuffer();
+        break;
+        
+      default:
+        // Default to contain
+        processedBuffer = await sharp(buffer)
+          .resize(width, height, {
+            fit: 'contain',
+            background: { r: 255, g: 255, b: 255, alpha: 1 }
+          })
+          .png()
+          .toBuffer();
+    }
+    
+    // Convert back to base64
+    const processedBase64 = `data:image/png;base64,${processedBuffer.toString('base64')}`;
+    
+    // Update database
+    const field = side === 'front' ? 'front_image_base64' : 'back_image_base64';
+    
+    // Check if design exists
+    const existing = await db.get('SELECT * FROM ticket_designs WHERE category = ?', [category]);
+    
+    if (existing) {
+      // Update existing design
+      await db.run(
+        `UPDATE ticket_designs 
+         SET ${field} = ?, fit_mode = ?, updated_at = ${db.getCurrentTimestamp()}
+         WHERE category = ?`,
+        [processedBase64, fitMode, category]
+      );
+    } else {
+      // Insert new design
+      if (side === 'front') {
+        await db.run(
+          `INSERT INTO ticket_designs (category, front_image_base64, fit_mode) 
+           VALUES (?, ?, ?)`,
+          [category, processedBase64, fitMode]
+        );
+      } else {
+        await db.run(
+          `INSERT INTO ticket_designs (category, back_image_base64, fit_mode) 
+           VALUES (?, ?, ?)`,
+          [category, processedBase64, fitMode]
+        );
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `${category} ${side} image processed successfully`,
+      dimensions: { width, height },
+      fitMode
+    });
+    
+  } catch (error) {
+    console.error('Image processing error:', error);
+    res.status(500).json({ error: 'Failed to process image: ' + error.message });
+  }
+});
+
+// ============================================================================
+// ENHANCED TICKET DESIGNS ENDPOINTS (File-based with advanced controls)
+// ============================================================================
+
+// Configure multer for ticket design file uploads
+const ticketDesignStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'public', 'ticket-designs');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'design-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const ticketDesignUpload = multer({
+  storage: ticketDesignStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    if (mimetype && extname) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .png, .jpg and .jpeg allowed'));
+    }
+  }
+});
+
+// POST /api/admin/ticket-designs/upload-files - Upload design with metadata
+app.post('/api/admin/ticket-designs/upload-files', 
+  requireAuth, 
+  requireAdmin,
+  ticketDesignUpload.fields([
+    { name: 'front', maxCount: 1 },
+    { name: 'back', maxCount: 1 }
+  ]),
+  async (req, res) => {
+    try {
+      const frontImage = req.files['front'] ? req.files['front'][0].filename : null;
+      const backImage = req.files['back'] ? req.files['back'][0].filename : null;
+      const { name, category, description, rotation, scale_width, scale_height } = req.body;
+      
+      if (!frontImage && !backImage) {
+        return res.status(400).json({ error: 'At least one image required' });
+      }
+      
+      const result = await db.run(
+        `INSERT INTO ticket_designs (
+          name, category, description, 
+          front_image_path, back_image_path,
+          width, height, rotation, scale_width, scale_height, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          name || 'Custom Design',
+          category || 'default',
+          description || '',
+          frontImage ? `/ticket-designs/${frontImage}` : null,
+          backImage ? `/ticket-designs/${backImage}` : null,
+          396, 153,
+          rotation || 0,
+          scale_width || 100,
+          scale_height || 100,
+          1
+        ]
+      );
+      
+      res.json({ success: true, design_id: result.lastID });
+    } catch (error) {
+      console.error('Design upload error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+// GET /api/admin/ticket-designs-list - Get all designs
+app.get('/api/admin/ticket-designs-list', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const designs = await db.all('SELECT * FROM ticket_designs ORDER BY created_at DESC');
+    res.json(designs);
+  } catch (error) {
+    console.error('Error fetching designs list:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /api/admin/ticket-designs-by-id/:id - Delete design by ID
+app.delete('/api/admin/ticket-designs-by-id/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const design = await db.get('SELECT * FROM ticket_designs WHERE id = ?', [req.params.id]);
+    
+    if (!design) {
+      return res.status(404).json({ error: 'Design not found' });
+    }
+    
+    // Delete files
+    if (design.front_image_path) {
+      const frontPath = path.join(__dirname, 'public', design.front_image_path);
+      if (fs.existsSync(frontPath)) {
+        fs.unlinkSync(frontPath);
+      }
+    }
+    if (design.back_image_path) {
+      const backPath = path.join(__dirname, 'public', design.back_image_path);
+      if (fs.existsSync(backPath)) {
+        fs.unlinkSync(backPath);
+      }
+    }
+    
+    await db.run('DELETE FROM ticket_designs WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting design:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH /api/admin/ticket-designs/:id/settings - Update rotation/scale
+app.patch('/api/admin/ticket-designs/:id/settings', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rotation, scale_width, scale_height, offset_x, offset_y } = req.body;
+    
+    await db.run(
+      `UPDATE ticket_designs 
+       SET rotation = ?, scale_width = ?, scale_height = ?, offset_x = ?, offset_y = ?
+       WHERE id = ?`,
+      [rotation, scale_width, scale_height, offset_x, offset_y, req.params.id]
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating design settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve ticket design images
+app.use('/ticket-designs', express.static(path.join(__dirname, 'public', 'ticket-designs')));
+
+// POST /api/admin/tickets/preview-custom - Preview custom tickets before printing
+app.post('/api/admin/tickets/preview-custom', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, startNum, endNum } = req.body;
+
+    // Validate category
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    // Validate range
+    if (endNum - startNum + 1 !== 8) {
+      return res.status(400).json({ error: 'Must select exactly 8 tickets for one sheet' });
+    }
+
+    // Generate ticket numbers and barcodes
+    const tickets = [];
+    const prices = { ABC: 100, EFG: 50, JKL: 20, XYZ: 10 };
+    
+    for (let i = startNum; i <= endNum; i++) {
+      const ticketNumber = `${category}-${String(i).padStart(6, '0')}`;
+      const barcode = barcodeService.generateBarcodeNumber(ticketNumber);
+      const qrCode = qrcodeService.generateVerificationURL(ticketNumber);
+      
+      tickets.push({
+        ticket_number: ticketNumber,
+        barcode: barcode,
+        qr_code_data: qrCode,
+        category: category,
+        price: prices[category]
+      });
+    }
+
+    // Get custom design for category
+    const design = await db.get(
+      'SELECT * FROM ticket_designs WHERE category = ?',
+      [category]
+    );
+
+    res.json({ 
+      tickets, 
+      design: design || {} 
+    });
+  } catch (error) {
+    console.error('Preview error:', error);
+    res.status(500).json({ error: 'Failed to generate preview' });
+  }
+});
+
+// POST /api/admin/tickets/print-custom - Generate PDF with custom design
+app.post('/api/admin/tickets/print-custom', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, start_number, end_number, paper_type } = req.body;
+
+    // Validate category
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+
+    // Validate paper type
+    if (paper_type !== 'LETTER_8_TICKETS') {
+      return res.status(400).json({ error: 'Only LETTER_8_TICKETS paper type is supported for custom designs' });
+    }
+
+    // Validate range
+    if (end_number - start_number + 1 !== 8) {
+      return res.status(400).json({ error: 'Must select exactly 8 tickets for one sheet' });
+    }
+
+    // Generate tickets array
+    const tickets = [];
+    const prices = { ABC: 100, EFG: 50, JKL: 20, XYZ: 10 };
+    
+    for (let i = start_number; i <= end_number; i++) {
+      const ticketNumber = `${category}-${String(i).padStart(6, '0')}`;
+      const barcode = barcodeService.generateBarcodeNumber(ticketNumber);
+      const qrCode = qrcodeService.generateVerificationURL(ticketNumber);
+      
+      tickets.push({
+        ticket_number: ticketNumber,
+        barcode: barcode,
+        qr_code_data: qrCode,
+        category: category,
+        price: prices[category],
+        raffle_id: 1 // Default raffle
+      });
+    }
+
+    // Get custom design
+    const design = await db.get(
+      'SELECT * FROM ticket_designs WHERE category = ?',
+      [category]
+    );
+
+    // Generate PDF using the new category-specific function
+    const pdfBuffer = await printService.generateCategoryCustomPDF(tickets, design);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="custom-tickets-${category}-${String(start_number).padStart(6, '0')}-${String(end_number).padStart(6, '0')}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Print error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+// POST /api/admin/tickets/print-bulk - Generate bulk PDF with up to 1000 tickets
+app.post('/api/admin/tickets/print-bulk', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, start_number, count, paper_type } = req.body;
+    
+    // Validation
+    if (!['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ error: 'Invalid category' });
+    }
+    
+    if (!start_number || start_number < 1 || start_number > 375000) {
+      return res.status(400).json({ error: 'Invalid start number (must be 1-375000)' });
+    }
+    
+    if (!count || count < 8 || count > 1000) {
+      return res.status(400).json({ error: 'Invalid count (must be 8-1000)' });
+    }
+    
+    if (count % 8 !== 0) {
+      return res.status(400).json({ error: 'Count must be multiple of 8' });
+    }
+    
+    if (start_number + count - 1 > 375000) {
+      return res.status(400).json({ error: 'Ticket range exceeds category limit (375,000)' });
+    }
+    
+    console.log(`📄 Bulk print request: ${category}, tickets ${start_number} to ${start_number + count - 1}`);
+    
+    // Helper function to get price by category
+    const getCategoryPrice = (cat) => {
+      const prices = { 'ABC': 100, 'EFG': 50, 'JKL': 20, 'XYZ': 10 };
+      return prices[cat] || 0;
+    };
+    
+    // Calculate ticket numbers
+    const tickets = [];
+    for (let i = 0; i < count; i++) {
+      const ticketNum = start_number + i;
+      const ticketNumber = `${category}-${String(ticketNum).padStart(6, '0')}`;
+      
+      // Generate barcode and QR code
+      const barcode = barcodeService.generateBarcodeNumber(ticketNumber);
+      const qrCodeData = qrcodeService.generateVerificationURL(ticketNumber);
+      
+      tickets.push({
+        ticket_number: ticketNumber,
+        category,
+        price: getCategoryPrice(category),
+        barcode,
+        qr_code_data: qrCodeData,
+        status: 'AVAILABLE'
+      });
+    }
+    
+    console.log(`✅ Generated ${tickets.length} ticket records`);
+    
+    // Set response headers
+    const filename = `bulk-tickets-${category}-${start_number}-to-${start_number + count - 1}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Generate PDF in batches to manage memory
+    const PDFDocument = require('pdfkit');
+    const doc = new PDFDocument({ 
+      size: 'LETTER',
+      margin: 0,
+      bufferPages: true, // Enable page buffering for large documents
+      compress: true // Enable compression for smaller file size
+    });
+    
+    // Stream PDF directly to response
+    doc.pipe(res);
+    
+    // Pre-generate all QR codes and barcodes
+    console.log('🔄 Pre-generating QR codes and barcodes...');
+    const bwipjs = require('bwip-js');
+    const ticketsWithImages = await Promise.all(
+      tickets.map(async (ticket) => {
+        const qrImage = await qrcodeService.generateQRCodeBuffer(ticket, { 
+          size: 67, // 0.7" at 96 DPI for LETTER_8_TICKETS format
+          errorCorrectionLevel: 'M'
+        });
+        
+        let barcodeImage = null;
+        try {
+          barcodeImage = await bwipjs.toBuffer({
+            bcid: 'ean13',
+            text: ticket.barcode,
+            scale: 1.5,
+            height: 8,
+            includetext: false,
+            textxalign: 'center'
+          });
+        } catch (error) {
+          console.error('Barcode generation error:', error);
+        }
+        
+        return { ...ticket, qrImage, barcodeImage };
+      })
+    );
+    
+    console.log('✅ Images generated, starting PDF generation...');
+    
+    // Generate pages (8 tickets per page in LETTER_8_TICKETS format: 4 columns × 2 rows)
+    const template = printService.TEMPLATES.LETTER_8_TICKETS;
+    let ticketIndex = 0;
+    let pageCount = 0;
+    
+    while (ticketIndex < ticketsWithImages.length) {
+      // Draw 8 tickets per page (4 columns × 2 rows)
+      for (let row = 0; row < 2; row++) {
+        for (let col = 0; col < 4; col++) {
+          if (ticketIndex >= ticketsWithImages.length) break;
+          
+          const ticket = ticketsWithImages[ticketIndex];
+          const x = col * template.ticketWidth;
+          const y = row * template.ticketHeight;
+          
+          // Draw ticket front (using internal function from printService)
+          await drawTicketFrontForBulk(doc, ticket, template, x, y, ticket.qrImage, ticket.barcodeImage);
+          
+          ticketIndex++;
+        }
+      }
+      
+      pageCount++;
+      
+      // Add new page if more tickets remaining
+      if (ticketIndex < ticketsWithImages.length) {
+        doc.addPage();
+      }
+      
+      // Log progress every 10 pages
+      if (pageCount % 10 === 0) {
+        console.log(`📄 Generated ${pageCount} pages (${ticketIndex} tickets)...`);
+      }
+      
+      // Allow garbage collection every 25 pages
+      if (pageCount % 25 === 0 && global.gc) {
+        global.gc();
+      }
+    }
+    
+    console.log(`✅ PDF complete: ${pageCount} pages, ${ticketsWithImages.length} tickets`);
+    
+    // Finalize PDF
+    doc.end();
+    
+  } catch (error) {
+    console.error('❌ Bulk print error:', error);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        error: 'Failed to generate bulk PDF',
+        message: error.message 
+      });
+    }
+  }
+});
+
+// POST /api/admin/tickets/print-xyz-portrait - Generate PORTRAIT XYZ tickets
+app.post('/api/admin/tickets/print-xyz-portrait', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { startNumber, endNumber, designId } = req.body;
+
+    // Validate
+    if (!startNumber || !endNumber) {
+      return res.status(400).json({ error: 'Start and end numbers required' });
+    }
+
+    const start = parseInt(startNumber);
+    const end = parseInt(endNumber);
+
+    if (start < 1 || end > 375000 || start > end) {
+      return res.status(400).json({ 
+        error: 'Invalid range. XYZ tickets: 1-375000' 
+      });
+    }
+
+    console.log(`📄 XYZ Portrait print request: tickets ${start} to ${end}`);
+
+    // Get XYZ tickets
+    const tickets = await db.all(`
+      SELECT ticket_number, barcode, category, price
+      FROM tickets
+      WHERE category = 'XYZ'
+        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) >= ?
+        AND CAST(SUBSTR(ticket_number, 5) AS INTEGER) <= ?
+      ORDER BY ticket_number ASC
+    `, [start, end]);
+
+    if (tickets.length === 0) {
+      return res.status(404).json({ error: 'No XYZ tickets found in this range' });
+    }
+
+    console.log(`✅ Found ${tickets.length} XYZ tickets`);
+
+    // Get design
+    let customDesign = null;
+    if (designId) {
+      customDesign = await db.get('SELECT * FROM ticket_designs WHERE id = ?', [designId]);
+      if (customDesign) {
+        console.log(`✅ Using custom design: ${customDesign.name}`);
+      }
+    }
+
+    // Generate PDF
+    const pdfBuffer = await printService.generateXYZ8UpPortraitPDF(tickets, customDesign, {
+      barcodeWidth: 100,
+      barcodeHeight: 35
+    });
+
+    console.log(`✅ PDF generated successfully`);
+
+    // Headers
+    const filename = `XYZ-portrait-${start}-to-${end}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    res.send(pdfBuffer);
+
+  } catch (error) {
+    console.error('❌ Error generating portrait PDF:', error);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
+    }
+  }
+});
+
+// Helper function to draw ticket front for bulk printing
+// This duplicates some logic from printService.drawTicketFront but is necessary
+// to avoid circular dependencies and maintain encapsulation
+async function drawTicketFrontForBulk(doc, ticket, template, x, y, qrMainImage, barcodeImage) {
+  const { ticketWidth, ticketHeight, perforationLine } = template;
+  
+  const isSmallFormat = ticketWidth < 200;
+  const padding = isSmallFormat ? 4 : 8;
+  const titleSize = isSmallFormat ? 8 : 12;
+  const ticketNumSize = isSmallFormat ? 11 : 16;
+  const bodySize = isSmallFormat ? 7 : 9;
+  const priceSize = isSmallFormat ? 8 : 10;
+  const fieldSize = isSmallFormat ? 6 : 8;
+  const footerSize = isSmallFormat ? 6 : 7;
+  const qrSize = isSmallFormat ? 50 : 80;
+  const barcodeWidth = isSmallFormat ? 90 : 120;
+  const barcodeHeight = isSmallFormat ? 30 : 40;
+  
+  // Category display names
+  const CATEGORY_NAMES = {
+    'ABC': { full: 'ABC - Regular', short: 'ABC ($100)' },
+    'EFG': { full: 'EFG - Silver', short: 'EFG ($50)' },
+    'JKL': { full: 'JKL - Gold', short: 'JKL ($20)' },
+    'XYZ': { full: 'XYZ - Platinum', short: 'XYZ ($10)' }
+  };
+  
+  // Draw border (dashed for tear-off if specified)
+  if (perforationLine) {
+    doc.save();
+    doc.strokeColor('#999999');
+    doc.lineWidth(1);
+    doc.dash(5, { space: 5 });
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+    doc.restore();
+  } else {
+    doc.rect(x, y, ticketWidth, ticketHeight).stroke();
+  }
+
+  // Title with emoji
+  doc.fontSize(titleSize)
+     .font('Helvetica-Bold')
+     .text('🎫 RAFFLE TICKET', x + padding, y + padding, {
+       width: ticketWidth - (padding * 2),
+       align: 'center'
+     });
+
+  // Ticket number (prominent)
+  const ticketNumY = y + padding + (isSmallFormat ? 15 : 20);
+  doc.fontSize(ticketNumSize)
+     .font('Helvetica-Bold')
+     .text(ticket.ticket_number, x + padding, ticketNumY, {
+       width: ticketWidth - qrSize - (padding * 3),
+       align: 'left'
+     });
+
+  const categoryY = ticketNumY + (isSmallFormat ? 16 : 18);
+  doc.fontSize(bodySize)
+     .font('Helvetica')
+     .text(`Category: ${CATEGORY_NAMES[ticket.category]?.full || ticket.category}`, x + padding, categoryY, {
+       width: ticketWidth - qrSize - (padding * 3)
+     });
+  
+  const priceY = categoryY + (isSmallFormat ? 12 : 14);
+  doc.fontSize(priceSize)
+     .font('Helvetica-Bold')
+     .text(`Price: $${parseFloat(ticket.price).toFixed(2)}`, x + padding, priceY, {
+       width: ticketWidth - qrSize - (padding * 3)
+     });
+
+  // QR Code (right side)
+  if (qrMainImage) {
+    const qrX = x + ticketWidth - qrSize - padding;
+    const qrY = y + padding + (isSmallFormat ? 8 : 10);
+    doc.image(qrMainImage, qrX, qrY, {
+      width: qrSize,
+      height: qrSize
+    });
+  }
+
+  // EAN-13 Barcode (center area)
+  if (barcodeImage) {
+    const barcodeX = x + (ticketWidth - barcodeWidth) / 2;
+    const barcodeY = y + priceY + (isSmallFormat ? 20 : 30);
+    doc.image(barcodeImage, barcodeX, barcodeY, {
+      width: barcodeWidth,
+      height: barcodeHeight
+    });
+    
+    // Display barcode number below the barcode
+    if (ticket.barcode) {
+      doc.fontSize(footerSize)
+         .font('Helvetica')
+         .text(ticket.barcode, x + padding, barcodeY + barcodeHeight + 2, {
+           width: ticketWidth - (padding * 2),
+           align: 'center'
+         });
+    }
+  }
+
+  // Buyer information fields
+  const fieldsStartY = y + ticketHeight - (isSmallFormat ? 28 : 35);
+  doc.fontSize(fieldSize)
+     .font('Helvetica');
+  
+  if (isSmallFormat) {
+    // Compact layout for small tickets
+    doc.text('Date: _____________', x + padding, fieldsStartY, {
+      width: ticketWidth - (padding * 2)
+    });
+    doc.text('Name: _____________', x + padding, fieldsStartY + 8, {
+      width: ticketWidth - (padding * 2)
+    });
+    doc.text('Phone: ____________', x + padding, fieldsStartY + 16, {
+      width: ticketWidth - (padding * 2)
+    });
+  } else {
+    // Original layout for larger tickets
+    doc.text('Date: ___________________', x + padding, fieldsStartY)
+       .text('Name: ___________________', x + padding + 140, fieldsStartY);
+    doc.text('Phone: __________________', x + padding, fieldsStartY + 12)
+       .text('Draw Date: [INSERT DATE]', x + padding + 140, fieldsStartY + 12);
+  }
+
+  // Footer
+  doc.fontSize(footerSize)
+     .font('Helvetica')
+     .text('Keep this ticket for entry', x + padding, y + ticketHeight - (isSmallFormat ? 8 : 15), {
+       width: ticketWidth - (padding * 2),
+       align: 'center'
+     });
+}
+
+// ============================================================================
+// REPORTS ENDPOINTS
+// ============================================================================
+
+// Reports Endpoints
+
+// GET /api/admin/reports/revenue - Revenue report by category
+app.get('/api/admin/reports/revenue', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const raffleId = req.query.raffle_id || 1;
+    
+    const revenue = await db.all(`
+      SELECT 
+        tc.category_code,
+        tc.category_name,
+        tc.price,
+        COUNT(t.id) as tickets_sold,
+        SUM(t.price) as total_revenue
+      FROM ticket_categories tc
+      LEFT JOIN tickets t ON tc.id = t.category_id AND t.status = 'SOLD'
+      WHERE tc.raffle_id = ?
+      GROUP BY tc.id, tc.category_code, tc.category_name, tc.price
+      ORDER BY tc.category_code
+    `, [raffleId]);
+    
+    res.json(revenue);
+  } catch (error) {
+    console.error('Error fetching revenue report:', error);
+    res.status(500).json({ error: 'Failed to fetch revenue report' });
+  }
+});
+
+// Public Endpoints
+
+// GET /api/tickets/verify/:ticketNumber - Verify a ticket
+app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
+  try {
+    const ticketNumber = req.params.ticketNumber;
+    const ticket = await ticketService.getTicketByNumber(ticketNumber);
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        valid: false,
+        error: 'Ticket not found' 
+      });
+    }
+    
+    res.json({
+      valid: true,
+      ticket: {
+        ticket_number: ticket.ticket_number,
+        category: ticket.category,
+        price: ticket.price,
+        status: ticket.status,
+        printed: ticket.printed
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying ticket:', error);
+    res.status(500).json({ error: 'Failed to verify ticket' });
+  }
+});
+
+// ============================================================================
+// PUBLIC BUYERS DASHBOARD API ENDPOINTS
+// ============================================================================
+
+// GET /api/public/raffle-info - Get current raffle information
+app.get('/api/public/raffle-info', async (req, res) => {
+  try {
+    // Get the active raffle only (not draft)
+    const raffle = await db.get(`
+      SELECT id, name, description, start_date, draw_date, status, total_tickets
+      FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Get ticket categories with their prices
+    const categories = await db.all(`
+      SELECT category_code, category_name, price, color, description
+      FROM ticket_categories 
+      WHERE raffle_id = ?
+      ORDER BY category_code
+    `, [raffle.id]);
+    
+    // Get statistics including online-available tickets
+    const stats = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        COUNT(CASE WHEN status = 'SOLD' THEN 1 END) as sold_tickets,
+        COUNT(CASE WHEN status = 'AVAILABLE' THEN 1 END) as available_tickets,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_now
+      FROM tickets 
+      WHERE raffle_id = ?
+    `, [raffle.id]);
+    
+    // Get online-available counts per category
+    const categoryStats = await db.all(`
+      SELECT 
+        category,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available
+      FROM tickets 
+      WHERE raffle_id = ?
+      GROUP BY category
+    `, [raffle.id]);
+    
+    // Merge category stats with categories
+    const categoriesWithStats = categories.map(cat => {
+      const catStat = categoryStats.find(cs => cs.category === cat.category_code) || { online_total: 0, online_available: 0 };
+      return {
+        ...cat,
+        online_available: catStat.online_available,
+        online_total: catStat.online_total
+      };
+    });
+    
+    res.json({
+      raffle: {
+        name: raffle.name,
+        description: raffle.description,
+        start_date: raffle.start_date,
+        draw_date: raffle.draw_date,
+        status: raffle.status
+      },
+      categories: categoriesWithStats,
+      stats: stats || { 
+        total_tickets: 0, 
+        sold_tickets: 0, 
+        available_tickets: 0,
+        online_available_total: 0,
+        online_available_now: 0
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching raffle info:', error);
+    res.status(500).json({ error: 'Failed to fetch raffle information' });
+  }
+});
+
+// GET /api/public/available-tickets - Get list of available tickets (no buyer data)
+app.get('/api/public/available-tickets', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const category = req.query.category || '';
+    const offset = (page - 1) * limit;
+    
+    // Get the active raffle only
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Build query with optional category filter
+    // Filter to only show tickets available online
+    let query = `
+      SELECT ticket_number, category, price, status
+      FROM tickets 
+      WHERE raffle_id = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+    `;
+    const params = [raffle.id];
+    
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    
+    query += ' ORDER BY ticket_number LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+    
+    const tickets = await db.all(query, params);
+    
+    // Get total count for pagination
+    let countQuery = `
+      SELECT COUNT(*) as total 
+      FROM tickets 
+      WHERE raffle_id = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+    `;
+    const countParams = [raffle.id];
+    
+    if (category) {
+      countQuery += ' AND category = ?';
+      countParams.push(category);
+    }
+    
+    const countResult = await db.get(countQuery, countParams);
+    const total = countResult ? countResult.total : 0;
+    
+    res.json({
+      tickets: tickets,
+      pagination: {
+        page: page,
+        limit: limit,
+        total: total,
+        total_pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching available tickets:', error);
+    res.status(500).json({ error: 'Failed to fetch available tickets' });
+  }
+});
+
+// POST /api/public/my-tickets - Lookup tickets by email/phone/buyer code
+app.post('/api/public/my-tickets', async (req, res) => {
+  try {
+    const { email, phone, buyer_code } = req.body;
+    
+    if (!email && !phone && !buyer_code) {
+      return res.status(400).json({ error: 'Please provide email, phone, or buyer code' });
+    }
+    
+    // Get the active raffle only
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Build query based on provided identifier
+    let query = `
+      SELECT ticket_number, category, price, status, barcode, sold_at, buyer_name
+      FROM tickets 
+      WHERE raffle_id = ? AND status = 'SOLD'
+    `;
+    const params = [raffle.id];
+    
+    if (email) {
+      query += ' AND LOWER(buyer_email) = LOWER(?)';
+      params.push(email.trim());
+    } else if (phone) {
+      // Normalize phone number by removing all non-numeric characters for consistent matching
+      const normalizedPhone = phone.replace(/\D/g, '');
+      // Strip all non-numeric characters from stored phone numbers to match normalized input
+      if (db.USE_POSTGRES) {
+        query += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
+      } else {
+        // SQLite: use multiple REPLACE calls to remove common formatting characters
+        // Handles: - ( ) . space and other common phone formatting
+        query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
+      }
+      params.push(normalizedPhone);
+    } else if (buyer_code) {
+      // buyer_code parameter accepts the ticket's barcode value
+      // The barcode is a unique identifier assigned to each ticket upon sale
+      // It's printed on physical tickets and included in email receipts as a "buyer code"
+      // Buyers use this code to look up their purchased tickets
+      query += ' AND barcode = ?';
+      params.push(buyer_code.trim());
+    }
+    
+    query += ' ORDER BY sold_at DESC';
+    
+    const tickets = await db.all(query, params);
+    
+    if (tickets.length === 0) {
+      return res.json({ 
+        tickets: [], 
+        message: 'No tickets found with the provided information' 
+      });
+    }
+    
+    res.json({
+      tickets: tickets.map(t => ({
+        ticket_number: t.ticket_number,
+        category: t.category,
+        price: t.price,
+        status: t.status,
+        barcode: t.barcode,
+        sold_at: t.sold_at,
+        buyer_name: t.buyer_name
+      }))
+    });
+  } catch (error) {
+    console.error('Error looking up tickets:', error);
+    res.status(500).json({ error: 'Failed to lookup tickets' });
+  }
+});
+
+// GET /api/public/verify-ticket/:ticketNumber - Verify ticket status without owner info
+app.get('/api/public/verify-ticket/:ticketNumber', async (req, res) => {
+  try {
+    const ticketIdentifier = req.params.ticketNumber.trim();
+    
+    // Search by ticket_number first, then by barcode if not found
+    // This ensures ticket_number takes precedence if there's a collision
+    let ticket = await db.get(`
+      SELECT ticket_number, category, price, status, barcode
+      FROM tickets 
+      WHERE ticket_number = ?
+    `, [ticketIdentifier]);
+    
+    // If not found by ticket number, try barcode
+    if (!ticket) {
+      ticket = await db.get(`
+        SELECT ticket_number, category, price, status, barcode
+        FROM tickets 
+        WHERE barcode = ?
+      `, [ticketIdentifier]);
+    }
+    
+    if (!ticket) {
+      return res.json({ 
+        valid: false,
+        message: 'Ticket not found' 
+      });
+    }
+    
+    res.json({
+      valid: true,
+      ticket: {
+        ticket_number: ticket.ticket_number,
+        category: ticket.category,
+        price: ticket.price,
+        status: ticket.status,
+        is_available: ticket.status === 'AVAILABLE',
+        is_sold: ticket.status === 'SOLD'
+      }
+    });
+  } catch (error) {
+    console.error('Error verifying ticket:', error);
+    res.status(500).json({ error: 'Failed to verify ticket' });
+  }
+});
+
+// ============================================================================
+// BUYER PORTAL - TICKET AVAILABILITY & PURCHASE ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/public/ticket-availability - Get available ticket counts by category
+ * Shows how many tickets are available for online purchase from the last 100K pool
+ * 
+ * Response format:
+ * {
+ *   categories: [
+ *     { category: 'ABC', available: 95000, total_online: 100000, price: 10 },
+ *     { category: 'EFG', available: 98000, total_online: 100000, price: 20 },
+ *     ...
+ *   ],
+ *   total_available: 390000
+ * }
+ */
+app.get('/api/public/ticket-availability', async (req, res) => {
+  try {
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Get available ticket counts by category
+    // Only count tickets that are marked as available_online and still AVAILABLE
+    // Join with ticket_categories to get the correct price for each category
+    const categoryStats = await db.all(`
+      SELECT 
+        t.category,
+        COUNT(*) as available,
+        tc.price as price
+      FROM tickets t
+      LEFT JOIN ticket_categories tc ON t.raffle_id = tc.raffle_id AND t.category = tc.category_code
+      WHERE t.raffle_id = ? 
+        AND t.status = 'AVAILABLE'
+        AND t.available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      GROUP BY t.category, tc.price
+      ORDER BY t.category
+    `, [raffle.id]);
+    
+    // Also get total online tickets per category (including sold ones)
+    const categoryTotals = await db.all(`
+      SELECT 
+        category,
+        COUNT(*) as total_online
+      FROM tickets 
+      WHERE raffle_id = ? 
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      GROUP BY category
+      ORDER BY category
+    `, [raffle.id]);
+    
+    // Merge the results
+    const categories = categoryStats.map(stat => {
+      const total = categoryTotals.find(t => t.category === stat.category);
+      return {
+        category: stat.category,
+        available: parseInt(stat.available || 0),
+        total_online: parseInt(total?.total_online || 0),
+        price: parseFloat(stat.price || 0)
+      };
+    });
+    
+    // Calculate total available across all categories
+    const total_available = categories.reduce((sum, cat) => sum + cat.available, 0);
+    
+    res.json({
+      success: true,
+      categories: categories,
+      total_available: total_available
+    });
+  } catch (error) {
+    console.error('Error fetching ticket availability:', error);
+    res.status(500).json({ error: 'Failed to fetch ticket availability' });
+  }
+});
+
+/**
+ * POST /api/public/purchase/initiate - Initiate ticket purchase with atomic allocation
+ * 
+ * This endpoint:
+ * 1. Validates the purchase request (category, quantity, buyer info)
+ * 2. Checks if enough tickets are available from the last 100K pool
+ * 3. Atomically reserves the requested number of tickets
+ * 4. Creates a payment record
+ * 5. Initiates payment with the selected provider (MonCash/NatCash)
+ * 6. Links reserved tickets to the payment reference
+ * 
+ * Request body:
+ * {
+ *   payment_method: 'moncash' | 'natcash',
+ *   buyer_name: string,
+ *   buyer_phone: string,
+ *   buyer_email: string (optional),
+ *   ticket_category: 'ABC' | 'EFG' | 'JKL' | 'XYZ',
+ *   ticket_quantity: number (1-10),
+ *   customer_department: string (Haiti department)
+ * }
+ * 
+ * Response:
+ * {
+ *   success: true,
+ *   payment_reference: string,
+ *   tickets_allocated: [ticket_numbers],
+ *   payment_details: { ... } // Provider-specific details
+ * }
+ */
+app.post('/api/public/purchase/initiate', [
+  body('payment_method').isIn(['moncash', 'natcash']).withMessage('Valid payment method required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').isIn(['ABC', 'EFG', 'JKL', 'XYZ']).withMessage('Valid ticket category required'),
+  body('ticket_quantity').isInt({ min: 1, max: 10 }).withMessage('Quantity must be between 1 and 10'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { 
+      payment_method, 
+      buyer_name, 
+      buyer_phone, 
+      buyer_email, 
+      ticket_category, 
+      ticket_quantity, 
+      customer_department 
+    } = req.body;
+    
+    console.log(`[PURCHASE] Initiating purchase: ${buyer_name}, ${ticket_quantity}x ${ticket_category}, via ${payment_method}`);
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Get ticket category info to calculate amount
+    const category = await db.get(
+      'SELECT * FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+      [raffle.id, ticket_category]
+    );
+    
+    if (!category) {
+      return res.status(400).json({ error: 'Invalid ticket category' });
+    }
+    
+    const amount = parseFloat(category.price) * ticket_quantity;
+    
+    // ========================================================================
+    // ATOMIC TICKET ALLOCATION
+    // ========================================================================
+    // Lock tickets to prevent race conditions during allocation
+    await ticketGenerationMutex.lock();
+    
+    // Declare paymentReference outside try block so it's available for rollback
+    let paymentReference = null;
+    
+    try {
+      // Check available tickets in this category (last 100K pool only)
+      const availableTickets = await db.all(`
+        SELECT id, ticket_number
+        FROM tickets 
+        WHERE raffle_id = ? 
+          AND category = ?
+          AND status = 'AVAILABLE'
+          AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+          AND payment_reference IS NULL
+        ORDER BY ticket_number
+        LIMIT ?
+      `, [raffle.id, ticket_category, ticket_quantity]);
+      
+      if (availableTickets.length < ticket_quantity) {
+        ticketGenerationMutex.unlock();
+        return res.status(400).json({ 
+          error: 'Insufficient tickets available',
+          requested: ticket_quantity,
+          available: availableTickets.length
+        });
+      }
+      
+      // Generate payment reference
+      paymentReference = paymentService.generatePaymentReference(
+        payment_method.toUpperCase()
+      );
+      
+      // Create payment record
+      await db.run(`
+        INSERT INTO payments (
+          raffle_id, payment_reference, payment_method, payment_type,
+          amount, buyer_name, buyer_email, buyer_phone,
+          ticket_category, ticket_quantity, payment_status,
+          payment_provider, payment_mode, customer_department
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        raffle.id, 
+        paymentReference, 
+        payment_method === 'moncash' ? 'MonCash' : 'NatCash',
+        'automated',
+        amount, 
+        buyer_name, 
+        buyer_email, 
+        buyer_phone,
+        ticket_category, 
+        ticket_quantity, 
+        'pending',
+        payment_method,
+        payment_method === 'moncash' ? paymentService.MONCASH_CONFIG.mode : paymentService.NATCASH_CONFIG.mode,
+        customer_department
+      ]);
+      
+      // Atomically assign tickets to this payment
+      const ticketIds = availableTickets.map(t => t.id);
+      const ticketNumbers = availableTickets.map(t => t.ticket_number);
+      
+      // Update tickets with payment_reference (reserves them)
+      const placeholders = ticketIds.map(() => '?').join(',');
+      await db.run(`
+        UPDATE tickets 
+        SET payment_reference = ?,
+            status = 'RESERVED'
+        WHERE id IN (${placeholders})
+      `, [paymentReference, ...ticketIds]);
+      
+      console.log(`[PURCHASE] Reserved ${ticketIds.length} tickets: ${ticketNumbers.join(', ')}`);
+      
+      // ========================================================================
+      // INITIATE PAYMENT WITH PROVIDER
+      // ========================================================================
+      let paymentResult;
+      
+      if (payment_method === 'moncash') {
+        // Initiate MonCash payment
+        paymentResult = await paymentService.createMonCashPayment({
+          amount: amount,
+          orderId: paymentReference
+        });
+        
+        // Update payment with MonCash transaction details
+        await db.run(`
+          UPDATE payments 
+          SET transaction_id = ?, external_reference = ?
+          WHERE payment_reference = ?
+        `, [paymentResult.paymentToken, paymentResult.paymentToken, paymentReference]);
+        
+      } else if (payment_method === 'natcash') {
+        // Initiate NatCash payment
+        paymentResult = await paymentService.createNatCashPayment({
+          amount: amount,
+          orderId: paymentReference,
+          buyer_phone: buyer_phone
+        });
+        
+        // Update payment with NatCash transaction details
+        await db.run(`
+          UPDATE payments 
+          SET transaction_id = ?, external_reference = ?
+          WHERE payment_reference = ?
+        `, [paymentResult.paymentId, paymentResult.transactionRef, paymentReference]);
+      }
+      
+      // Release the mutex after successful payment initiation
+      ticketGenerationMutex.unlock();
+      
+      // Return success with allocated tickets and payment details
+      res.json({
+        success: true,
+        payment_reference: paymentReference,
+        tickets_allocated: ticketNumbers,
+        quantity: ticket_quantity,
+        category: ticket_category,
+        amount: amount,
+        payment_details: paymentResult
+      });
+      
+      console.log(`[PURCHASE] Success: Payment ${paymentReference}, ${ticketNumbers.length} tickets allocated`);
+      
+    } catch (error) {
+      // Release mutex on error (check if still locked)
+      if (ticketGenerationMutex.isLocked()) {
+        ticketGenerationMutex.unlock();
+      }
+      
+      console.error('[PURCHASE] Error during allocation:', error);
+      
+      // Rollback: Release any reserved tickets if payment initiation fails
+      // Only attempt rollback if paymentReference was generated
+      if (paymentReference) {
+        try {
+          await db.run(`
+            UPDATE tickets 
+            SET payment_reference = NULL,
+                status = 'AVAILABLE'
+            WHERE payment_reference = ? AND status = 'RESERVED'
+          `, [paymentReference]);
+          console.log(`[PURCHASE] Rolled back ticket reservations for ${paymentReference}`);
+        } catch (rollbackError) {
+          console.error('[PURCHASE] Rollback failed:', rollbackError);
+        }
+      }
+      
+      throw error;
+    }
+    
+  } catch (error) {
+    console.error('Error initiating purchase:', error);
+    res.status(500).json({ 
+      error: 'Failed to initiate purchase', 
+      message: error.message 
+    });
+  }
+});
+
+// ============================================================================
+// PAYMENT ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/payments/methods - Get available payment methods
+ * Public endpoint to check configured payment methods
+ */
+app.get('/api/payments/methods', async (req, res) => {
+  try {
+    const methods = paymentService.getAvailablePaymentMethods();
+    
+    res.json({
+      success: true,
+      methods: methods,
+      smsEnabled: smsService.isConfigured()
+    });
+  } catch (error) {
+    console.error('Error getting payment methods:', error);
+    res.status(500).json({ error: 'Failed to get payment methods' });
+  }
+});
+
+/**
+ * POST /api/payments/moncash/initiate - Initiate MonCash payment
+ * Creates a MonCash payment for automated processing
+ */
+app.post('/api/payments/moncash/initiate', [
+  body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity, customer_department } = req.body;
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Generate payment reference
+    const paymentReference = paymentService.generatePaymentReference('MONCASH');
+    
+    // Create payment in database first
+    await db.run(`
+      INSERT INTO payments (
+        raffle_id, payment_reference, payment_method, payment_type,
+        amount, buyer_name, buyer_email, buyer_phone,
+        ticket_category, ticket_quantity, payment_status,
+        payment_provider, payment_mode, customer_department
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      raffle.id, paymentReference, 'MonCash', 'automated',
+      amount, buyer_name, buyer_email, buyer_phone,
+      ticket_category, ticket_quantity, 'pending',
+      'moncash', paymentService.MONCASH_CONFIG.mode, customer_department
+    ]);
+    
+    // Initiate MonCash payment
+    const paymentResult = await paymentService.createMonCashPayment({
+      amount: amount,
+      orderId: paymentReference
+    });
+    
+    // Update payment with transaction details
+    await db.run(`
+      UPDATE payments 
+      SET transaction_id = ?, external_reference = ?
+      WHERE payment_reference = ?
+    `, [paymentResult.paymentToken, paymentResult.paymentToken, paymentReference]);
+    
+    res.json({
+      success: true,
+      paymentReference: paymentReference,
+      redirectUrl: paymentResult.redirectUrl,
+      paymentToken: paymentResult.paymentToken
+    });
+  } catch (error) {
+    console.error('Error initiating MonCash payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to initiate payment' });
+  }
+});
+
+/**
+ * POST /api/payments/natcash/initiate - Initiate NatCash payment
+ * Creates a NatCash payment for automated processing
+ */
+app.post('/api/payments/natcash/initiate', [
+  body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { amount, buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity, customer_department } = req.body;
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Generate payment reference
+    const paymentReference = paymentService.generatePaymentReference('NATCASH');
+    
+    // Create payment in database first
+    await db.run(`
+      INSERT INTO payments (
+        raffle_id, payment_reference, payment_method, payment_type,
+        amount, buyer_name, buyer_email, buyer_phone,
+        ticket_category, ticket_quantity, payment_status,
+        payment_provider, payment_mode, customer_department
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      raffle.id, paymentReference, 'NatCash', 'automated',
+      amount, buyer_name, buyer_email, buyer_phone,
+      ticket_category, ticket_quantity, 'pending',
+      'natcash', paymentService.NATCASH_CONFIG.mode, customer_department
+    ]);
+    
+    // Initiate NatCash payment
+    const paymentResult = await paymentService.createNatCashPayment({
+      amount: amount,
+      orderId: paymentReference,
+      buyer_phone: buyer_phone
+    });
+    
+    // Update payment with transaction details
+    await db.run(`
+      UPDATE payments 
+      SET transaction_id = ?, external_reference = ?
+      WHERE payment_reference = ?
+    `, [paymentResult.paymentId, paymentResult.transactionRef, paymentReference]);
+    
+    res.json({
+      success: true,
+      paymentReference: paymentReference,
+      paymentId: paymentResult.paymentId,
+      transactionRef: paymentResult.transactionRef,
+      status: paymentResult.status
+    });
+  } catch (error) {
+    console.error('Error initiating NatCash payment:', error);
+    res.status(500).json({ error: error.message || 'Failed to initiate payment' });
+  }
+});
+
+/**
+ * POST /api/payments/manual/submit - Submit manual payment for verification
+ * Handles USSD/manual payments that require admin approval
+ */
+app.post('/api/payments/manual/submit', [
+  body('payment_method').isIn(['moncash', 'natcash']).withMessage('Valid payment method required'),
+  body('amount').isFloat({ min: 0.01 }).withMessage('Valid amount required'),
+  body('buyer_name').trim().notEmpty().withMessage('Buyer name required'),
+  body('buyer_phone').trim().notEmpty().withMessage('Buyer phone required'),
+  body('buyer_email').optional().isEmail().withMessage('Valid email required'),
+  body('ticket_category').trim().notEmpty().withMessage('Ticket category required'),
+  body('ticket_quantity').isInt({ min: 1 }).withMessage('Valid quantity required'),
+  body('transaction_reference').trim().notEmpty().withMessage('Transaction reference required'),
+  body('customer_department').trim().notEmpty().withMessage('Department required')
+    .custom(value => isValidDepartment(value)).withMessage('Invalid department')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { 
+      payment_method, amount, buyer_name, buyer_phone, buyer_email, 
+      ticket_category, ticket_quantity, transaction_reference, notes, customer_department 
+    } = req.body;
+    
+    // Get active raffle
+    const raffle = await db.get('SELECT id FROM raffles WHERE status = ?', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+    
+    // Generate payment reference
+    const paymentReference = paymentService.generatePaymentReference('MANUAL');
+    
+    // Create payment in database
+    await db.run(`
+      INSERT INTO payments (
+        raffle_id, payment_reference, payment_method, payment_type,
+        amount, buyer_name, buyer_email, buyer_phone,
+        ticket_category, ticket_quantity, payment_status,
+        external_reference, notes, customer_department
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [
+      raffle.id, paymentReference, 
+      payment_method === 'moncash' ? 'MonCash (Manual)' : 'NatCash (Manual)', 
+      'manual',
+      amount, buyer_name, buyer_email, buyer_phone,
+      ticket_category, ticket_quantity, 'pending',
+      transaction_reference, notes, customer_department
+    ]);
+    
+    // Send SMS notifications
+    try {
+      // Notify buyer
+      await smsService.sendPaymentPending({
+        buyer_phone: buyer_phone,
+        buyer_name: buyer_name,
+        amount: amount,
+        payment_method: payment_method === 'moncash' ? 'MonCash' : 'NatCash',
+        reference: paymentReference
+      });
+      
+      // Notify admins
+      await smsService.notifyAdminsNewPayment({
+        buyer_name: buyer_name,
+        amount: amount,
+        payment_method: payment_method === 'moncash' ? 'MonCash (Manual)' : 'NatCash (Manual)',
+        reference: paymentReference,
+        payment_status: 'pending'
+      });
+    } catch (smsError) {
+      console.error('SMS notification error:', smsError);
+      // Continue even if SMS fails
+    }
+    
+    res.json({
+      success: true,
+      paymentReference: paymentReference,
+      status: 'pending',
+      message: 'Payment submitted for verification. You will receive an SMS when approved.'
+    });
+  } catch (error) {
+    console.error('Error submitting manual payment:', error);
+    res.status(500).json({ error: 'Failed to submit payment' });
+  }
+});
+
+/**
+ * GET /api/payments/status/:reference - Get payment status
+ * Public endpoint to check payment status
+ */
+app.get('/api/payments/status/:reference', async (req, res) => {
+  try {
+    const { reference } = req.params;
+    
+    const payment = await db.get(`
+      SELECT 
+        payment_reference, payment_method, payment_type, amount,
+        payment_status, ticket_category, ticket_quantity, ticket_numbers,
+        created_at, verified_at
+      FROM payments 
+      WHERE payment_reference = ?
+    `, [reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    res.json({
+      success: true,
+      payment: payment
+    });
+  } catch (error) {
+    console.error('Error getting payment status:', error);
+    res.status(500).json({ error: 'Failed to get payment status' });
+  }
+});
+
+/**
+ * GET /api/payments/manual-instructions/:method - Get manual payment instructions
+ * Public endpoint to get instructions for manual payments
+ */
+app.get('/api/payments/manual-instructions/:method', async (req, res) => {
+  try {
+    const { method } = req.params;
+    
+    if (!['moncash', 'natcash'].includes(method)) {
+      return res.status(400).json({ error: 'Invalid payment method' });
+    }
+    
+    const instructions = paymentService.getManualPaymentInstructions(method);
+    
+    if (!instructions) {
+      return res.status(404).json({ error: 'Instructions not available' });
+    }
+    
+    res.json({
+      success: true,
+      instructions: instructions
+    });
+  } catch (error) {
+    console.error('Error getting instructions:', error);
+    res.status(500).json({ error: 'Failed to get instructions' });
+  }
+});
+
+/**
+ * GET /api/payments/callback - Payment callback/redirect endpoint
+ * Called by MonCash/NatCash after user completes payment
+ * Query params: transactionId or paymentToken
+ */
+app.get('/api/payments/callback', async (req, res) => {
+  try {
+    const { transactionId, token } = req.query;
+    
+    if (!transactionId && !token) {
+      return res.status(400).send(`
+        <html>
+          <body>
+            <h1>Payment Error</h1>
+            <p>Missing transaction information. Please contact support.</p>
+          </body>
+        </html>
+      `);
+    }
+    
+    console.log(`[PAYMENT CALLBACK] Received callback - transactionId: ${transactionId}, token: ${token}`);
+    
+    // Find payment by transaction ID or token
+    const paymentIdentifier = transactionId || token;
+    const payment = await db.get(`
+      SELECT * FROM payments 
+      WHERE transaction_id = ? OR external_reference = ?
+    `, [paymentIdentifier, paymentIdentifier]);
+    
+    if (!payment) {
+      return res.status(404).send(`
+        <html>
+          <body>
+            <h1>Payment Not Found</h1>
+            <p>We couldn't find your payment. Please contact support with reference: ${transactionId || token}</p>
+          </body>
+        </html>
+      `);
+    }
+    
+    // If already approved, show success
+    if (payment.payment_status === 'approved') {
+      return res.send(`
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Successful</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+              .success { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              h1 { color: #28a745; }
+              .info { margin: 20px 0; }
+              .reference { background: #f8f9fa; padding: 10px; border-radius: 5px; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="success">
+              <h1>✅ Payment Successful!</h1>
+              <div class="info">
+                <p>Your payment has been confirmed.</p>
+                <p class="reference">Reference: ${payment.payment_reference}</p>
+                <p>Tickets: ${payment.ticket_numbers || 'Processing...'}</p>
+                <p>You will receive an SMS confirmation shortly.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+    
+    // Verify payment with provider
+    let verificationResult;
+    
+    try {
+      if (payment.payment_provider === 'moncash') {
+        // Verify with MonCash API
+        verificationResult = await paymentService.verifyMonCashPayment(transactionId || token);
+      } else if (payment.payment_provider === 'natcash') {
+        // Verify with NatCash API
+        verificationResult = await paymentService.verifyNatCashPayment(transactionId || token);
+      }
+      
+      console.log(`[PAYMENT CALLBACK] Verification result:`, verificationResult);
+      
+      // Check if payment was successful
+      if (verificationResult && verificationResult.status === 'success') {
+        // TODO: Database update logic - Placeholder for integration with existing schema
+        // Update payment status to 'approved'
+        await db.run(`
+          UPDATE payments 
+          SET payment_status = 'approved',
+              verified_at = datetime('now')
+          WHERE payment_reference = ?
+        `, [payment.payment_reference]);
+        
+        // TODO: Update tickets status from RESERVED to SOLD
+        // This is where you would integrate with your existing ticket schema
+        await db.run(`
+          UPDATE tickets 
+          SET status = 'SOLD',
+              buyer_name = ?,
+              buyer_phone = ?,
+              buyer_email = ?,
+              customer_department = ?,
+              sold_at = datetime('now')
+          WHERE payment_reference = ?
+        `, [
+          payment.buyer_name,
+          payment.buyer_phone,
+          payment.buyer_email,
+          payment.customer_department,
+          payment.payment_reference
+        ]);
+        
+        // Get assigned ticket numbers
+        const tickets = await db.all(`
+          SELECT ticket_number FROM tickets 
+          WHERE payment_reference = ?
+          ORDER BY ticket_number
+        `, [payment.payment_reference]);
+        
+        const ticketNumbers = tickets.map(t => t.ticket_number).join(', ');
+        
+        // Update payment with ticket numbers
+        await db.run(`
+          UPDATE payments 
+          SET ticket_numbers = ?
+          WHERE payment_reference = ?
+        `, [ticketNumbers, payment.payment_reference]);
+        
+        console.log(`[PAYMENT CALLBACK] Payment approved: ${payment.payment_reference}`);
+        
+        // Send SMS confirmation (if configured)
+        try {
+          await smsService.sendPaymentApproved({
+            buyer_phone: payment.buyer_phone,
+            buyer_name: payment.buyer_name,
+            amount: payment.amount,
+            ticket_numbers: ticketNumbers,
+            reference: payment.payment_reference
+          });
+        } catch (smsError) {
+          console.error('[PAYMENT CALLBACK] SMS error:', smsError);
+          // Continue even if SMS fails
+        }
+        
+        return res.send(`
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Payment Successful</title>
+              <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+                .success { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #28a745; }
+                .info { margin: 20px 0; }
+                .reference { background: #f8f9fa; padding: 10px; border-radius: 5px; font-weight: bold; }
+                .tickets { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="success">
+                <h1>✅ Payment Successful!</h1>
+                <div class="info">
+                  <p>Thank you for your purchase!</p>
+                  <p class="reference">Reference: ${payment.payment_reference}</p>
+                  <div class="tickets">
+                    <strong>Your Tickets:</strong><br>
+                    ${ticketNumbers}
+                  </div>
+                  <p>You will receive an SMS confirmation shortly.</p>
+                  <p style="color: #666; font-size: 14px;">Please save your reference number for future inquiries.</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `);
+      } else {
+        // Payment failed or pending
+        return res.send(`
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Payment Pending</title>
+              <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+                .pending { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #ffc107; }
+              </style>
+            </head>
+            <body>
+              <div class="pending">
+                <h1>⏳ Payment Pending</h1>
+                <p>Your payment is being processed.</p>
+                <p>Reference: ${payment.payment_reference}</p>
+                <p>You will receive an SMS once your payment is confirmed.</p>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+    } catch (verifyError) {
+      console.error('[PAYMENT CALLBACK] Verification error:', verifyError);
+      
+      return res.send(`
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Verification</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+              .pending { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              h1 { color: #ffc107; }
+            </style>
+          </head>
+          <body>
+            <div class="pending">
+              <h1>⏳ Payment Under Review</h1>
+              <p>We're verifying your payment.</p>
+              <p>Reference: ${payment.payment_reference}</p>
+              <p>You will receive an SMS confirmation within a few minutes.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+  } catch (error) {
+    console.error('[PAYMENT CALLBACK] Error:', error);
+    res.status(500).send(`
+      <html>
+        <body>
+          <h1>Error Processing Payment</h1>
+          <p>An error occurred. Please contact support.</p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+/**
+ * POST /api/payments/verify/:reference - Manually verify a payment
+ * Checks payment status with provider and updates database
+ */
+app.post('/api/payments/verify/:reference', async (req, res) => {
+  try {
+    const { reference } = req.params;
+    
+    // Get payment details
+    const payment = await db.get(`
+      SELECT * FROM payments WHERE payment_reference = ?
+    `, [reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    if (payment.payment_status === 'approved') {
+      return res.json({
+        success: true,
+        status: 'approved',
+        message: 'Payment already approved',
+        payment: payment
+      });
+    }
+    
+    // Verify with payment provider
+    let verificationResult;
+    
+    if (payment.payment_provider === 'moncash') {
+      verificationResult = await paymentService.verifyMonCashPayment(payment.transaction_id);
+    } else if (payment.payment_provider === 'natcash') {
+      verificationResult = await paymentService.verifyNatCashPayment(payment.transaction_id);
+    } else {
+      return res.status(400).json({ error: 'Manual payments require admin approval' });
+    }
+    
+    if (verificationResult && verificationResult.status === 'success') {
+      // TODO: Update payment and tickets - Placeholder for integration with existing schema
+      await db.run(`
+        UPDATE payments 
+        SET payment_status = 'approved',
+            verified_at = datetime('now')
+        WHERE payment_reference = ?
+      `, [reference]);
+      
+      await db.run(`
+        UPDATE tickets 
+        SET status = 'SOLD',
+            buyer_name = ?,
+            buyer_phone = ?,
+            buyer_email = ?,
+            customer_department = ?,
+            sold_at = datetime('now')
+        WHERE payment_reference = ?
+      `, [
+        payment.buyer_name,
+        payment.buyer_phone,
+        payment.buyer_email,
+        payment.customer_department,
+        reference
+      ]);
+      
+      return res.json({
+        success: true,
+        status: 'approved',
+        message: 'Payment verified and approved'
+      });
+    } else {
+      return res.json({
+        success: true,
+        status: 'pending',
+        message: 'Payment still pending with provider'
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    res.status(500).json({ error: 'Failed to verify payment' });
+  }
+});
+
+/**
+ * GET /api/admin/payments/pending - Get pending payments for admin approval
+ * Admin endpoint to list all pending manual payments
+ */
+app.get('/api/admin/payments/pending', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const payments = await db.all(`
+      SELECT 
+        id, payment_reference, payment_method, payment_type, amount,
+        buyer_name, buyer_phone, buyer_email, ticket_category, ticket_quantity,
+        external_reference, notes, created_at
+      FROM payments 
+      WHERE payment_status = 'pending'
+      ORDER BY created_at DESC
+    `);
+    
+    res.json({
+      success: true,
+      payments: payments
+    });
+  } catch (error) {
+    console.error('Error getting pending payments:', error);
+    res.status(500).json({ error: 'Failed to get pending payments' });
+  }
+});
+
+/**
+ * POST /api/admin/payments/approve - Approve a manual payment
+ * Admin endpoint to approve and assign tickets
+ */
+app.post('/api/admin/payments/approve', requireAuth, requireAdmin, [
+  body('payment_reference').trim().notEmpty().withMessage('Payment reference required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { payment_reference } = req.body;
+    
+    // Get payment details
+    const payment = await db.get(`
+      SELECT * FROM payments WHERE payment_reference = ?
+    `, [payment_reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    if (payment.payment_status !== 'pending') {
+      return res.status(400).json({ error: 'Payment already processed' });
+    }
+    
+    // Get available tickets in the requested category
+    // For online purchases, only assign tickets marked as available_online
+    const availableTickets = await db.all(`
+      SELECT ticket_number FROM tickets 
+      WHERE raffle_id = ? 
+        AND category = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      ORDER BY ticket_number
+      LIMIT ?
+    `, [payment.raffle_id, payment.ticket_category, payment.ticket_quantity]);
+    
+    if (availableTickets.length < payment.ticket_quantity) {
+      return res.status(400).json({ 
+        error: `Not enough tickets available. Requested: ${payment.ticket_quantity}, Available: ${availableTickets.length}` 
+      });
+    }
+    
+    // Assign tickets to buyer
+    const ticketNumbers = availableTickets.map(t => t.ticket_number);
+    const ticketNumbersStr = ticketNumbers.join(', ');
+    
+    for (const ticket of availableTickets) {
+      await db.run(`
+        UPDATE tickets 
+        SET status = 'SOLD',
+            buyer_name = ?,
+            buyer_phone = ?,
+            buyer_email = ?,
+            payment_method = ?,
+            payment_verified = ${db.USE_POSTGRES ? 'TRUE' : '1'},
+            sold_at = CURRENT_TIMESTAMP,
+            customer_department = ?,
+            payment_reference = ?
+        WHERE ticket_number = ?
+      `, [
+        payment.buyer_name,
+        payment.buyer_phone,
+        payment.buyer_email,
+        payment.payment_method,
+        payment.customer_department,
+        payment_reference,
+        ticket.ticket_number
+      ]);
+    }
+    
+    // Update payment status
+    await db.run(`
+      UPDATE payments 
+      SET payment_status = 'approved',
+          verified_by = ?,
+          verified_at = CURRENT_TIMESTAMP,
+          ticket_numbers = ?
+      WHERE payment_reference = ?
+    `, [req.user.id, ticketNumbersStr, payment_reference]);
+    
+    // Send SMS notification to buyer
+    try {
+      await smsService.sendPaymentApproved({
+        buyer_phone: payment.buyer_phone,
+        buyer_name: payment.buyer_name,
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        reference: payment_reference,
+        ticket_numbers: ticketNumbersStr
+      });
+    } catch (smsError) {
+      console.error('SMS notification error:', smsError);
+      // Continue even if SMS fails
+    }
+    
+    res.json({
+      success: true,
+      message: 'Payment approved and tickets assigned',
+      ticketNumbers: ticketNumbers
+    });
+  } catch (error) {
+    console.error('Error approving payment:', error);
+    res.status(500).json({ error: 'Failed to approve payment' });
+  }
+});
+
+/**
+ * POST /api/admin/payments/reject - Reject a manual payment
+ * Admin endpoint to reject a payment
+ */
+app.post('/api/admin/payments/reject', requireAuth, requireAdmin, [
+  body('payment_reference').trim().notEmpty().withMessage('Payment reference required'),
+  body('rejection_reason').trim().notEmpty().withMessage('Rejection reason required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+  
+  try {
+    const { payment_reference, rejection_reason } = req.body;
+    
+    // Get payment details
+    const payment = await db.get(`
+      SELECT * FROM payments WHERE payment_reference = ?
+    `, [payment_reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    if (payment.payment_status !== 'pending') {
+      return res.status(400).json({ error: 'Payment already processed' });
+    }
+    
+    // Update payment status
+    await db.run(`
+      UPDATE payments 
+      SET payment_status = 'rejected',
+          verified_by = ?,
+          verified_at = CURRENT_TIMESTAMP,
+          rejection_reason = ?
+      WHERE payment_reference = ?
+    `, [req.user.id, rejection_reason, payment_reference]);
+    
+    // Send SMS notification to buyer
+    try {
+      await smsService.sendPaymentRejected({
+        buyer_phone: payment.buyer_phone,
+        buyer_name: payment.buyer_name,
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        reference: payment_reference,
+        rejection_reason: rejection_reason
+      });
+    } catch (smsError) {
+      console.error('SMS notification error:', smsError);
+      // Continue even if SMS fails
+    }
+    
+    res.json({
+      success: true,
+      message: 'Payment rejected'
+    });
+  } catch (error) {
+    console.error('Error rejecting payment:', error);
+    res.status(500).json({ error: 'Failed to reject payment' });
+  }
+});
+
+// ============================================================================
+// TICKET VERIFICATION ENDPOINTS
+// ============================================================================
+
+// GET /api/admin/tickets/verify-list - Get tickets with search, filter, and pagination
+app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      search = '',
+      category = '',
+      status = '',
+      page = 1,
+      limit = 50,
+      export: isExport = false
+    } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Build WHERE clause dynamically
+    const conditions = [];
+    const params = [];
+    
+    // Search by ticket number or barcode
+    if (search) {
+      conditions.push('(t.ticket_number LIKE ? OR t.barcode LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    // Filter by category
+    if (category) {
+      conditions.push('t.category = ?');
+      params.push(category);
+    }
+    
+    // Filter by status
+    if (status) {
+      conditions.push('t.status = ?');
+      params.push(status);
+    }
+    
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM tickets t ${whereClause}`;
+    const countResult = await db.get(countQuery, params);
+    const total = countResult.total;
+    
+    // Get tickets
+    let ticketsQuery = `
+      SELECT 
+        t.ticket_number,
+        t.barcode,
+        t.category,
+        t.price,
+        t.status,
+        t.qr_code_data,
+        t.buyer_name,
+        t.seller_name,
+        t.sold_at,
+        t.created_at
+      FROM tickets t
+      ${whereClause}
+      ORDER BY t.ticket_number
+    `;
+    
+    // Add pagination unless export
+    if (!isExport || isExport === 'false') {
+      ticketsQuery += ` LIMIT ? OFFSET ?`;
+      params.push(parseInt(limit), offset);
+    }
+    
+    const tickets = await db.all(ticketsQuery, params);
+    
+    // Get stats
+    const statsQuery = `
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'AVAILABLE' THEN 1 ELSE 0 END) as available,
+        SUM(CASE WHEN status = 'SOLD' THEN 1 ELSE 0 END) as sold,
+        SUM(CASE WHEN category = 'ABC' THEN 1 ELSE 0 END) as abc_count,
+        SUM(CASE WHEN category = 'EFG' THEN 1 ELSE 0 END) as efg_count,
+        SUM(CASE WHEN category = 'JKL' THEN 1 ELSE 0 END) as jkl_count,
+        SUM(CASE WHEN category = 'XYZ' THEN 1 ELSE 0 END) as xyz_count
+      FROM tickets
+    `;
+    const stats = await db.get(statsQuery);
+    
+    const response = {
+      tickets,
+      total,
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit)),
+      stats: {
+        total: stats.total || 0,
+        available: stats.available || 0,
+        sold: stats.sold || 0,
+        by_category: {
+          ABC: stats.abc_count || 0,
+          EFG: stats.efg_count || 0,
+          JKL: stats.jkl_count || 0,
+          XYZ: stats.xyz_count || 0
+        }
+      }
+    };
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error fetching verification list:', error);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// POST /api/admin/tickets/unsold - Mark a sold ticket as unsold (reverse sale)
+app.post('/api/admin/tickets/unsold', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber } = req.body;
+    
+    if (!ticketNumber) {
+      return res.status(400).json({ 
+        error: 'Ticket number is required' 
+      });
+    }
+    
+    // Get the ticket
+    const ticket = await db.get(
+      'SELECT * FROM tickets WHERE ticket_number = ?',
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        error: 'Ticket not found' 
+      });
+    }
+    
+    if (ticket.status !== 'SOLD') {
+      return res.status(400).json({ 
+        error: 'Ticket is not sold' 
+      });
+    }
+    
+    // Mark as unsold - clear sold_at, seller info, and set status back to AVAILABLE
+    await db.run(
+      `UPDATE tickets 
+       SET status = 'AVAILABLE', 
+           sold_at = NULL, 
+           seller_name = NULL, 
+           seller_phone = NULL,
+           buyer_name = NULL,
+           buyer_phone = NULL
+       WHERE ticket_number = ?`,
+      [ticketNumber]
+    );
+    
+    // Sanitize log output to prevent log injection
+    const safeTicketNumber = String(ticketNumber).replace(/[\r\n]/g, '');
+    const safeAdminName = String(req.session.user.name).replace(/[\r\n]/g, '');
+    console.log(`Ticket ${safeTicketNumber} marked as unsold by admin ${safeAdminName}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Ticket marked as unsold successfully',
+      ticketNumber
+    });
+    
+  } catch (error) {
+    console.error('Error marking ticket as unsold:', error);
+    res.status(500).json({ 
+      error: 'Failed to mark ticket as unsold'
+    });
+  }
+});
+
+// POST /api/admin/tickets/mark-online-available - Mark/unmark tickets as available online
+app.post('/api/admin/tickets/mark-online-available', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, action, startTicket, endTicket } = req.body;
+    
+    // Validation
+    if (!action || !['mark', 'unmark'].includes(action)) {
+      return res.status(400).json({ 
+        error: 'Invalid action. Use "mark" or "unmark"' 
+      });
+    }
+    
+    // Use parameterized value instead of string concatenation
+    const availableOnlineValue = action === 'mark' 
+      ? (db.USE_POSTGRES ? true : 1)
+      : (db.USE_POSTGRES ? false : 0);
+    
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Build update query based on filters using parameterized queries
+    let query = 'UPDATE tickets SET available_online = ? WHERE raffle_id = ?';
+    const params = [availableOnlineValue, raffle.id];
+    
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    
+    // Note: Range filtering removed as it's not used by the frontend
+    // and the migration script handles the last 100K logic
+    
+    // Execute update
+    const result = await db.run(query, params);
+    const updated = result.changes || 0;
+    
+    // Log the action
+    const safeAdminName = String(req.session.user.name).replace(/[\r\n]/g, '');
+    const safeCategory = category ? String(category).replace(/[\r\n]/g, '') : 'all';
+    console.log(`Admin ${safeAdminName} ${action}ed ${updated} tickets as available online (category: ${safeCategory})`);
+    
+    // Get updated stats
+    const stats = await db.get(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available
+      FROM tickets 
+      WHERE raffle_id = ? ${category ? 'AND category = ?' : ''}
+    `, category ? [raffle.id, category] : [raffle.id]);
+    
+    res.json({ 
+      success: true, 
+      message: `${updated} tickets ${action}ed as ${action === 'mark' ? 'available' : 'not available'} online`,
+      updated: updated,
+      stats: stats
+    });
+    
+  } catch (error) {
+    console.error('Error updating online availability:', error);
+    res.status(500).json({ 
+      error: 'Failed to update ticket online availability'
+    });
+  }
+});
+
+// GET /api/admin/tickets/online-stats - Get online ticket availability statistics
+app.get('/api/admin/tickets/online-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id, name FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Get overall stats
+    const overallStats = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available,
+        COUNT(CASE WHEN status = 'SOLD' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_sold
+      FROM tickets 
+      WHERE raffle_id = ?
+    `, [raffle.id]);
+    
+    // Get stats by category
+    const categoryStats = await db.all(`
+      SELECT 
+        category,
+        COUNT(*) as total,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available,
+        COUNT(CASE WHEN status = 'SOLD' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_sold
+      FROM tickets 
+      WHERE raffle_id = ?
+      GROUP BY category
+      ORDER BY category
+    `, [raffle.id]);
+    
+    res.json({
+      success: true,
+      raffle: raffle,
+      overall: overallStats,
+      by_category: categoryStats
+    });
+    
+  } catch (error) {
+    console.error('Error fetching online stats:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch online ticket statistics'
+    });
+  }
+});
+
+// GET /api/admin/tickets/export-csv - Export tickets to CSV (STREAMING)
+// Uses streaming to handle large datasets without OOM crashes
+app.get('/api/admin/tickets/export-csv', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const {
+      search = '',
+      category = '',
+      status = ''
+    } = req.query;
+    
+    console.log('📥 CSV export request received (STREAMING) - filters:', { search, category, status });
+    
+    // Build WHERE clause dynamically
+    const conditions = [];
+    const params = [];
+    
+    if (search) {
+      conditions.push('(ticket_number LIKE ? OR barcode LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`);
+    }
+    
+    if (category) {
+      conditions.push('category = ?');
+      params.push(category);
+    }
+    
+    if (status) {
+      conditions.push('status = ?');
+      params.push(status);
+    }
+    
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    
+    // Check if any tickets match criteria before starting streaming
+    const countQuery = `SELECT COUNT(*) as total FROM tickets ${whereClause}`;
+    const countResult = await db.get(countQuery, params);
+    const totalTickets = countResult ? countResult.total : 0;
+    
+    if (totalTickets === 0) {
+      console.warn('⚠️ No tickets found matching criteria');
+      return res.status(404).json({ 
+        error: 'No tickets found',
+        message: 'No tickets match the specified criteria.'
+      });
+    }
+    
+    console.log(`✅ Found ${totalTickets.toLocaleString()} tickets matching criteria`);
+    
+    const query = `
+      SELECT 
+        ticket_number,
+        barcode,
+        category,
+        price,
+        status,
+        buyer_name,
+        seller_name,
+        sold_at,
+        created_at
+      FROM tickets
+      ${whereClause}
+      ORDER BY ticket_number
+    `;
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="tickets-export-${Date.now()}.csv"`);
+    
+    // Write CSV header
+    res.write('Ticket Number,Barcode,Category,Price,Status,Buyer Name,Seller Name,Sold At,Created At\n');
+    
+    let totalProcessed = 0;
+    
+    // Stream tickets row-by-row without loading all into memory
+    await db.streamRows(
+      query,
+      params,
+      (ticket) => {
+        const row = [
+          ticket.ticket_number || '',
+          ticket.barcode || '',
+          ticket.category || '',
+          ticket.price || '',
+          ticket.status || '',
+          ticket.buyer_name || '',
+          ticket.seller_name || '',
+          ticket.sold_at || '',
+          ticket.created_at || ''
+        ].map(field => `"${String(field).replace(/"/g, '""')}"`).join(',');
+        
+        res.write(row + '\n');
+        totalProcessed++;
+        
+        // Log progress every 10,000 tickets
+        if (totalProcessed % 10000 === 0) {
+          console.log(`📊 Streamed ${totalProcessed.toLocaleString()} tickets...`);
+        }
+      },
+      { batchSize: 1000 }
+    );
+    
+    // End response
+    res.end();
+    
+    console.log(`✅ CSV export successful: ${totalProcessed.toLocaleString()} tickets exported`);
+    
+  } catch (error) {
+    console.error('❌ Error exporting CSV:', error);
+    console.error('Stack:', error.stack);
+    
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Failed to export CSV' });
+    }
+  }
+});
+
+// ============================================================================
+// BULK TICKET OPERATIONS API ENDPOINTS
+// ============================================================================
+
+// GET /api/admin/bulk-tickets/statistics - Get barcode statistics
+app.get('/api/admin/bulk-tickets/statistics', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const stats = await bulkTicketService.getBarcodeStatistics();
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting barcode statistics:', error);
+    res.status(500).json({ 
+      error: 'Failed to get statistics',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/admin/bulk-tickets/detect-legacy - Detect legacy/invalid barcodes
+app.get('/api/admin/bulk-tickets/detect-legacy', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const legacyTickets = await bulkTicketService.detectLegacyBarcodes();
+    res.json({
+      total: legacyTickets.length,
+      tickets: legacyTickets
+    });
+  } catch (error) {
+    console.error('Error detecting legacy barcodes:', error);
+    res.status(500).json({ 
+      error: 'Failed to detect legacy barcodes',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/admin/bulk-tickets/regenerate - Regenerate barcodes for all or filtered tickets
+app.post('/api/admin/bulk-tickets/regenerate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, legacyOnly } = req.body;
+    
+    const results = await bulkTicketService.regenerateAllBarcodes({
+      category,
+      legacyOnly: legacyOnly === true
+    });
+    
+    res.json(results);
+  } catch (error) {
+    console.error('Error regenerating barcodes:', error);
+    res.status(500).json({ 
+      error: 'Failed to regenerate barcodes',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/admin/bulk-tickets/flag-legacy - Flag legacy tickets as invalid
+app.post('/api/admin/bulk-tickets/flag-legacy', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketIds } = req.body;
+    
+    if (!Array.isArray(ticketIds) || ticketIds.length === 0) {
+      return res.status(400).json({ 
+        error: 'ticketIds array is required and must not be empty'
+      });
+    }
+    
+    const flagged = await bulkTicketService.flagLegacyTickets(ticketIds);
+    
+    res.json({
+      success: true,
+      flagged: flagged
+    });
+  } catch (error) {
+    console.error('Error flagging legacy tickets:', error);
+    res.status(500).json({ 
+      error: 'Failed to flag legacy tickets',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/admin/bulk-tickets/export-pdf - Export all tickets to PDF
+app.post('/api/admin/bulk-tickets/export-pdf', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, startTicket, endTicket, paperType } = req.body;
+    
+    const pdfDoc = await bulkTicketService.exportAllTicketsPDF({
+      category,
+      startTicket,
+      endTicket,
+      paperType: paperType || 'AVERY_16145',
+      adminId: req.session.user.id,
+      raffleId: 1 // TODO: Get from request or config
+    });
+    
+    const filename = `bulk-tickets-${category || 'all'}-${new Date().toISOString().split('T')[0]}.pdf`;
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    pdfDoc.pipe(res);
+    pdfDoc.end();
+  } catch (error) {
+    console.error('Error exporting tickets to PDF:', error);
+    res.status(500).json({ 
+      error: 'Failed to export tickets to PDF',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/tickets/validate-barcode - Validate ticket barcode for sale/scan
+app.post('/api/tickets/validate-barcode', requireAuth, async (req, res) => {
+  try {
+    const { barcode } = req.body;
+    
+    if (!barcode) {
+      return res.status(400).json({ 
+        error: 'Barcode is required'
+      });
+    }
+    
+    const validation = await bulkTicketService.validateTicketForSale(barcode);
+    
+    if (!validation.valid) {
+      return res.status(400).json(validation);
+    }
+    
+    res.json(validation);
+  } catch (error) {
+    console.error('Error validating barcode:', error);
+    res.status(500).json({ 
+      error: 'Failed to validate barcode',
+      message: error.message
+    });
+  }
+});
+
+// ============================================================================
+// END BULK TICKET OPERATIONS API ENDPOINTS
+// ============================================================================
+
+// ============================================================================
+// END RAFFLE TICKET SYSTEM API ENDPOINTS
+// ============================================================================
+
+// POST /api/tickets/debug-barcode - Debug ticket lookup (for troubleshooting)
+app.post('/api/tickets/debug-barcode', requireAuth, async (req, res) => {
+  try {
+    const { barcode } = req.body;
+    
+    if (!barcode) {
+      return res.status(400).json({ error: 'Barcode is required' });
+    }
+    
+    // Step 1: Check format validation
+    const formatValid = barcodeService.validateBarcodeNumber(barcode);
+    const isLegacy = barcodeService.isLegacyBarcode(barcode);
+    
+    // Step 2: Try to find ticket
+    const ticket = await ticketService.getTicketByBarcode(barcode);
+    
+    // Step 3: If not found, try direct ticket_number lookup
+    let ticketByNumber = null;
+    if (!ticket) {
+      ticketByNumber = await db.get(
+        'SELECT * FROM tickets WHERE ticket_number = ?',
+        [barcode]
+      );
+    }
+    
+    // Return diagnostic information
+    res.json({
+      barcode: barcode,
+      formatValid: formatValid,
+      isLegacyFormat: isLegacy,
+      ticketFound: !!ticket,
+      ticketFoundByNumber: !!ticketByNumber,
+      ticket: ticket || ticketByNumber || null,
+      troubleshooting: {
+        hint: !ticket && !ticketByNumber ? 
+          'Ticket does not exist in database. Check if ticket number is correct.' :
+          ticket && ticket.status === 'SOLD' ?
+          'Ticket exists but is already sold.' :
+          ticket && ticket.status === 'INVALID' ?
+          'Ticket exists but has been marked as invalid/replaced.' :
+          'Ticket exists and is available for sale.'
+      }
+    });
+  } catch (error) {
+    console.error('Debug barcode error:', error);
+    res.status(500).json({ 
+      error: 'Debug failed',
+      message: 'An error occurred while debugging. Please try again or contact support.'
+    });
+  }
+});
+
+// 404 handler - must be after all other routes
+app.use((req, res, next) => {
+  // Check if this is an API request
+  if (req.path.startsWith('/api/')) {
+    res.status(404).json({ 
+      error: 'Endpoint not found',
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    // Serve custom 404 page for regular requests
+    res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+  }
+});
+
+// Express error handler middleware - must be last
+app.use((err, req, res, next) => {
+  console.error('Express Error Handler:', err);
+  console.error('Stack:', err.stack);
+  
+  // Don't leak error details in production
+  const errorResponse = {
+    error: process.env.NODE_ENV === 'production' 
+      ? 'An error occurred' 
+      : err.message,
+    timestamp: new Date().toISOString()
+  };
+  
+  // For API requests, return JSON
+  if (req.path.startsWith('/api/')) {
+    res.status(err.status || 500).json(errorResponse);
+  } else {
+    // For regular requests, serve custom 500 page
+    res.status(err.status || 500).sendFile(path.join(__dirname, 'public', '500.html'));
+  }
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Access the application at http://localhost:${PORT}`);
+  console.log(`Health check available at http://localhost:${PORT}/health`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  db.close((err) => {
+    if (err) {
+      console.error('Error closing database:', err);
+    } else {
+      console.log('Database connection closed');
+    }
+    process.exit(0);
+  });
+});

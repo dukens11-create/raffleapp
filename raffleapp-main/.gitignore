@@ -1,0 +1,8 @@
+.vercel
+node_modules
+*.db
+.env
+raffle-app/uploads/
+raffle-app/ticket_exports/
+raffle-app/test_streaming.js
+raffle-app/generate_test_tickets.js
