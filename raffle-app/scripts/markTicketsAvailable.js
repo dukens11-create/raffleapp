@@ -96,6 +96,12 @@ async function getLatestTicketIds(category, limit) {
 
 /**
  * Update tickets to be available online
+ * 
+ * Note: Due to limitations in the current db.js abstraction layer, PostgreSQL
+ * row counts are approximated using the ticket count. For SQLite, actual
+ * row change counts are returned. This doesn't affect functionality but
+ * may result in slightly inaccurate progress reporting in PostgreSQL environments
+ * where some tickets might already have the correct values.
  */
 async function markTicketsAvailable(ticketIds) {
   if (ticketIds.length === 0) return 0;
@@ -211,9 +217,12 @@ async function displaySummary() {
   console.log('Category | Total Tickets | Online Available | Available to Buy | Sold');
   console.log('━'.repeat(85));
   
+  // Calculate max category name length for proper padding
+  const maxCategoryLength = Math.max(8, ...summary.map(row => row.category.length));
+  
   summary.forEach(row => {
     console.log(
-      `${row.category.padEnd(8)} | ` +
+      `${row.category.padEnd(maxCategoryLength)} | ` +
       `${row.total.toLocaleString().padStart(13)} | ` +
       `${row.online_available.toLocaleString().padStart(16)} | ` +
       `${row.available_for_purchase.toLocaleString().padStart(16)} | ` +
