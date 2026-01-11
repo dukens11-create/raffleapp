@@ -4809,12 +4809,14 @@ app.get('/api/public/raffle-info', async (req, res) => {
 });
 
 // GET /api/public/available-tickets - Get list of available tickets (no buyer data)
+// Optimized for large datasets with proper pagination
 app.get('/api/public/available-tickets', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    // Parse pagination parameters with limits
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const perPage = Math.min(200, Math.max(1, parseInt(req.query.per_page) || 50)); // Default 50, max 200
     const category = req.query.category || '';
-    const offset = (page - 1) * limit;
+    const offset = (page - 1) * perPage;
     
     // Get the active raffle only
     const raffle = await db.get(`
@@ -4828,7 +4830,8 @@ app.get('/api/public/available-tickets', async (req, res) => {
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
-    // Build query with optional category filter
+    // Build optimized query with indexes
+    // Using category and status indexes for fast filtering
     let query = `
       SELECT ticket_number, category, price, status
       FROM tickets 
@@ -4841,12 +4844,14 @@ app.get('/api/public/available-tickets', async (req, res) => {
       params.push(category);
     }
     
+    // Order by ticket_number for consistent pagination
     query += ' ORDER BY ticket_number LIMIT ? OFFSET ?';
-    params.push(limit, offset);
+    params.push(perPage, offset);
     
     const tickets = await db.all(query, params);
     
     // Get total count for pagination
+    // Use COUNT with same filters for accurate pagination
     let countQuery = `
       SELECT COUNT(*) as total 
       FROM tickets 
@@ -4860,15 +4865,19 @@ app.get('/api/public/available-tickets', async (req, res) => {
     }
     
     const countResult = await db.get(countQuery, countParams);
-    const total = countResult ? countResult.total : 0;
+    const total_tickets = countResult ? countResult.total : 0;
+    const total_pages = Math.ceil(total_tickets / perPage);
     
+    // Return response with enhanced pagination metadata
     res.json({
       tickets: tickets,
       pagination: {
         page: page,
-        limit: limit,
-        total: total,
-        total_pages: Math.ceil(total / limit)
+        per_page: perPage,
+        total_tickets: total_tickets,
+        total_pages: total_pages,
+        has_next: page < total_pages,
+        has_prev: page > 1
       }
     });
   } catch (error) {

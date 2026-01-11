@@ -637,10 +637,13 @@ async function initializeSchema() {
     console.log('📊 Creating performance indexes...');
 
     const indexes = [
-      // Tickets table indexes
+      // Tickets table indexes - optimized for large datasets
       'CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_category_status ON tickets(category, status)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_price ON tickets(price)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_raffle_status ON tickets(raffle_id, status)',
       
       // Seller requests indexes
       'CREATE INDEX IF NOT EXISTS idx_seller_requests_status ON seller_requests(status)',
