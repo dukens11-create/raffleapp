@@ -22,6 +22,12 @@ app.get('/api/public/raffle-info', (req, res) => {
   res.json({ tickets: filtered });
 });
 
+// Error handler for diagnostics; logs on server and sends basic info to client
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Server error: ' + err.message);
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening at http://localhost:${PORT}`);
 });
