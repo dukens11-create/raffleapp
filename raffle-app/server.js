@@ -4840,11 +4840,14 @@ app.get('/api/public/raffle-info', async (req, res) => {
 });
 
 // GET /api/public/available-tickets - Get list of available tickets (no buyer data)
+// Returns the last 100K available tickets per category
 app.get('/api/public/available-tickets', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = parseInt(req.query.limit) || 100;
     const category = req.query.category || '';
+    const search = req.query.search || '';
+    const groupByCategory = req.query.groupByCategory === 'true';
     const offset = (page - 1) * limit;
     
     // Get the active raffle only
@@ -4859,10 +4862,10 @@ app.get('/api/public/available-tickets', async (req, res) => {
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
-    // Build query with optional category filter
-    // Filter to only show tickets available online
+    // Build query with optional category filter and search
+    // Filter to only show tickets available online (last 100K per category)
     let query = `
-      SELECT ticket_number, category, price, status
+      SELECT ticket_number, category, price, status, created_at
       FROM tickets 
       WHERE raffle_id = ? 
         AND status = 'AVAILABLE'
@@ -4875,7 +4878,13 @@ app.get('/api/public/available-tickets', async (req, res) => {
       params.push(category);
     }
     
-    query += ' ORDER BY ticket_number LIMIT ? OFFSET ?';
+    if (search) {
+      query += ' AND ticket_number LIKE ?';
+      params.push(`%${search}%`);
+    }
+    
+    // Order by created_at DESC to show most recent tickets first (last 100K)
+    query += ' ORDER BY created_at DESC, ticket_number DESC LIMIT ? OFFSET ?';
     params.push(limit, offset);
     
     const tickets = await db.all(query, params);
@@ -4895,8 +4904,31 @@ app.get('/api/public/available-tickets', async (req, res) => {
       countParams.push(category);
     }
     
+    if (search) {
+      countQuery += ' AND ticket_number LIKE ?';
+      countParams.push(`%${search}%`);
+    }
+    
     const countResult = await db.get(countQuery, countParams);
     const total = countResult ? countResult.total : 0;
+    
+    // If groupByCategory is requested, also get counts per category
+    let categoryGroups = null;
+    if (groupByCategory) {
+      categoryGroups = await db.all(`
+        SELECT 
+          category,
+          COUNT(*) as count,
+          MIN(ticket_number) as first_ticket,
+          MAX(ticket_number) as last_ticket
+        FROM tickets 
+        WHERE raffle_id = ? 
+          AND status = 'AVAILABLE'
+          AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+        GROUP BY category
+        ORDER BY category
+      `, [raffle.id]);
+    }
     
     res.json({
       tickets: tickets,
@@ -4905,7 +4937,8 @@ app.get('/api/public/available-tickets', async (req, res) => {
         limit: limit,
         total: total,
         total_pages: Math.ceil(total / limit)
-      }
+      },
+      categoryGroups: categoryGroups
     });
   } catch (error) {
     console.error('Error fetching available tickets:', error);
