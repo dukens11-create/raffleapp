@@ -62,6 +62,9 @@ class Mutex {
 // Create mutex for ticket generation to prevent race conditions
 const ticketGenerationMutex = new Mutex();
 
+// Maximum number of tickets to return per category for online purchase
+const MAX_TICKETS_PER_CATEGORY = 100000;
+
 // Haiti Departments - Valid department values
 const HAITI_DEPARTMENTS = [
   'Ouest',
@@ -521,7 +524,8 @@ function validateRequest(req, res, next) {
     '/api/payments/methods',
     '/api/payments/status',            // Also matches /api/payments/status/:reference
     '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
-    '/api/departments'
+    '/api/departments',
+    '/api/buyer/available-tickets'    // New: Get last 100K available tickets per category
   ];
   
   // Check if request path matches any public API endpoint (exact or with parameters)
@@ -4910,6 +4914,94 @@ app.get('/api/public/available-tickets', async (req, res) => {
   } catch (error) {
     console.error('Error fetching available tickets:', error);
     res.status(500).json({ error: 'Failed to fetch available tickets' });
+  }
+});
+
+// GET /api/buyer/available-tickets - Get last 100,000 available tickets per category
+// Returns tickets grouped by category, filtered by status='AVAILABLE' and available_online=true
+app.get('/api/buyer/available-tickets', async (req, res) => {
+  try {
+    console.log('📥 Buyer available-tickets endpoint called');
+    
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ 
+        error: 'No active raffle found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Get all distinct categories first
+    const categories = await db.all(`
+      SELECT DISTINCT category
+      FROM tickets
+      WHERE raffle_id = ?
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      ORDER BY category
+    `, [raffle.id]);
+    
+    if (categories.length === 0) {
+      return res.json({
+        message: 'No tickets available for online purchase',
+        categories: {},
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Build result object with tickets grouped by category
+    const result = {
+      categories: {},
+      timestamp: new Date().toISOString()
+    };
+    
+    // For each category, get the last MAX_TICKETS_PER_CATEGORY available tickets (ordered by most recent)
+    // Note: Using separate queries per category for simplicity and compatibility with both DB types
+    // A single query with window functions would be more efficient but complex for this use case
+    for (const cat of categories) {
+      const category = cat.category;
+      
+      // Query to get last MAX_TICKETS_PER_CATEGORY tickets per category
+      // Order by created_at DESC to get most recent first, then limit to MAX_TICKETS_PER_CATEGORY
+      const tickets = await db.all(`
+        SELECT 
+          ticket_number,
+          barcode,
+          category,
+          price,
+          status,
+          created_at
+        FROM tickets
+        WHERE raffle_id = ?
+          AND category = ?
+          AND status = 'AVAILABLE'
+          AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+        ORDER BY created_at DESC
+        LIMIT ?
+      `, [raffle.id, category, MAX_TICKETS_PER_CATEGORY]);
+      
+      result.categories[category] = tickets;
+      
+      console.log(`  Category ${category}: ${tickets.length} tickets`);
+    }
+    
+    console.log(`✅ Returned tickets for ${categories.length} categories`);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error in /api/buyer/available-tickets:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch available tickets',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
