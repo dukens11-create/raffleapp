@@ -4786,7 +4786,7 @@ app.get('/api/public/raffle-info', async (req, res) => {
 app.get('/api/public/available-tickets', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Cap at 100 to prevent abuse
     const category = req.query.category || '';
     const offset = (page - 1) * limit;
     
@@ -4804,6 +4804,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
     
     // Build query with optional category filter
     // Filter to only show tickets available online
+    // Note: Using UPPER(status) for case-insensitive comparison to handle both 'available' and 'AVAILABLE'
     let query = `
       SELECT id, ticket_number as number, category, price
       FROM tickets 
