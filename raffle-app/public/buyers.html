@@ -1084,30 +1084,12 @@
       } catch (error) {
         console.error('[Buyers] Error loading raffle info:', error);
         
-        // Show detailed error with diagnostics
+        // Show error message for network or API errors
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
-            <h3>Unable to Load Raffle Information</h3>
-            
-            <div style="text-align: left; background: #fee2e2; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
-              <div style="font-weight: 600; color: #991b1b; margin-bottom: 8px;">Error Details:</div>
-              <div style="color: #7f1d1d; font-family: monospace; font-size: 14px; margin-bottom: 12px;">
-                ${escapeHtml(error.message || 'Unknown error')}
-              </div>
-              
-              <div style="font-weight: 600; color: #991b1b; margin-bottom: 8px;">Troubleshooting:</div>
-              <ul style="color: #7f1d1d; font-size: 14px; margin-left: 20px; line-height: 1.8;">
-                <li>Check if the server is running</li>
-                <li>Verify the API endpoint exists: <code>/api/public/raffle-info</code></li>
-                <li>Check if there's an active raffle in the database</li>
-                <li>Try restarting the server</li>
-              </ul>
-            </div>
-            
-            <button class="btn btn-primary" onclick="testConnection()" style="display: inline-block; margin-right: 8px;">
-              🔍 Test Connection
-            </button>
+            <h3>Error loading raffle info</h3>
+            <p style="margin-bottom: 16px;">Unable to load raffle information. Please check your connection and try again.</p>
             <button class="btn btn-primary" onclick="loadRaffleInfo(true)" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -1198,6 +1180,21 @@
     function renderRaffleInfo(data) {
       const container = document.getElementById('raffle-info-content');
       
+      // Safely check if the response is valid and contains required data
+      if (!data || !data.raffle || typeof data.raffle.name !== 'string') {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">⚠️</div>
+            <h3>Raffle info not available</h3>
+            <p>The raffle information could not be loaded. Please try again later.</p>
+            <button class="btn btn-primary" onclick="loadRaffleInfo(true)" style="display: inline-block; margin-top: 16px;">
+              🔄 Retry
+            </button>
+          </div>
+        `;
+        return;
+      }
+      
       container.innerHTML = `
           <div class="raffle-info-grid">
             <div class="info-item">
@@ -1226,11 +1223,11 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
               <div>
                 <div style="font-size: 16px; opacity: 0.9; margin-bottom: 4px;">🌐 Available for Online Purchase</div>
-                <div style="font-size: 36px; font-weight: 700;">${(data.stats.online_available_now || 0).toLocaleString()}</div>
+                <div style="font-size: 36px; font-weight: 700;">${(data.stats && data.stats.online_available_now || 0).toLocaleString()}</div>
               </div>
               <div style="text-align: right;">
                 <div style="font-size: 14px; opacity: 0.8;">Total Online Tickets</div>
-                <div style="font-size: 20px; font-weight: 600;">${(data.stats.online_available_total || 0).toLocaleString()}</div>
+                <div style="font-size: 20px; font-weight: 600;">${(data.stats && data.stats.online_available_total || 0).toLocaleString()}</div>
               </div>
             </div>
             <button onclick="document.querySelector('[data-tab=\"purchase\"]').click()" style="background: white; color: #10b981; width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 16px; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
@@ -1240,7 +1237,7 @@
           
           <h3 style="margin-top: 32px; margin-bottom: 16px; font-size: 20px;">Ticket Categories & Prices</h3>
           <div class="prize-list">
-            ${data.categories.map(cat => `
+            ${(data.categories || []).map(cat => `
               <div class="prize-item" style="border-left: 4px solid ${cat.color || '#667eea'};">
                 <div style="flex: 1;">
                   <div class="prize-category">${cat.category_name || cat.category_code}</div>
@@ -1258,15 +1255,15 @@
           <div class="stats-grid">
             <div class="stat-card">
               <h3>Total Tickets</h3>
-              <div class="value">${data.stats.total_tickets.toLocaleString()}</div>
+              <div class="value">${(data.stats && data.stats.total_tickets || 0).toLocaleString()}</div>
             </div>
             <div class="stat-card">
               <h3>All Available</h3>
-              <div class="value">${data.stats.available_tickets.toLocaleString()}</div>
+              <div class="value">${(data.stats && data.stats.available_tickets || 0).toLocaleString()}</div>
             </div>
             <div class="stat-card">
               <h3>Sold</h3>
-              <div class="value">${data.stats.sold_tickets.toLocaleString()}</div>
+              <div class="value">${(data.stats && data.stats.sold_tickets || 0).toLocaleString()}</div>
             </div>
           </div>
         `;
