@@ -5206,6 +5206,9 @@ app.post('/api/public/purchase/initiate', [
     // Lock tickets to prevent race conditions during allocation
     await ticketGenerationMutex.lock();
     
+    // Declare paymentReference outside try block so it's available for rollback
+    let paymentReference = null;
+    
     try {
       // Check available tickets in this category (last 100K pool only)
       const availableTickets = await db.all(`
@@ -5230,7 +5233,7 @@ app.post('/api/public/purchase/initiate', [
       }
       
       // Generate payment reference
-      const paymentReference = paymentService.generatePaymentReference(
+      paymentReference = paymentService.generatePaymentReference(
         payment_method.toUpperCase()
       );
       
