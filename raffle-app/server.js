@@ -4780,10 +4780,13 @@ app.get('/api/public/raffle-info', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Error fetching active raffle:', err);
-    res.status(500).json({
-      error: "Failed to fetch raffle info. Please try again.",
-      details: String(err)
-    });
+    const response = {
+      error: "Failed to fetch raffle info. Please try again."
+    };
+    if (process.env.DEBUG_MODE === 'true') {
+      response.details = String(err);
+    }
+    res.status(500).json(response);
   }
 });
 
