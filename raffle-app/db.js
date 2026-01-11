@@ -390,6 +390,16 @@ async function initializeSchema() {
       )
     `);
     
+    // Departments table - stores the 10 Haiti departments
+    await run(`
+      CREATE TABLE IF NOT EXISTS departments (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        name TEXT UNIQUE NOT NULL,
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    console.log('✅ Departments table created');
+    
     // Payments table - for tracking all payment transactions
     await run(`
       CREATE TABLE IF NOT EXISTS payments (
@@ -733,6 +743,34 @@ async function initializeSchema() {
       console.log('   - XYZ (Platinum): $500.00 - 250,000 tickets');
       console.log('   - Total capacity: 1,500,000 tickets');
       console.log('   - Potential revenue: $262,500,000');
+    }
+    
+    // Initialize departments table with Haiti's 10 departments if empty
+    const existingDepartments = await get("SELECT COUNT(*) as count FROM departments");
+    if (!existingDepartments || existingDepartments.count === 0) {
+      console.log('🗺️  Populating departments table with Haiti departments...');
+      
+      const haitiDepartments = [
+        'Artibonite',
+        'Centre',
+        "Grand'Anse",
+        'Nippes',
+        'Nord',
+        'Nord-Est',
+        'Nord-Ouest',
+        'Ouest',
+        'Sud',
+        'Sud-Est'
+      ];
+      
+      for (const department of haitiDepartments) {
+        await run(
+          'INSERT INTO departments (name) VALUES (?)',
+          [department]
+        );
+      }
+      
+      console.log('✅ Departments table populated with 10 Haiti departments');
     }
     
   } catch (error) {
