@@ -981,6 +981,18 @@
       }
     }
     
+    // Helper function to escape HTML to prevent XSS
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+    
     // ============================================================================
     // TAB SWITCHING
     // ============================================================================
@@ -1071,7 +1083,7 @@
             <div class="empty-state">
               <div class="empty-state-icon">⚠️</div>
               <h3>Unable to Load Raffle Information</h3>
-              <p>${error.message}</p>
+              <p>${escapeHtml(error.message)}</p>
               <button class="btn btn-primary" onclick="loadRaffleInfo(true)" style="margin-top: 16px;">
                 🔄 Retry
               </button>
@@ -1217,7 +1229,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Tickets</h3>
-            <p style="margin-bottom: 16px;">${error.message}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message)}</p>
             <button class="btn btn-primary" onclick="loadAvailableTickets(${page})" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -1395,7 +1407,7 @@
         // Populate category filter from cached raffle data
         if (raffleData && raffleData.categories) {
           const categoryFilter = document.getElementById('category-filter');
-          if (categoryFilter) {  // ADD THIS NULL CHECK
+          if (categoryFilter) {
             raffleData.categories.forEach(cat => {
               const option = document.createElement('option');
               option.value = cat.category_code;
@@ -1666,7 +1678,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Payment Methods</h3>
-            <p style="margin-bottom: 16px;">${error.message}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message)}</p>
             <button class="btn btn-primary" onclick="loadPaymentMethods()" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -1867,7 +1879,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Instructions Not Available</h3>
-            <p style="margin-bottom: 16px;">${error.message}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message)}</p>
             <button class="btn btn-primary" onclick="showManualPayment(document.getElementById('payment-details-content'), '${method}')" style="display: inline-block;">
               🔄 Retry
             </button>
