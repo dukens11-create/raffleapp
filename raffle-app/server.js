@@ -4771,14 +4771,14 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
 // GET /api/public/raffle-info - Get current raffle information
 app.get('/api/public/raffle-info', async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM raffles WHERE status = 'active' LIMIT 1");
-    if (result.length === 0) {
+    const result = await db.get("SELECT * FROM raffles WHERE status = 'active' LIMIT 1");
+    if (!result) {
       return res.status(404).json({ error: 'No active raffle found.' });
     }
-    res.json(result[0]);
+    res.json(result);
   } catch (err) {
     console.error('Failed to fetch raffle info:', err);
-    res.status(500).json({ error: 'Failed to fetch raffle info', details: String(err) });
+    res.status(500).json({ error: 'Failed to fetch raffle info' });
   }
 });
 
