@@ -5704,10 +5704,11 @@ app.get('/api/payments/callback', async (req, res) => {
     console.log(`[PAYMENT CALLBACK] Received callback - transactionId: ${transactionId}, token: ${token}`);
     
     // Find payment by transaction ID or token
+    const paymentIdentifier = transactionId || token;
     const payment = await db.get(`
       SELECT * FROM payments 
       WHERE transaction_id = ? OR external_reference = ?
-    `, [transactionId || token, transactionId || token]);
+    `, [paymentIdentifier, paymentIdentifier]);
     
     if (!payment) {
       return res.status(404).send(`
