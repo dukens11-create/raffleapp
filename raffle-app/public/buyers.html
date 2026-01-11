@@ -1691,7 +1691,7 @@
       
       try {
         console.log('[Buyers] Loading departments...');
-        const response = await fetchWithTimeout('/api/departments', {}, 10000);
+        const response = await fetchWithTimeout('/api/public/departments', {}, 10000);
         const data = await response.json();
         
         console.log('[Buyers] Departments loaded:', data);
