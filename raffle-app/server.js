@@ -62,6 +62,9 @@ class Mutex {
 // Create mutex for ticket generation to prevent race conditions
 const ticketGenerationMutex = new Mutex();
 
+// Maximum number of tickets to return per category for online purchase
+const MAX_TICKETS_PER_CATEGORY = 100000;
+
 // Haiti Departments - Valid department values
 const HAITI_DEPARTMENTS = [
   'Ouest',
@@ -4935,7 +4938,7 @@ app.get('/api/buyer/available-tickets', async (req, res) => {
       });
     }
     
-    // Get all distinct categories
+    // Get all distinct categories first
     const categories = await db.all(`
       SELECT DISTINCT category
       FROM tickets
@@ -4959,12 +4962,14 @@ app.get('/api/buyer/available-tickets', async (req, res) => {
       timestamp: new Date().toISOString()
     };
     
-    // For each category, get the last 100,000 available tickets (ordered by most recent)
+    // For each category, get the last MAX_TICKETS_PER_CATEGORY available tickets (ordered by most recent)
+    // Note: Using separate queries per category for simplicity and compatibility with both DB types
+    // A single query with window functions would be more efficient but complex for this use case
     for (const cat of categories) {
       const category = cat.category;
       
-      // Query to get last 100,000 tickets per category
-      // Order by created_at DESC to get most recent first, then limit to 100,000
+      // Query to get last MAX_TICKETS_PER_CATEGORY tickets per category
+      // Order by created_at DESC to get most recent first, then limit to MAX_TICKETS_PER_CATEGORY
       const tickets = await db.all(`
         SELECT 
           ticket_number,
@@ -4979,8 +4984,8 @@ app.get('/api/buyer/available-tickets', async (req, res) => {
           AND status = 'AVAILABLE'
           AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
         ORDER BY created_at DESC
-        LIMIT 100000
-      `, [raffle.id, category]);
+        LIMIT ?
+      `, [raffle.id, category, MAX_TICKETS_PER_CATEGORY]);
       
       result.categories[category] = tickets;
       
