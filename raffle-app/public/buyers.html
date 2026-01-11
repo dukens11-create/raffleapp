@@ -1181,7 +1181,7 @@
       const container = document.getElementById('raffle-info-content');
       
       // Safely check if the response is valid and contains required data
-      if (!data || !data.raffle || typeof data.raffle.name !== 'string') {
+      if (!data || !data.raffle || typeof data.raffle?.name !== 'string') {
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
