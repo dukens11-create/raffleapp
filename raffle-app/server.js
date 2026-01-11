@@ -4771,80 +4771,14 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
 // GET /api/public/raffle-info - Get current raffle information
 app.get('/api/public/raffle-info', async (req, res) => {
   try {
-    // Get the active raffle only (not draft)
-    const raffle = await db.get(`
-      SELECT id, name, description, start_date, draw_date, status, total_tickets
-      FROM raffles 
-      WHERE status = 'active'
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `);
-    
-    if (!raffle) {
-      return res.status(404).json({ error: 'No active raffle found' });
+    const result = await db.query("SELECT * FROM raffles WHERE status = 'active' LIMIT 1");
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'No active raffle found.' });
     }
-    
-    // Get ticket categories with their prices
-    const categories = await db.all(`
-      SELECT category_code, category_name, price, color, description
-      FROM ticket_categories 
-      WHERE raffle_id = ?
-      ORDER BY category_code
-    `, [raffle.id]);
-    
-    // Get statistics including online-available tickets
-    const stats = await db.get(`
-      SELECT 
-        COUNT(*) as total_tickets,
-        COUNT(CASE WHEN status = 'SOLD' THEN 1 END) as sold_tickets,
-        COUNT(CASE WHEN status = 'AVAILABLE' THEN 1 END) as available_tickets,
-        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_total,
-        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_now
-      FROM tickets 
-      WHERE raffle_id = ?
-    `, [raffle.id]);
-    
-    // Get online-available counts per category
-    const categoryStats = await db.all(`
-      SELECT 
-        category,
-        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
-        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available
-      FROM tickets 
-      WHERE raffle_id = ?
-      GROUP BY category
-    `, [raffle.id]);
-    
-    // Merge category stats with categories
-    const categoriesWithStats = categories.map(cat => {
-      const catStat = categoryStats.find(cs => cs.category === cat.category_code) || { online_total: 0, online_available: 0 };
-      return {
-        ...cat,
-        online_available: catStat.online_available,
-        online_total: catStat.online_total
-      };
-    });
-    
-    res.json({
-      raffle: {
-        name: raffle.name,
-        description: raffle.description,
-        start_date: raffle.start_date,
-        draw_date: raffle.draw_date,
-        status: raffle.status
-      },
-      categories: categoriesWithStats,
-      stats: stats || { 
-        total_tickets: 0, 
-        sold_tickets: 0, 
-        available_tickets: 0,
-        online_available_total: 0,
-        online_available_now: 0
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching raffle info:', error);
-    res.status(500).json({ error: 'Failed to fetch raffle information' });
+    res.json(result[0]);
+  } catch (err) {
+    console.error('Failed to fetch raffle info:', err);
+    res.status(500).json({ error: 'Failed to fetch raffle info', details: String(err) });
   }
 });
 
