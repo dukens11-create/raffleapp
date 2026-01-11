@@ -388,7 +388,9 @@ async function batchInsertTickets(tickets) {
     return;
   }
   
-  const placeholders = tickets.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ${db.USE_POSTGRES ? 'TRUE' : '1'}, \${db.getCurrentTimestamp()})`).join(',');
+  // Build placeholders with proper timestamp handling
+  const timestampValue = db.getCurrentTimestamp();
+  const placeholders = tickets.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ${db.USE_POSTGRES ? 'TRUE' : '1'}, ${timestampValue})`).join(',');
   const values = tickets.flatMap(t => [
     t.raffle_id,
     t.category_id,
@@ -405,7 +407,7 @@ async function batchInsertTickets(tickets) {
       raffle_id, category_id, category, ticket_number, 
       barcode, qr_code_data, price, status, available_online, created_at
     ) VALUES ${placeholders}
-  `.replace(/\$\{db\.getCurrentTimestamp\(\)\}/g, db.getCurrentTimestamp());
+  `;
   
   await db.run(sql, values);
 }
