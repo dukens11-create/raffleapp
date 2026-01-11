@@ -981,6 +981,18 @@
       }
     }
     
+    // Helper function to escape HTML to prevent XSS
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+        .toString()
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+    
     // ============================================================================
     // TAB SWITCHING
     // ============================================================================
@@ -1064,19 +1076,20 @@
         
         window.raffleInfoLoaded = true;
       } catch (error) {
-        console.error('[Buyers] Error loading raffle info:', error);
-        
-        // Show error with retry button
-        container.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">⚠️</div>
-            <h3>Unable to Load Raffle Information</h3>
-            <p style="margin-bottom: 16px;">${error.message || 'Please check your internet connection and try again.'}</p>
-            <button class="btn btn-primary" onclick="loadRaffleInfo(true)" style="display: inline-block;">
-              🔄 Retry
-            </button>
-          </div>
-        `;
+        console.error('Error loading raffle info:', error);
+        const contentEl = document.getElementById('raffle-info-content');
+        if (contentEl) {
+          contentEl.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">⚠️</div>
+              <h3>Unable to Load Raffle Information</h3>
+              <p>${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
+              <button class="btn btn-primary" onclick="loadRaffleInfo(true)" style="margin-top: 16px;">
+                🔄 Retry
+              </button>
+            </div>
+          `;
+        }
       }
     }
     
@@ -1136,9 +1149,6 @@
             </div>
           </div>
         `;
-    }
-        `;
-      }
     }
     
     // Load available tickets
@@ -1219,7 +1229,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Tickets</h3>
-            <p style="margin-bottom: 16px;">${error.message}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
             <button class="btn btn-primary" onclick="loadAvailableTickets(${page})" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -1391,30 +1401,25 @@
     
     // Load raffle info and populate category filter on page load
     async function init() {
-      console.log('[Buyers] Initializing page...');
-      
       try {
-        // Try to load raffle info, but don't block the page if it fails
         await loadRaffleInfo();
         
         // Populate category filter from cached raffle data
         if (raffleData && raffleData.categories) {
-          console.log('[Buyers] Populating category filters...');
           const categoryFilter = document.getElementById('category-filter');
-          raffleData.categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.category_code;
-            option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
-            categoryFilter.appendChild(option);
-          });
+          if (categoryFilter) {
+            raffleData.categories.forEach(cat => {
+              const option = document.createElement('option');
+              option.value = cat.category_code;
+              option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
+              categoryFilter.appendChild(option);
+            });
+          }
         }
       } catch (error) {
-        console.error('[Buyers] Error during initialization:', error);
-        // Show global error banner for critical initialization failure
-        showGlobalError('Unable to load raffle information. Please check your connection and try again.');
+        console.error('Initialization error:', error);
+        // Page can still load even if raffle info fails
       }
-      
-      console.log('[Buyers] Page initialization complete');
     }
     
     // Show global error banner
@@ -1673,7 +1678,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Payment Methods</h3>
-            <p style="margin-bottom: 16px;">${error.message}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
             <button class="btn btn-primary" onclick="loadPaymentMethods()" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -1874,7 +1879,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Instructions Not Available</h3>
-            <p style="margin-bottom: 16px;">${error.message}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
             <button class="btn btn-primary" onclick="showManualPayment(document.getElementById('payment-details-content'), '${method}')" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -2068,7 +2073,12 @@
     }
     
     // Initialize on page load
-    init();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      // DOM is already loaded
+      init();
+    }
   </script>
 </body>
 </html>
