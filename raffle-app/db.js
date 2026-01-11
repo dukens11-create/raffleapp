@@ -633,6 +633,26 @@ async function initializeSchema() {
       }
     }
     
+    // Add available_online column to tickets table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS available_online BOOLEAN DEFAULT FALSE
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasAvailableOnline = columns.some(col => col.name === 'available_online');
+        if (!hasAvailableOnline) {
+          await run(`ALTER TABLE tickets ADD COLUMN available_online INTEGER DEFAULT 0`);
+        }
+      }
+      console.log('✅ Added available_online column to tickets table');
+    } catch (error) {
+      console.log('Note: available_online column already exists or could not be added');
+    }
+    
     // Add performance indexes
     console.log('📊 Creating performance indexes...');
 
@@ -641,6 +661,7 @@ async function initializeSchema() {
       'CREATE INDEX IF NOT EXISTS idx_tickets_created_at ON tickets(created_at)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_available_online ON tickets(available_online)',
       
       // Seller requests indexes
       'CREATE INDEX IF NOT EXISTS idx_seller_requests_status ON seller_requests(status)',
