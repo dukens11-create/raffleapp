@@ -56,8 +56,9 @@ NATCASH_WALLET_NUMBER=+509 3220 4333
 3. Complete KYC verification
 4. Navigate to your dashboard
 5. Copy your **Client ID** and **Client Secret**
-6. Set `MONCASH_MODE=sandbox` for testing
-7. Once approved for production, set `MONCASH_MODE=production`
+6. **Configure Return URL**: Set your callback URL to `https://yourdomain.com/api/payments/callback`
+7. Set `MONCASH_MODE=sandbox` for testing
+8. Once approved for production, set `MONCASH_MODE=production`
 
 ### Step 3: Available API Endpoints
 
@@ -69,25 +70,37 @@ POST /api/public/purchase/initiate
 ```
 Atomically allocates tickets and initiates payment in one call.
 
-#### 2. Check Available Payment Methods
+#### 2. Payment Callback/Return URL
+```
+GET /api/payments/callback?transactionId={id}
+```
+MonCash redirects users here after payment completion. Automatically verifies and confirms payment.
+
+#### 3. Manually Verify Payment
+```
+POST /api/payments/verify/:reference
+```
+Manually check and update payment status with provider.
+
+#### 4. Check Available Payment Methods
 ```
 GET /api/payments/methods
 ```
 Returns which payment methods are configured and available.
 
-#### 3. Get Payment Status
+#### 5. Get Payment Status
 ```
 GET /api/payments/status/:reference
 ```
 Check the status of a payment using its reference.
 
-#### 4. Submit Manual Payment
+#### 6. Submit Manual Payment
 ```
 POST /api/payments/manual/submit
 ```
 Submit a manual payment reference for admin verification.
 
-#### 5. Get Manual Payment Instructions
+#### 7. Get Manual Payment Instructions
 ```
 GET /api/payments/manual-instructions/:method
 ```
