@@ -105,10 +105,15 @@ function validateEnvironment() {
   // CRITICAL VARIABLES (Server won't start without these)
   // ============================================
   
-  // Database URL is absolutely required
+  // Database URL - Allow SQLite fallback in development
   if (!process.env.DATABASE_URL) {
-    errors.push('DATABASE_URL - Database connection string is required');
-    errors.push('  Set to: postgresql://user:pass@host:port/db or sqlite:./raffle.db');
+    if (process.env.NODE_ENV === 'production') {
+      errors.push('DATABASE_URL - Database connection string is required in production');
+      errors.push('  Set to: postgresql://user:pass@host:port/db');
+    } else {
+      warnings.push('DATABASE_URL not set - using SQLite (development only)');
+      warnings.push('  For production, set DATABASE_URL to PostgreSQL connection string');
+    }
   }
   
   // ============================================

@@ -250,6 +250,7 @@ async function initializeSchema() {
         prize_level TEXT,
         won_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
         customer_department TEXT,
+        available_online ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'FALSE' : '0'},
         created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
       )
     `);
