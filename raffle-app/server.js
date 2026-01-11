@@ -4771,7 +4771,7 @@ app.get('/api/public/raffle-info', async (req, res) => {
        LIMIT 1`
     );
     
-    if (!raffleResult.rows || raffleResult.rows.length === 0) {
+    if (raffleResult.rows.length === 0) {
       console.log('No active raffle found');
       return res.status(404).json({ error: 'No active raffle found' });
     }
@@ -6487,7 +6487,7 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Access the application at http://localhost:${PORT}`);
@@ -6498,7 +6498,14 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: PostgreSQL not configured. /api/public/raffle-info endpoint will not work.');
     console.warn('   Set DATABASE_URL environment variable to enable PostgreSQL.');
   } else {
-    console.log('✅ PostgreSQL connected - /api/public/raffle-info endpoint ready');
+    // Test the actual connection
+    try {
+      await db.pgPool.query('SELECT 1');
+      console.log('✅ PostgreSQL connected - /api/public/raffle-info endpoint ready');
+    } catch (error) {
+      console.error('❌ PostgreSQL connection failed:', error.message);
+      console.error('   /api/public/raffle-info endpoint will not work.');
+    }
   }
 });
 
