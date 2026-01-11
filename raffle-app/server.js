@@ -1906,24 +1906,22 @@ app.get('/api/seller-stats', requireAuth, requireAdmin, async (req, res) => {
 
 /**
  * GET /api/departments - Get list of Haiti departments
- * Public endpoint to get the valid department options
+ * GET /api/public/departments - Public endpoint alias
+ * Returns the list of valid Haiti department options
  */
-app.get('/api/departments', async (req, res) => {
-  res.json({
+function getDepartmentsResponse() {
+  return {
     success: true,
     departments: HAITI_DEPARTMENTS
-  });
+  };
+}
+
+app.get('/api/departments', async (req, res) => {
+  res.json(getDepartmentsResponse());
 });
 
-/**
- * GET /api/public/departments - Get list of Haiti departments
- * Public endpoint to get the valid department options
- */
 app.get('/api/public/departments', async (req, res) => {
-  res.json({
-    success: true,
-    departments: HAITI_DEPARTMENTS
-  });
+  res.json(getDepartmentsResponse());
 });
 
 /**
