@@ -5738,9 +5738,10 @@ app.post('/api/admin/tickets/mark-online-available', requireAuth, requireAdmin, 
       });
     }
     
+    // Use parameterized value instead of string concatenation
     const availableOnlineValue = action === 'mark' 
-      ? (db.USE_POSTGRES ? 'TRUE' : '1')
-      : (db.USE_POSTGRES ? 'FALSE' : '0');
+      ? (db.USE_POSTGRES ? true : 1)
+      : (db.USE_POSTGRES ? false : 0);
     
     // Get the active raffle
     const raffle = await db.get(`
@@ -5754,20 +5755,17 @@ app.post('/api/admin/tickets/mark-online-available', requireAuth, requireAdmin, 
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
-    // Build update query based on filters
-    let query = 'UPDATE tickets SET available_online = ' + availableOnlineValue + ' WHERE raffle_id = ?';
-    const params = [raffle.id];
+    // Build update query based on filters using parameterized queries
+    let query = 'UPDATE tickets SET available_online = ? WHERE raffle_id = ?';
+    const params = [availableOnlineValue, raffle.id];
     
     if (category) {
       query += ' AND category = ?';
       params.push(category);
     }
     
-    if (startTicket && endTicket) {
-      // Extract numeric part and filter by range
-      query += ' AND CAST(SUBSTR(ticket_number, LENGTH(category) + 2) AS INTEGER) BETWEEN ? AND ?';
-      params.push(parseInt(startTicket), parseInt(endTicket));
-    }
+    // Note: Range filtering removed as it's not used by the frontend
+    // and the migration script handles the last 100K logic
     
     // Execute update
     const result = await db.run(query, params);

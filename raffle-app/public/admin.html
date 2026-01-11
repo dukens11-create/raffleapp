@@ -896,14 +896,14 @@
         <h4 style="margin: 0 0 16px 0;">Quick Actions</h4>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
-          <!-- Mark Last 100K Tickets -->
+          <!-- Mark All Tickets in Category -->
           <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px;">
-            <h5 style="margin: 0 0 8px 0; color: #1e293b;">Mark Last 100K Per Category</h5>
+            <h5 style="margin: 0 0 8px 0; color: #1e293b;">Mark All Tickets in Category</h5>
             <p style="font-size: 14px; color: #64748b; margin-bottom: 12px;">
-              Automatically mark the last 100,000 tickets in each category as available online.
+              Mark ALL tickets in each category as available online. Use migration script for last 100K only.
             </p>
             <button onclick="markLast100KOnline()" style="background: #10b981; color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-              ✨ Auto-Mark Tickets
+              ✨ Mark All Tickets
             </button>
           </div>
           
@@ -3354,9 +3354,9 @@
       }
     }
     
-    // Mark last 100K tickets per category as available online
+    // Mark all tickets in categories as available online
     async function markLast100KOnline() {
-      if (!confirm('This will mark the last 100,000 tickets in each category (ABC, EFG, JKL, XYZ) as available for online purchase.\n\nDo you want to continue?')) {
+      if (!confirm('This will mark ALL tickets in each category (ABC, EFG, JKL, XYZ) as available for online purchase.\n\nTo mark only the last 100K tickets per category, use the migration script:\nnode migrations/mark_online_available_tickets.js\n\nDo you want to mark ALL tickets?')) {
         return;
       }
       
@@ -3372,9 +3372,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               category: category,
-              action: 'mark',
-              startTicket: null,
-              endTicket: null
+              action: 'mark'
             })
           });
           
