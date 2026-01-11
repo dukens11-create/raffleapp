@@ -16,10 +16,10 @@ app.get('/api/public/raffle-info', (req, res) => {
   const filtered = availableTickets.filter(t =>
     t.status === 'available' &&
     t.available_online &&
-    t.raffle_id == 1 &&
-    t.category_id == 2
+    t.raffle_id === 1 &&
+    t.category_id === 2
   );
-  res.json({tickets: filtered});
+  res.json({ tickets: filtered });
 });
 
 app.listen(PORT, () => {
