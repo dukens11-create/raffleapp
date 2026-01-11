@@ -2204,56 +2204,6 @@
       }
     }
     
-    // Initiate NatCash automated payment
-    async function initiateNatCashPayment() {
-      const errorEl = document.getElementById('purchase-error');
-      const successEl = document.getElementById('purchase-success');
-      const infoEl = document.getElementById('purchase-info');
-      
-      errorEl.classList.remove('show');
-      successEl.classList.remove('show');
-      infoEl.textContent = 'Sending payment request...';
-      infoEl.classList.add('show');
-      
-      try {
-        console.log('[Buyers] Initiating NatCash payment...');
-        const response = await fetchWithTimeout('/api/payments/natcash/initiate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: purchaseData.amount,
-            buyer_name: purchaseData.name,
-            buyer_phone: purchaseData.phone,
-            buyer_email: purchaseData.email,
-            ticket_category: purchaseData.category,
-            ticket_quantity: purchaseData.quantity,
-            customer_department: purchaseData.department
-          })
-        }, 10000);
-        
-        const data = await response.json();
-        
-        console.log('[Buyers] NatCash payment initiated:', data);
-        
-        if (!response.ok) {
-          throw new Error(data.error || 'Payment initiation failed');
-        }
-        
-        infoEl.classList.remove('show');
-        successEl.innerHTML = `
-          <strong>Payment Request Sent!</strong><br>
-          Reference: ${data.paymentReference}<br>
-          Please check your phone to complete the payment.
-        `;
-        successEl.classList.add('show');
-      } catch (error) {
-        console.error('[Buyers] Error initiating NatCash payment:', error);
-        infoEl.classList.remove('show');
-        errorEl.textContent = error.message;
-        errorEl.classList.add('show');
-      }
-    }
-    
     // Submit manual payment
     async function submitManualPayment(method) {
       const errorEl = document.getElementById('purchase-error');

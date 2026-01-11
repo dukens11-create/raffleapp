@@ -5074,17 +5074,19 @@ app.get('/api/public/ticket-availability', async (req, res) => {
     
     // Get available ticket counts by category
     // Only count tickets that are marked as available_online and still AVAILABLE
+    // Join with ticket_categories to get the correct price for each category
     const categoryStats = await db.all(`
       SELECT 
-        category,
+        t.category,
         COUNT(*) as available,
-        MAX(price) as price
-      FROM tickets 
-      WHERE raffle_id = ? 
-        AND status = 'AVAILABLE'
-        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
-      GROUP BY category
-      ORDER BY category
+        tc.price as price
+      FROM tickets t
+      LEFT JOIN ticket_categories tc ON t.raffle_id = tc.raffle_id AND t.category = tc.category_code
+      WHERE t.raffle_id = ? 
+        AND t.status = 'AVAILABLE'
+        AND t.available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      GROUP BY t.category, tc.price
+      ORDER BY t.category
     `, [raffle.id]);
     
     // Also get total online tickets per category (including sold ones)
@@ -5277,9 +5279,6 @@ app.post('/api/public/purchase/initiate', [
       
       console.log(`[PURCHASE] Reserved ${ticketIds.length} tickets: ${ticketNumbers.join(', ')}`);
       
-      // Release the mutex
-      ticketGenerationMutex.unlock();
-      
       // ========================================================================
       // INITIATE PAYMENT WITH PROVIDER
       // ========================================================================
@@ -5315,6 +5314,9 @@ app.post('/api/public/purchase/initiate', [
         `, [paymentResult.paymentId, paymentResult.transactionRef, paymentReference]);
       }
       
+      // Release the mutex after successful payment initiation
+      ticketGenerationMutex.unlock();
+      
       // Return success with allocated tickets and payment details
       res.json({
         success: true,
@@ -5329,23 +5331,27 @@ app.post('/api/public/purchase/initiate', [
       console.log(`[PURCHASE] Success: Payment ${paymentReference}, ${ticketNumbers.length} tickets allocated`);
       
     } catch (error) {
-      // Release mutex on error
-      ticketGenerationMutex.unlock();
+      // Release mutex on error (check if still locked)
+      if (ticketGenerationMutex.isLocked()) {
+        ticketGenerationMutex.unlock();
+      }
       
       console.error('[PURCHASE] Error during allocation:', error);
       
       // Rollback: Release any reserved tickets if payment initiation fails
-      // This is a safety measure in case payment provider API fails
-      try {
-        await db.run(`
-          UPDATE tickets 
-          SET payment_reference = NULL,
-              status = 'AVAILABLE'
-          WHERE payment_reference = ? AND status = 'RESERVED'
-        `, [paymentReference]);
-        console.log(`[PURCHASE] Rolled back ticket reservations for ${paymentReference}`);
-      } catch (rollbackError) {
-        console.error('[PURCHASE] Rollback failed:', rollbackError);
+      // Only attempt rollback if paymentReference was generated
+      if (paymentReference) {
+        try {
+          await db.run(`
+            UPDATE tickets 
+            SET payment_reference = NULL,
+                status = 'AVAILABLE'
+            WHERE payment_reference = ? AND status = 'RESERVED'
+          `, [paymentReference]);
+          console.log(`[PURCHASE] Rolled back ticket reservations for ${paymentReference}`);
+        } catch (rollbackError) {
+          console.error('[PURCHASE] Rollback failed:', rollbackError);
+        }
       }
       
       throw error;
