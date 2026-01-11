@@ -4809,13 +4809,14 @@ app.get('/api/public/raffle-info', async (req, res) => {
 });
 
 // GET /api/public/available-tickets - Get list of available tickets (no buyer data)
-// Optimized for large datasets with proper pagination
+// Optimized for large datasets with proper pagination and advanced filtering
 app.get('/api/public/available-tickets', async (req, res) => {
   try {
     // Parse pagination parameters with limits
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const perPage = Math.min(200, Math.max(1, parseInt(req.query.per_page) || 50)); // Default 50, max 200
     const category = req.query.category || '';
+    const priceRange = req.query.price_range || ''; // Format: "min-max" e.g., "50-100"
     const offset = (page - 1) * perPage;
     
     // Get the active raffle only
@@ -4844,6 +4845,15 @@ app.get('/api/public/available-tickets', async (req, res) => {
       params.push(category);
     }
     
+    // Parse and apply price range filter
+    if (priceRange) {
+      const [minPrice, maxPrice] = priceRange.split('-').map(p => parseFloat(p));
+      if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+        query += ' AND price >= ? AND price <= ?';
+        params.push(minPrice, maxPrice);
+      }
+    }
+    
     // Order by ticket_number for consistent pagination
     query += ' ORDER BY ticket_number LIMIT ? OFFSET ?';
     params.push(perPage, offset);
@@ -4862,6 +4872,14 @@ app.get('/api/public/available-tickets', async (req, res) => {
     if (category) {
       countQuery += ' AND category = ?';
       countParams.push(category);
+    }
+    
+    if (priceRange) {
+      const [minPrice, maxPrice] = priceRange.split('-').map(p => parseFloat(p));
+      if (!isNaN(minPrice) && !isNaN(maxPrice)) {
+        countQuery += ' AND price >= ? AND price <= ?';
+        countParams.push(minPrice, maxPrice);
+      }
     }
     
     const countResult = await db.get(countQuery, countParams);

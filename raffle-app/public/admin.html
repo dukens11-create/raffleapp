@@ -686,13 +686,85 @@
     
     <!-- Generate All Tickets Section -->
     <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎫 Generate Tickets</h3>
+      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎫 Bulk Ticket Generation</h3>
       <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Generate 1.5 million unique tickets with EAN-13 barcodes and QR codes automatically
+        Generate up to 375,000 tickets per category (1.5M total) with EAN-13 barcodes and QR codes
       </p>
-      <a href="/generate-tickets.html" style="display: inline-block; padding: 12px 24px; background: white; color: #10b981; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-        🚀 Generate All Tickets →
-      </a>
+      
+      <!-- Inline Generation Controls -->
+      <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 12px;">
+          <div>
+            <label style="color: white; font-size: 13px; display: block; margin-bottom: 4px;">Tickets per Category</label>
+            <input type="number" id="tickets-per-category" value="100000" min="1000" max="375000" step="1000" 
+                   style="width: 100%; padding: 8px; border-radius: 6px; border: none;">
+          </div>
+          <div>
+            <label style="color: white; font-size: 13px; display: block; margin-bottom: 4px;">Select Categories</label>
+            <select id="category-selection" style="width: 100%; padding: 8px; border-radius: 6px; border: none;">
+              <option value="all">All Categories (ABC, EFG, JKL, XYZ)</option>
+              <option value="ABC">ABC Only</option>
+              <option value="EFG">EFG Only</option>
+              <option value="JKL">JKL Only</option>
+              <option value="XYZ">XYZ Only</option>
+            </select>
+          </div>
+        </div>
+        
+        <button id="start-generation-btn" onclick="startBulkGeneration()" 
+                style="width: 100%; padding: 12px; background: white; color: #10b981; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px;">
+          🚀 Start Generation
+        </button>
+        
+        <!-- Progress Bar -->
+        <div id="generation-progress-container" style="display: none; margin-top: 16px;">
+          <div style="background: rgba(255, 255, 255, 0.3); border-radius: 8px; overflow: hidden; height: 24px; margin-bottom: 8px;">
+            <div id="generation-progress-bar" style="background: white; height: 100%; width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: #10b981; font-weight: 600; font-size: 12px;"></div>
+          </div>
+          <div id="generation-status" style="color: white; font-size: 14px; text-align: center;"></div>
+        </div>
+        
+        <div id="generation-result" style="display: none; margin-top: 12px; padding: 12px; border-radius: 6px;"></div>
+      </div>
+      
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="/generate-tickets.html" style="display: inline-block; padding: 12px 24px; background: white; color: #10b981; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+          🔧 Advanced Generation Tool →
+        </a>
+        <button onclick="loadTicketStats()" style="padding: 12px 24px; background: rgba(255, 255, 255, 0.2); color: white; border: 2px solid white; border-radius: 8px; font-weight: 600;">
+          📊 Refresh Stats
+        </button>
+      </div>
+    </div>
+    
+    <!-- Ticket Statistics & Monitoring Section -->
+    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+      <h3 style="color: white; margin: 0 0 16px 0; font-size: 20px;">📊 Ticket Monitoring Dashboard</h3>
+      
+      <div id="ticket-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+        <!-- Stats will be populated by JavaScript -->
+        <div style="background: rgba(255, 255, 255, 0.15); padding: 16px; border-radius: 8px; text-align: center;">
+          <div style="color: rgba(255, 255, 255, 0.8); font-size: 12px; margin-bottom: 8px;">Total Tickets</div>
+          <div id="stat-total" style="color: white; font-size: 32px; font-weight: 700;">--</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.15); padding: 16px; border-radius: 8px; text-align: center;">
+          <div style="color: rgba(255, 255, 255, 0.8); font-size: 12px; margin-bottom: 8px;">Available</div>
+          <div id="stat-available" style="color: white; font-size: 32px; font-weight: 700;">--</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.15); padding: 16px; border-radius: 8px; text-align: center;">
+          <div style="color: rgba(255, 255, 255, 0.8); font-size: 12px; margin-bottom: 8px;">Sold</div>
+          <div id="stat-sold" style="color: white; font-size: 32px; font-weight: 700;">--</div>
+        </div>
+        <div style="background: rgba(255, 255, 255, 0.15); padding: 16px; border-radius: 8px; text-align: center;">
+          <div style="color: rgba(255, 255, 255, 0.8); font-size: 12px; margin-bottom: 8px;">% Sold</div>
+          <div id="stat-percent" style="color: white; font-size: 32px; font-weight: 700;">--</div>
+        </div>
+      </div>
+      
+      <!-- Category Breakdown -->
+      <div id="category-stats" style="margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+        <!-- Category stats will be populated by JavaScript -->
+      </div>
     </div>
     
     <!-- Custom Ticket Designs Section -->
@@ -3168,6 +3240,244 @@
       const status = document.getElementById('xyz-portrait-status');
       
       if (!start || !end) {
+        alert('Please enter start and end numbers');
+        return;
+      }
+      
+      const count = parseInt(end) - parseInt(start) + 1;
+      const pages = Math.ceil(count / 8);
+      
+      if (count > 1000 && !confirm(`Generate ${count} tickets (${pages} pages)?`)) {
+        return;
+      }
+      
+      button.disabled = true;
+      button.innerHTML = '⏳ Generating...';
+      status.style.display = 'block';
+      status.textContent = `Generating ${count} tickets...`;
+      
+      try {
+        const response = await fetch('/api/admin/tickets/print-xyz-portrait', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ startNumber: start, endNumber: end, designId })
+        });
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to generate PDF');
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `XYZ-portrait-${start}-to-${end}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        status.textContent = `✅ Generated ${count} tickets on ${pages} pages!`;
+        setTimeout(() => status.style.display = 'none', 5000);
+        
+      } catch (error) {
+        status.textContent = `❌ Error: ${error.message}`;
+      } finally {
+        button.disabled = false;
+        button.innerHTML = '🖨️ Generate Portrait PDF (8-up)';
+      }
+    }
+    
+    // ==================== BULK TICKET GENERATION & MONITORING ====================
+    
+    // Start bulk generation from admin dashboard
+    async function startBulkGeneration() {
+      const ticketsPerCategory = parseInt(document.getElementById('tickets-per-category').value);
+      const categorySelection = document.getElementById('category-selection').value;
+      const startBtn = document.getElementById('start-generation-btn');
+      const progressContainer = document.getElementById('generation-progress-container');
+      const progressBar = document.getElementById('generation-progress-bar');
+      const status = document.getElementById('generation-status');
+      const result = document.getElementById('generation-result');
+      
+      // Validate input
+      if (!ticketsPerCategory || ticketsPerCategory < 1000 || ticketsPerCategory > 375000) {
+        showNotify('⚠️ Please enter a valid number between 1,000 and 375,000', '#ef4444');
+        return;
+      }
+      
+      // Confirm generation
+      const totalTickets = categorySelection === 'all' ? ticketsPerCategory * 4 : ticketsPerCategory;
+      if (!confirm(`Generate ${totalTickets.toLocaleString()} tickets?\n\nThis may take several minutes.`)) {
+        return;
+      }
+      
+      // Disable button and show progress
+      startBtn.disabled = true;
+      startBtn.innerHTML = '⏳ Generating...';
+      progressContainer.style.display = 'block';
+      result.style.display = 'none';
+      progressBar.style.width = '0%';
+      progressBar.textContent = '0%';
+      status.textContent = 'Starting generation...';
+      
+      try {
+        // Start generation
+        const response = await fetch('/api/admin/tickets/generate-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tickets_per_category: ticketsPerCategory,
+            categories: categorySelection
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to start generation');
+        }
+        
+        showNotify('✅ Generation started! Monitoring progress...', '#10b981');
+        status.textContent = 'Generation in progress...';
+        
+        // Poll progress
+        monitorGenerationProgress();
+        
+      } catch (error) {
+        console.error('Error starting generation:', error);
+        showNotify(`❌ Error: ${error.message}`, '#ef4444');
+        status.textContent = `Error: ${error.message}`;
+        progressContainer.style.display = 'none';
+        startBtn.disabled = false;
+        startBtn.innerHTML = '🚀 Start Generation';
+      }
+    }
+    
+    // Monitor generation progress
+    let progressInterval = null;
+    async function monitorGenerationProgress() {
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
+      
+      const progressBar = document.getElementById('generation-progress-bar');
+      const status = document.getElementById('generation-status');
+      const result = document.getElementById('generation-result');
+      const startBtn = document.getElementById('start-generation-btn');
+      
+      progressInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/admin/tickets/generation-progress');
+          const progress = await response.json();
+          
+          // Calculate total progress
+          const total = progress.abc + progress.efg + progress.jkl + progress.xyz;
+          const percent = Math.round((progress.completed / 1500000) * 100); // Assuming 1.5M total
+          
+          // Update progress bar
+          progressBar.style.width = `${percent}%`;
+          progressBar.textContent = `${percent}%`;
+          
+          // Update status
+          status.textContent = `Generated ${progress.completed.toLocaleString()} tickets (ABC: ${progress.abc.toLocaleString()}, EFG: ${progress.efg.toLocaleString()}, JKL: ${progress.jkl.toLocaleString()}, XYZ: ${progress.xyz.toLocaleString()})`;
+          
+          // Check if complete
+          if (!progress.inProgress) {
+            clearInterval(progressInterval);
+            
+            if (progress.error) {
+              result.innerHTML = `<div style="background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px;">❌ Error: ${progress.error}</div>`;
+              result.style.display = 'block';
+              showNotify('❌ Generation failed', '#ef4444');
+            } else {
+              result.innerHTML = `<div style="background: rgba(255, 255, 255, 0.9); color: #065f46; padding: 12px; border-radius: 6px;">✅ Successfully generated ${progress.completed.toLocaleString()} tickets!</div>`;
+              result.style.display = 'block';
+              showNotify('✅ Generation complete!', '#10b981');
+              
+              // Reload stats
+              setTimeout(() => {
+                loadTicketStats();
+              }, 1000);
+            }
+            
+            // Re-enable button
+            startBtn.disabled = false;
+            startBtn.innerHTML = '🚀 Start Generation';
+          }
+          
+        } catch (error) {
+          console.error('Error monitoring progress:', error);
+          clearInterval(progressInterval);
+          status.textContent = 'Error monitoring progress';
+          startBtn.disabled = false;
+          startBtn.innerHTML = '🚀 Start Generation';
+        }
+      }, 2000); // Poll every 2 seconds
+    }
+    
+    // Load ticket statistics
+    async function loadTicketStats() {
+      try {
+        const response = await fetch('/api/public/raffle-info');
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error('Failed to load statistics');
+        }
+        
+        // Update main stats
+        document.getElementById('stat-total').textContent = (data.stats.total_tickets || 0).toLocaleString();
+        document.getElementById('stat-available').textContent = (data.stats.available_tickets || 0).toLocaleString();
+        document.getElementById('stat-sold').textContent = (data.stats.sold_tickets || 0).toLocaleString();
+        
+        const percentSold = data.stats.total_tickets > 0 
+          ? ((data.stats.sold_tickets / data.stats.total_tickets) * 100).toFixed(1)
+          : '0.0';
+        document.getElementById('stat-percent').textContent = `${percentSold}%`;
+        
+        // Update category breakdown
+        const categoryStatsContainer = document.getElementById('category-stats');
+        categoryStatsContainer.innerHTML = data.categories.map(cat => {
+          const categoryTotal = cat.total_tickets || 0;
+          const categorySold = cat.sold_tickets || 0;
+          const categoryAvailable = categoryTotal - categorySold;
+          const categoryPercent = categoryTotal > 0 ? ((categorySold / categoryTotal) * 100).toFixed(1) : '0.0';
+          const estimatedRevenue = (categorySold * parseFloat(cat.price)).toFixed(2);
+          
+          return `
+            <div style="background: rgba(255, 255, 255, 0.95); padding: 16px; border-radius: 8px; border-left: 4px solid ${cat.color || '#667eea'};">
+              <div style="font-weight: 700; font-size: 18px; color: #1e293b; margin-bottom: 8px;">
+                ${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; color: #64748b;">
+                <div><strong>Total:</strong> ${categoryTotal.toLocaleString()}</div>
+                <div><strong>Sold:</strong> ${categorySold.toLocaleString()}</div>
+                <div><strong>Available:</strong> ${categoryAvailable.toLocaleString()}</div>
+                <div><strong>% Sold:</strong> ${categoryPercent}%</div>
+              </div>
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 13px; color: #667eea; font-weight: 600;">
+                💰 Revenue: $${Number(estimatedRevenue).toLocaleString()}
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        console.log('✅ Ticket statistics loaded');
+        
+      } catch (error) {
+        console.error('Error loading ticket stats:', error);
+        showNotify('⚠️ Could not load statistics', '#ef4444');
+      }
+    }
+    
+    // Load stats on page load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', loadTicketStats);
+    } else {
+      loadTicketStats();
+    }
         alert('Please enter start and end numbers');
         return;
       }
