@@ -4855,77 +4855,32 @@ app.get('/api/public/raffle-info', async (req, res) => {
 // GET /api/public/available-tickets - Get list of available tickets (no buyer data)
 app.get('/api/public/available-tickets', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    // Ensure limit is capped at 50 to avoid memory issues
-    const limit = Math.min(parseInt(req.query.limit) || 50, 50);
-    const category = req.query.category || '';
-    const offset = (page - 1) * limit;
-    
-    // Get the active raffle only
-    const raffle = await db.get(`
-      SELECT id FROM raffles 
-      WHERE status = 'active'
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `);
-    
-    if (!raffle) {
-      return res.status(404).json({ error: 'No active raffle found' });
+    const raffleRes = await db.get("SELECT id FROM raffles WHERE status='active' LIMIT 1");
+    if (!raffleRes) {
+      return res.json({ tickets: [], pagination: { page: 1, limit: 50, total: "0", total_pages: "0" } });
     }
-    
-    // Build query with optional category filter
-    // Filter to only show tickets available online
-    // Use case-insensitive status comparison for compatibility
-    let query = `
-      SELECT id, ticket_number, category, price, status
-      FROM tickets 
-      WHERE raffle_id = ? 
-        AND UPPER(status) = 'AVAILABLE'
-        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
-    `;
-    const params = [raffle.id];
-    
-    if (category) {
-      query += ' AND category = ?';
-      params.push(category);
-    }
-    
-    // Order by category and number, with explicit LIMIT to prevent memory issues
-    query += ' ORDER BY category, ticket_number LIMIT ? OFFSET ?';
-    params.push(limit, offset);
-    
-    const tickets = await db.all(query, params);
-    
-    // Get total count for pagination
-    let countQuery = `
-      SELECT COUNT(*) as total 
-      FROM tickets 
-      WHERE raffle_id = ? 
-        AND UPPER(status) = 'AVAILABLE'
-        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
-    `;
-    const countParams = [raffle.id];
-    
-    if (category) {
-      countQuery += ' AND category = ?';
-      countParams.push(category);
-    }
-    
-    const countResult = await db.get(countQuery, countParams);
-    const total = countResult ? countResult.total : 0;
-    
+    const raffleId = raffleRes.id;
+    const ticketsRes = await db.all(
+      `SELECT id, ticket_number AS number, category FROM tickets WHERE raffle_id = ? AND status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} ORDER BY category, ticket_number LIMIT 50`,
+      [raffleId]
+    );
+    const totalRes = await db.get(
+      `SELECT COUNT(*) as count FROM tickets WHERE raffle_id = ? AND status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}`,
+      [raffleId]
+    );
+    const total = parseInt(totalRes.count, 10);
     res.json({
-      tickets: tickets,
+      tickets: ticketsRes,
       pagination: {
-        page: page,
-        limit: limit,
-        total: String(total),
-        total_pages: String(Math.ceil(total / limit))
+        page: 1,
+        limit: 50,
+        total: total.toString(),
+        total_pages: Math.max(1, Math.ceil(total / 50)).toString()
       }
     });
-  } catch (error) {
-    console.error('Error fetching available tickets:', error);
-    res.status(500).json({ error: 'Failed to fetch available tickets' });
+  } catch (err) {
+    console.error('/api/public/available-tickets', err);
+    res.status(500).json({ tickets: [], pagination: { page: 1, limit: 50, total: "0", total_pages: "0" } });
   }
 });
 
