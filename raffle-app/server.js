@@ -5408,9 +5408,13 @@ app.post('/api/admin/payments/approve', requireAuth, requireAdmin, [
     }
     
     // Get available tickets in the requested category
+    // For online purchases, only assign tickets marked as available_online
     const availableTickets = await db.all(`
       SELECT ticket_number FROM tickets 
-      WHERE raffle_id = ? AND category = ? AND status = 'AVAILABLE'
+      WHERE raffle_id = ? 
+        AND category = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
       ORDER BY ticket_number
       LIMIT ?
     `, [payment.raffle_id, payment.ticket_category, payment.ticket_quantity]);

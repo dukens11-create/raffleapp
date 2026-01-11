@@ -839,6 +839,99 @@
       <div id="importResults" style="display: none;"></div>
     </div>
     
+    <!-- Online Ticket Management Section -->
+    <div class="section" style="margin-top: 32px;">
+      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🌐 Online Ticket Sales Management</h3>
+      <p style="color: white; opacity: 0.9; margin-bottom: 20px;">
+        Manage which tickets are available for online purchase through the buyers portal.
+      </p>
+      
+      <!-- Online Sales Statistics -->
+      <div id="online-stats" style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
+        <h4 style="color: white; margin: 0 0 12px 0;">📊 Online Sales Statistics</h4>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px;">
+          <div style="background: rgba(255, 255, 255, 0.2); padding: 16px; border-radius: 8px;">
+            <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-bottom: 4px;">Total Online Available</div>
+            <div style="color: white; font-size: 28px; font-weight: 700;" id="online-total-count">-</div>
+          </div>
+          <div style="background: rgba(255, 255, 255, 0.2); padding: 16px; border-radius: 8px;">
+            <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-bottom: 4px;">Currently Available</div>
+            <div style="color: white; font-size: 28px; font-weight: 700;" id="online-available-count">-</div>
+          </div>
+          <div style="background: rgba(255, 255, 255, 0.2); padding: 16px; border-radius: 8px;">
+            <div style="color: rgba(255, 255, 255, 0.8); font-size: 14px; margin-bottom: 4px;">Sold Online</div>
+            <div style="color: white; font-size: 28px; font-weight: 700;" id="online-sold-count">-</div>
+          </div>
+        </div>
+        <button onclick="refreshOnlineStats()" style="background: white; color: #667eea; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+          🔄 Refresh Stats
+        </button>
+      </div>
+      
+      <!-- Category Stats Table -->
+      <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; overflow-x: auto;">
+        <h4 style="margin: 0 0 16px 0;">By Category</h4>
+        <table style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background: #f8fafc;">
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0;">Category</th>
+              <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e2e8f0;">Total Tickets</th>
+              <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e2e8f0;">Online Total</th>
+              <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e2e8f0;">Available</th>
+              <th style="padding: 12px; text-align: right; border-bottom: 2px solid #e2e8f0;">Sold</th>
+            </tr>
+          </thead>
+          <tbody id="online-category-stats">
+            <tr>
+              <td colspan="5" style="padding: 20px; text-align: center; color: #64748b;">
+                Loading statistics...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Quick Actions -->
+      <div style="background: white; border-radius: 12px; padding: 20px;">
+        <h4 style="margin: 0 0 16px 0;">Quick Actions</h4>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+          <!-- Mark Last 100K Tickets -->
+          <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+            <h5 style="margin: 0 0 8px 0; color: #1e293b;">Mark Last 100K Per Category</h5>
+            <p style="font-size: 14px; color: #64748b; margin-bottom: 12px;">
+              Automatically mark the last 100,000 tickets in each category as available online.
+            </p>
+            <button onclick="markLast100KOnline()" style="background: #10b981; color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+              ✨ Auto-Mark Tickets
+            </button>
+          </div>
+          
+          <!-- Enable/Disable by Category -->
+          <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px;">
+            <h5 style="margin: 0 0 8px 0; color: #1e293b;">Enable/Disable by Category</h5>
+            <select id="manage-category" style="width: 100%; padding: 8px; border: 2px solid #e2e8f0; border-radius: 6px; margin-bottom: 8px;">
+              <option value="">Select category...</option>
+              <option value="ABC">ABC</option>
+              <option value="EFG">EFG</option>
+              <option value="JKL">JKL</option>
+              <option value="XYZ">XYZ</option>
+            </select>
+            <div style="display: flex; gap: 8px;">
+              <button onclick="toggleCategoryOnline('mark')" style="background: #3b82f6; color: white; flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                ✅ Enable
+              </button>
+              <button onclick="toggleCategoryOnline('unmark')" style="background: #ef4444; color: white; flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                ❌ Disable
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="online-action-result" style="margin-top: 16px; padding: 12px; border-radius: 6px; display: none;"></div>
+      </div>
+    </div>
+    
     <h2 data-translate="allTickets">All Tickets</h2>
     
     <!-- Download Tickets Button -->
@@ -3216,6 +3309,171 @@
         button.innerHTML = '🖨️ Generate Portrait PDF (8-up)';
       }
     }
+    
+    // ============================================================================
+    // ONLINE TICKET SALES MANAGEMENT FUNCTIONS
+    // ============================================================================
+    
+    // Refresh online ticket statistics
+    async function refreshOnlineStats() {
+      try {
+        const response = await fetch('/api/admin/tickets/online-stats');
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to load statistics');
+        }
+        
+        // Update overall stats
+        document.getElementById('online-total-count').textContent = 
+          (data.overall.online_total || 0).toLocaleString();
+        document.getElementById('online-available-count').textContent = 
+          (data.overall.online_available || 0).toLocaleString();
+        document.getElementById('online-sold-count').textContent = 
+          (data.overall.online_sold || 0).toLocaleString();
+        
+        // Update category stats table
+        const tbody = document.getElementById('online-category-stats');
+        if (data.by_category && data.by_category.length > 0) {
+          tbody.innerHTML = data.by_category.map(cat => `
+            <tr>
+              <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-weight: 600;">${cat.category}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">${cat.total.toLocaleString()}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right;">${cat.online_total.toLocaleString()}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #10b981; font-weight: 600;">${cat.online_available.toLocaleString()}</td>
+              <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #3b82f6; font-weight: 600;">${cat.online_sold.toLocaleString()}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="5" style="padding: 20px; text-align: center; color: #64748b;">No data available</td></tr>';
+        }
+        
+      } catch (error) {
+        console.error('Error refreshing online stats:', error);
+        showActionResult('Failed to load statistics: ' + error.message, 'error');
+      }
+    }
+    
+    // Mark last 100K tickets per category as available online
+    async function markLast100KOnline() {
+      if (!confirm('This will mark the last 100,000 tickets in each category (ABC, EFG, JKL, XYZ) as available for online purchase.\n\nDo you want to continue?')) {
+        return;
+      }
+      
+      showActionResult('Processing... This may take a moment.', 'info');
+      
+      try {
+        const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+        let totalUpdated = 0;
+        
+        for (const category of categories) {
+          const response = await fetch('/api/admin/tickets/mark-online-available', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              category: category,
+              action: 'mark',
+              startTicket: null,
+              endTicket: null
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (!data.success) {
+            throw new Error(`Failed to update ${category}: ${data.error}`);
+          }
+          
+          totalUpdated += data.updated || 0;
+        }
+        
+        showActionResult(`✅ Successfully marked ${totalUpdated.toLocaleString()} tickets as available online!`, 'success');
+        await refreshOnlineStats();
+        
+      } catch (error) {
+        console.error('Error marking tickets online:', error);
+        showActionResult('❌ Error: ' + error.message, 'error');
+      }
+    }
+    
+    // Toggle online availability for a specific category
+    async function toggleCategoryOnline(action) {
+      const category = document.getElementById('manage-category').value;
+      
+      if (!category) {
+        showActionResult('Please select a category first', 'error');
+        return;
+      }
+      
+      const actionText = action === 'mark' ? 'enable' : 'disable';
+      
+      if (!confirm(`Are you sure you want to ${actionText} online sales for all tickets in category ${category}?`)) {
+        return;
+      }
+      
+      showActionResult(`Processing ${category}...`, 'info');
+      
+      try {
+        const response = await fetch('/api/admin/tickets/mark-online-available', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            category: category,
+            action: action
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to update tickets');
+        }
+        
+        showActionResult(`✅ ${data.message}`, 'success');
+        await refreshOnlineStats();
+        
+      } catch (error) {
+        console.error('Error toggling category online:', error);
+        showActionResult('❌ Error: ' + error.message, 'error');
+      }
+    }
+    
+    // Show action result message
+    function showActionResult(message, type) {
+      const resultDiv = document.getElementById('online-action-result');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = message;
+      
+      // Set colors based on type
+      if (type === 'success') {
+        resultDiv.style.background = '#dcfce7';
+        resultDiv.style.color = '#166534';
+        resultDiv.style.borderLeft = '4px solid #22c55e';
+      } else if (type === 'error') {
+        resultDiv.style.background = '#fee2e2';
+        resultDiv.style.color = '#991b1b';
+        resultDiv.style.borderLeft = '4px solid #ef4444';
+      } else {
+        resultDiv.style.background = '#dbeafe';
+        resultDiv.style.color = '#1e40af';
+        resultDiv.style.borderLeft = '4px solid #3b82f6';
+      }
+      
+      // Auto-hide after 5 seconds for success messages
+      if (type === 'success') {
+        setTimeout(() => {
+          resultDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+    
+    // Load online stats when page loads
+    window.addEventListener('load', () => {
+      // Check if we're on the admin page and the online stats element exists
+      if (document.getElementById('online-stats')) {
+        refreshOnlineStats();
+      }
+    });
     
   </script>
   
