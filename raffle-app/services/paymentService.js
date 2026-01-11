@@ -10,13 +10,13 @@
  * 
  * 1. MonCash Integration:
  *    - Sign up at https://moncashbutton.digicelgroup.com/
- *    - Get your Client ID and Secret Key
+ *    - Get your Client ID and Client Secret
  *    - Set mode to 'sandbox' for testing or 'production' for live
  *    - Configure in .env:
  *      MONCASH_CLIENT_ID=your_client_id
- *      MONCASH_SECRET_KEY=your_secret_key
+ *      MONCASH_CLIENT_SECRET=your_client_secret
  *      MONCASH_MODE=sandbox
- *      MONCASH_WALLET_NUMBER=509-1234-5678
+ *      MONCASH_WALLET_NUMBER=+509 3666 2371
  * 
  * 2. NatCash Integration:
  *    - Contact NatCash for API credentials
@@ -24,7 +24,7 @@
  *      NATCASH_API_KEY=your_api_key
  *      NATCASH_MERCHANT_ID=your_merchant_id
  *      NATCASH_MODE=sandbox
- *      NATCASH_WALLET_NUMBER=509-8765-4321
+ *      NATCASH_WALLET_NUMBER=+509 3220 4333
  * 
  * 3. Manual Payments:
  *    - Set your business phone numbers in .env
@@ -37,7 +37,8 @@ const crypto = require('crypto');
 // MonCash Configuration
 const MONCASH_CONFIG = {
   clientId: process.env.MONCASH_CLIENT_ID,
-  secretKey: process.env.MONCASH_SECRET_KEY,
+  // Support both MONCASH_CLIENT_SECRET and MONCASH_SECRET_KEY for backward compatibility
+  secretKey: process.env.MONCASH_CLIENT_SECRET || process.env.MONCASH_SECRET_KEY,
   mode: process.env.MONCASH_MODE || 'sandbox',
   walletNumber: process.env.MONCASH_WALLET_NUMBER,
   // Sandbox and production endpoints

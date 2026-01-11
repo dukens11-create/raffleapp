@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Payment Instructions - Raffle Tickets</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .payment-option {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s;
+        }
+
+        .payment-option:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .payment-option h2 {
+            color: #667eea;
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .payment-option h2::before {
+            content: '💳';
+            margin-right: 10px;
+            font-size: 28px;
+        }
+
+        .merchant-info {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .merchant-info strong {
+            color: #667eea;
+            font-size: 18px;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .merchant-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            letter-spacing: 1px;
+        }
+
+        .steps {
+            margin: 20px 0;
+        }
+
+        .steps h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .step {
+            display: flex;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+            padding-top: 3px;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .note strong {
+            color: #856404;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .form-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .payment-option {
+                padding: 20px;
+            }
+
+            .merchant-number {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>🎫 Manual Payment Instructions</h1>
+                <p>Complete your raffle ticket purchase using MonCash or NatCash</p>
+            </div>
+
+            <div class="content">
+                <!-- MonCash Instructions -->
+                <div class="payment-option">
+                    <h2>MonCash Payment</h2>
+                    
+                    <div class="merchant-info">
+                        <strong>Send payment to:</strong>
+                        <div class="merchant-number">+509 3666 2371</div>
+                    </div>
+
+                    <div class="steps">
+                        <h3>📱 Step-by-Step Instructions:</h3>
+                        
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <strong>Dial USSD Code</strong><br>
+                                On your Digicel phone, dial <strong>*202#</strong>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <strong>Select "Send Money"</strong><br>
+                                Choose the option to send money to another user
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <strong>Enter Merchant Number</strong><br>
+                                Type: <strong>+509 3666 2371</strong>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <strong>Enter Amount</strong><br>
+                                Enter the exact amount for your tickets (shown in your order summary)
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <strong>Confirm with PIN</strong><br>
+                                Enter your MonCash PIN to complete the transaction
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">6</div>
+                            <div class="step-content">
+                                <strong>Save Transaction Reference</strong><br>
+                                You will receive an SMS with a transaction reference number. Save this number!
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">7</div>
+                            <div class="step-content">
+                                <strong>Submit Reference Below</strong><br>
+                                Enter the transaction reference in the form below to verify your payment
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="note">
+                        <strong>⏱️ Verification Time:</strong>
+                        Your payment will be verified by our admin team within 24 hours. You will receive an SMS confirmation once approved.
+                    </div>
+                </div>
+
+                <!-- NatCash Instructions -->
+                <div class="payment-option">
+                    <h2>NatCash Payment</h2>
+                    
+                    <div class="merchant-info">
+                        <strong>Send payment to:</strong>
+                        <div class="merchant-number">+509 3220 4333</div>
+                    </div>
+
+                    <div class="steps">
+                        <h3>📱 Step-by-Step Instructions:</h3>
+                        
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <strong>Open NatCash App</strong><br>
+                                Launch the NatCash mobile application on your phone
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <strong>Select "Transfer Money"</strong><br>
+                                Navigate to the money transfer option
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <strong>Enter Merchant Number</strong><br>
+                                Type: <strong>+509 3220 4333</strong>
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <strong>Enter Amount</strong><br>
+                                Enter the exact amount for your tickets
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <strong>Complete Transaction</strong><br>
+                                Confirm and complete the payment
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">6</div>
+                            <div class="step-content">
+                                <strong>Save Reference Number</strong><br>
+                                Take a screenshot or write down the transaction reference number
+                            </div>
+                        </div>
+
+                        <div class="step">
+                            <div class="step-number">7</div>
+                            <div class="step-content">
+                                <strong>Submit Reference Below</strong><br>
+                                Enter the transaction reference in the form below
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="note">
+                        <strong>⏱️ Verification Time:</strong>
+                        Your payment will be verified by our admin team within 24 hours. You will receive an SMS confirmation once approved.
+                    </div>
+                </div>
+
+                <!-- Payment Reference Submission Form -->
+                <div class="form-section">
+                    <h3>✅ Submit Your Payment Reference</h3>
+                    <p style="color: #666; margin-bottom: 20px;">
+                        After completing your payment, enter the transaction reference number below to verify your purchase.
+                    </p>
+
+                    <form id="paymentForm" onsubmit="submitPayment(event)">
+                        <div class="form-group">
+                            <label for="transactionRef">Transaction Reference Number *</label>
+                            <input 
+                                type="text" 
+                                id="transactionRef" 
+                                name="transaction_reference"
+                                placeholder="Enter your MonCash or NatCash reference"
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="buyerPhone">Your Phone Number *</label>
+                            <input 
+                                type="tel" 
+                                id="buyerPhone" 
+                                name="buyer_phone"
+                                placeholder="+509 1234 5678"
+                                required
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="notes">Additional Notes (Optional)</label>
+                            <textarea 
+                                id="notes" 
+                                name="notes"
+                                rows="3"
+                                placeholder="Any additional information about your payment"
+                            ></textarea>
+                        </div>
+
+                        <button type="submit" class="btn-submit">
+                            Submit Payment Reference
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align: center; color: white; margin-top: 20px;">
+            <p>Need help? Contact support or check your SMS for updates</p>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Example function to submit manual payment
+         * Replace with your actual API endpoint
+         */
+        async function submitPayment(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            // Show loading state
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Submitting...';
+            submitBtn.disabled = true;
+
+            try {
+                // This should match your actual payment data structure
+                const paymentData = {
+                    payment_method: 'moncash', // or 'natcash' based on user selection
+                    transaction_reference: formData.get('transaction_reference'),
+                    buyer_phone: formData.get('buyer_phone'),
+                    notes: formData.get('notes'),
+                    // Add other required fields from your order:
+                    // buyer_name, buyer_email, ticket_category, ticket_quantity, amount, customer_department
+                };
+
+                const response = await fetch('/api/payments/manual/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(paymentData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Payment reference submitted successfully!\n\n' +
+                          'Reference: ' + data.paymentReference + '\n' +
+                          'Status: ' + data.status + '\n\n' +
+                          data.message);
+                    form.reset();
+                } else {
+                    alert('❌ Error: ' + (data.error || 'Failed to submit payment'));
+                }
+            } catch (error) {
+                console.error('Error submitting payment:', error);
+                alert('❌ Failed to submit payment reference. Please try again.');
+            } finally {
+                submitBtn.textContent = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

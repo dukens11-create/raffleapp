@@ -5682,6 +5682,330 @@ app.get('/api/payments/manual-instructions/:method', async (req, res) => {
 });
 
 /**
+ * GET /api/payments/callback - Payment callback/redirect endpoint
+ * Called by MonCash/NatCash after user completes payment
+ * Query params: transactionId or paymentToken
+ */
+app.get('/api/payments/callback', async (req, res) => {
+  try {
+    const { transactionId, token } = req.query;
+    
+    if (!transactionId && !token) {
+      return res.status(400).send(`
+        <html>
+          <body>
+            <h1>Payment Error</h1>
+            <p>Missing transaction information. Please contact support.</p>
+          </body>
+        </html>
+      `);
+    }
+    
+    console.log(`[PAYMENT CALLBACK] Received callback - transactionId: ${transactionId}, token: ${token}`);
+    
+    // Find payment by transaction ID or token
+    const paymentIdentifier = transactionId || token;
+    const payment = await db.get(`
+      SELECT * FROM payments 
+      WHERE transaction_id = ? OR external_reference = ?
+    `, [paymentIdentifier, paymentIdentifier]);
+    
+    if (!payment) {
+      return res.status(404).send(`
+        <html>
+          <body>
+            <h1>Payment Not Found</h1>
+            <p>We couldn't find your payment. Please contact support with reference: ${transactionId || token}</p>
+          </body>
+        </html>
+      `);
+    }
+    
+    // If already approved, show success
+    if (payment.payment_status === 'approved') {
+      return res.send(`
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Successful</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+              .success { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              h1 { color: #28a745; }
+              .info { margin: 20px 0; }
+              .reference { background: #f8f9fa; padding: 10px; border-radius: 5px; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <div class="success">
+              <h1>✅ Payment Successful!</h1>
+              <div class="info">
+                <p>Your payment has been confirmed.</p>
+                <p class="reference">Reference: ${payment.payment_reference}</p>
+                <p>Tickets: ${payment.ticket_numbers || 'Processing...'}</p>
+                <p>You will receive an SMS confirmation shortly.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+    
+    // Verify payment with provider
+    let verificationResult;
+    
+    try {
+      if (payment.payment_provider === 'moncash') {
+        // Verify with MonCash API
+        verificationResult = await paymentService.verifyMonCashPayment(transactionId || token);
+      } else if (payment.payment_provider === 'natcash') {
+        // Verify with NatCash API
+        verificationResult = await paymentService.verifyNatCashPayment(transactionId || token);
+      }
+      
+      console.log(`[PAYMENT CALLBACK] Verification result:`, verificationResult);
+      
+      // Check if payment was successful
+      if (verificationResult && verificationResult.status === 'success') {
+        // TODO: Database update logic - Placeholder for integration with existing schema
+        // Update payment status to 'approved'
+        await db.run(`
+          UPDATE payments 
+          SET payment_status = 'approved',
+              verified_at = datetime('now')
+          WHERE payment_reference = ?
+        `, [payment.payment_reference]);
+        
+        // TODO: Update tickets status from RESERVED to SOLD
+        // This is where you would integrate with your existing ticket schema
+        await db.run(`
+          UPDATE tickets 
+          SET status = 'SOLD',
+              buyer_name = ?,
+              buyer_phone = ?,
+              buyer_email = ?,
+              customer_department = ?,
+              sold_at = datetime('now')
+          WHERE payment_reference = ?
+        `, [
+          payment.buyer_name,
+          payment.buyer_phone,
+          payment.buyer_email,
+          payment.customer_department,
+          payment.payment_reference
+        ]);
+        
+        // Get assigned ticket numbers
+        const tickets = await db.all(`
+          SELECT ticket_number FROM tickets 
+          WHERE payment_reference = ?
+          ORDER BY ticket_number
+        `, [payment.payment_reference]);
+        
+        const ticketNumbers = tickets.map(t => t.ticket_number).join(', ');
+        
+        // Update payment with ticket numbers
+        await db.run(`
+          UPDATE payments 
+          SET ticket_numbers = ?
+          WHERE payment_reference = ?
+        `, [ticketNumbers, payment.payment_reference]);
+        
+        console.log(`[PAYMENT CALLBACK] Payment approved: ${payment.payment_reference}`);
+        
+        // Send SMS confirmation (if configured)
+        try {
+          await smsService.sendPaymentApproved({
+            buyer_phone: payment.buyer_phone,
+            buyer_name: payment.buyer_name,
+            amount: payment.amount,
+            ticket_numbers: ticketNumbers,
+            reference: payment.payment_reference
+          });
+        } catch (smsError) {
+          console.error('[PAYMENT CALLBACK] SMS error:', smsError);
+          // Continue even if SMS fails
+        }
+        
+        return res.send(`
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Payment Successful</title>
+              <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+                .success { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #28a745; }
+                .info { margin: 20px 0; }
+                .reference { background: #f8f9fa; padding: 10px; border-radius: 5px; font-weight: bold; }
+                .tickets { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="success">
+                <h1>✅ Payment Successful!</h1>
+                <div class="info">
+                  <p>Thank you for your purchase!</p>
+                  <p class="reference">Reference: ${payment.payment_reference}</p>
+                  <div class="tickets">
+                    <strong>Your Tickets:</strong><br>
+                    ${ticketNumbers}
+                  </div>
+                  <p>You will receive an SMS confirmation shortly.</p>
+                  <p style="color: #666; font-size: 14px;">Please save your reference number for future inquiries.</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `);
+      } else {
+        // Payment failed or pending
+        return res.send(`
+          <html>
+            <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Payment Pending</title>
+              <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+                .pending { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                h1 { color: #ffc107; }
+              </style>
+            </head>
+            <body>
+              <div class="pending">
+                <h1>⏳ Payment Pending</h1>
+                <p>Your payment is being processed.</p>
+                <p>Reference: ${payment.payment_reference}</p>
+                <p>You will receive an SMS once your payment is confirmed.</p>
+              </div>
+            </body>
+          </html>
+        `);
+      }
+    } catch (verifyError) {
+      console.error('[PAYMENT CALLBACK] Verification error:', verifyError);
+      
+      return res.send(`
+        <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Payment Verification</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f0f0f0; }
+              .pending { background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              h1 { color: #ffc107; }
+            </style>
+          </head>
+          <body>
+            <div class="pending">
+              <h1>⏳ Payment Under Review</h1>
+              <p>We're verifying your payment.</p>
+              <p>Reference: ${payment.payment_reference}</p>
+              <p>You will receive an SMS confirmation within a few minutes.</p>
+            </div>
+          </body>
+        </html>
+      `);
+    }
+  } catch (error) {
+    console.error('[PAYMENT CALLBACK] Error:', error);
+    res.status(500).send(`
+      <html>
+        <body>
+          <h1>Error Processing Payment</h1>
+          <p>An error occurred. Please contact support.</p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+/**
+ * POST /api/payments/verify/:reference - Manually verify a payment
+ * Checks payment status with provider and updates database
+ */
+app.post('/api/payments/verify/:reference', async (req, res) => {
+  try {
+    const { reference } = req.params;
+    
+    // Get payment details
+    const payment = await db.get(`
+      SELECT * FROM payments WHERE payment_reference = ?
+    `, [reference]);
+    
+    if (!payment) {
+      return res.status(404).json({ error: 'Payment not found' });
+    }
+    
+    if (payment.payment_status === 'approved') {
+      return res.json({
+        success: true,
+        status: 'approved',
+        message: 'Payment already approved',
+        payment: payment
+      });
+    }
+    
+    // Verify with payment provider
+    let verificationResult;
+    
+    if (payment.payment_provider === 'moncash') {
+      verificationResult = await paymentService.verifyMonCashPayment(payment.transaction_id);
+    } else if (payment.payment_provider === 'natcash') {
+      verificationResult = await paymentService.verifyNatCashPayment(payment.transaction_id);
+    } else {
+      return res.status(400).json({ error: 'Manual payments require admin approval' });
+    }
+    
+    if (verificationResult && verificationResult.status === 'success') {
+      // TODO: Update payment and tickets - Placeholder for integration with existing schema
+      await db.run(`
+        UPDATE payments 
+        SET payment_status = 'approved',
+            verified_at = datetime('now')
+        WHERE payment_reference = ?
+      `, [reference]);
+      
+      await db.run(`
+        UPDATE tickets 
+        SET status = 'SOLD',
+            buyer_name = ?,
+            buyer_phone = ?,
+            buyer_email = ?,
+            customer_department = ?,
+            sold_at = datetime('now')
+        WHERE payment_reference = ?
+      `, [
+        payment.buyer_name,
+        payment.buyer_phone,
+        payment.buyer_email,
+        payment.customer_department,
+        reference
+      ]);
+      
+      return res.json({
+        success: true,
+        status: 'approved',
+        message: 'Payment verified and approved'
+      });
+    } else {
+      return res.json({
+        success: true,
+        status: 'pending',
+        message: 'Payment still pending with provider'
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying payment:', error);
+    res.status(500).json({ error: 'Failed to verify payment' });
+  }
+});
+
+/**
  * GET /api/admin/payments/pending - Get pending payments for admin approval
  * Admin endpoint to list all pending manual payments
  */
