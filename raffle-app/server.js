@@ -4781,15 +4781,38 @@ app.get('/api/public/raffle-info', async (req, res) => {
       ORDER BY category_code
     `, [raffle.id]);
     
-    // Get statistics
+    // Get statistics including online-available tickets
     const stats = await db.get(`
       SELECT 
         COUNT(*) as total_tickets,
         COUNT(CASE WHEN status = 'SOLD' THEN 1 END) as sold_tickets,
-        COUNT(CASE WHEN status = 'AVAILABLE' THEN 1 END) as available_tickets
+        COUNT(CASE WHEN status = 'AVAILABLE' THEN 1 END) as available_tickets,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_now
       FROM tickets 
       WHERE raffle_id = ?
     `, [raffle.id]);
+    
+    // Get online-available counts per category
+    const categoryStats = await db.all(`
+      SELECT 
+        category,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available
+      FROM tickets 
+      WHERE raffle_id = ?
+      GROUP BY category
+    `, [raffle.id]);
+    
+    // Merge category stats with categories
+    const categoriesWithStats = categories.map(cat => {
+      const catStat = categoryStats.find(cs => cs.category === cat.category_code) || { online_total: 0, online_available: 0 };
+      return {
+        ...cat,
+        online_available: catStat.online_available,
+        online_total: catStat.online_total
+      };
+    });
     
     res.json({
       raffle: {
@@ -4799,8 +4822,14 @@ app.get('/api/public/raffle-info', async (req, res) => {
         draw_date: raffle.draw_date,
         status: raffle.status
       },
-      categories: categories,
-      stats: stats || { total_tickets: 0, sold_tickets: 0, available_tickets: 0 }
+      categories: categoriesWithStats,
+      stats: stats || { 
+        total_tickets: 0, 
+        sold_tickets: 0, 
+        available_tickets: 0,
+        online_available_total: 0,
+        online_available_now: 0
+      }
     });
   } catch (error) {
     console.error('Error fetching raffle info:', error);
@@ -4829,10 +4858,13 @@ app.get('/api/public/available-tickets', async (req, res) => {
     }
     
     // Build query with optional category filter
+    // Filter to only show tickets available online
     let query = `
       SELECT ticket_number, category, price, status
       FROM tickets 
-      WHERE raffle_id = ? AND status = 'AVAILABLE'
+      WHERE raffle_id = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
     `;
     const params = [raffle.id];
     
@@ -4850,7 +4882,9 @@ app.get('/api/public/available-tickets', async (req, res) => {
     let countQuery = `
       SELECT COUNT(*) as total 
       FROM tickets 
-      WHERE raffle_id = ? AND status = 'AVAILABLE'
+      WHERE raffle_id = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
     `;
     const countParams = [raffle.id];
     
@@ -5374,9 +5408,13 @@ app.post('/api/admin/payments/approve', requireAuth, requireAdmin, [
     }
     
     // Get available tickets in the requested category
+    // For online purchases, only assign tickets marked as available_online
     const availableTickets = await db.all(`
       SELECT ticket_number FROM tickets 
-      WHERE raffle_id = ? AND category = ? AND status = 'AVAILABLE'
+      WHERE raffle_id = ? 
+        AND category = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
       ORDER BY ticket_number
       LIMIT ?
     `, [payment.raffle_id, payment.ticket_category, payment.ticket_quantity]);
@@ -5684,6 +5722,135 @@ app.post('/api/admin/tickets/unsold', requireAuth, requireAdmin, async (req, res
     console.error('Error marking ticket as unsold:', error);
     res.status(500).json({ 
       error: 'Failed to mark ticket as unsold'
+    });
+  }
+});
+
+// POST /api/admin/tickets/mark-online-available - Mark/unmark tickets as available online
+app.post('/api/admin/tickets/mark-online-available', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { category, action, startTicket, endTicket } = req.body;
+    
+    // Validation
+    if (!action || !['mark', 'unmark'].includes(action)) {
+      return res.status(400).json({ 
+        error: 'Invalid action. Use "mark" or "unmark"' 
+      });
+    }
+    
+    // Use parameterized value instead of string concatenation
+    const availableOnlineValue = action === 'mark' 
+      ? (db.USE_POSTGRES ? true : 1)
+      : (db.USE_POSTGRES ? false : 0);
+    
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Build update query based on filters using parameterized queries
+    let query = 'UPDATE tickets SET available_online = ? WHERE raffle_id = ?';
+    const params = [availableOnlineValue, raffle.id];
+    
+    if (category) {
+      query += ' AND category = ?';
+      params.push(category);
+    }
+    
+    // Note: Range filtering removed as it's not used by the frontend
+    // and the migration script handles the last 100K logic
+    
+    // Execute update
+    const result = await db.run(query, params);
+    const updated = result.changes || 0;
+    
+    // Log the action
+    const safeAdminName = String(req.session.user.name).replace(/[\r\n]/g, '');
+    const safeCategory = category ? String(category).replace(/[\r\n]/g, '') : 'all';
+    console.log(`Admin ${safeAdminName} ${action}ed ${updated} tickets as available online (category: ${safeCategory})`);
+    
+    // Get updated stats
+    const stats = await db.get(`
+      SELECT 
+        COUNT(*) as total,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available
+      FROM tickets 
+      WHERE raffle_id = ? ${category ? 'AND category = ?' : ''}
+    `, category ? [raffle.id, category] : [raffle.id]);
+    
+    res.json({ 
+      success: true, 
+      message: `${updated} tickets ${action}ed as ${action === 'mark' ? 'available' : 'not available'} online`,
+      updated: updated,
+      stats: stats
+    });
+    
+  } catch (error) {
+    console.error('Error updating online availability:', error);
+    res.status(500).json({ 
+      error: 'Failed to update ticket online availability'
+    });
+  }
+});
+
+// GET /api/admin/tickets/online-stats - Get online ticket availability statistics
+app.get('/api/admin/tickets/online-stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Get the active raffle
+    const raffle = await db.get(`
+      SELECT id, name FROM raffles 
+      WHERE status = 'active'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `);
+    
+    if (!raffle) {
+      return res.status(404).json({ error: 'No active raffle found' });
+    }
+    
+    // Get overall stats
+    const overallStats = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available,
+        COUNT(CASE WHEN status = 'SOLD' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_sold
+      FROM tickets 
+      WHERE raffle_id = ?
+    `, [raffle.id]);
+    
+    // Get stats by category
+    const categoryStats = await db.all(`
+      SELECT 
+        category,
+        COUNT(*) as total,
+        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
+        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available,
+        COUNT(CASE WHEN status = 'SOLD' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_sold
+      FROM tickets 
+      WHERE raffle_id = ?
+      GROUP BY category
+      ORDER BY category
+    `, [raffle.id]);
+    
+    res.json({
+      success: true,
+      raffle: raffle,
+      overall: overallStats,
+      by_category: categoryStats
+    });
+    
+  } catch (error) {
+    console.error('Error fetching online stats:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch online ticket statistics'
     });
   }
 });
