@@ -37,8 +37,8 @@ async function createTicket(ticketData) {
     const barcode = barcodeGenerator.generateBarcode(category, sequenceNum);
 
     const result = await db.run(
-      `INSERT INTO tickets (raffle_id, category_id, category, ticket_number, barcode, qr_code_data, price, status, created_at)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, 'AVAILABLE', ${db.getCurrentTimestamp()})`,
+      `INSERT INTO tickets (raffle_id, category_id, category, ticket_number, barcode, qr_code_data, price, status, available_online, created_at)
+       VALUES (?, ?, ?, ?, ?, NULL, ?, 'AVAILABLE', ${db.USE_POSTGRES ? 'TRUE' : '1'}, ${db.getCurrentTimestamp()})`,
       [raffle_id, category_id, category, ticket_number, barcode, price]
     );
 
@@ -388,7 +388,7 @@ async function batchInsertTickets(tickets) {
     return;
   }
   
-  const placeholders = tickets.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ${db.getCurrentTimestamp()})').join(',');
+  const placeholders = tickets.map(() => `(?, ?, ?, ?, ?, ?, ?, ?, ${db.USE_POSTGRES ? 'TRUE' : '1'}, \${db.getCurrentTimestamp()})`).join(',');
   const values = tickets.flatMap(t => [
     t.raffle_id,
     t.category_id,
@@ -403,7 +403,7 @@ async function batchInsertTickets(tickets) {
   const sql = `
     INSERT INTO tickets (
       raffle_id, category_id, category, ticket_number, 
-      barcode, qr_code_data, price, status, created_at
+      barcode, qr_code_data, price, status, available_online, created_at
     ) VALUES ${placeholders}
   `.replace(/\$\{db\.getCurrentTimestamp\(\)\}/g, db.getCurrentTimestamp());
   
