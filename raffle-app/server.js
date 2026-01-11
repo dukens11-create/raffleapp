@@ -65,17 +65,17 @@ const ticketGenerationMutex = new Mutex();
 // Maximum number of tickets to return per category for online purchase
 const MAX_TICKETS_PER_CATEGORY = 100000;
 
-// Haiti Departments - Valid department values
+// Haiti Departments - Valid department values (alphabetically ordered)
 const HAITI_DEPARTMENTS = [
-  'Ouest',
-  'Sud',
-  'Nord',
   'Artibonite',
   'Centre',
   "Grand'Anse",
   'Nippes',
+  'Nord',
   'Nord-Est',
   'Nord-Ouest',
+  'Ouest',
+  'Sud',
   'Sud-Est'
 ];
 
@@ -1909,6 +1909,17 @@ app.get('/api/seller-stats', requireAuth, requireAdmin, async (req, res) => {
  * Public endpoint to get the valid department options
  */
 app.get('/api/departments', async (req, res) => {
+  res.json({
+    success: true,
+    departments: HAITI_DEPARTMENTS
+  });
+});
+
+/**
+ * GET /api/public/departments - Get list of Haiti departments
+ * Public endpoint to get the valid department options
+ */
+app.get('/api/public/departments', async (req, res) => {
   res.json({
     success: true,
     departments: HAITI_DEPARTMENTS
