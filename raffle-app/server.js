@@ -4780,6 +4780,10 @@ app.get('/api/public/raffle-info', async (req, res) => {
       LIMIT 1
     `);
     
+    // Return { raffle: null } instead of 404 to allow buyer portal to gracefully
+    // handle "no active raffle" scenario with a friendly message
+    // This is intentionally different from other endpoints that return 404,
+    // as this is the primary endpoint loaded first by the buyer portal
     if (!raffle) {
       return res.json({ raffle: null });
     }
