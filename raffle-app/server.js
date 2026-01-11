@@ -4805,7 +4805,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
     // Build query with optional category filter
     // Filter to only show tickets available online
     let query = `
-      SELECT ticket_number, category, price, status
+      SELECT id, ticket_number as number, category, price
       FROM tickets 
       WHERE raffle_id = ? 
         AND status = 'AVAILABLE'
@@ -4818,7 +4818,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
       params.push(category);
     }
     
-    query += ' ORDER BY ticket_number LIMIT ? OFFSET ?';
+    query += ' ORDER BY category, ticket_number LIMIT ? OFFSET ?';
     params.push(limit, offset);
     
     const tickets = await db.all(query, params);
@@ -4846,8 +4846,8 @@ app.get('/api/public/available-tickets', async (req, res) => {
       pagination: {
         page: page,
         limit: limit,
-        total: total,
-        total_pages: Math.ceil(total / limit)
+        total: String(total),
+        total_pages: String(Math.ceil(total / limit))
       }
     });
   } catch (error) {
