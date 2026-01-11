@@ -4786,7 +4786,8 @@ app.get('/api/public/raffle-info', async (req, res) => {
 app.get('/api/public/available-tickets', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    // Ensure limit is capped at 50 to avoid memory issues
+    const limit = Math.min(parseInt(req.query.limit) || 50, 50);
     const category = req.query.category || '';
     const offset = (page - 1) * limit;
     
@@ -4804,11 +4805,12 @@ app.get('/api/public/available-tickets', async (req, res) => {
     
     // Build query with optional category filter
     // Filter to only show tickets available online
+    // Use case-insensitive status comparison for compatibility
     let query = `
       SELECT id, ticket_number as number, category, price
       FROM tickets 
       WHERE raffle_id = ? 
-        AND status = 'AVAILABLE'
+        AND UPPER(status) = 'AVAILABLE'
         AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
     `;
     const params = [raffle.id];
@@ -4818,6 +4820,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
       params.push(category);
     }
     
+    // Order by category and number, with explicit LIMIT to prevent memory issues
     query += ' ORDER BY category, ticket_number LIMIT ? OFFSET ?';
     params.push(limit, offset);
     
@@ -4828,7 +4831,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
       SELECT COUNT(*) as total 
       FROM tickets 
       WHERE raffle_id = ? 
-        AND status = 'AVAILABLE'
+        AND UPPER(status) = 'AVAILABLE'
         AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
     `;
     const countParams = [raffle.id];
