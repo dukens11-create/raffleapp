@@ -19,7 +19,6 @@ const smsService = require('./services/smsService');
 const multer = require('multer');
 const sharp = require('sharp');
 const PDFDocument = require('pdfkit');
-const { Pool } = require('pg');
 
 // Simple Mutex class for preventing race conditions
 // Note: For high-concurrency scenarios, consider using a production-grade mutex library
@@ -88,17 +87,6 @@ function isValidDepartment(department) {
 
 // Load environment variables
 require('dotenv').config();
-
-// ============================================
-// PostgreSQL Pool for raffle-info endpoint
-// ============================================
-let pgPool = null;
-if (process.env.DATABASE_URL) {
-  pgPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-  });
-}
 
 // ============================================
 // Environment Variable Validation (Flexible)
@@ -4776,14 +4764,17 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
 app.get('/api/public/raffle-info', async (req, res) => {
   try {
     // Check if PostgreSQL connection is available
-    if (!pgPool) {
+    if (!db.pgPool) {
       console.error('PostgreSQL connection not available. DATABASE_URL not configured.');
       return res.status(500).json({ error: 'Database configuration error' });
     }
 
     // Get the active raffle only (not draft) using PostgreSQL
-    const raffleResult = await pgPool.query(
-      `SELECT * FROM raffles WHERE status = 'active' LIMIT 1`
+    const raffleResult = await db.pgPool.query(
+      `SELECT id, name, description, start_date, draw_date, status, total_tickets, created_at 
+       FROM raffles 
+       WHERE status = 'active' 
+       LIMIT 1`
     );
     
     if (!raffleResult.rows || raffleResult.rows.length === 0) {
