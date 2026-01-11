@@ -1,6 +1,6 @@
 // To run:
-//    npm install express
-//    node js/raffle-info-example.js
+//   npm install express
+//   node js/raffle-info-example.js
 // Then visit http://localhost:3000/api/public/raffle-info
 
 const express = require('express');
@@ -15,9 +15,9 @@ const availableTickets = [
 app.get('/api/public/raffle-info', (req, res) => {
   const filtered = availableTickets.filter(t =>
     t.status === 'available' &&
-    t.available_online === true &&
-    t.raffle_id === 1 &&
-    t.category_id === 2
+    t.available_online &&
+    t.raffle_id == 1 &&
+    t.category_id == 2
   );
   res.json({ tickets: filtered });
 });
