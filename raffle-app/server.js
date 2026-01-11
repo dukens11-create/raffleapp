@@ -4807,7 +4807,7 @@ app.get('/api/public/available-tickets', async (req, res) => {
     // Filter to only show tickets available online
     // Use case-insensitive status comparison for compatibility
     let query = `
-      SELECT id, ticket_number as number, category, price
+      SELECT id, ticket_number, category, price, status
       FROM tickets 
       WHERE raffle_id = ? 
         AND UPPER(status) = 'AVAILABLE'
