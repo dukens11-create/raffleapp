@@ -4763,12 +4763,6 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
 // Updated to use PostgreSQL directly via pg module instead of SQLite
 app.get('/api/public/raffle-info', async (req, res) => {
   try {
-    // Check if PostgreSQL connection is available
-    if (!db.pgPool) {
-      console.error('PostgreSQL connection not available. DATABASE_URL not configured.');
-      return res.status(500).json({ error: 'Database configuration error' });
-    }
-
     // Get the active raffle only (not draft) using PostgreSQL
     const raffleResult = await db.pgPool.query(
       `SELECT id, name, description, start_date, draw_date, status, total_tickets, created_at 
@@ -4787,12 +4781,13 @@ app.get('/api/public/raffle-info', async (req, res) => {
     // Return the active raffle as JSON
     res.json(raffle);
   } catch (error) {
-    console.error('Error fetching raffle info:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    });
+    console.error('Error fetching raffle info:', error.message);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error details:', {
+        code: error.code,
+        stack: error.stack
+      });
+    }
     res.status(500).json({ error: 'Failed to fetch raffle information' });
   }
 });
@@ -6497,6 +6492,14 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Access the application at http://localhost:${PORT}`);
   console.log(`Health check available at http://localhost:${PORT}/health`);
+  
+  // Verify PostgreSQL connection for raffle-info endpoint
+  if (!db.pgPool) {
+    console.warn('⚠️  WARNING: PostgreSQL not configured. /api/public/raffle-info endpoint will not work.');
+    console.warn('   Set DATABASE_URL environment variable to enable PostgreSQL.');
+  } else {
+    console.log('✅ PostgreSQL connected - /api/public/raffle-info endpoint ready');
+  }
 });
 
 // Graceful shutdown
