@@ -1083,7 +1083,7 @@
             <div class="empty-state">
               <div class="empty-state-icon">⚠️</div>
               <h3>Unable to Load Raffle Information</h3>
-              <p>${escapeHtml(error.message)}</p>
+              <p>${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
               <button class="btn btn-primary" onclick="loadRaffleInfo(true)" style="margin-top: 16px;">
                 🔄 Retry
               </button>
@@ -1229,7 +1229,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Tickets</h3>
-            <p style="margin-bottom: 16px;">${escapeHtml(error.message)}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
             <button class="btn btn-primary" onclick="loadAvailableTickets(${page})" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -1678,7 +1678,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Unable to Load Payment Methods</h3>
-            <p style="margin-bottom: 16px;">${escapeHtml(error.message)}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
             <button class="btn btn-primary" onclick="loadPaymentMethods()" style="display: inline-block;">
               🔄 Retry
             </button>
@@ -1879,7 +1879,7 @@
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
             <h3>Instructions Not Available</h3>
-            <p style="margin-bottom: 16px;">${escapeHtml(error.message)}</p>
+            <p style="margin-bottom: 16px;">${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
             <button class="btn btn-primary" onclick="showManualPayment(document.getElementById('payment-details-content'), '${method}')" style="display: inline-block;">
               🔄 Retry
             </button>
