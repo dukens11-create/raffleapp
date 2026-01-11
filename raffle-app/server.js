@@ -4760,81 +4760,34 @@ app.get('/api/tickets/verify/:ticketNumber', async (req, res) => {
 // ============================================================================
 
 // GET /api/public/raffle-info - Get current raffle information
+// Updated to use PostgreSQL directly via pg module instead of SQLite
 app.get('/api/public/raffle-info', async (req, res) => {
   try {
-    // Get the active raffle only (not draft)
-    const raffle = await db.get(`
-      SELECT id, name, description, start_date, draw_date, status, total_tickets
-      FROM raffles 
-      WHERE status = 'active'
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `);
+    // Get the active raffle only (not draft) using PostgreSQL
+    const raffleResult = await db.pgPool.query(
+      `SELECT id, name, description, start_date, draw_date, status, total_tickets, created_at 
+       FROM raffles 
+       WHERE status = 'active' 
+       LIMIT 1`
+    );
     
-    if (!raffle) {
+    if (raffleResult.rows.length === 0) {
+      console.log('No active raffle found');
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
-    // Get ticket categories with their prices
-    const categories = await db.all(`
-      SELECT category_code, category_name, price, color, description
-      FROM ticket_categories 
-      WHERE raffle_id = ?
-      ORDER BY category_code
-    `, [raffle.id]);
+    const raffle = raffleResult.rows[0];
     
-    // Get statistics including online-available tickets
-    const stats = await db.get(`
-      SELECT 
-        COUNT(*) as total_tickets,
-        COUNT(CASE WHEN status = 'SOLD' THEN 1 END) as sold_tickets,
-        COUNT(CASE WHEN status = 'AVAILABLE' THEN 1 END) as available_tickets,
-        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_total,
-        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available_now
-      FROM tickets 
-      WHERE raffle_id = ?
-    `, [raffle.id]);
-    
-    // Get online-available counts per category
-    const categoryStats = await db.all(`
-      SELECT 
-        category,
-        COUNT(CASE WHEN available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_total,
-        COUNT(CASE WHEN status = 'AVAILABLE' AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'} THEN 1 END) as online_available
-      FROM tickets 
-      WHERE raffle_id = ?
-      GROUP BY category
-    `, [raffle.id]);
-    
-    // Merge category stats with categories
-    const categoriesWithStats = categories.map(cat => {
-      const catStat = categoryStats.find(cs => cs.category === cat.category_code) || { online_total: 0, online_available: 0 };
-      return {
-        ...cat,
-        online_available: catStat.online_available,
-        online_total: catStat.online_total
-      };
-    });
-    
-    res.json({
-      raffle: {
-        name: raffle.name,
-        description: raffle.description,
-        start_date: raffle.start_date,
-        draw_date: raffle.draw_date,
-        status: raffle.status
-      },
-      categories: categoriesWithStats,
-      stats: stats || { 
-        total_tickets: 0, 
-        sold_tickets: 0, 
-        available_tickets: 0,
-        online_available_total: 0,
-        online_available_now: 0
-      }
-    });
+    // Return the active raffle as JSON
+    res.json(raffle);
   } catch (error) {
-    console.error('Error fetching raffle info:', error);
+    console.error('Error fetching raffle info:', error.message);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Error details:', {
+        code: error.code,
+        stack: error.stack
+      });
+    }
     res.status(500).json({ error: 'Failed to fetch raffle information' });
   }
 });
@@ -6534,11 +6487,26 @@ app.use((err, req, res, next) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Access the application at http://localhost:${PORT}`);
   console.log(`Health check available at http://localhost:${PORT}/health`);
+  
+  // Verify PostgreSQL connection for raffle-info endpoint
+  if (!db.pgPool) {
+    console.warn('⚠️  WARNING: PostgreSQL not configured. /api/public/raffle-info endpoint will not work.');
+    console.warn('   Set DATABASE_URL environment variable to enable PostgreSQL.');
+  } else {
+    // Test the actual connection
+    try {
+      await db.pgPool.query('SELECT 1');
+      console.log('✅ PostgreSQL connected - /api/public/raffle-info endpoint ready');
+    } catch (error) {
+      console.error('❌ PostgreSQL connection failed:', error.message);
+      console.error('   /api/public/raffle-info endpoint will not work.');
+    }
+  }
 });
 
 // Graceful shutdown

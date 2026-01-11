@@ -952,5 +952,6 @@ module.exports = {
   getCurrentTimestamp,
   isUniqueConstraintError,
   streamRows,
-  processBatches
+  processBatches,
+  pgPool
 };
