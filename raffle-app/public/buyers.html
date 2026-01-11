@@ -693,6 +693,79 @@
         padding: 24px;
       }
     }
+    
+    /* Ticket Grid Styles */
+    .tickets-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+    
+    .ticket-item {
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    
+    .ticket-item:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
+    }
+    
+    .ticket-number {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .ticket-category {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .ticket-price {
+      font-size: 14px;
+      color: #667eea;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    
+    .category-stat-card {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+      border: 2px solid rgba(102, 126, 234, 0.2);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    
+    .category-stat-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+    }
+    
+    .category-stat-details {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .category-stat-details span {
+      font-weight: 600;
+      color: #667eea;
+    }
   </style>
 </head>
 <body>
@@ -759,21 +832,43 @@
     <div id="available-tickets" class="tab-content">
       <div class="card">
         <h2>Available Tickets for Purchase</h2>
+        <p style="color: #64748b; margin-bottom: 20px;">
+          Browse the last 100,000 available tickets from each category. These are the most recently generated tickets available for online purchase.
+        </p>
         
         <div class="filter-row">
-          <select id="category-filter">
+          <select id="category-filter" onchange="loadAvailableTickets()">
             <option value="">All Categories</option>
           </select>
+          <input 
+            type="text" 
+            id="ticket-search" 
+            placeholder="Search by ticket number..." 
+            style="flex: 1; min-width: 200px; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;"
+            onkeyup="handleTicketSearch(event)"
+          >
           <button class="btn btn-primary" onclick="loadAvailableTickets()" style="width: auto;">
             🔄 Refresh
           </button>
         </div>
+        
+        <!-- Category Statistics -->
+        <div id="category-stats" style="margin: 20px 0;"></div>
         
         <div id="available-tickets-content">
           <div class="loading">
             <div class="spinner"></div>
             <p>Loading available tickets...</p>
           </div>
+        </div>
+        
+        <!-- Pagination Controls -->
+        <div class="pagination" id="tickets-pagination" style="display: none;">
+          <button onclick="changeTicketsPage('first')" id="tickets-first-btn">First</button>
+          <button onclick="changeTicketsPage('prev')" id="tickets-prev-btn">Previous</button>
+          <span class="page-info" id="tickets-page-info">Page 1 of 1</span>
+          <button onclick="changeTicketsPage('next')" id="tickets-next-btn">Next</button>
+          <button onclick="changeTicketsPage('last')" id="tickets-last-btn">Last</button>
         </div>
       </div>
     </div>
@@ -1273,18 +1368,33 @@
     }
     
     // Load available tickets
+    // State for tickets pagination
+    let currentTicketsPage = 1;
+    let totalTicketsPages = 1;
+    let currentTicketsCategory = '';
+    let currentSearchQuery = '';
+    
     async function loadAvailableTickets(page = 1) {
       const container = document.getElementById('available-tickets-content');
+      const statsContainer = document.getElementById('category-stats');
+      const paginationEl = document.getElementById('tickets-pagination');
       
       try {
         // Show loading state
         container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading available tickets...</p></div>';
+        statsContainer.innerHTML = '';
+        paginationEl.style.display = 'none';
         
         console.log('[Buyers] Loading available tickets, page:', page);
         
-        currentPage = page;
-        const category = document.getElementById('category-filter').value;
-        const url = `/api/public/available-tickets?page=${page}&limit=50${category ? '&category=' + category : ''}`;
+        currentTicketsPage = page;
+        currentTicketsCategory = document.getElementById('category-filter').value;
+        currentSearchQuery = document.getElementById('ticket-search').value.trim();
+        
+        // Build URL with query parameters
+        let url = `/api/public/available-tickets?page=${page}&limit=100&groupByCategory=true`;
+        if (currentTicketsCategory) url += `&category=${currentTicketsCategory}`;
+        if (currentSearchQuery) url += `&search=${encodeURIComponent(currentSearchQuery)}`;
         
         const response = await fetchWithTimeout(url, {}, 10000);
         const data = await response.json();
@@ -1295,53 +1405,64 @@
           throw new Error(data.error || 'Failed to load tickets');
         }
         
+        // Display category statistics
+        if (data.categoryGroups && data.categoryGroups.length > 0) {
+          statsContainer.innerHTML = `
+            <div style="margin-bottom: 16px;">
+              <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 12px;">📊 Available Tickets by Category</h3>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px;">
+                ${data.categoryGroups.map(cat => `
+                  <div class="category-stat-card">
+                    <div class="category-stat-title">${escapeHtml(cat.category)}</div>
+                    <div class="category-stat-details">
+                      <div>Available: <span>${parseInt(cat.count).toLocaleString()}</span></div>
+                      <div>Range: <span>${escapeHtml(cat.first_ticket)} - ${escapeHtml(cat.last_ticket)}</span></div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }
+        
         if (data.tickets.length === 0) {
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon">🎫</div>
               <h3>No Available Tickets</h3>
-              <p>All tickets in this category have been sold or there are no tickets available.</p>
+              <p>${currentSearchQuery ? 'No tickets match your search.' : 'All tickets in this category have been sold or there are no tickets available.'}</p>
             </div>
           `;
           return;
         }
         
+        // Display tickets in a grid
         container.innerHTML = `
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ticket Number</th>
-                  <th>Category</th>
-                  <th>Price</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${data.tickets.map(ticket => `
-                  <tr>
-                    <td><strong>${ticket.ticket_number}</strong></td>
-                    <td>${ticket.category || 'N/A'}</td>
-                    <td><strong>$${parseFloat(ticket.price).toFixed(2)}</strong></td>
-                    <td><span class="status-badge status-${ticket.status.toLowerCase()}">${ticket.status}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
+          <div style="margin-bottom: 12px; color: #64748b; font-weight: 600;">
+            Showing ${data.tickets.length} of ${data.pagination.total.toLocaleString()} available tickets
+            ${currentTicketsCategory ? ` in category ${currentTicketsCategory}` : ''}
           </div>
-          
-          ${data.pagination.total_pages > 1 ? `
-            <div class="pagination">
-              <button onclick="loadAvailableTickets(${page - 1})" ${page === 1 ? 'disabled' : ''}>
-                ← Previous
-              </button>
-              <span class="page-info">Page ${page} of ${data.pagination.total_pages}</span>
-              <button onclick="loadAvailableTickets(${page + 1})" ${page >= data.pagination.total_pages ? 'disabled' : ''}>
-                Next →
-              </button>
-            </div>
-          ` : ''}
+          <div class="tickets-grid">
+            ${data.tickets.map(ticket => `
+              <div class="ticket-item" onclick="selectTicketForPurchase('${escapeHtml(ticket.ticket_number)}', '${escapeHtml(ticket.category)}')">
+                <div class="ticket-number">${escapeHtml(ticket.ticket_number)}</div>
+                <div class="ticket-category">${escapeHtml(ticket.category || 'N/A')}</div>
+                <div class="ticket-price">$${parseFloat(ticket.price).toFixed(2)}</div>
+              </div>
+            `).join('')}
+          </div>
         `;
+        
+        // Update pagination
+        totalTicketsPages = data.pagination.total_pages;
+        if (totalTicketsPages > 1) {
+          paginationEl.style.display = 'flex';
+          document.getElementById('tickets-page-info').textContent = `Page ${currentTicketsPage} of ${totalTicketsPages}`;
+          document.getElementById('tickets-first-btn').disabled = currentTicketsPage === 1;
+          document.getElementById('tickets-prev-btn').disabled = currentTicketsPage === 1;
+          document.getElementById('tickets-next-btn').disabled = currentTicketsPage >= totalTicketsPages;
+          document.getElementById('tickets-last-btn').disabled = currentTicketsPage >= totalTicketsPages;
+        }
         
         window.availableTicketsLoaded = true;
       } catch (error) {
@@ -1356,6 +1477,71 @@
             </button>
           </div>
         `;
+      }
+    }
+    
+    // Pagination helpers for tickets
+    function changeTicketsPage(action) {
+      let newPage = currentTicketsPage;
+      
+      switch(action) {
+        case 'first':
+          newPage = 1;
+          break;
+        case 'prev':
+          newPage = Math.max(1, currentTicketsPage - 1);
+          break;
+        case 'next':
+          newPage = Math.min(totalTicketsPages, currentTicketsPage + 1);
+          break;
+        case 'last':
+          newPage = totalTicketsPages;
+          break;
+      }
+      
+      if (newPage !== currentTicketsPage) {
+        loadAvailableTickets(newPage);
+      }
+    }
+    
+    // Handle ticket search with debounce
+    let searchTimeout = null;
+    function handleTicketSearch(event) {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        loadAvailableTickets(1); // Reset to page 1 when searching
+      }, 500);
+    }
+    
+    // Select a ticket for purchase (switches to purchase tab)
+    function selectTicketForPurchase(ticketNumber, category) {
+      console.log('[Buyers] Selected ticket:', ticketNumber, category);
+      
+      // Switch to purchase tab
+      switchTab('purchase');
+      
+      // Pre-fill the category in purchase form
+      const categorySelect = document.getElementById('purchase-category');
+      if (categorySelect && category) {
+        categorySelect.value = category;
+        updateTotalAmount();
+      }
+      
+      // Show info about selected ticket
+      const purchaseCard = document.querySelector('#purchase .card');
+      if (purchaseCard) {
+        const existingInfo = purchaseCard.querySelector('.ticket-selection-info');
+        if (existingInfo) existingInfo.remove();
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'ticket-selection-info';
+        infoDiv.style.cssText = 'background: rgba(102, 126, 234, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 16px;';
+        infoDiv.innerHTML = `
+          <div style="font-size: 14px; color: #667eea;">
+            <strong>ℹ️ You selected:</strong> ${escapeHtml(ticketNumber)} from ${escapeHtml(category)} category
+          </div>
+        `;
+        purchaseCard.insertBefore(infoDiv, purchaseCard.firstChild.nextSibling);
       }
     }
     
