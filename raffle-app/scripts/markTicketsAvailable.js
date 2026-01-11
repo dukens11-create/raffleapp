@@ -46,6 +46,8 @@
 const db = require('../db');
 
 // Database-specific boolean values (evaluated once at module load)
+// PostgreSQL: TRUE/FALSE are boolean literals
+// SQLite: 1/0 for boolean (INTEGER)
 const TRUE_VALUE = db.USE_POSTGRES ? 'TRUE' : '1';
 const FALSE_VALUE = db.USE_POSTGRES ? 'FALSE' : '0';
 
@@ -114,8 +116,18 @@ async function markTicketsAvailable(ticketIds) {
   `;
   
   const result = await db.run(sql, ticketIds);
-  // Return the actual number of rows changed, or 0 if none
-  return result.changes || 0;
+  
+  // For SQLite: result is { lastID, changes }
+  // For PostgreSQL: result is an array (rows), but for UPDATE it's empty
+  // Since db.js doesn't properly return rowCount for PostgreSQL, we return the ticket count
+  if (db.USE_POSTGRES) {
+    // For PostgreSQL, we can't reliably get the row count from the current db.js abstraction
+    // Return the ticket count as an approximation
+    return ticketIds.length;
+  } else {
+    // For SQLite, return the actual number of rows changed
+    return result.changes || 0;
+  }
 }
 
 /**
@@ -153,7 +165,15 @@ async function resetAllTickets() {
     WHERE available_online = ${TRUE_VALUE}
   `);
   
-  return result.changes || 0;
+  // For SQLite: result is { lastID, changes }
+  // For PostgreSQL: result is an array, but we can't get row count from current db.js
+  if (db.USE_POSTGRES) {
+    // For PostgreSQL, count the tickets that were updated
+    const count = await countResetTickets();
+    return count;
+  } else {
+    return result.changes || 0;
+  }
 }
 
 /**
