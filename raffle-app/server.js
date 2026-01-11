@@ -4781,7 +4781,7 @@ app.get('/api/public/raffle-info', async (req, res) => {
     `);
     
     if (!raffle) {
-      return res.status(404).json({ error: 'No active raffle found' });
+      return res.json({ raffle: null });
     }
     
     // Get ticket categories with pricing and online availability
