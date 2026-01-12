@@ -2219,32 +2219,30 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Barcode is required' });
     }
     
-    // NEW: Require payment_reference
-    if (!payment_reference) {
-      console.log('[SCAN] Error: No payment_reference provided');
-      return res.status(400).json({ 
-        error: 'PAYMENT_NOT_VERIFIED',
-        message: 'Please verify payment (Transaction ID) before scanning tickets'
-      });
-    }
-    
-    // Validate payment_reference exists and has tickets remaining
-    const payment = await db.get(
-      `SELECT * FROM payments WHERE payment_reference = ?`,
-      [payment_reference]
-    );
-    
-    if (!payment) {
-      console.log('[SCAN] Error: Invalid payment reference');
-      return res.status(404).json({ 
-        error: 'INVALID_PAYMENT',
-        message: 'Payment reference not found'
-      });
+    // TEMPORARY: Make payment_reference optional until MonCash API is configured
+    // This allows sellers to assign tickets without payment verification
+    let payment = null;
+    if (payment_reference) {
+      // If payment_reference provided, validate it
+      payment = await db.get(
+        `SELECT * FROM payments WHERE payment_reference = ?`,
+        [payment_reference]
+      );
+      
+      if (!payment) {
+        console.log('[SCAN] Error: Invalid payment reference');
+        return res.status(404).json({ 
+          error: 'INVALID_PAYMENT',
+          message: 'Payment reference not found'
+        });
+      }
+    } else {
+      console.log('[SCAN] ⚠️  TEMPORARY: No payment_reference provided - payment verification disabled');
     }
     
     // Determine which department to use
     // Priority: 1) Payment's department (from buyer's purchase), 2) Seller-provided department
-    const departmentToUse = payment.customer_department || buyer_department || null;
+    const departmentToUse = payment?.customer_department || buyer_department || null;
     
     // Validate department if provided
     if (departmentToUse && !isValidDepartment(departmentToUse)) {
@@ -2257,22 +2255,23 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     
     console.log(`[SCAN] Department to use: ${departmentToUse || 'none'}`);
     
-    // Count tickets already assigned to this payment
-    const assignedCount = await db.get(
-      `SELECT COUNT(*) as count FROM tickets WHERE payment_reference = ?`,
-      [payment_reference]
-    );
-    
-    console.log(`[SCAN] Payment ${payment_reference}: ${assignedCount.count}/${payment.ticket_quantity} tickets assigned`);
-    
-    // FRAUD CHECK: Prevent over-assignment
-    if (assignedCount.count >= payment.ticket_quantity) {
-      console.log('[SCAN] 🚨 FRAUD ALERT: Ticket limit exceeded');
-      return res.status(400).json({ 
-        error: 'TICKET_LIMIT_EXCEEDED',
-        message: `All ${payment.ticket_quantity} tickets for this payment have been assigned`,
-        fraud_alert: true
-      });
+    // FRAUD CHECK: If payment exists, prevent over-assignment
+    if (payment) {
+      const assignedCount = await db.get(
+        `SELECT COUNT(*) as count FROM tickets WHERE payment_reference = ?`,
+        [payment_reference]
+      );
+      
+      console.log(`[SCAN] Payment ${payment_reference}: ${assignedCount.count}/${payment.ticket_quantity} tickets assigned`);
+      
+      if (assignedCount.count >= payment.ticket_quantity) {
+        console.log('[SCAN] 🚨 FRAUD ALERT: Ticket limit exceeded');
+        return res.status(400).json({ 
+          error: 'TICKET_LIMIT_EXCEEDED',
+          message: `All ${payment.ticket_quantity} tickets for this payment have been assigned`,
+          fraud_alert: true
+        });
+      }
     }
     
     // Validate barcode using new 8-digit validation
@@ -2290,8 +2289,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     const ticket = validation.ticket;
     console.log(`[SCAN] Ticket found: ${ticket.ticket_number}, status: ${ticket.status}`);
     
-    // FRAUD CHECK: Ensure ticket not already linked to another payment
-    if (ticket.payment_reference && ticket.payment_reference !== payment_reference) {
+    // FRAUD CHECK: Ensure ticket not already linked to another payment (if payment exists)
+    if (payment && ticket.payment_reference && ticket.payment_reference !== payment_reference) {
       console.log('[SCAN] 🚨 FRAUD ALERT: Ticket already linked to different payment');
       return res.status(400).json({ 
         error: 'TICKET_ALREADY_LINKED',
@@ -2300,7 +2299,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       });
     }
     
-    // Mark as sold and link to payment, including department
+    // Mark as sold and link to payment (if exists), including department
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
@@ -2310,35 +2309,46 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
            customer_department = ?,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [req.session.user.name, req.session.user.phone, payment_reference, departmentToUse, ticket.id]
+      [req.session.user.name, req.session.user.phone, payment_reference || null, departmentToUse, ticket.id]
     );
     
-    // Update payment record with ticket numbers
-    const updatedTickets = await db.all(
-      `SELECT ticket_number FROM tickets WHERE payment_reference = ?`,
-      [payment_reference]
-    );
-    const ticketNumbers = updatedTickets.map(t => t.ticket_number).join(', ');
-    
-    await db.run(
-      `UPDATE payments SET ticket_numbers = ?, seller_name = ? WHERE payment_reference = ?`,
-      [ticketNumbers, req.session.user.name, payment_reference]
-    );
-    
-    console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name}`);
-    
-    // Return success with remaining count
-    const newCount = assignedCount.count + 1;
-    const remaining = payment.ticket_quantity - newCount;
-    
-    res.json({ 
-      success: true, 
-      message: 'Ticket assigned successfully',
-      ticket: ticket.ticket_number,
-      tickets_assigned: newCount,
-      tickets_remaining: remaining,
-      all_tickets_assigned: remaining === 0
-    });
+    // Update payment record with ticket numbers (if payment exists)
+    if (payment) {
+      const updatedTickets = await db.all(
+        `SELECT ticket_number FROM tickets WHERE payment_reference = ?`,
+        [payment_reference]
+      );
+      const ticketNumbers = updatedTickets.map(t => t.ticket_number).join(', ');
+      
+      await db.run(
+        `UPDATE payments SET ticket_numbers = ?, seller_name = ? WHERE payment_reference = ?`,
+        [ticketNumbers, req.session.user.name, payment_reference]
+      );
+      
+      console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name}`);
+      
+      // Return success with remaining count
+      const newCount = updatedTickets.length;
+      const remaining = payment.ticket_quantity - newCount;
+      
+      res.json({ 
+        success: true, 
+        message: 'Ticket assigned successfully',
+        ticket: ticket.ticket_number,
+        tickets_assigned: newCount,
+        tickets_remaining: remaining,
+        all_tickets_assigned: remaining === 0
+      });
+    } else {
+      // No payment reference - just confirm ticket sold
+      console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name} (no payment verification)`);
+      
+      res.json({ 
+        success: true, 
+        message: 'Ticket assigned successfully',
+        ticket: ticket.ticket_number
+      });
+    }
   } catch (error) {
     console.error('[SCAN] Error processing ticket:', error);
     console.error('[SCAN] Stack trace:', error.stack);
