@@ -1296,12 +1296,14 @@
         }
         
         // Extract all tickets from grouped categories
-        allAvailableTickets = [];
         const categories = data.categories || {};
+        const ticketsArray = [];
         
         for (const [categoryName, tickets] of Object.entries(categories)) {
-          allAvailableTickets = allAvailableTickets.concat(tickets);
+          ticketsArray.push(...tickets);
         }
+        
+        allAvailableTickets = ticketsArray;
         
         console.log('[Buyers] Total tickets from all categories:', allAvailableTickets.length);
         
