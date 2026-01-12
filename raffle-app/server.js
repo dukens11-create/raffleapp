@@ -4592,16 +4592,24 @@ app.get('/api/public/available-tickets', async (req, res) => {
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
-    // Build query with optional category filter
+    // Show only the last 100,000 tickets per category
+    // Use a subquery to get ticket IDs from the last 100k per category
     let query = `
       SELECT ticket_number, category, price, status
       FROM tickets 
-      WHERE raffle_id = ? AND status = 'AVAILABLE'
+      WHERE raffle_id = ? 
+        AND status = 'AVAILABLE'
+        AND id IN (
+          SELECT id FROM tickets
+          WHERE raffle_id = ? AND status = 'AVAILABLE'
+          ${category ? 'AND category = ?' : ''}
+          ORDER BY id DESC
+          LIMIT 100000
+        )
     `;
-    const params = [raffle.id];
+    const params = [raffle.id, raffle.id];
     
     if (category) {
-      query += ' AND category = ?';
       params.push(category);
     }
     
@@ -4610,16 +4618,23 @@ app.get('/api/public/available-tickets', async (req, res) => {
     
     const tickets = await db.all(query, params);
     
-    // Get total count for pagination
+    // Get total count for pagination (limited to last 100k per category)
     let countQuery = `
       SELECT COUNT(*) as total 
       FROM tickets 
-      WHERE raffle_id = ? AND status = 'AVAILABLE'
+      WHERE raffle_id = ? 
+        AND status = 'AVAILABLE'
+        AND id IN (
+          SELECT id FROM tickets
+          WHERE raffle_id = ? AND status = 'AVAILABLE'
+          ${category ? 'AND category = ?' : ''}
+          ORDER BY id DESC
+          LIMIT 100000
+        )
     `;
-    const countParams = [raffle.id];
+    const countParams = [raffle.id, raffle.id];
     
     if (category) {
-      countQuery += ' AND category = ?';
       countParams.push(category);
     }
     
