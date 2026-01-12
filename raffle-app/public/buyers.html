@@ -1270,6 +1270,10 @@
     }
     
     // Load available tickets
+    // Cache for all tickets from the API
+    let allAvailableTickets = [];
+    const TICKETS_PER_PAGE = 50;
+    
     async function loadAvailableTickets(page = 1) {
       const container = document.getElementById('available-tickets-content');
       
@@ -1280,10 +1284,9 @@
         console.log('[Buyers] Loading available tickets, page:', page);
         
         currentPage = page;
-        const category = document.getElementById('category-filter').value;
-        const url = `/api/public/available-tickets?page=${page}&limit=50${category ? '&category=' + category : ''}`;
         
-        const response = await fetchWithTimeout(url, {}, 10000);
+        // Fetch from the working endpoint
+        const response = await fetchWithTimeout('/api/buyer/available-tickets', {}, 10000);
         const data = await response.json();
         
         console.log('[Buyers] Available tickets loaded:', data);
@@ -1292,16 +1295,37 @@
           throw new Error(data.error || 'Failed to load tickets');
         }
         
-        if (data.tickets.length === 0) {
-          // Show category statistics if available
+        // Extract all tickets from grouped categories
+        const categories = data.categories || {};
+        const ticketsArray = [];
+        
+        for (const [categoryName, tickets] of Object.entries(categories)) {
+          ticketsArray.push(...tickets);
+        }
+        
+        allAvailableTickets = ticketsArray;
+        
+        console.log('[Buyers] Total tickets from all categories:', allAvailableTickets.length);
+        
+        // Filter by category if selected
+        const category = document.getElementById('category-filter').value;
+        let filteredTickets = allAvailableTickets;
+        if (category) {
+          filteredTickets = allAvailableTickets.filter(ticket => ticket.category === category);
+          console.log('[Buyers] Filtered to category', category, ':', filteredTickets.length, 'tickets');
+        }
+        
+        // Check if no tickets available
+        if (filteredTickets.length === 0) {
+          // Show category statistics
           let categoryStats = '';
-          if (data.categories && data.categories.length > 0) {
+          if (Object.keys(categories).length > 0) {
             categoryStats = `
               <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: left;">
                 <h4 style="margin: 0 0 10px 0; color: #495057;">Available Tickets by Category:</h4>
-                ${data.categories.map(cat => `
+                ${Object.entries(categories).map(([cat, tickets]) => `
                   <div style="padding: 5px 0; color: #6c757d;">
-                    <strong>${cat.category}:</strong> ${cat.available.toLocaleString()} tickets
+                    <strong>${cat}:</strong> ${tickets.length.toLocaleString()} tickets
                   </div>
                 `).join('')}
               </div>
@@ -1312,7 +1336,7 @@
             <div class="empty-state">
               <div class="empty-state-icon">🎫</div>
               <h3>No Available Tickets</h3>
-              <p>All tickets in this category have been sold or there are no tickets available for online purchase.</p>
+              <p>${category ? `No tickets available in the "${category}" category.` : 'There are no tickets available for online purchase.'}</p>
               ${categoryStats}
               <p style="margin-top: 16px; color: #6c757d; font-size: 14px;">
                 Tickets may need to be marked as available online by an administrator.
@@ -1322,7 +1346,19 @@
           return;
         }
         
+        // Client-side pagination
+        const totalPages = Math.ceil(filteredTickets.length / TICKETS_PER_PAGE);
+        const startIndex = (page - 1) * TICKETS_PER_PAGE;
+        const endIndex = startIndex + TICKETS_PER_PAGE;
+        const paginatedTickets = filteredTickets.slice(startIndex, endIndex);
+        
+        console.log('[Buyers] Showing page', page, 'of', totalPages, ':', paginatedTickets.length, 'tickets');
+        
         container.innerHTML = `
+          <div style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border-radius: 8px; color: #0369a1;">
+            📊 <strong>${filteredTickets.length.toLocaleString()}</strong> tickets available${category ? ` in "${category}"` : ' across all categories'}
+          </div>
+          
           <div class="table-container">
             <table>
               <thead>
@@ -1334,7 +1370,7 @@
                 </tr>
               </thead>
               <tbody>
-                ${data.tickets.map(ticket => `
+                ${paginatedTickets.map(ticket => `
                   <tr>
                     <td><strong>${ticket.ticket_number}</strong></td>
                     <td>${ticket.category || 'N/A'}</td>
@@ -1346,13 +1382,13 @@
             </table>
           </div>
           
-          ${data.pagination.total_pages > 1 ? `
+          ${totalPages > 1 ? `
             <div class="pagination">
               <button onclick="loadAvailableTickets(${page - 1})" ${page === 1 ? 'disabled' : ''}>
                 ← Previous
               </button>
-              <span class="page-info">Page ${page} of ${data.pagination.total_pages}</span>
-              <button onclick="loadAvailableTickets(${page + 1})" ${page >= data.pagination.total_pages ? 'disabled' : ''}>
+              <span class="page-info">Page ${page} of ${totalPages} (${filteredTickets.length} tickets)</span>
+              <button onclick="loadAvailableTickets(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>
                 Next →
               </button>
             </div>
@@ -1562,6 +1598,9 @@
     }
     
     // Load raffle info and populate category filter on page load
+    // Track which elements have event listeners to prevent duplicates
+    const elementsWithListeners = new Set();
+    
     async function init() {
       try {
         await loadRaffleInfo();
@@ -1569,13 +1608,22 @@
         // Populate category filter from cached raffle data
         if (raffleData && raffleData.categories) {
           const categoryFilter = document.getElementById('category-filter');
-          if (categoryFilter) {
+          if (categoryFilter && !elementsWithListeners.has(categoryFilter)) {
             raffleData.categories.forEach(cat => {
               const option = document.createElement('option');
               option.value = cat.category_code;
               option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
               categoryFilter.appendChild(option);
             });
+            
+            // Add change event listener to reload tickets when category changes
+            categoryFilter.addEventListener('change', () => {
+              console.log('[Buyers] Category filter changed');
+              if (window.availableTicketsLoaded) {
+                loadAvailableTickets(1); // Reset to page 1 when filter changes
+              }
+            });
+            elementsWithListeners.add(categoryFilter);
           }
         }
       } catch (error) {
