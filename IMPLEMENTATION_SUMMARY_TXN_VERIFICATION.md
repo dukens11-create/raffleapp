@@ -34,7 +34,7 @@ CREATE TABLE txn_verification_log (
 **Location:** Line ~1843 (before `/api/tickets/scan`)
 
 **Features:**
-- ✅ Validates 12-digit transaction ID format
+- ✅ Validates 13-15 digit transaction ID format
 - ✅ Checks payment exists and is approved
 - ✅ Calculates tickets remaining
 - ✅ Detects duplicate transaction ID usage (fraud check)
@@ -111,7 +111,7 @@ Review admin panel for details.
 <div class="txn-verification-section">
   <h2>💳 Step 1: Verify Payment</h2>
   <form id="txnVerificationForm">
-    <input type="text" id="txnIdInput" pattern="[0-9]{12}" maxlength="12" required />
+    <input type="text" id="txnIdInput" pattern="[0-9]{13,15}" maxlength="15" required />
     <button type="submit">Verify Payment</button>
   </form>
   <div id="txnVerificationResult"></div>
@@ -200,26 +200,26 @@ Added ~30 new translation keys per language:
 ### English
 ```
 💳 Step 1: Verify Payment
-Enter customer's 12-digit MonCash Transaction ID first
+Enter customer's 13-15 digit MonCash Transaction ID first
 ```
 
 ### Haitian Creole
 ```
 💳 Etap 1: Verifye Peman
-Antre 12-chif ID Tranzaksyon MonCash kliyan an anvan
+Antre 13-15 chif ID Tranzaksyon MonCash kliyan an anvan
 ```
 
 ### French
 ```
 💳 Étape 1: Vérifier le Paiement
-Entrez d'abord l'ID de transaction MonCash à 12 chiffres du client
+Entrez d'abord l'ID de transaction MonCash à 13-15 chiffres du client
 ```
 
 ## 📊 User Flow
 
 ### Happy Path
 1. Seller opens dashboard
-2. Enters 12-digit MonCash Txn ID
+2. Enters 13-15 digit MonCash Txn ID
 3. Clicks "Verify Payment"
 4. ✅ Success: Payment details displayed
 5. Scanner/manual entry sections enabled
@@ -255,7 +255,7 @@ CREATE INDEX idx_txn_verification_txn_id ON txn_verification_log(txn_id);
 ## 🧪 Testing Coverage
 
 ### Unit Tests Needed
-- [ ] Transaction ID format validation (12 digits)
+- [ ] Transaction ID format validation (13-15 digits)
 - [ ] Payment status check (approved only)
 - [ ] Tickets remaining calculation
 - [ ] Fraud detection logic
@@ -355,13 +355,13 @@ The new schema changes are automatically applied on server startup:
 ## 🎬 Demo Script
 
 ### Setup
-1. Create test payment: txn_id = "111111111111", tickets = 2
+1. Create test payment: txn_id = "1111111111111", tickets = 2
 2. Login as seller
 3. Open seller dashboard
 
 ### Scenario 1: First-Time Verification
 ```
-1. Enter: 111111111111
+1. Enter: 1111111111111
 2. Click "Verify Payment"
 3. See: ✅ Payment Verified! Customer: Test Buyer, Tickets: 2
 4. Scanner section enabled
@@ -373,7 +373,7 @@ The new schema changes are automatically applied on server startup:
 
 ### Scenario 2: Duplicate Txn ID (Fraud)
 ```
-1. Enter same txn_id: 111111111111
+1. Enter same txn_id: 1111111111111
 2. Click "Verify Payment"
 3. See: 🚨 FRAUD ALERT
 4. See: Previously assigned to: Test Buyer

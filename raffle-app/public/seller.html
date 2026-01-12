@@ -569,17 +569,17 @@
         <!-- Transaction ID Verification Section (Step 1) -->
         <div class="txn-verification-section">
             <h2>💳 Step 1: Verify Payment</h2>
-            <p>Enter customer's 12-digit MonCash Transaction ID first</p>
+            <p>Enter customer's 13-15 digit MonCash Transaction ID first</p>
             
             <form id="txnVerificationForm">
                 <div class="form-group">
-                    <label for="txnIdInput">MonCash Transaction ID (12 digits)</label>
+                    <label for="txnIdInput">MonCash Transaction ID (13-15 digits)</label>
                     <input 
                         type="text" 
                         id="txnIdInput" 
-                        placeholder="123456789012" 
-                        pattern="[0-9]{12}" 
-                        maxlength="12"
+                        placeholder="1234567890123" 
+                        pattern="[0-9]{13,15}" 
+                        maxlength="15"
                         required
                         style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 16px; font-family: monospace; letter-spacing: 2px;"
                     />
@@ -772,9 +772,9 @@
                 ticketsSold: "Tickets Sold",
                 totalRevenue: "Total Revenue",
                 verifyPayment: "Verify Payment",
-                verifyPaymentDesc: "Enter customer's 12-digit MonCash Transaction ID first",
-                transactionId: "MonCash Transaction ID (12 digits)",
-                transactionIdPlaceholder: "123456789012",
+                verifyPaymentDesc: "Enter customer's 13-15 digit MonCash Transaction ID first",
+                transactionId: "MonCash Transaction ID (13-15 digits)",
+                transactionIdPlaceholder: "1234567890123",
                 verifyPaymentButton: "Verify Payment",
                 verifyingPayment: "Verifying payment...",
                 paymentVerified: "Payment Verified!",
@@ -841,9 +841,9 @@
                 ticketsSold: "Tikè Vann",
                 totalRevenue: "Total Lajan",
                 verifyPayment: "Verifye Peman",
-                verifyPaymentDesc: "Antre 12-chif ID Tranzaksyon MonCash kliyan an anvan",
-                transactionId: "ID Tranzaksyon MonCash (12 chif)",
-                transactionIdPlaceholder: "123456789012",
+                verifyPaymentDesc: "Antre 13-15 chif ID Tranzaksyon MonCash kliyan an anvan",
+                transactionId: "ID Tranzaksyon MonCash (13-15 chif)",
+                transactionIdPlaceholder: "1234567890123",
                 verifyPaymentButton: "Verifye Peman",
                 verifyingPayment: "K ap verifye peman...",
                 paymentVerified: "Peman Verifye!",
@@ -910,9 +910,9 @@
                 ticketsSold: "Billets Vendus",
                 totalRevenue: "Revenu Total",
                 verifyPayment: "Vérifier le Paiement",
-                verifyPaymentDesc: "Entrez d'abord l'ID de transaction MonCash à 12 chiffres du client",
-                transactionId: "ID de Transaction MonCash (12 chiffres)",
-                transactionIdPlaceholder: "123456789012",
+                verifyPaymentDesc: "Entrez d'abord l'ID de transaction MonCash à 13-15 chiffres du client",
+                transactionId: "ID de Transaction MonCash (13-15 chiffres)",
+                transactionIdPlaceholder: "1234567890123",
                 verifyPaymentButton: "Vérifier le Paiement",
                 verifyingPayment: "Vérification du paiement...",
                 paymentVerified: "Paiement Vérifié!",

@@ -17,10 +17,10 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │ 💳 Step 1: Verify Payment                                       │
 │                                                                 │
-│ Enter customer's 12-digit MonCash Transaction ID first         │
+│ Enter customer's 13-15 digit MonCash Transaction ID first         │
 │                                                                 │
 │ ┌─────────────────────────────────────────────────────────┐   │
-│ │ MonCash Transaction ID (12 digits)                       │   │
+│ │ MonCash Transaction ID (13-15 digits)                       │   │
 │ │ ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │   │
 │ │ ┃ 1 2 3 4 5 6 7 8 9 0 1 2                             ┃ │   │
 │ │ ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛ │   │
@@ -54,7 +54,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │ 💳 Step 1: Verify Payment                                       │
 │                                                                 │
-│ Enter customer's 12-digit MonCash Transaction ID first         │
+│ Enter customer's 13-15 digit MonCash Transaction ID first         │
 │                                                                 │
 │ Transaction ID: [____________]                                  │
 │ [  Verify Payment  ]                                            │
@@ -251,7 +251,7 @@ On screens < 768px:
 - Lock icons supplement opacity for disabled state
 
 ✅ **Form Validation:**
-- HTML5 pattern attribute (12 digits)
+- HTML5 pattern attribute (13-15 digits)
 - maxlength="12" prevents over-entry
 - required attribute ensures input
 
@@ -286,10 +286,10 @@ On change:
 
 ## Error States
 
-### Invalid Format (Not 12 digits)
+### Invalid Format (Not 13-15 digits)
 ```
 ┌─────────────────────────────────────────────┐
-│ ❌ Transaction ID must be exactly 12 digits │
+│ ❌ Transaction ID must be 13-15 digits │
 └─────────────────────────────────────────────┘
 ```
 
@@ -341,7 +341,7 @@ After deployment, admin can track:
 ## User Journey
 
 1. **Seller arrives at dashboard** → Sees locked scanning section
-2. **Enters txn_id** → Form validation ensures 12 digits
+2. **Enters txn_id** → Form validation ensures 13-15 digits
 3. **Clicks Verify** → Loading state (⏳ Verifying payment...)
 4. **Success response** → Green box shows customer details, unlocks scanning
 5. **Scans ticket 1** → Success message, counter updates
@@ -367,7 +367,7 @@ Seller Flow:
 ```
 Seller Flow:
 1. Login → Dashboard
-2. Verify payment first (12-digit txn_id)
+2. Verify payment first (13-15 digit txn_id)
 3. See customer details
 4. Scan assigned tickets only
 5. Auto-tracking and fraud alerts
