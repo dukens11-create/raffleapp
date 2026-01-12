@@ -364,11 +364,72 @@ async function ensureAdminUser() {
   }
 }
 
+/**
+ * Ensure an active raffle exists
+ * If no active raffle exists, create or activate one
+ */
+async function ensureActiveRaffle() {
+  try {
+    console.log('');
+    console.log('🎫 Checking for active raffle...');
+    console.log('═══════════════════════════════════════');
+    
+    // Check if an active raffle exists
+    const activeRaffle = await db.get("SELECT id, name FROM raffles WHERE status='active' LIMIT 1");
+    
+    if (activeRaffle) {
+      console.log(`✅ Active raffle found: ${activeRaffle.name} (ID: ${activeRaffle.id})`);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return;
+    }
+    
+    console.log('⚠️  No active raffle found');
+    
+    // Check if any raffle exists
+    const anyRaffle = await db.get("SELECT id, name, status FROM raffles ORDER BY created_at DESC LIMIT 1");
+    
+    if (anyRaffle) {
+      // Update existing raffle to active
+      console.log(`   Activating existing raffle: ${anyRaffle.name} (ID: ${anyRaffle.id})`);
+      await db.run("UPDATE raffles SET status='active' WHERE id=?", [anyRaffle.id]);
+      console.log(`✅ Raffle activated successfully`);
+    } else {
+      // Create a new default raffle
+      console.log('   Creating default raffle...');
+      let newRaffleId;
+      if (db.USE_POSTGRES) {
+        const result = await db.get(
+          `INSERT INTO raffles (name, description, status, total_tickets) VALUES ($1, $2, $3, $4) RETURNING id`,
+          ['Default Raffle', 'Default raffle for ticket sales', 'active', 1500000]
+        );
+        newRaffleId = result.id;
+      } else {
+        const result = await db.run(
+          `INSERT INTO raffles (name, description, status, total_tickets) VALUES (?, ?, ?, ?)`,
+          ['Default Raffle', 'Default raffle for ticket sales', 'active', 1500000]
+        );
+        newRaffleId = result.lastID;
+      }
+      console.log(`✅ Default raffle created (ID: ${newRaffleId})`);
+    }
+    
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+  } catch (error) {
+    console.error('❌ Error ensuring active raffle:', error);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  }
+}
+
 // Initialize database schema, run migrations, validate setup, and check admin user
 db.initializeSchema()
   .then(() => runMigrations())
   .then(() => validateDatabaseSetup())
   .then(() => ensureAdminUser())
+  .then(() => ensureActiveRaffle())
   .catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
