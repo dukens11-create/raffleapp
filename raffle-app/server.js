@@ -2092,12 +2092,12 @@ app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
     
     console.log(`[TXN-VERIFY] Seller ${seller_name} verifying txn_id: ${txn_id}`);
     
-    // Validation: Must be 13-15 digits
-    if (!txn_id || !/^\d{13,15}$/.test(txn_id)) {
+    // Validation: Must be 12-15 digits
+    if (!txn_id || !/^\d{12,15}$/.test(txn_id)) {
       console.log('[TXN-VERIFY] Invalid format');
       return res.status(400).json({ 
         error: 'INVALID_FORMAT',
-        message: 'Transaction ID must be 13-15 digits'
+        message: 'Transaction ID must be 12-15 digits'
       });
     }
     
