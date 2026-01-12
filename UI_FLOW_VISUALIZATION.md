@@ -252,7 +252,7 @@ On screens < 768px:
 
 ✅ **Form Validation:**
 - HTML5 pattern attribute (13-15 digits)
-- maxlength="12" prevents over-entry
+- maxlength="15" prevents over-entry
 - required attribute ensures input
 
 ## Animation Transitions
