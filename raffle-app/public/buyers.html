@@ -1393,25 +1393,6 @@
           ` : ''}
         `;
         
-        // Update category filter with available categories
-        const categoryFilter = document.getElementById('category-filter');
-        if (categoryFilter && Object.keys(categories).length > 0) {
-          const currentValue = categoryFilter.value;
-          categoryFilter.innerHTML = '<option value="">All Categories</option>';
-          
-          Object.keys(categories).sort().forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat;
-            option.textContent = `${cat} (${categories[cat].length} tickets)`;
-            categoryFilter.appendChild(option);
-          });
-          
-          // Restore selected value if it still exists
-          if (currentValue && categories[currentValue]) {
-            categoryFilter.value = currentValue;
-          }
-        }
-        
         window.availableTicketsLoaded = true;
       } catch (error) {
         console.error('[Buyers] Error loading available tickets:', error);
@@ -1622,7 +1603,7 @@
         // Populate category filter from cached raffle data
         if (raffleData && raffleData.categories) {
           const categoryFilter = document.getElementById('category-filter');
-          if (categoryFilter) {
+          if (categoryFilter && !categoryFilter.dataset.listenerAdded) {
             raffleData.categories.forEach(cat => {
               const option = document.createElement('option');
               option.value = cat.category_code;
@@ -1631,12 +1612,14 @@
             });
             
             // Add change event listener to reload tickets when category changes
+            // Mark that listener has been added to prevent duplicates
             categoryFilter.addEventListener('change', () => {
               console.log('[Buyers] Category filter changed');
               if (window.availableTicketsLoaded) {
                 loadAvailableTickets(1); // Reset to page 1 when filter changes
               }
             });
+            categoryFilter.dataset.listenerAdded = 'true';
           }
         }
       } catch (error) {
