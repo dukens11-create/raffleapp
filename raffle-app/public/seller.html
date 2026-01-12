@@ -566,10 +566,16 @@
             </div>
         </div>
 
-        <!-- Transaction ID Verification Section (Step 1) -->
+        <!-- TEMPORARY NOTICE: Payment Verification Disabled -->
+        <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <strong>⚠️ Notice:</strong> Payment verification is temporarily disabled. 
+            You can scan and assign tickets directly. Payment verification will be enabled once MonCash API is configured.
+        </div>
+
+        <!-- Transaction ID Verification Section (Step 1) - OPTIONAL -->
         <div class="txn-verification-section">
-            <h2>💳 Step 1: Verify Payment</h2>
-            <p>Enter customer's 12-15 digit MonCash Transaction ID first</p>
+            <h2>💳 Step 1: Verify Payment (Optional - Coming Soon)</h2>
+            <p>Enter customer's 12-15 digit MonCash Transaction ID (optional until MonCash is configured)</p>
             
             <form id="txnVerificationForm">
                 <div class="form-group">
@@ -627,10 +633,10 @@
             </form>
         </div>
 
-        <!-- Barcode Scanner Section (Step 2) - DISABLED until txn verified -->
-        <div class="scanner-section" id="ticketScanningSection" style="opacity: 0.5; pointer-events: none;">
+        <!-- Barcode Scanner Section (Step 2) - ENABLED by default -->
+        <div class="scanner-section" id="ticketScanningSection">
             <h2>🎟️ Step 2: Scan Tickets</h2>
-            <p>🔒 Verify payment first to enable scanning</p>
+            <p>Scan tickets to assign them to customers</p>
             <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
             <div id="scannerContainer" style="display: none;">
                 <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
@@ -641,9 +647,9 @@
         </div>
 
         <!-- Manual Ticket Entry Section -->
-        <div class="manual-entry-section" id="manualEntrySection" style="opacity: 0.5; pointer-events: none;">
+        <div class="manual-entry-section" id="manualEntrySection">
             <h2>✍️ Manual Ticket Entry</h2>
-            <p>🔒 Verify payment first to enable manual entry</p>
+            <p>Enter ticket number manually if scanner doesn't work</p>
             <form id="manualTicketForm" style="display: flex; gap: 10px; align-items: flex-end;">
                 <div style="flex: 1;">
                     <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Ticket Number</label>
@@ -791,13 +797,13 @@
                 tickets: "Tickets",
                 by: "By",
                 ticketScanningStep: "Step 2: Scan Tickets",
-                verifyFirstLocked: "🔒 Verify payment first to enable scanning",
+                verifyFirstLocked: "Scan tickets to assign them to customers",
                 scanTicket: "Scan Ticket",
-                scanDescription: "Use your camera to scan ticket barcodes",
+                scanDescription: "Scan tickets to assign them to customers",
                 openScanner: "Open Camera Scanner",
                 closeScanner: "Close Scanner",
                 manualEntry: "Manual Ticket Entry",
-                manualDescription: "🔒 Verify payment first to enable manual entry",
+                manualDescription: "Enter ticket number manually if scanner doesn't work",
                 ticketNumber: "Ticket Number",
                 registerSale: "Register Sale",
                 reportConcern: "Report a Concern",
@@ -860,13 +866,13 @@
                 tickets: "Tikè",
                 by: "Pa",
                 ticketScanningStep: "Etap 2: Eskane Tikè",
-                verifyFirstLocked: "🔒 Verifye peman an anvan pou aktive eskanaj",
+                verifyFirstLocked: "Eskane tikè pou asiyen yo bay kliyan yo",
                 scanTicket: "Eskane Tikè",
-                scanDescription: "Sèvi ak kamera ou pou eskane kòd tikè yo",
+                scanDescription: "Eskane tikè pou asiyen yo bay kliyan yo",
                 openScanner: "Louvri Kamera",
                 closeScanner: "Fèmen Kamera",
                 manualEntry: "Antre Tikè Manyèlman",
-                manualDescription: "🔒 Verifye peman an anvan pou aktive antre manyèl",
+                manualDescription: "Antre nimewo tikè manyèlman si eskanè a pa travay",
                 ticketNumber: "Nimewo Tikè",
                 registerSale: "Anrejistre Vant",
                 reportConcern: "Rapòte yon Pwoblèm",
@@ -929,13 +935,13 @@
                 tickets: "Billets",
                 by: "Par",
                 ticketScanningStep: "Étape 2: Scanner les Billets",
-                verifyFirstLocked: "🔒 Vérifiez d'abord le paiement pour activer le scan",
+                verifyFirstLocked: "Scanner les billets pour les attribuer aux clients",
                 scanTicket: "Scanner Billet",
-                scanDescription: "Utilisez votre caméra pour scanner les codes-barres des billets",
+                scanDescription: "Scanner les billets pour les attribuer aux clients",
                 openScanner: "Ouvrir Scanner",
                 closeScanner: "Fermer Scanner",
                 manualEntry: "Saisie Manuelle de Billet",
-                manualDescription: "🔒 Vérifiez d'abord le paiement pour activer la saisie manuelle",
+                manualDescription: "Entrez le numéro de billet manuellement si le scanner ne fonctionne pas",
                 ticketNumber: "Numéro de Billet",
                 registerSale: "Enregistrer Vente",
                 reportConcern: "Signaler un Problème",
@@ -1442,10 +1448,9 @@
         }
 
         async function processScannedTicket(barcode) {
-            if (!currentVerifiedPayment) {
-                alert(translations[currentLanguage].verifyFirstLocked.replace('🔒 ', ''));
-                return;
-            }
+            // TEMPORARY: Payment verification disabled - allow scanning without payment
+            // TODO: Re-enable payment verification requirement once MonCash API is configured
+            // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
             
             const resultDiv = document.getElementById('scanResult');
             const t = translations[currentLanguage];
@@ -1454,9 +1459,13 @@
             
             try {
                 const requestBody = { 
-                    barcode: barcode,
-                    payment_reference: currentVerifiedPayment.payment_reference
+                    barcode: barcode
                 };
+                
+                // Add payment reference if available (optional)
+                if (currentVerifiedPayment) {
+                    requestBody.payment_reference = currentVerifiedPayment.payment_reference;
+                }
                 
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
@@ -1490,17 +1499,22 @@
                     return;
                 }
                 
-                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess} (${data.tickets_remaining} remaining)`;
+                // Show success message - adjust based on whether payment was verified
+                if (currentVerifiedPayment && data.tickets_remaining !== undefined) {
+                    resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess} (${data.tickets_remaining} remaining)`;
+                } else {
+                    resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess}`;
+                }
                 resultDiv.style.color = 'green';
                 
                 // Update remaining count in verification section
                 const remainingSpan = document.getElementById('ticketsRemaining');
-                if (remainingSpan) {
+                if (remainingSpan && data.tickets_remaining !== undefined) {
                     remainingSpan.textContent = data.tickets_remaining;
                 }
                 
                 // If all tickets assigned, reset verification
-                if (data.all_tickets_assigned) {
+                if (currentVerifiedPayment && data.all_tickets_assigned) {
                     setTimeout(() => {
                         alert(`✅ All ${currentVerifiedPayment.tickets_allowed} tickets assigned!\n\nClick OK to verify next payment.`);
                         resetVerification();
@@ -1564,10 +1578,9 @@
         document.getElementById('manualTicketForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            if (!currentVerifiedPayment) {
-                alert(translations[currentLanguage].verifyFirstLocked.replace('🔒 ', ''));
-                return;
-            }
+            // TEMPORARY: Payment verification disabled - allow manual entry without payment
+            // TODO: Re-enable payment verification requirement once MonCash API is configured
+            // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
             
             const ticketNumber = document.getElementById('manualTicketNumber').value.trim();
             const resultDiv = document.getElementById('manualEntryResult');
@@ -1588,9 +1601,13 @@
             
             try {
                 const requestBody = { 
-                    barcode: ticketNumber,
-                    payment_reference: currentVerifiedPayment.payment_reference
+                    barcode: ticketNumber
                 };
+                
+                // Add payment reference if available (optional)
+                if (currentVerifiedPayment) {
+                    requestBody.payment_reference = currentVerifiedPayment.payment_reference;
+                }
                 
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
@@ -1625,18 +1642,23 @@
                     return;
                 }
                 
-                resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess} (${data.tickets_remaining} remaining)`;
+                // Show success message - adjust based on whether payment was verified
+                if (currentVerifiedPayment && data.tickets_remaining !== undefined) {
+                    resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess} (${data.tickets_remaining} remaining)`;
+                } else {
+                    resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess}`;
+                }
                 resultDiv.style.color = '#065f46';
                 resultDiv.style.background = '#d1fae5';
                 
                 // Update remaining count in verification section
                 const remainingSpan = document.getElementById('ticketsRemaining');
-                if (remainingSpan) {
+                if (remainingSpan && data.tickets_remaining !== undefined) {
                     remainingSpan.textContent = data.tickets_remaining;
                 }
                 
                 // If all tickets assigned, reset verification
-                if (data.all_tickets_assigned) {
+                if (currentVerifiedPayment && data.all_tickets_assigned) {
                     setTimeout(() => {
                         alert(`✅ All ${currentVerifiedPayment.tickets_allowed} tickets assigned!\n\nClick OK to verify next payment.`);
                         resetVerification();
