@@ -44,7 +44,7 @@ This document provides comprehensive testing instructions for the MonCash Transa
 ```
 
 **Error Responses:**
-- `400 INVALID_FORMAT` - Transaction ID must be 13-15 digits
+- `400 INVALID_FORMAT` - Transaction ID must be 12-15 digits
 - `404 PAYMENT_NOT_FOUND` - No payment found with this Transaction ID
 - `400 PAYMENT_NOT_APPROVED` - Payment status is not "approved"
 - `400 TXN_ALREADY_USED` - All tickets already assigned (fraud alert)
@@ -81,8 +81,8 @@ This document provides comprehensive testing instructions for the MonCash Transa
 ### 3. Frontend Updates (seller.html)
 
 #### Step 1: Transaction ID Verification Section
-- Input field for 13-15 digit MonCash Transaction ID
-- Validation (13-15 digits)
+- Input field for 12-15 digit MonCash Transaction ID
+- Validation (12-15 digits)
 - Verification button
 - Success display showing:
   - Customer name and phone
@@ -137,7 +137,7 @@ All new UI elements translated to:
 1. Login as seller
 2. Navigate to seller dashboard
 3. In "Step 1: Verify Payment" section:
-   - Enter a valid 13-15 digit transaction ID (e.g., "1234567890123")
+   - Enter a valid 12-15 digit transaction ID (e.g., "123456789012")
    - Click "Verify Payment"
 
 **Expected Result:**
@@ -153,12 +153,12 @@ All new UI elements translated to:
 2. Click "Verify Payment"
 
 **Expected Result:**
-- ❌ Error: "Transaction ID must be 13-15 digits"
+- ❌ Error: "Transaction ID must be 12-15 digits"
 
 ### Test Case 3: Non-Existent Transaction ID
 
 **Steps:**
-1. Enter a 13-15 digit transaction ID that doesn't exist (e.g., "9999999999999")
+1. Enter a 12-15 digit transaction ID that doesn't exist (e.g., "999999999999")
 2. Click "Verify Payment"
 
 **Expected Result:**
@@ -329,7 +329,7 @@ curl -X POST http://localhost:3000/api/tickets/scan \
 ## Security Considerations
 
 ✅ **Implemented:**
-- Transaction ID format validation (13-15 digits)
+- Transaction ID format validation (12-15 digits)
 - Payment status verification (must be "approved")
 - Seller authentication required (session-based)
 - Audit logging of all verification attempts

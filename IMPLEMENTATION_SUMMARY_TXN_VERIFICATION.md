@@ -34,7 +34,7 @@ CREATE TABLE txn_verification_log (
 **Location:** Line ~1843 (before `/api/tickets/scan`)
 
 **Features:**
-- ✅ Validates 13-15 digit transaction ID format
+- ✅ Validates 12-15 digit transaction ID format
 - ✅ Checks payment exists and is approved
 - ✅ Calculates tickets remaining
 - ✅ Detects duplicate transaction ID usage (fraud check)
@@ -200,26 +200,26 @@ Added ~30 new translation keys per language:
 ### English
 ```
 💳 Step 1: Verify Payment
-Enter customer's 13-15 digit MonCash Transaction ID first
+Enter customer's 12-15 digit MonCash Transaction ID first
 ```
 
 ### Haitian Creole
 ```
 💳 Etap 1: Verifye Peman
-Antre 13-15 chif ID Tranzaksyon MonCash kliyan an anvan
+Antre 12-15 chif ID Tranzaksyon MonCash kliyan an anvan
 ```
 
 ### French
 ```
 💳 Étape 1: Vérifier le Paiement
-Entrez d'abord l'ID de transaction MonCash à 13-15 chiffres du client
+Entrez d'abord l'ID de transaction MonCash à 12-15 chiffres du client
 ```
 
 ## 📊 User Flow
 
 ### Happy Path
 1. Seller opens dashboard
-2. Enters 13-15 digit MonCash Txn ID
+2. Enters 12-15 digit MonCash Txn ID
 3. Clicks "Verify Payment"
 4. ✅ Success: Payment details displayed
 5. Scanner/manual entry sections enabled
