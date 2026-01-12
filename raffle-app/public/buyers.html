@@ -1293,11 +1293,30 @@
         }
         
         if (data.tickets.length === 0) {
+          // Show category statistics if available
+          let categoryStats = '';
+          if (data.categories && data.categories.length > 0) {
+            categoryStats = `
+              <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; text-align: left;">
+                <h4 style="margin: 0 0 10px 0; color: #495057;">Available Tickets by Category:</h4>
+                ${data.categories.map(cat => `
+                  <div style="padding: 5px 0; color: #6c757d;">
+                    <strong>${cat.category}:</strong> ${cat.available.toLocaleString()} tickets
+                  </div>
+                `).join('')}
+              </div>
+            `;
+          }
+          
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon">🎫</div>
               <h3>No Available Tickets</h3>
-              <p>All tickets in this category have been sold or there are no tickets available.</p>
+              <p>All tickets in this category have been sold or there are no tickets available for online purchase.</p>
+              ${categoryStats}
+              <p style="margin-top: 16px; color: #6c757d; font-size: 14px;">
+                Tickets may need to be marked as available online by an administrator.
+              </p>
             </div>
           `;
           return;
@@ -1343,14 +1362,39 @@
         window.availableTicketsLoaded = true;
       } catch (error) {
         console.error('[Buyers] Error loading available tickets:', error);
+        
+        // Determine error type for better messaging
+        let errorTitle = 'Unable to Load Tickets';
+        let errorMessage = error.message || 'An unexpected error occurred. Please try again.';
+        let additionalInfo = '';
+        
+        if (error.message && error.message.includes('fetch')) {
+          errorTitle = 'Connection Error';
+          errorMessage = 'Unable to connect to the server. Please check your internet connection.';
+          additionalInfo = `
+            <button class="btn btn-secondary" onclick="window.location.href='/health'" style="display: inline-block; margin-left: 8px;">
+              🔍 Check Server Status
+            </button>
+          `;
+        } else if (error.message && error.message.includes('timeout')) {
+          errorTitle = 'Request Timeout';
+          errorMessage = 'The server took too long to respond. Please try again.';
+        } else if (error.message && error.message.includes('No active raffle')) {
+          errorTitle = 'No Active Raffle';
+          errorMessage = 'There is currently no active raffle. Please contact an administrator.';
+        }
+        
         container.innerHTML = `
           <div class="empty-state">
             <div class="empty-state-icon">⚠️</div>
-            <h3>Unable to Load Tickets</h3>
-            <p style="margin-bottom: 16px;">${escapeHtml(error.message || 'An unexpected error occurred. Please try again.')}</p>
-            <button class="btn btn-primary" onclick="loadAvailableTickets(${page})" style="display: inline-block;">
-              🔄 Retry
-            </button>
+            <h3>${errorTitle}</h3>
+            <p style="margin-bottom: 16px;">${escapeHtml(errorMessage)}</p>
+            <div>
+              <button class="btn btn-primary" onclick="loadAvailableTickets(${page})" style="display: inline-block;">
+                🔄 Retry
+              </button>
+              ${additionalInfo}
+            </div>
           </div>
         `;
       }
