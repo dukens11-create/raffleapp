@@ -1284,7 +1284,6 @@
         console.log('[Buyers] Loading available tickets, page:', page);
         
         currentPage = page;
-        const category = document.getElementById('category-filter').value;
         
         // Fetch from the working endpoint
         const response = await fetchWithTimeout('/api/buyer/available-tickets', {}, 10000);
@@ -1301,12 +1300,13 @@
         const categories = data.categories || {};
         
         for (const [categoryName, tickets] of Object.entries(categories)) {
-          allAvailableTickets.push(...tickets);
+          allAvailableTickets = allAvailableTickets.concat(tickets);
         }
         
         console.log('[Buyers] Total tickets from all categories:', allAvailableTickets.length);
         
         // Filter by category if selected
+        const category = document.getElementById('category-filter').value;
         let filteredTickets = allAvailableTickets;
         if (category) {
           filteredTickets = allAvailableTickets.filter(ticket => ticket.category === category);
@@ -1596,6 +1596,9 @@
     }
     
     // Load raffle info and populate category filter on page load
+    // Track which elements have event listeners to prevent duplicates
+    const elementsWithListeners = new Set();
+    
     async function init() {
       try {
         await loadRaffleInfo();
@@ -1603,7 +1606,7 @@
         // Populate category filter from cached raffle data
         if (raffleData && raffleData.categories) {
           const categoryFilter = document.getElementById('category-filter');
-          if (categoryFilter && !categoryFilter.dataset.listenerAdded) {
+          if (categoryFilter && !elementsWithListeners.has(categoryFilter)) {
             raffleData.categories.forEach(cat => {
               const option = document.createElement('option');
               option.value = cat.category_code;
@@ -1612,14 +1615,13 @@
             });
             
             // Add change event listener to reload tickets when category changes
-            // Mark that listener has been added to prevent duplicates
             categoryFilter.addEventListener('change', () => {
               console.log('[Buyers] Category filter changed');
               if (window.availableTicketsLoaded) {
                 loadAvailableTickets(1); // Reset to page 1 when filter changes
               }
             });
-            categoryFilter.dataset.listenerAdded = 'true';
+            elementsWithListeners.add(categoryFilter);
           }
         }
       } catch (error) {
