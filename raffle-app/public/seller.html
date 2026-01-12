@@ -1449,6 +1449,7 @@
 
         async function processScannedTicket(barcode) {
             // TEMPORARY: Payment verification disabled - allow scanning without payment
+            // TODO: Re-enable payment verification requirement once MonCash API is configured
             // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
             
             const resultDiv = document.getElementById('scanResult');
@@ -1578,6 +1579,7 @@
             e.preventDefault();
             
             // TEMPORARY: Payment verification disabled - allow manual entry without payment
+            // TODO: Re-enable payment verification requirement once MonCash API is configured
             // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
             
             const ticketNumber = document.getElementById('manualTicketNumber').value.trim();

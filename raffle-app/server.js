@@ -2241,7 +2241,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     }
     
     // Determine which department to use
-    // Priority: 1) Payment's department (from buyer's purchase), 2) Seller-provided department
+    // Priority: 1) Payment's department (from buyer's purchase), 2) Seller-provided department, 3) null
+    // Note: Uses optional chaining (?.) to safely access payment.customer_department when payment may be null
     const departmentToUse = payment?.customer_department || buyer_department || null;
     
     // Validate department if provided
