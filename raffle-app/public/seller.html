@@ -1680,7 +1680,7 @@
                     requestBody.buyer_department = selectedDepartment;
                 }
                 
-                // Add buyer phone number (required)
+                // Add buyer phone number if provided (enforced in UI)
                 if (buyerPhoneNumber) {
                     requestBody.buyer_phone = buyerPhoneNumber;
                 }
@@ -1827,7 +1827,7 @@
                     requestBody.buyer_department = selectedDepartment;
                 }
                 
-                // Add buyer phone number (required)
+                // Add buyer phone number if provided (enforced in UI)
                 if (buyerPhoneNumber) {
                     requestBody.buyer_phone = buyerPhoneNumber;
                 }
