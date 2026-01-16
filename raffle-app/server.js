@@ -1915,13 +1915,21 @@ async function logFraudAttempt(txn_id, seller_phone, seller_name, fraud_type, de
 }
 
 // API: Register ticket with Transaction ID (1 Txn = 1 Ticket)
-app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
+app.post('/api/tickets/register-with-txn', requireAuth, upload.single('card_photo'), async (req, res) => {
   try {
     const { txn_id, ticket_barcode, department } = req.body;
     const seller_phone = req.session.user.phone;
     const seller_name = req.session.user.name;
     
     // === VALIDATION ===
+    
+    // 0. Validate card photo (MANDATORY)
+    if (!req.file) {
+      return res.status(400).json({ 
+        error: 'PHOTO_REQUIRED',
+        message: 'Scratch card photo is required before registration'
+      });
+    }
     
     // 1. Validate Txn ID format (must be exactly 12 digits)
     if (!txn_id || !/^\d{12}$/.test(txn_id)) {
@@ -2036,9 +2044,29 @@ app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
       }
     }
     
-    // === ALL CHECKS PASSED - REGISTER TICKET ===
+    // === ALL CHECKS PASSED - PROCESS PHOTO AND REGISTER TICKET ===
     
-    // Update ticket with Txn ID, department, and mark as sold
+    // Process photo: compress to standard quality (~200KB)
+    let photoBuffer;
+    try {
+      photoBuffer = await sharp(req.file.buffer)
+        .resize(1920, 1080, { 
+          fit: 'inside', // Maintain aspect ratio
+          withoutEnlargement: true 
+        })
+        .jpeg({ quality: 75 }) // Standard quality
+        .toBuffer();
+      
+      console.log(`[PHOTO PROCESSED] Original: ${(req.file.size / 1024).toFixed(1)}KB → Compressed: ${(photoBuffer.length / 1024).toFixed(1)}KB`);
+    } catch (photoError) {
+      console.error('Photo processing error:', photoError);
+      return res.status(500).json({ 
+        error: 'PHOTO_PROCESSING_FAILED',
+        message: 'Failed to process scratch card photo'
+      });
+    }
+    
+    // Update ticket with Txn ID, department, photo, and mark as sold
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
@@ -2046,9 +2074,11 @@ app.post('/api/tickets/register-with-txn', requireAuth, async (req, res) => {
            seller_phone = ?, 
            txn_id = ?,
            department = ?,
+           card_photo = ?,
+           photo_captured_at = CURRENT_TIMESTAMP,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [seller_name, seller_phone, txn_id, department || null, ticket.id]
+      [seller_name, seller_phone, txn_id, department || null, photoBuffer, ticket.id]
     );
     
     // If payment record exists, update it with ticket number
@@ -2140,6 +2170,38 @@ app.post('/api/seller-concerns', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Submit concern error:', error);
     res.status(500).json({ error: 'Failed to submit concern' });
+  }
+});
+
+// API: Get scratch card photo for a ticket (admin only)
+app.get('/api/admin/tickets/:ticketNumber/photo', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber } = req.params;
+    
+    const ticket = await db.get(
+      `SELECT card_photo, photo_captured_at, ticket_number FROM tickets WHERE ticket_number = ?`,
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    if (!ticket.card_photo) {
+      return res.status(404).json({ error: 'No photo available for this ticket' });
+    }
+    
+    // Set appropriate headers for JPEG image
+    res.set({
+      'Content-Type': 'image/jpeg',
+      'Content-Length': ticket.card_photo.length,
+      'Cache-Control': 'private, max-age=3600' // Cache for 1 hour
+    });
+    
+    res.send(ticket.card_photo);
+  } catch (error) {
+    console.error('Photo retrieval error:', error);
+    res.status(500).json({ error: 'Failed to retrieve photo' });
   }
 });
 

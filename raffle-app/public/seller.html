@@ -519,6 +519,117 @@
             color: #667eea;
             font-size: 18px;
         }
+
+        /* Photo Capture Styles */
+        .photo-capture-section {
+            background: #fffbeb;
+            border: 2px solid #fbbf24;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .photo-requirement-banner {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .photo-requirement-banner strong {
+            display: block;
+            color: #92400e;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .photo-requirement-banner p {
+            color: #78350f;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .photo-status {
+            text-align: center;
+        }
+
+        .btn-photo {
+            background: #f59e0b;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 15px 30px;
+            margin: 15px 0;
+        }
+
+        .btn-photo:hover {
+            background: #d97706;
+        }
+
+        .photo-instruction {
+            color: #78350f;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        .photo-preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .photo-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 8px;
+            border: 2px solid #10b981;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .photo-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .photo-success {
+            color: #065f46;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+
+        #cameraContainer {
+            text-align: center;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        #cameraVideo {
+            border: 2px solid #667eea;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+        }
+
+        .camera-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Disabled form styling */
+        input:disabled, select:disabled, button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -552,6 +663,43 @@
             <h2>🎟️ Register Ticket Sale</h2>
             <p>Enter customer's 12-digit MonCash Txn ID and scan/enter ticket number</p>
             
+            <!-- Photo Capture Section (MANDATORY FIRST STEP) -->
+            <div id="photoCaptureSection" class="photo-capture-section">
+                <div class="photo-requirement-banner">
+                    <strong>📷 Required: Scratch Card Photo</strong>
+                    <p>Before registration, you MUST capture a photo of the scratch card front to verify it's intact.</p>
+                </div>
+                
+                <div id="photoNotCaptured" class="photo-status">
+                    <button type="button" id="capturePhotoBtn" class="btn btn-photo">
+                        📷 Capture Scratch Card Photo
+                    </button>
+                    <p class="photo-instruction">Click above to take a photo of the scratch card</p>
+                </div>
+                
+                <div id="photoCaptured" class="photo-status" style="display: none;">
+                    <div class="photo-preview-container">
+                        <img id="photoPreview" class="photo-preview" alt="Scratch card photo" />
+                        <div class="photo-actions">
+                            <button type="button" id="retakePhotoBtn" class="btn btn-secondary btn-sm">
+                                🔄 Retake Photo
+                            </button>
+                            <span class="photo-success">✅ Photo captured successfully</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Hidden video/canvas for camera -->
+                <div id="cameraContainer" style="display: none;">
+                    <video id="cameraVideo" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 8px;"></video>
+                    <div class="camera-actions">
+                        <button type="button" id="takePhotoBtn" class="btn btn-primary">📸 Take Photo</button>
+                        <button type="button" id="cancelPhotoBtn" class="btn btn-cancel">Cancel</button>
+                    </div>
+                    <canvas id="photoCanvas" style="display: none;"></canvas>
+                </div>
+            </div>
+            
             <form id="ticketRegistrationForm">
                 <div class="form-group">
                     <label>MonCash Transaction ID (12 digits) *</label>
@@ -562,6 +710,7 @@
                         pattern="[0-9]{12}" 
                         maxlength="12"
                         required
+                        disabled
                         style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
                     />
                     <small>Required for each ticket - one Txn ID per ticket</small>
@@ -574,6 +723,7 @@
                         id="ticketNumberInput" 
                         placeholder="Enter ticket number or scan barcode"
                         required
+                        disabled
                         style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
                     />
                 </div>
@@ -583,6 +733,7 @@
                     <select 
                         id="departmentInput" 
                         required
+                        disabled
                         style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
                     >
                         <option value="">Select department...</option>
@@ -601,8 +752,8 @@
                 </div>
                 
                 <div class="button-group">
-                    <button type="submit" class="btn btn-primary">Register Ticket</button>
-                    <button type="button" class="btn btn-secondary" onclick="openCameraScanner()">📷 Use Camera</button>
+                    <button type="submit" class="btn btn-primary" id="registerBtn" disabled>Register Ticket</button>
+                    <button type="button" class="btn btn-secondary" onclick="openCameraScanner()" id="useCameraBtn" disabled>📷 Use Camera</button>
                 </div>
             </form>
             
@@ -1299,6 +1450,121 @@
         // Session ticket counter
         let sessionTicketCount = 0;
 
+        // ===== PHOTO CAPTURE LOGIC =====
+        let capturedPhotoBlob = null;
+        let cameraStream = null;
+
+        // Button handlers
+        document.getElementById('capturePhotoBtn').addEventListener('click', openCamera);
+        document.getElementById('retakePhotoBtn').addEventListener('click', openCamera);
+        document.getElementById('takePhotoBtn').addEventListener('click', capturePhoto);
+        document.getElementById('cancelPhotoBtn').addEventListener('click', closeCamera);
+
+        function openCamera() {
+            const cameraContainer = document.getElementById('cameraContainer');
+            const video = document.getElementById('cameraVideo');
+            
+            cameraContainer.style.display = 'block';
+            document.getElementById('photoNotCaptured').style.display = 'none';
+            document.getElementById('photoCaptured').style.display = 'none';
+            
+            // Request camera access with rear camera preference
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment', // Prefer rear camera
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                } 
+            })
+            .then(stream => {
+                cameraStream = stream;
+                video.srcObject = stream;
+                video.play();
+            })
+            .catch(err => {
+                console.error('Camera access error:', err);
+                alert('Camera access denied. Please allow camera access to capture photos.');
+                closeCamera();
+            });
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('photoCanvas');
+            const preview = document.getElementById('photoPreview');
+            
+            // Set canvas dimensions to video dimensions
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw video frame to canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            // Convert to blob (JPEG format, standard quality)
+            canvas.toBlob(blob => {
+                capturedPhotoBlob = blob;
+                
+                // Show preview
+                const url = URL.createObjectURL(blob);
+                preview.src = url;
+                
+                // Update UI
+                closeCamera();
+                document.getElementById('photoNotCaptured').style.display = 'none';
+                document.getElementById('photoCaptured').style.display = 'block';
+                
+                // Enable form fields
+                enableFormFields();
+                
+                console.log('Photo captured:', (blob.size / 1024).toFixed(1) + 'KB');
+            }, 'image/jpeg', 0.75);
+        }
+
+        function closeCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            
+            const video = document.getElementById('cameraVideo');
+            video.srcObject = null;
+            document.getElementById('cameraContainer').style.display = 'none';
+            
+            // Show appropriate section
+            if (capturedPhotoBlob) {
+                document.getElementById('photoCaptured').style.display = 'block';
+            } else {
+                document.getElementById('photoNotCaptured').style.display = 'block';
+            }
+        }
+
+        function enableFormFields() {
+            document.getElementById('txnIdInput').disabled = false;
+            document.getElementById('ticketNumberInput').disabled = false;
+            document.getElementById('departmentInput').disabled = false;
+            document.getElementById('registerBtn').disabled = false;
+            document.getElementById('useCameraBtn').disabled = false;
+        }
+
+        function disableFormFields() {
+            document.getElementById('txnIdInput').disabled = true;
+            document.getElementById('ticketNumberInput').disabled = true;
+            document.getElementById('departmentInput').disabled = true;
+            document.getElementById('registerBtn').disabled = true;
+            document.getElementById('useCameraBtn').disabled = true;
+        }
+
+        function resetPhotoCapture() {
+            capturedPhotoBlob = null;
+            document.getElementById('photoPreview').src = '';
+            document.getElementById('photoNotCaptured').style.display = 'block';
+            document.getElementById('photoCaptured').style.display = 'none';
+            disableFormFields();
+        }
+
+        // ===== END PHOTO CAPTURE LOGIC =====
+
         // Handle ticket registration form (with Transaction ID)
         document.getElementById('ticketRegistrationForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -1306,6 +1572,12 @@
         });
 
         async function registerTicket() {
+            // Check if photo is captured
+            if (!capturedPhotoBlob) {
+                alert('Please capture scratch card photo first!');
+                return;
+            }
+            
             const txnId = document.getElementById('txnIdInput').value.trim();
             const ticketNumber = document.getElementById('ticketNumberInput').value.trim();
             const department = document.getElementById('departmentInput').value;
@@ -1315,14 +1587,16 @@
             resultDiv.innerHTML = '⏳ Verifying and registering...';
             
             try {
+                // Create FormData to send photo with other fields
+                const formData = new FormData();
+                formData.append('txn_id', txnId);
+                formData.append('ticket_barcode', ticketNumber);
+                formData.append('department', department);
+                formData.append('card_photo', capturedPhotoBlob, 'scratch-card.jpg');
+                
                 const response = await fetch('/api/tickets/register-with-txn', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        txn_id: txnId,
-                        ticket_barcode: ticketNumber,
-                        department: department
-                    })
+                    body: formData // Don't set Content-Type - browser sets it with boundary
                 });
                 
                 const data = await response.json();
@@ -1359,6 +1633,7 @@
                         <p><strong>Txn ID:</strong> ${data.ticket.txn_id}</p>
                         <p><strong>Category:</strong> ${data.ticket.category}</p>
                         ${data.ticket.department ? `<p><strong>Department:</strong> ${data.ticket.department}</p>` : ''}
+                        <p><em>📷 Scratch card photo saved</em></p>
                     </div>
                 `;
                 
@@ -1366,7 +1641,11 @@
                 document.getElementById('txnIdInput').value = '';
                 document.getElementById('ticketNumberInput').value = '';
                 document.getElementById('departmentInput').value = '';
-                document.getElementById('txnIdInput').focus();
+                
+                // Reset photo capture for next ticket
+                resetPhotoCapture();
+                
+                document.getElementById('capturePhotoBtn').focus();
                 
                 // Refresh stats
                 await loadStats();

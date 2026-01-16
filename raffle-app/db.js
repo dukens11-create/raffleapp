@@ -540,6 +540,37 @@ async function initializeSchema() {
       console.log('Note: department column already exists or could not be added:', error.message);
     }
     
+    // Add card_photo column for scratch card photo capture
+    console.log('📷 Adding card_photo columns to tickets table...');
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS card_photo BYTEA
+        `);
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS photo_captured_at TIMESTAMP
+        `);
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columnsResult = await query(`PRAGMA table_info(tickets)`, []);
+        const columns = Array.isArray(columnsResult) ? columnsResult : [];
+        const hasCardPhoto = columns.some(col => col.name === 'card_photo');
+        const hasPhotoCapturedAt = columns.some(col => col.name === 'photo_captured_at');
+        
+        if (!hasCardPhoto) {
+          await run(`ALTER TABLE tickets ADD COLUMN card_photo BLOB`);
+        }
+        if (!hasPhotoCapturedAt) {
+          await run(`ALTER TABLE tickets ADD COLUMN photo_captured_at DATETIME`);
+        }
+      }
+      console.log('✅ card_photo columns added successfully');
+    } catch (error) {
+      console.log('Note: card_photo columns already exist or could not be added:', error.message);
+    }
+    
     // Create txn_verification_log table for fraud detection audit trail
     console.log('🔍 Creating txn_verification_log table...');
     await run(`
