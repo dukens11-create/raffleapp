@@ -1222,7 +1222,8 @@
                 departmentPlaceholder: "Search or select department...",
                 confirmDepartment: "Confirm Buyer Info",
                 departmentRequired: "Please select a valid department from the list",
-                departmentConfirmed: "Department confirmed"
+                departmentConfirmed: "Department confirmed",
+                startOverConfirm: "Are you sure you want to start over? This will reset the current workflow."
             },
             ht: {
                 title: "Tablo Vandè",
@@ -1319,7 +1320,8 @@
                 departmentPlaceholder: "Chèche oswa chwazi depatman...",
                 confirmDepartment: "Konfime Enfòmasyon Achtè",
                 departmentRequired: "Tanpri chwazi yon depatman valab nan lis la",
-                departmentConfirmed: "Depatman konfime"
+                departmentConfirmed: "Depatman konfime",
+                startOverConfirm: "Ou si ou vle rekòmanse? Sa ap reyajiste travay aktyèl la."
             },
             fr: {
                 title: "Tableau de Bord Vendeur",
@@ -1416,7 +1418,8 @@
                 departmentPlaceholder: "Rechercher ou sélectionner département...",
                 confirmDepartment: "Confirmer Info Acheteur",
                 departmentRequired: "Veuillez sélectionner un département valide de la liste",
-                departmentConfirmed: "Département confirmé"
+                departmentConfirmed: "Département confirmé",
+                startOverConfirm: "Êtes-vous sûr de vouloir recommencer? Cela réinitialisera le flux de travail actuel."
             }
         };
 
@@ -1514,7 +1517,8 @@
         }
 
         function startOver() {
-            if (confirm('Are you sure you want to start over? This will reset the current workflow.')) {
+            const t = translations[currentLanguage];
+            if (confirm(t.startOverConfirm || 'Are you sure you want to start over? This will reset the current workflow.')) {
                 resetVerification();
                 currentStep = 1;
                 updateStepProgress();
@@ -1559,7 +1563,9 @@
             step1Section.querySelector('.section-description').textContent = t.step1Description || "Enter customer's MonCash Transaction ID first";
             const step1Help = step1Section.querySelector('.help-text');
             step1Help.querySelector('strong').textContent = t.step1HelpTitle || '💡 Why payment verification?';
-            step1Help.childNodes[2].textContent = t.step1Help || 'Payment verification confirms the customer has paid and prevents fraud.';
+            // Update help text by getting all text nodes
+            const step1HelpText = Array.from(step1Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            if (step1HelpText) step1HelpText.textContent = t.step1Help || 'Payment verification confirms the customer has paid and prevents fraud.';
             step1Section.querySelector('label[for="txnIdInput"]').textContent = t.transactionId || 'MonCash Transaction ID (12-15 digits)';
             step1Section.querySelector('#verifyBtnText').textContent = t.verifyPaymentButton || 'Verify Payment';
             step1Section.querySelector('#verifyBtnLoading').textContent = t.verifyingPayment || '⏳ Verifying...';
@@ -1570,7 +1576,8 @@
             step2Section.querySelector('.section-description').textContent = t.step2Description || 'Collect buyer details before scanning ticket';
             const step2Help = step2Section.querySelector('.help-text');
             step2Help.querySelector('strong').textContent = t.step2HelpTitle || '💡 Why collect buyer information?';
-            step2Help.childNodes[2].textContent = t.step2Help || 'Buyer phone numbers and department info help track sales.';
+            const step2HelpText = Array.from(step2Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            if (step2HelpText) step2HelpText.textContent = t.step2Help || 'Buyer phone numbers and department info help track sales.';
             step2Section.querySelector('#departmentLabel').textContent = t.departmentLabel || 'Department';
             step2Section.querySelector('#buyerDepartmentInput').placeholder = t.departmentPlaceholder || 'Search or select department...';
             step2Section.querySelector('#confirmDepartmentBtn').textContent = t.confirmDepartment || 'Confirm Buyer Info';
@@ -1582,7 +1589,8 @@
             step3Section.querySelector('.section-description').textContent = t.step3Description || 'Final step - Scan ticket to assign to buyer';
             const step3Help = step3Section.querySelector('.help-text');
             step3Help.querySelector('strong').textContent = t.step3HelpTitle || '💡 Why scan last?';
-            step3Help.childNodes[2].textContent = t.step3Help || 'Scanning is the final step that officially assigns the ticket.';
+            const step3HelpText = Array.from(step3Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            if (step3HelpText) step3HelpText.textContent = t.step3Help || 'Scanning is the final step that officially assigns the ticket.';
             step3Section.querySelectorAll('.lock-message p')[0].textContent = t.completeStep2 || 'Complete Step 2 first';
             
             // Recent sales section (if exists)
