@@ -1854,7 +1854,14 @@
             document.getElementById('useCameraBtn').classList.remove('active');
             document.getElementById('fileInputSection').style.display = 'block';
             document.getElementById('cameraSection').style.display = 'none';
+            
+            // Clean up camera resources and preview
             stopCamera();
+            const previewImg = document.getElementById('previewImage');
+            if (previewImg.src && previewImg.src.startsWith('blob:')) {
+                URL.revokeObjectURL(previewImg.src);
+            }
+            capturedPhotoBlob = null;
         });
 
         document.getElementById('useCameraBtn').addEventListener('click', () => {
@@ -1906,10 +1913,21 @@
             
             // Convert canvas to blob
             canvas.toBlob((blob) => {
+                if (!blob) {
+                    console.error('Failed to capture photo from canvas');
+                    alert('Failed to capture photo. Please try again.');
+                    return;
+                }
+                
                 capturedPhotoBlob = blob;
                 
-                // Show preview
+                // Revoke previous object URL if exists to prevent memory leak
                 const previewImg = document.getElementById('previewImage');
+                if (previewImg.src && previewImg.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(previewImg.src);
+                }
+                
+                // Show preview
                 previewImg.src = URL.createObjectURL(blob);
                 document.getElementById('capturedPhotoPreview').style.display = 'block';
                 
@@ -1924,13 +1942,40 @@
         });
 
         // Retake photo
-        document.getElementById('retakePhotoBtn').addEventListener('click', () => {
+        document.getElementById('retakePhotoBtn').addEventListener('click', async () => {
+            // Revoke object URL to prevent memory leak
+            const previewImg = document.getElementById('previewImage');
+            if (previewImg.src && previewImg.src.startsWith('blob:')) {
+                URL.revokeObjectURL(previewImg.src);
+            }
+            
             capturedPhotoBlob = null;
             document.getElementById('cameraPreview').style.display = 'block';
             document.getElementById('capturedPhotoPreview').style.display = 'none';
             document.getElementById('retakePhotoBtn').style.display = 'none';
             document.getElementById('startCameraBtn').style.display = 'inline-block';
-            document.getElementById('startCameraBtn').click(); // Auto-restart camera
+            
+            // Directly start the camera instead of simulating click
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+                
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraPreview');
+                video.srcObject = cameraStream;
+                
+                document.getElementById('startCameraBtn').style.display = 'none';
+                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
+                
+            } catch (error) {
+                console.error('Camera access error on retake:', error);
+                alert('Unable to access camera. Please try again or use file upload instead.');
+            }
         });
 
         // Stop camera stream
@@ -1974,7 +2019,22 @@
                     alert('Please select a file');
                     return;
                 }
-                formData.append('photo', fileInput.files[0]);
+                
+                const photoFile = fileInput.files[0];
+                
+                // Validate file size (10MB max)
+                if (photoFile.size > 10 * 1024 * 1024) {
+                    alert('Photo size must be less than 10MB');
+                    return;
+                }
+                
+                // Validate file type
+                if (!photoFile.type.startsWith('image/')) {
+                    alert('Only image files are allowed');
+                    return;
+                }
+                
+                formData.append('photo', photoFile);
             }
             
             // Show loading state
@@ -1998,7 +2058,16 @@
                     
                     // Reset form
                     e.target.reset();
-                    capturedPhotoBlob = null;
+                    
+                    // Clean up camera resources
+                    if (capturedPhotoBlob) {
+                        const previewImg = document.getElementById('previewImage');
+                        if (previewImg.src && previewImg.src.startsWith('blob:')) {
+                            URL.revokeObjectURL(previewImg.src);
+                        }
+                        capturedPhotoBlob = null;
+                    }
+                    
                     document.getElementById('capturedPhotoPreview').style.display = 'none';
                     document.getElementById('cameraPreview').style.display = 'block';
                     document.getElementById('retakePhotoBtn').style.display = 'none';
