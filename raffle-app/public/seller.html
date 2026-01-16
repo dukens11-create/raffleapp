@@ -585,9 +585,7 @@
             .step-label {
                 text-align: left;
             }
-        }
 
-        @media (max-width: 768px) {
             .header {
                 flex-direction: column;
                 gap: 15px;
@@ -2394,9 +2392,14 @@
         checkAuth();
         
         // Initialize step progress on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                updateStepProgress();
+            });
+        } else {
+            // DOM is already loaded
             updateStepProgress();
-        });
+        }
     </script>
 </body>
 </html>
