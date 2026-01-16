@@ -525,6 +525,67 @@
             border-radius: 5px;
             font-weight: 600;
         }
+
+        .capture-method-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .method-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .method-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .capture-section {
+            margin-top: 15px;
+        }
+
+        #cameraPreview {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            background: #000;
+        }
+
+        .camera-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #capturedPhotoPreview {
+            margin-top: 15px;
+        }
+
+        #previewImage {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 8px;
+            border: 2px solid #10b981;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            #cameraPreview,
+            #previewImage {
+                max-width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -689,9 +750,36 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Upload Photo</label>
-                    <input type="file" id="drawPhoto" accept="image/*" required>
-                    <div style="color: #666; font-size: 12px; margin-top: 5px;">Max size: 10MB. Accepted formats: JPG, PNG</div>
+                    <label>Capture Method</label>
+                    <div class="capture-method-toggle">
+                        <button type="button" id="useFileBtn" class="method-btn active">📁 Choose File</button>
+                        <button type="button" id="useCameraBtn" class="method-btn">📷 Use Camera</button>
+                    </div>
+                </div>
+                
+                <!-- File input (existing) -->
+                <div id="fileInputSection" class="capture-section">
+                    <div class="form-group">
+                        <label>Upload Photo</label>
+                        <input type="file" id="drawPhoto" accept="image/*">
+                        <div style="color: #666; font-size: 12px; margin-top: 5px;">Max size: 10MB. Accepted formats: JPG, PNG</div>
+                    </div>
+                </div>
+                
+                <!-- Camera capture section (new) -->
+                <div id="cameraSection" class="capture-section" style="display: none;">
+                    <video id="cameraPreview" autoplay playsinline></video>
+                    <canvas id="photoCanvas" style="display: none;"></canvas>
+                    
+                    <div class="camera-controls">
+                        <button type="button" id="startCameraBtn" class="btn btn-secondary">📷 Start Camera</button>
+                        <button type="button" id="capturePhotoBtn" class="btn btn-primary" style="display: none;">📸 Take Photo</button>
+                        <button type="button" id="retakePhotoBtn" class="btn btn-secondary" style="display: none;">🔄 Retake</button>
+                    </div>
+                    
+                    <div id="capturedPhotoPreview" style="display: none;">
+                        <img id="previewImage" alt="Captured photo">
+                    </div>
                 </div>
                 
                 <button type="submit" class="btn btn-primary">Upload Photo</button>
@@ -1715,6 +1803,154 @@
             window.location.href = '/logout';
         }
 
+        // Camera state management
+        let cameraStream = null;
+        let capturedPhotoBlob = null;
+
+        // Check if camera is available
+        function checkCameraSupport() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                document.getElementById('useCameraBtn').disabled = true;
+                document.getElementById('useCameraBtn').title = 'Camera not supported in this browser';
+                console.warn('Camera API not supported');
+                return false;
+            }
+            return true;
+        }
+
+        // Toggle between file and camera methods
+        document.getElementById('useFileBtn').addEventListener('click', () => {
+            document.getElementById('useFileBtn').classList.add('active');
+            document.getElementById('useCameraBtn').classList.remove('active');
+            document.getElementById('fileInputSection').style.display = 'block';
+            document.getElementById('cameraSection').style.display = 'none';
+            
+            // Clean up camera resources
+            stopCamera();
+            
+            // Clean up preview URL
+            if (capturedPhotoBlob) {
+                const previewImg = document.getElementById('previewImage');
+                if (previewImg.src) {
+                    URL.revokeObjectURL(previewImg.src);
+                }
+                capturedPhotoBlob = null;
+            }
+        });
+
+        document.getElementById('useCameraBtn').addEventListener('click', () => {
+            document.getElementById('useCameraBtn').classList.add('active');
+            document.getElementById('useFileBtn').classList.remove('active');
+            document.getElementById('fileInputSection').style.display = 'none';
+            document.getElementById('cameraSection').style.display = 'block';
+        });
+
+        // Start camera
+        document.getElementById('startCameraBtn').addEventListener('click', async () => {
+            try {
+                // Request camera access with back camera preference for mobile
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' }, // Prefer back camera
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+                
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraPreview');
+                video.srcObject = cameraStream;
+                
+                // Show capture button, hide start button
+                document.getElementById('startCameraBtn').style.display = 'none';
+                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
+                document.getElementById('capturedPhotoPreview').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                alert('Unable to access camera. Please check permissions or use file upload instead.');
+            }
+        });
+
+        // Capture photo from video stream
+        document.getElementById('capturePhotoBtn').addEventListener('click', () => {
+            const video = document.getElementById('cameraPreview');
+            const canvas = document.getElementById('photoCanvas');
+            const context = canvas.getContext('2d');
+            
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw current video frame to canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to blob
+            canvas.toBlob((blob) => {
+                capturedPhotoBlob = blob;
+                
+                // Show preview
+                const previewImg = document.getElementById('previewImage');
+                previewImg.src = URL.createObjectURL(blob);
+                document.getElementById('capturedPhotoPreview').style.display = 'block';
+                
+                // Hide video, show retake button
+                video.style.display = 'none';
+                document.getElementById('capturePhotoBtn').style.display = 'none';
+                document.getElementById('retakePhotoBtn').style.display = 'inline-block';
+                
+                // Stop camera stream
+                stopCamera();
+            }, 'image/jpeg', 0.95);
+        });
+
+        // Retake photo
+        document.getElementById('retakePhotoBtn').addEventListener('click', async () => {
+            // Revoke old URL to prevent memory leak
+            const previewImg = document.getElementById('previewImage');
+            if (previewImg.src) {
+                URL.revokeObjectURL(previewImg.src);
+            }
+            
+            capturedPhotoBlob = null;
+            document.getElementById('cameraPreview').style.display = 'block';
+            document.getElementById('capturedPhotoPreview').style.display = 'none';
+            document.getElementById('retakePhotoBtn').style.display = 'none';
+            document.getElementById('startCameraBtn').style.display = 'inline-block';
+            
+            // Restart camera directly
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+                
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraPreview');
+                video.srcObject = cameraStream;
+                
+                document.getElementById('startCameraBtn').style.display = 'none';
+                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
+            } catch (error) {
+                console.error('Camera restart error:', error);
+                alert('Unable to restart camera. Please try Start Camera button.');
+            }
+        });
+
+        // Stop camera stream
+        function stopCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+        }
+
+        // Clean up camera on page unload
+        window.addEventListener('beforeunload', stopCamera);
+
         // Load recent draws for photo upload
         async function loadRecentDraws() {
             try {
@@ -1748,36 +1984,63 @@
             
             const resultDiv = document.getElementById('uploadResult');
             const drawId = document.getElementById('drawSelect').value;
-            const photoFile = document.getElementById('drawPhoto').files[0];
             
             if (!drawId) {
                 resultDiv.innerHTML = '<div class="alert alert-danger">❌ Please select a draw</div>';
                 return;
             }
             
-            if (!photoFile) {
-                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Please select a photo</div>';
-                return;
+            const formData = new FormData();
+            formData.append('draw_id', drawId);
+            
+            // Determine which method was used
+            const usedCamera = document.getElementById('useCameraBtn').classList.contains('active');
+            
+            if (usedCamera) {
+                // Use captured photo blob
+                if (!capturedPhotoBlob) {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ Please capture a photo first</div>';
+                    return;
+                }
+                
+                // Check captured photo size (10MB max)
+                if (capturedPhotoBlob.size > 10 * 1024 * 1024) {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ Captured photo is too large. Please try capturing again at a lower resolution.</div>';
+                    return;
+                }
+                
+                formData.append('photo', capturedPhotoBlob, 'draw-photo.jpg');
+            } else {
+                // Use file input
+                const photoFile = document.getElementById('drawPhoto').files[0];
+                if (!photoFile) {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ Please select a photo</div>';
+                    return;
+                }
+                
+                // Check file size (10MB max)
+                if (photoFile.size > 10 * 1024 * 1024) {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ Photo size must be less than 10MB</div>';
+                    return;
+                }
+                
+                // Check file type
+                if (!photoFile.type.startsWith('image/')) {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ Only image files are allowed</div>';
+                    return;
+                }
+                
+                formData.append('photo', photoFile);
             }
             
-            // Check file size (10MB max)
-            if (photoFile.size > 10 * 1024 * 1024) {
-                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Photo size must be less than 10MB</div>';
-                return;
-            }
-            
-            // Check file type
-            if (!photoFile.type.startsWith('image/')) {
-                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Only image files are allowed</div>';
-                return;
-            }
+            // Show loading state
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
             
             try {
                 resultDiv.innerHTML = '<div class="alert alert-warning">⏳ Uploading photo...</div>';
-                
-                const formData = new FormData();
-                formData.append('draw_id', drawId);
-                formData.append('photo', photoFile);
                 
                 const response = await fetch('/api/seller/draw-photo/upload', {
                     method: 'POST',
@@ -1792,6 +2055,18 @@
                     // Reset form
                     document.getElementById('uploadDrawPhotoForm').reset();
                     
+                    // Clean up camera-related state
+                    if (capturedPhotoBlob) {
+                        const previewImg = document.getElementById('previewImage');
+                        if (previewImg.src) {
+                            URL.revokeObjectURL(previewImg.src);
+                        }
+                        capturedPhotoBlob = null;
+                    }
+                    document.getElementById('capturedPhotoPreview').style.display = 'none';
+                    document.getElementById('cameraPreview').style.display = 'block';
+                    stopCamera();
+                    
                     // Clear success message after 5 seconds
                     setTimeout(() => {
                         resultDiv.innerHTML = '';
@@ -1802,12 +2077,20 @@
             } catch (error) {
                 console.error('Upload error:', error);
                 resultDiv.innerHTML = '<div class="alert alert-danger">❌ An error occurred during upload</div>';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
             }
         });
 
         // Initialize
         checkAuth();
         loadRecentDraws();
+        
+        // Check camera support on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            checkCameraSupport();
+        });
     </script>
 </body>
 </html>
