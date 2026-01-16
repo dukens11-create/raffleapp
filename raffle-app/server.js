@@ -2512,11 +2512,11 @@ app.put('/api/seller-concerns/:id/resolve', requireAuth, requireAdmin, async (re
 // Legacy endpoints (for backward compatibility with frontend)
 app.get('/tickets', requireAuth, async (req, res) => {
   try {
-    let query = "SELECT ticket_number as number, category, status, barcode FROM tickets ORDER BY ticket_number";
+    let query = "SELECT ticket_number as number, buyer_name, buyer_phone, seller_name, category, price, status, barcode, sold_at, created_at FROM tickets ORDER BY ticket_number";
     let params = [];
     
     if (req.session.user.role === 'seller') {
-      query = "SELECT ticket_number as number, category, status, barcode FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+      query = "SELECT ticket_number as number, buyer_name, buyer_phone, seller_name, category, price, status, barcode, sold_at, created_at FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
       params = [req.session.user.phone];
     }
     

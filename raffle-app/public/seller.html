@@ -566,6 +566,19 @@
             </div>
         </div>
 
+        <!-- Recent Sales Section -->
+        <div class="main-content" style="margin-top: 20px;">
+            <h2 style="color: #333; font-size: 20px; margin-bottom: 16px;">🎟️ Recent Sales</h2>
+            <p style="color: #64748b; font-size: 14px; margin-bottom: 20px;" id="recentSalesDescription">
+                View your most recent ticket sales with buyer information
+            </p>
+            <div id="recentSales">
+                <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                    Loading recent sales...
+                </div>
+            </div>
+        </div>
+
         <!-- TEMPORARY NOTICE: Payment Verification Disabled -->
         <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 20px 0;">
             <strong>⚠️ Notice:</strong> Payment verification is temporarily disabled. 
@@ -777,6 +790,14 @@
                 logout: "Logout",
                 ticketsSold: "Tickets Sold",
                 totalRevenue: "Total Revenue",
+                recentSales: "Recent Sales",
+                recentSalesDesc: "View your most recent ticket sales with buyer information",
+                buyerName: "Buyer Name",
+                buyerPhone: "Buyer Phone",
+                ticketNumber: "Ticket Number",
+                category: "Category",
+                price: "Price",
+                dateSold: "Date Sold",
                 verifyPayment: "Verify Payment",
                 verifyPaymentDesc: "Enter customer's 12-15 digit MonCash Transaction ID first",
                 transactionId: "MonCash Transaction ID (12-15 digits)",
@@ -846,6 +867,14 @@
                 logout: "Dekonekte",
                 ticketsSold: "Tikè Vann",
                 totalRevenue: "Total Lajan",
+                recentSales: "Vant Resan",
+                recentSalesDesc: "Gade dènye vant tikè ou yo avèk enfòmasyon sou achtè yo",
+                buyerName: "Non Achtè",
+                buyerPhone: "Nimewo Telefòn Achtè",
+                ticketNumber: "Nimewo Tikè",
+                category: "Kategori",
+                price: "Pri",
+                dateSold: "Dat Vann",
                 verifyPayment: "Verifye Peman",
                 verifyPaymentDesc: "Antre 12-15 chif ID Tranzaksyon MonCash kliyan an anvan",
                 transactionId: "ID Tranzaksyon MonCash (12-15 chif)",
@@ -915,6 +944,14 @@
                 logout: "Déconnexion",
                 ticketsSold: "Billets Vendus",
                 totalRevenue: "Revenu Total",
+                recentSales: "Ventes Récentes",
+                recentSalesDesc: "Voir vos ventes de billets les plus récentes avec les informations sur l'acheteur",
+                buyerName: "Nom de l'Acheteur",
+                buyerPhone: "Téléphone de l'Acheteur",
+                ticketNumber: "Numéro de Billet",
+                category: "Catégorie",
+                price: "Prix",
+                dateSold: "Date de Vente",
                 verifyPayment: "Vérifier le Paiement",
                 verifyPaymentDesc: "Entrez d'abord l'ID de transaction MonCash à 12-15 chiffres du client",
                 transactionId: "ID de Transaction MonCash (12-15 chiffres)",
@@ -1002,6 +1039,14 @@
             // Stats
             document.querySelectorAll('.stat-label')[0].textContent = t.ticketsSold;
             document.querySelectorAll('.stat-label')[1].textContent = t.totalRevenue;
+            
+            // Recent sales section (if exists)
+            const recentSalesDesc = document.getElementById('recentSalesDescription');
+            if (recentSalesDesc) {
+                recentSalesDesc.textContent = t.recentSalesDesc;
+                // Reload recent sales to update table headers
+                loadRecentSales();
+            }
             
             // Scanner section
             document.querySelector('.scanner-section h2').textContent = '📷 ' + t.scanTicket;
@@ -1098,6 +1143,8 @@
                 
                 // Load department statistics
                 loadDepartmentStats();
+                // Load recent sales
+                loadRecentSales();
             } catch (error) {
                 console.error('Error loading stats:', error);
             }
@@ -1175,6 +1222,90 @@
                 container.innerHTML = `
                     <div style="text-align: center; padding: 40px; color: #ef4444;">
                         <p>Failed to load department statistics</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Load Recent Sales
+        async function loadRecentSales() {
+            const container = document.getElementById('recentSales');
+            const t = translations[currentLanguage];
+            
+            try {
+                const response = await fetch('/tickets');
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load recent sales');
+                }
+                
+                // Filter only sold tickets and get the most recent 20
+                const soldTickets = data.filter(ticket => ticket.status === 'SOLD' || ticket.status === 'sold')
+                    .sort((a, b) => {
+                        const dateA = new Date(a.sold_at || a.created_at);
+                        const dateB = new Date(b.sold_at || b.created_at);
+                        return dateB - dateA;
+                    })
+                    .slice(0, 20);
+                
+                if (soldTickets.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #94a3b8;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">🎟️</div>
+                            <h3 style="color: #64748b; font-size: 16px; margin-bottom: 8px;">No Sales Yet</h3>
+                            <p style="color: #94a3b8; font-size: 14px;">Recent ticket sales will appear here once you start selling.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Build table
+                let tableHTML = `
+                    <div style="overflow-x: auto;">
+                        <table class="dept-stats-table">
+                            <thead>
+                                <tr>
+                                    <th>${t.ticketNumber || 'Ticket #'}</th>
+                                    <th>${t.buyerName || 'Buyer Name'}</th>
+                                    <th>${t.buyerPhone || 'Buyer Phone'}</th>
+                                    <th>${t.category || 'Category'}</th>
+                                    <th>${t.price || 'Price'}</th>
+                                    <th>${t.dateSold || 'Date Sold'}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                soldTickets.forEach(ticket => {
+                    const soldDate = new Date(ticket.sold_at || ticket.created_at);
+                    const formattedDate = soldDate.toLocaleDateString() + ' ' + soldDate.toLocaleTimeString();
+                    
+                    tableHTML += `
+                        <tr>
+                            <td><strong>${ticket.number}</strong></td>
+                            <td>${ticket.buyer_name || '-'}</td>
+                            <td><strong>${ticket.buyer_phone || '-'}</strong></td>
+                            <td>${ticket.category || '-'}</td>
+                            <td>$${parseFloat(ticket.price || 0).toFixed(2)}</td>
+                            <td>${formattedDate}</td>
+                        </tr>
+                    `;
+                });
+                
+                tableHTML += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                
+                container.innerHTML = tableHTML;
+                
+            } catch (error) {
+                console.error('Error loading recent sales:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #ef4444;">
+                        <p>Failed to load recent sales</p>
                     </div>
                 `;
             }
