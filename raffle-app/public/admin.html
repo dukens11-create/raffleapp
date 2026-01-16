@@ -609,6 +609,175 @@
         z-index: 1000;
         box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     }
+
+    /* Draw Photos Styles */
+    .filter-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .filter-btn {
+        padding: 10px 20px;
+        background: #e2e8f0;
+        color: #1e293b;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+        background: #cbd5e1;
+        transform: translateY(-1px);
+    }
+
+    .filter-btn.active {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .photo-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .photo-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .photo-preview {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        cursor: pointer;
+    }
+
+    .photo-info {
+        margin-bottom: 10px;
+    }
+
+    .photo-info p {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #64748b;
+    }
+
+    .photo-info strong {
+        color: #1e293b;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        margin: 5px 0;
+    }
+
+    .status-pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-verified {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .photo-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+    }
+
+    .btn-verify {
+        background: #10b981;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .btn-reject {
+        background: #f59e0b;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .btn-delete {
+        background: #ef4444;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .btn-view {
+        background: #3b82f6;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 5px;
+        border: none;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    /* Modal for full-size image */
+    .photo-modal {
+        display: none;
+        position: fixed;
+        z-index: 10000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        justify-content: center;
+        align-items: center;
+    }
+
+    .photo-modal img {
+        max-width: 90%;
+        max-height: 90%;
+        object-fit: contain;
+    }
+
+    .photo-modal-close {
+        position: absolute;
+        top: 20px;
+        right: 40px;
+        color: white;
+        font-size: 40px;
+        font-weight: bold;
+        cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -1236,6 +1405,28 @@
       <button type="submit">Buy Online</button>
     </form>
   </div>
+
+  <div class="section">
+    <h2>📸 Draw Event Photos Verification</h2>
+    <p>Review and verify draw event photos uploaded by sellers</p>
+    
+    <div class="filter-buttons" style="margin-bottom: 20px;">
+      <button class="filter-btn active" data-status="pending" onclick="filterDrawPhotos('pending')">Pending</button>
+      <button class="filter-btn" data-status="verified" onclick="filterDrawPhotos('verified')">Verified</button>
+      <button class="filter-btn" data-status="all" onclick="filterDrawPhotos('all')">All</button>
+    </div>
+    
+    <div id="drawPhotosGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+      <!-- Photo cards will be populated here -->
+    </div>
+  </div>
+
+  <!-- Photo Modal -->
+  <div id="photoModal" class="photo-modal">
+    <span class="photo-modal-close" onclick="closePhotoModal()">&times;</span>
+    <img id="modalPhoto" src="" alt="Full size photo">
+  </div>
+
   <script>
                             
                             // Simple translations
@@ -3470,6 +3661,188 @@
       // Check if we're on the admin page and the online stats element exists
       if (document.getElementById('online-stats')) {
         refreshOnlineStats();
+      }
+      
+      // Load draw photos if the section exists
+      if (document.getElementById('drawPhotosGrid')) {
+        loadDrawPhotos('pending');
+      }
+    });
+
+    // ============================================================================
+    // DRAW PHOTOS FUNCTIONS
+    // ============================================================================
+
+    let currentPhotoFilter = 'pending';
+
+    async function loadDrawPhotos(status = 'pending') {
+      try {
+        currentPhotoFilter = status;
+        const response = await fetch(`/api/admin/draw-photos?status=${status}`);
+        const data = await response.json();
+        
+        const grid = document.getElementById('drawPhotosGrid');
+        
+        if (!data.photos || data.photos.length === 0) {
+          grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #64748b;">No photos found</p>';
+          return;
+        }
+        
+        grid.innerHTML = data.photos.map(photo => {
+          const uploadDate = new Date(photo.uploaded_at).toLocaleString();
+          const drawDate = photo.drawn_at ? new Date(photo.drawn_at).toLocaleDateString() : 'N/A';
+          
+          let statusBadge = '';
+          if (photo.verification_status === 'pending') {
+            statusBadge = '<span class="status-badge status-pending">⏳ Pending</span>';
+          } else if (photo.verification_status === 'verified') {
+            statusBadge = '<span class="status-badge status-verified">✅ Verified</span>';
+          } else if (photo.verification_status === 'rejected') {
+            statusBadge = '<span class="status-badge status-rejected">❌ Rejected</span>';
+          }
+          
+          return `
+            <div class="photo-card">
+              <img src="${photo.photo_path}" alt="Draw photo" class="photo-preview" onclick="openPhotoModal('${photo.photo_path}')">
+              <div class="photo-info">
+                ${statusBadge}
+                <p><strong>Draw:</strong> #${photo.draw_number || 'N/A'}</p>
+                <p><strong>Prize:</strong> ${photo.prize_name || 'N/A'}</p>
+                <p><strong>Draw Date:</strong> ${drawDate}</p>
+                <p><strong>Seller:</strong> ${photo.seller_name}</p>
+                <p><strong>Phone:</strong> ${photo.seller_phone}</p>
+                <p><strong>Uploaded:</strong> ${uploadDate}</p>
+                ${photo.verified_by ? `<p><strong>Verified by:</strong> ${photo.verified_by}</p>` : ''}
+                ${photo.admin_notes ? `<p><strong>Notes:</strong> ${photo.admin_notes}</p>` : ''}
+              </div>
+              <div class="photo-actions">
+                ${photo.verification_status === 'pending' ? `
+                  <button class="btn-verify" onclick="verifyDrawPhoto(${photo.id})">✅ Verify</button>
+                  <button class="btn-reject" onclick="rejectDrawPhoto(${photo.id})">❌ Reject</button>
+                ` : ''}
+                <button class="btn-view" onclick="openPhotoModal('${photo.photo_path}')">👁️ View Full</button>
+                <button class="btn-delete" onclick="deleteDrawPhoto(${photo.id}, '${photo.photo_path}')">🗑️ Delete</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+      } catch (error) {
+        console.error('Error loading draw photos:', error);
+        document.getElementById('drawPhotosGrid').innerHTML = 
+          '<p style="grid-column: 1/-1; text-align: center; color: #ef4444;">Error loading photos</p>';
+      }
+    }
+
+    function filterDrawPhotos(status) {
+      // Update active button
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('data-status') === status) {
+          btn.classList.add('active');
+        }
+      });
+      
+      loadDrawPhotos(status);
+    }
+
+    async function verifyDrawPhoto(photoId) {
+      const notes = prompt('Verification notes (optional):');
+      
+      try {
+        const response = await fetch(`/api/admin/draw-photo/${photoId}/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            verification_status: 'verified',
+            admin_notes: notes
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert('✅ Photo verified successfully');
+          loadDrawPhotos(currentPhotoFilter);
+        } else {
+          alert(`❌ Error: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('Error verifying photo:', error);
+        alert('❌ An error occurred');
+      }
+    }
+
+    async function rejectDrawPhoto(photoId) {
+      const notes = prompt('Rejection reason (optional):');
+      
+      try {
+        const response = await fetch(`/api/admin/draw-photo/${photoId}/verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            verification_status: 'rejected',
+            admin_notes: notes
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert('❌ Photo rejected');
+          loadDrawPhotos(currentPhotoFilter);
+        } else {
+          alert(`❌ Error: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('Error rejecting photo:', error);
+        alert('❌ An error occurred');
+      }
+    }
+
+    async function deleteDrawPhoto(photoId, photoPath) {
+      if (!confirm('Delete this draw photo? This action cannot be undone.')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/admin/draw-photo/${photoId}`, {
+          method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          alert('✅ Photo deleted successfully');
+          loadDrawPhotos(currentPhotoFilter);
+        } else {
+          alert(`❌ Error: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('Error deleting photo:', error);
+        alert('❌ An error occurred');
+      }
+    }
+
+    function openPhotoModal(photoPath) {
+      const modal = document.getElementById('photoModal');
+      const modalImg = document.getElementById('modalPhoto');
+      modal.style.display = 'flex';
+      modalImg.src = photoPath;
+    }
+
+    function closePhotoModal() {
+      document.getElementById('photoModal').style.display = 'none';
+    }
+
+    // Close modal when clicking outside the image
+    document.getElementById('photoModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closePhotoModal();
       }
     });
     

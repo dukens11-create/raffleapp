@@ -674,6 +674,31 @@
             <p>Report any issues you encounter</p>
             <button class="btn btn-warning" onclick="openConcernModal()">Report an Issue</button>
         </div>
+
+        <!-- Upload Draw Photo Section -->
+        <div class="txn-verification-section">
+            <h2>📸 Upload Draw Event Photo</h2>
+            <p>Upload a photo of the draw event for verification</p>
+            
+            <form id="uploadDrawPhotoForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Select Draw</label>
+                    <select id="drawSelect" required>
+                        <option value="">Loading draws...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Upload Photo</label>
+                    <input type="file" id="drawPhoto" accept="image/*" required>
+                    <div style="color: #666; font-size: 12px; margin-top: 5px;">Max size: 10MB. Accepted formats: JPG, PNG</div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Upload Photo</button>
+            </form>
+            
+            <div id="uploadResult" style="margin-top: 15px;"></div>
+        </div>
     </div>
 
     <!-- Concern Modal -->
@@ -1690,8 +1715,99 @@
             window.location.href = '/logout';
         }
 
+        // Load recent draws for photo upload
+        async function loadRecentDraws() {
+            try {
+                const response = await fetch('/api/seller/recent-draws');
+                const data = await response.json();
+                
+                const drawSelect = document.getElementById('drawSelect');
+                drawSelect.innerHTML = '<option value="">Select a draw...</option>';
+                
+                if (data.draws && data.draws.length > 0) {
+                    data.draws.forEach(draw => {
+                        const date = new Date(draw.drawn_at).toLocaleDateString();
+                        const option = document.createElement('option');
+                        option.value = draw.id;
+                        option.textContent = `Draw #${draw.draw_number} - ${draw.prize_name} - ${date}`;
+                        drawSelect.appendChild(option);
+                    });
+                } else {
+                    drawSelect.innerHTML = '<option value="">No recent draws available</option>';
+                }
+            } catch (error) {
+                console.error('Error loading draws:', error);
+                const drawSelect = document.getElementById('drawSelect');
+                drawSelect.innerHTML = '<option value="">Error loading draws</option>';
+            }
+        }
+
+        // Handle draw photo upload form submission
+        document.getElementById('uploadDrawPhotoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('uploadResult');
+            const drawId = document.getElementById('drawSelect').value;
+            const photoFile = document.getElementById('drawPhoto').files[0];
+            
+            if (!drawId) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Please select a draw</div>';
+                return;
+            }
+            
+            if (!photoFile) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Please select a photo</div>';
+                return;
+            }
+            
+            // Check file size (10MB max)
+            if (photoFile.size > 10 * 1024 * 1024) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Photo size must be less than 10MB</div>';
+                return;
+            }
+            
+            // Check file type
+            if (!photoFile.type.startsWith('image/')) {
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Only image files are allowed</div>';
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = '<div class="alert alert-warning">⏳ Uploading photo...</div>';
+                
+                const formData = new FormData();
+                formData.append('draw_id', drawId);
+                formData.append('photo', photoFile);
+                
+                const response = await fetch('/api/seller/draw-photo/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = '<div class="alert alert-success">✅ Photo uploaded successfully! Awaiting admin verification.</div>';
+                    
+                    // Reset form
+                    document.getElementById('uploadDrawPhotoForm').reset();
+                    
+                    // Clear success message after 5 seconds
+                    setTimeout(() => {
+                        resultDiv.innerHTML = '';
+                    }, 5000);
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">❌ ${data.error || 'Upload failed'}</div>`;
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                resultDiv.innerHTML = '<div class="alert alert-danger">❌ An error occurred during upload</div>';
+            }
+        });
+
         // Initialize
         checkAuth();
+        loadRecentDraws();
     </script>
 </body>
 </html>
