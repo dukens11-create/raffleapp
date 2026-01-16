@@ -2002,6 +2002,13 @@
                     resultDiv.innerHTML = '<div class="alert alert-danger">❌ Please capture a photo first</div>';
                     return;
                 }
+                
+                // Check captured photo size (10MB max)
+                if (capturedPhotoBlob.size > 10 * 1024 * 1024) {
+                    resultDiv.innerHTML = '<div class="alert alert-danger">❌ Captured photo is too large. Please try capturing again at a lower resolution.</div>';
+                    return;
+                }
+                
                 formData.append('photo', capturedPhotoBlob, 'draw-photo.jpg');
             } else {
                 // Use file input
