@@ -1144,6 +1144,25 @@
             'Sud-Est'
         ];
 
+        // Phone number utility functions
+        const HAITI_PHONE_REGEX = /^509\d{8}$/;
+        
+        function normalizePhoneNumber(phone) {
+            // Remove spaces, dashes, parentheses, plus
+            return phone.replace(/[\s\-\(\)\+]/g, '');
+        }
+        
+        function validateHaitiPhone(phone) {
+            const normalized = normalizePhoneNumber(phone);
+            return HAITI_PHONE_REGEX.test(normalized);
+        }
+        
+        function formatPhoneDisplay(phone) {
+            const normalized = normalizePhoneNumber(phone);
+            // Format as 509-XXXX-XXXX
+            return normalized.replace(/^(509)(\d{4})(\d{4})$/, '$1-$2-$3');
+        }
+
         // Translation data
         const translations = {
             en: {
@@ -1990,13 +2009,8 @@
                 return;
             }
             
-            // Normalize phone number - remove spaces, dashes, parentheses, plus
-            const normalizedPhone = phoneInput.replace(/[\s\-\(\)\+]/g, '');
-            
-            // Validate 509 area code formats (after normalization, should be 509 + 8 digits = 11 total)
-            const valid509Format = /^509\d{8}$/;
-            
-            if (!valid509Format.test(normalizedPhone)) {
+            // Validate phone using utility function
+            if (!validateHaitiPhone(phoneInput)) {
                 errorDiv.textContent = t.invalidPhone509 || 'Invalid phone number. Must be Haiti number with 509 area code.';
                 errorDiv.style.display = 'block';
                 return;
@@ -2010,12 +2024,13 @@
             }
             
             // Success - store phone and department
+            const normalizedPhone = normalizePhoneNumber(phoneInput);
             confirmedBuyerPhone = normalizedPhone;
             selectedDepartment = departmentInput;
             errorDiv.style.display = 'none';
             
-            // Format phone for display: 509-XXXX-XXXX
-            const displayPhone = normalizedPhone.replace(/^(509)(\d{4})(\d{4})$/, '$1-$2-$3');
+            // Format phone for display
+            const displayPhone = formatPhoneDisplay(phoneInput);
             
             console.log('[BUYER-INFO] Phone:', displayPhone, 'Department:', selectedDepartment);
             
