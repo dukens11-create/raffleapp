@@ -2045,8 +2045,9 @@
                 if (response.ok) {
                     resultDiv.innerHTML = '<div class="alert alert-success">✅ Photo uploaded successfully! Awaiting admin verification.</div>';
                     
-                    // Reset form
-                    e.target.reset();
+                    // Reset only the photo inputs, not the draw selection
+                    const fileInput = document.getElementById('drawPhoto');
+                    fileInput.value = '';
                     
                     // Clean up camera resources
                     if (capturedPhotoBlob) {
