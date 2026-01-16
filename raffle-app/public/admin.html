@@ -778,6 +778,110 @@
         font-weight: bold;
         cursor: pointer;
     }
+
+    /* Professional Card Styles for Admin Tools */
+    .action-card {
+        margin-bottom: 24px;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .action-card h3 {
+        color: white;
+        margin: 0 0 12px 0;
+        font-size: 20px;
+        font-weight: 600;
+    }
+
+    .action-card p {
+        color: rgba(255, 255, 255, 0.9);
+        margin: 0 0 16px 0;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+
+    .action-card-purple {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .action-card-cyan {
+        background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    }
+
+    .action-card-green {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .action-card-orange {
+        background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    }
+
+    .action-card-violet {
+        background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    }
+
+    .action-card-yellow {
+        background: linear-gradient(135deg, #F7DC6F 0%, #F39C12 100%);
+    }
+
+    .action-btn {
+        display: inline-block;
+        padding: 12px 24px;
+        background: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        border: none;
+        font-size: 16px;
+    }
+
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .action-btn-purple { color: #667eea; }
+    .action-btn-cyan { color: #06b6d4; }
+    .action-btn-green { color: #10b981; }
+    .action-btn-orange { color: #f59e0b; }
+    .action-btn-violet { color: #8b5cf6; }
+    .action-btn-yellow { color: #F39C12; }
+
+    .action-btn-secondary {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid white;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    /* Section Organization */
+    .admin-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 24px;
+        margin: 24px 0;
+    }
+
+    @media (max-width: 768px) {
+        .admin-grid {
+            grid-template-columns: 1fr;
+        }
+    }
   </style>
 </head>
 <body>
@@ -873,94 +977,77 @@
     <h2 data-translate="createTicket">Create Ticket</h2>
     
     <!-- Print Tickets Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🖨️ Print Tickets</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Print professional raffle tickets on Avery 16145 paper (10 tickets per sheet)
-      </p>
-      <a href="/print-tickets.html" style="display: inline-block; padding: 12px 24px; background: white; color: #667eea; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <div class="action-card action-card-purple">
+      <h3>🖨️ Print Tickets</h3>
+      <p>Print professional raffle tickets on Avery 16145 paper (10 tickets per sheet)</p>
+      <a href="/print-tickets.html" class="action-btn action-btn-purple">
         📄 Go to Print Center →
       </a>
     </div>
     
     <!-- Bulk Ticket Manager Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🔄 Bulk Ticket Manager</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Mass export, regenerate, and validate all tickets with the new 8-digit barcode format. Detect and fix legacy tickets.
-      </p>
-      <a href="/bulk-ticket-manager.html" style="display: inline-block; padding: 12px 24px; background: white; color: #06b6d4; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <div class="action-card action-card-cyan">
+      <h3>🔄 Bulk Ticket Manager</h3>
+      <p>Mass export, regenerate, and validate all tickets with the new 8-digit barcode format. Detect and fix legacy tickets.</p>
+      <a href="/bulk-ticket-manager.html" class="action-btn action-btn-cyan">
         🔧 Open Bulk Manager →
       </a>
     </div>
     
     <!-- Generate All Tickets Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎫 Generate Tickets</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Generate 1.5 million unique tickets with EAN-13 barcodes and QR codes automatically
-      </p>
-      <a href="/generate-tickets.html" style="display: inline-block; padding: 12px 24px; background: white; color: #10b981; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <div class="action-card action-card-green">
+      <h3>🎫 Generate Tickets</h3>
+      <p>Generate 1.5 million unique tickets with EAN-13 barcodes and QR codes automatically</p>
+      <a href="/generate-tickets.html" class="action-btn action-btn-green">
         🚀 Generate All Tickets →
       </a>
     </div>
     
     <!-- Custom Ticket Designs Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎨 Custom Ticket Designs</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Upload your own custom ticket designs (front and back) - automatically fitted to blank templates
-      </p>
-      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <a href="/upload-template.html" style="display: inline-block; padding: 12px 24px; background: white; color: #f59e0b; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <div class="action-card action-card-orange">
+      <h3>🎨 Custom Ticket Designs</h3>
+      <p>Upload your own custom ticket designs (front and back) - automatically fitted to blank templates</p>
+      <div class="action-buttons">
+        <a href="/upload-template.html" class="action-btn action-btn-orange">
           ➕ Upload New Template
         </a>
-        <a href="/manage-templates.html" style="display: inline-block; padding: 12px 24px; background: rgba(255, 255, 255, 0.2); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; border: 2px solid white;">
+        <a href="/manage-templates.html" class="action-btn action-btn-secondary">
           📋 Manage Templates
         </a>
       </div>
     </div>
     
     <!-- Category-Specific Custom Designs Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎨 Category-Specific Custom Designs</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Upload unique background images for each category (ABC, EFG, JKL, XYZ) and print with custom designs on 8.5" × 11" sheets (8 tickets per sheet)
-      </p>
-      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-        <a href="/custom-ticket-design.html" style="display: inline-block; padding: 12px 24px; background: white; color: #8b5cf6; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <div class="action-card action-card-violet">
+      <h3>🎨 Category-Specific Custom Designs</h3>
+      <p>Upload unique background images for each category (ABC, EFG, JKL, XYZ) and print with custom designs on 8.5" × 11" sheets (8 tickets per sheet)</p>
+      <div class="action-buttons">
+        <a href="/custom-ticket-design.html" class="action-btn action-btn-violet">
           🎨 Upload Category Designs
         </a>
-        <a href="/ticket-design-manager.html" style="display: inline-block; padding: 12px 24px; background: white; color: #8b5cf6; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+        <a href="/ticket-design-manager.html" class="action-btn action-btn-violet">
           🖼️ Manage Ticket Designs
         </a>
-        <a href="/print-custom-tickets.html" style="display: inline-block; padding: 12px 24px; background: rgba(255, 255, 255, 0.2); color: white; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; border: 2px solid white;">
+        <a href="/print-custom-tickets.html" class="action-btn action-btn-secondary">
           🖨️ Print Custom Tickets
         </a>
       </div>
     </div>
     
     <!-- Bulk Print Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">📦 Bulk Print (1000 Tickets)</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Print up to 1000 tickets in a single operation. Generate multi-page PDFs (125 pages max) for efficient bulk printing on 8.5" × 11" sheets (8 tickets per page)
-      </p>
-      <a href="/bulk-print.html" style="display: inline-block; padding: 12px 24px; background: white; color: #06b6d4; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <div class="action-card action-card-cyan">
+      <h3>📦 Bulk Print (1000 Tickets)</h3>
+      <p>Print up to 1000 tickets in a single operation. Generate multi-page PDFs (125 pages max) for efficient bulk printing on 8.5" × 11" sheets (8 tickets per page)</p>
+      <a href="/bulk-print.html" class="action-btn action-btn-cyan">
         📦 Open Bulk Print Center →
       </a>
     </div>
     
     <!-- XYZ Portrait Print Section -->
-    <div style="background: linear-gradient(135deg, #F7DC6F 0%, #F39C12 100%); padding: 25px; border-radius: 12px; box-shadow: 0 8px 32px rgba(243, 156, 18, 0.3); margin-bottom: 30px;">
-      <h3 style="color: white; margin: 0 0 15px 0; font-size: 20px;">
-        🎫 Print XYZ Tickets - Portrait (2.1" × 5.5")
-      </h3>
+    <div class="action-card action-card-yellow">
+      <h3>🎫 Print XYZ Tickets - Portrait (2.1" × 5.5")</h3>
       
-      <p style="color: rgba(255,255,255,0.95); margin: 0 0 20px 0; font-size: 14px;">
-        Vertical tickets: 4 columns × 2 rows = 8 per page<br>
-        Perfect for standard 8.5" × 11" portrait printing
-      </p>
+      <p>Vertical tickets: 4 columns × 2 rows = 8 per page<br>Perfect for standard 8.5" × 11" portrait printing</p>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
         <div>
@@ -981,8 +1068,7 @@
         </div>
       </div>
       
-      <button id="gen-xyz-portrait-btn" onclick="generateXYZPortraitPDF()" 
-              style="padding: 14px 28px; background: white; color: #F39C12; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 15px; transition: all 0.3s;">
+      <button id="gen-xyz-portrait-btn" onclick="generateXYZPortraitPDF()" class="action-btn action-btn-yellow">
         🖨️ Generate Portrait PDF (8-up)
       </button>
       
@@ -990,12 +1076,10 @@
     </div>
     
     <!-- Ticket Verification Section -->
-    <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎫 Ticket & Barcode Verification</h3>
-      <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px;">
-        Search, filter, and export all tickets with barcodes and QR codes. Comprehensive verification tool for admins.
-      </p>
-      <a href="/verify-tickets.html" style="display: inline-block; padding: 12px 24px; background: white; color: #3b82f6; text-decoration: none; border-radius: 8px; font-weight: 600; transition: all 0.3s; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <div class="action-card" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
+      <h3>🎫 Ticket & Barcode Verification</h3>
+      <p>Search, filter, and export all tickets with barcodes and QR codes. Comprehensive verification tool for admins.</p>
+      <a href="/verify-tickets.html" class="action-btn" style="color: #3b82f6;">
         🔍 Open Verification Center →
       </a>
     </div>
