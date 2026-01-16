@@ -1938,7 +1938,7 @@ app.post('/api/tickets/register-with-txn', requireAuth, upload.single('card_phot
       errors.push('Scratch card photo is required before registration');
     } else {
       // Validate file type (must be image)
-      const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!allowedMimeTypes.includes(req.file.mimetype)) {
         errors.push('Photo must be a valid image format (JPEG, PNG, or WebP)');
       }

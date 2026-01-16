@@ -1459,6 +1459,15 @@
             JPEG_QUALITY: 0.75 // 75% quality for standard compression
         };
         
+        // Form field IDs for bulk enable/disable
+        const FORM_FIELD_IDS = [
+            'txnIdInput',
+            'ticketNumberInput',
+            'departmentInput',
+            'registerBtn',
+            'useCameraBtn'
+        ];
+        
         let capturedPhotoBlob = null;
         let cameraStream = null;
 
@@ -1564,19 +1573,17 @@
         }
 
         function enableFormFields() {
-            document.getElementById('txnIdInput').disabled = false;
-            document.getElementById('ticketNumberInput').disabled = false;
-            document.getElementById('departmentInput').disabled = false;
-            document.getElementById('registerBtn').disabled = false;
-            document.getElementById('useCameraBtn').disabled = false;
+            FORM_FIELD_IDS.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.disabled = false;
+            });
         }
 
         function disableFormFields() {
-            document.getElementById('txnIdInput').disabled = true;
-            document.getElementById('ticketNumberInput').disabled = true;
-            document.getElementById('departmentInput').disabled = true;
-            document.getElementById('registerBtn').disabled = true;
-            document.getElementById('useCameraBtn').disabled = true;
+            FORM_FIELD_IDS.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) element.disabled = true;
+            });
         }
 
         function resetPhotoCapture() {
