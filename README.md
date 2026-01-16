@@ -1,4 +1,4 @@
-# Raffle App
+# Grate Genyen
 
 A web-based raffle ticket management system for organizing and managing raffle draws with ticket sales tracking, seller management, and automated prize distribution.
 

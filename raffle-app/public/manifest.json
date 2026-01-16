@@ -1,6 +1,6 @@
 {
-  "name": "RaffleApp - Ticket Management",
-  "short_name": "RaffleApp",
+  "name": "Grate Genyen - Ticket Management",
+  "short_name": "Grate Genyen",
   "description": "Professional raffle ticket management system for sellers and administrators",
   "start_url": "/",
   "display": "standalone",
