@@ -646,10 +646,42 @@
             </form>
         </div>
 
-        <!-- Barcode Scanner Section (Step 2) - ENABLED by default -->
+        <!-- Step 2: Buyer Phone Number (NEW) -->
+        <div class="txn-verification-section" id="buyerPhoneSection" style="display: none; opacity: 0.5; pointer-events: none;">
+            <h2>📱 <span data-translate="buyerPhoneStep">Step 2: Buyer Phone Number</span></h2>
+            <p data-translate="buyerPhoneDesc">Enter buyer's Haiti phone number (509 area code)</p>
+            
+            <form id="buyerPhoneForm" style="margin-top: 15px;">
+                <div class="form-group">
+                    <label for="buyerPhone">
+                        <span data-translate="buyerPhoneLabel">Buyer Phone Number</span> *
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="buyerPhone" 
+                        placeholder="509-1234-5678"
+                        pattern="(\+?509|509)[-\s]?[0-9]{4}[-\s]?[0-9]{4}"
+                        maxlength="20"
+                        required
+                        style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px;"
+                    >
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        <span data-translate="phoneFormatHelp">Format: 509-1234-5678 or 5091234567 or +509 1234 5678</span>
+                    </small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 10px;">
+                    <span data-translate="confirmPhone">Confirm Phone Number</span>
+                </button>
+            </form>
+            
+            <div id="phoneConfirmationResult" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Barcode Scanner Section (Step 3) - ENABLED by default -->
         <div class="scanner-section" id="ticketScanningSection">
-            <h2>🎟️ Step 2: Scan Tickets</h2>
-            <p>Scan tickets to assign them to customers</p>
+            <h2>🎟️ <span data-translate="ticketScanningStep">Step 3: Scan Tickets</span></h2>
+            <p data-translate="scanDescription">Scan tickets to assign them to customers</p>
             <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
             <div id="scannerContainer" style="display: none;">
                 <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
@@ -766,6 +798,7 @@
         // Global state for current verified payment
         let currentVerifiedPayment = null;
         let currentSeller = null;
+        let confirmedBuyerPhone = null; // Store buyer phone after verification
         let selectedDepartment = null; // Store selected department
 
         // Haiti Departments list (must match server.js order)
@@ -817,8 +850,16 @@
                 previouslyAssignedTo: "Previously assigned to:",
                 tickets: "Tickets",
                 by: "By",
-                ticketScanningStep: "Step 2: Scan Tickets",
+                ticketScanningStep: "Step 3: Scan Tickets",
                 verifyFirstLocked: "Scan tickets to assign them to customers",
+                buyerPhoneStep: "Step 2: Buyer Phone Number",
+                buyerPhoneDesc: "Enter buyer's Haiti phone number (509 area code)",
+                buyerPhoneLabel: "Buyer Phone Number",
+                phoneFormatHelp: "Format: 509-1234-5678 or 5091234567 or +509 1234 5678",
+                confirmPhone: "Confirm Phone Number",
+                phoneConfirmed: "Phone Confirmed!",
+                invalidPhone509: "Invalid phone number. Must be Haiti 509 area code",
+                enterPhoneFirst: "Please enter buyer phone number first",
                 scanTicket: "Scan Ticket",
                 scanDescription: "Scan tickets to assign them to customers",
                 openScanner: "Open Camera Scanner",
@@ -894,8 +935,16 @@
                 previouslyAssignedTo: "Deja asiye bay:",
                 tickets: "Tikè",
                 by: "Pa",
-                ticketScanningStep: "Etap 2: Eskane Tikè",
+                ticketScanningStep: "Etap 3: Eskane Tikè",
                 verifyFirstLocked: "Eskane tikè pou asiyen yo bay kliyan yo",
+                buyerPhoneStep: "Etap 2: Nimewo Telefòn Achtè",
+                buyerPhoneDesc: "Antre nimewo telefòn Ayiti achtè a (kòd zòn 509)",
+                buyerPhoneLabel: "Nimewo Telefòn Achtè",
+                phoneFormatHelp: "Fòma: 509-1234-5678 oswa 5091234567 oswa +509 1234 5678",
+                confirmPhone: "Konfime Nimewo Telefòn",
+                phoneConfirmed: "Telefòn Konfime!",
+                invalidPhone509: "Nimewo telefòn pa valid. Dwe gen kòd zòn 509 Ayiti",
+                enterPhoneFirst: "Tanpri antre nimewo telefòn achtè dabò",
                 scanTicket: "Eskane Tikè",
                 scanDescription: "Eskane tikè pou asiyen yo bay kliyan yo",
                 openScanner: "Louvri Kamera",
@@ -971,8 +1020,16 @@
                 previouslyAssignedTo: "Précédemment attribué à:",
                 tickets: "Billets",
                 by: "Par",
-                ticketScanningStep: "Étape 2: Scanner les Billets",
+                ticketScanningStep: "Étape 3: Scanner les Billets",
                 verifyFirstLocked: "Scanner les billets pour les attribuer aux clients",
+                buyerPhoneStep: "Étape 2: Numéro de Téléphone de l'Acheteur",
+                buyerPhoneDesc: "Entrez le numéro de téléphone haïtien de l'acheteur (indicatif 509)",
+                buyerPhoneLabel: "Numéro de Téléphone de l'Acheteur",
+                phoneFormatHelp: "Format: 509-1234-5678 ou 5091234567 ou +509 1234 5678",
+                confirmPhone: "Confirmer le Numéro",
+                phoneConfirmed: "Téléphone Confirmé!",
+                invalidPhone509: "Numéro invalide. Doit avoir l'indicatif 509 d'Haïti",
+                enterPhoneFirst: "Veuillez entrer le numéro de téléphone de l'acheteur d'abord",
                 scanTicket: "Scanner Billet",
                 scanDescription: "Scanner les billets pour les attribuer aux clients",
                 openScanner: "Ouvrir Scanner",
@@ -1434,7 +1491,7 @@
                 return;
             }
             
-            // Success - store department and enable scanning
+            // Success - store department and show phone section
             selectedDepartment = departmentInput;
             errorDiv.style.display = 'none';
             console.log('[BUYER-INFO] Department selected:', selectedDepartment);
@@ -1450,15 +1507,85 @@
             // Disable form after submission
             document.getElementById('buyerInfoForm').style.display = 'none';
             
-            // Enable scanning sections
+            // Enable phone section (Step 2)
             setTimeout(() => {
-                enableTicketScanning();
+                showPhoneSection();
             }, 1000);
         });
+        
+        function showPhoneSection() {
+            const phoneSection = document.getElementById('buyerPhoneSection');
+            phoneSection.style.display = 'block';
+            phoneSection.style.opacity = '1';
+            phoneSection.style.pointerEvents = 'auto';
+            
+            // Keep scanning section disabled
+            const scanSection = document.getElementById('ticketScanningSection');
+            scanSection.style.opacity = '0.5';
+            scanSection.style.pointerEvents = 'none';
+            
+            const manualSection = document.getElementById('manualEntrySection');
+            manualSection.style.opacity = '0.5';
+            manualSection.style.pointerEvents = 'none';
+            
+            // Scroll to phone section
+            phoneSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Buyer phone form submission
+        document.getElementById('buyerPhoneForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const phoneInput = document.getElementById('buyerPhone').value.trim();
+            const t = translations[currentLanguage];
+            
+            // Normalize phone number - remove spaces, dashes, parentheses
+            const normalizedPhone = phoneInput.replace(/[\s\-\(\)]/g, '');
+            
+            // Validate 509 area code formats
+            const valid509Formats = [
+                /^509\d{8}$/,        // 5091234567 (11 digits)
+                /^\+509\d{8}$/,      // +5091234567 (12 digits with +)
+            ];
+            
+            const isValid = valid509Formats.some(regex => regex.test(normalizedPhone));
+            
+            if (!isValid) {
+                showPhoneError(t.invalidPhone509);
+                return;
+            }
+            
+            // Format for display: 509-XXXX-XXXX
+            const displayPhone = normalizedPhone.replace(/^(\+?509)(\d{4})(\d{4})$/, '$1-$2-$3');
+            confirmedBuyerPhone = normalizedPhone;
+            
+            // Show success and enable ticket scanning
+            document.getElementById('phoneConfirmationResult').innerHTML = `
+                <div style="background: #d1fae5; border: 2px solid #10b981; padding: 15px; border-radius: 8px; color: #065f46;">
+                    <strong>✅ ${t.phoneConfirmed}</strong><br>
+                    ${t.buyerPhoneLabel}: <strong>${displayPhone}</strong>
+                </div>
+            `;
+            
+            // Enable ticket scanning section
+            enableTicketScanning();
+            
+            // Scroll to scanning section
+            document.getElementById('ticketScanningSection').scrollIntoView({ behavior: 'smooth' });
+        });
+        
+        function showPhoneError(message) {
+            document.getElementById('phoneConfirmationResult').innerHTML = `
+                <div style="background: #fee; border: 2px solid #f87171; padding: 15px; border-radius: 8px; color: #991b1b;">
+                    <strong>❌ ${translations[currentLanguage].errorPrefix}</strong> ${message}
+                </div>
+            `;
+        }
         
         function resetVerification() {
             currentVerifiedPayment = null;
             selectedDepartment = null;
+            confirmedBuyerPhone = null; // Clear phone
             document.getElementById('txnIdInput').value = '';
             document.getElementById('txnVerificationResult').style.display = 'none';
             
@@ -1473,6 +1600,14 @@
             // Remove any success messages
             const successMsgs = buyerInfoSection.querySelectorAll('.alert-success');
             successMsgs.forEach(msg => msg.remove());
+            
+            // Reset and hide phone section
+            const phoneSection = document.getElementById('buyerPhoneSection');
+            phoneSection.style.display = 'none';
+            phoneSection.style.opacity = '0.5';
+            phoneSection.style.pointerEvents = 'none';
+            document.getElementById('buyerPhoneForm').reset();
+            document.getElementById('phoneConfirmationResult').innerHTML = '';
             
             const scanSection = document.getElementById('ticketScanningSection');
             scanSection.style.opacity = '0.5';
@@ -1583,6 +1718,13 @@
             // TODO: Re-enable payment verification requirement once MonCash API is configured
             // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
             
+            // Check if buyer phone is entered (if payment was verified)
+            if (currentVerifiedPayment && !confirmedBuyerPhone) {
+                const t = translations[currentLanguage];
+                alert(t.enterPhoneFirst);
+                return;
+            }
+            
             const resultDiv = document.getElementById('scanResult');
             const t = translations[currentLanguage];
             resultDiv.innerHTML = '⏳ ' + t.processing;
@@ -1596,6 +1738,11 @@
                 // Add payment reference if available (optional)
                 if (currentVerifiedPayment) {
                     requestBody.payment_reference = currentVerifiedPayment.payment_reference;
+                }
+                
+                // Add buyer phone if confirmed
+                if (confirmedBuyerPhone) {
+                    requestBody.buyer_phone = confirmedBuyerPhone;
                 }
                 
                 // Add department if selected (only for payments without department)
@@ -1713,9 +1860,15 @@
             // TODO: Re-enable payment verification requirement once MonCash API is configured
             // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
             
+            // Check if buyer phone is entered (if payment was verified)
+            const t = translations[currentLanguage];
+            if (currentVerifiedPayment && !confirmedBuyerPhone) {
+                alert(t.enterPhoneFirst);
+                return;
+            }
+            
             const ticketNumber = document.getElementById('manualTicketNumber').value.trim();
             const resultDiv = document.getElementById('manualEntryResult');
-            const t = translations[currentLanguage];
             
             if (!ticketNumber) {
                 resultDiv.innerHTML = '❌ ' + t.enterTicket;
@@ -1738,6 +1891,11 @@
                 // Add payment reference if available (optional)
                 if (currentVerifiedPayment) {
                     requestBody.payment_reference = currentVerifiedPayment.payment_reference;
+                }
+                
+                // Add buyer phone if confirmed
+                if (confirmedBuyerPhone) {
+                    requestBody.buyer_phone = confirmedBuyerPhone;
                 }
                 
                 // Add department if selected (only for payments without department)
