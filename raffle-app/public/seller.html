@@ -1824,7 +1824,18 @@
             document.getElementById('useCameraBtn').classList.remove('active');
             document.getElementById('fileInputSection').style.display = 'block';
             document.getElementById('cameraSection').style.display = 'none';
+            
+            // Clean up camera resources
             stopCamera();
+            
+            // Clean up preview URL
+            if (capturedPhotoBlob) {
+                const previewImg = document.getElementById('previewImage');
+                if (previewImg.src) {
+                    URL.revokeObjectURL(previewImg.src);
+                }
+                capturedPhotoBlob = null;
+            }
         });
 
         document.getElementById('useCameraBtn').addEventListener('click', () => {
@@ -1894,13 +1905,39 @@
         });
 
         // Retake photo
-        document.getElementById('retakePhotoBtn').addEventListener('click', () => {
+        document.getElementById('retakePhotoBtn').addEventListener('click', async () => {
+            // Revoke old URL to prevent memory leak
+            const previewImg = document.getElementById('previewImage');
+            if (previewImg.src) {
+                URL.revokeObjectURL(previewImg.src);
+            }
+            
             capturedPhotoBlob = null;
             document.getElementById('cameraPreview').style.display = 'block';
             document.getElementById('capturedPhotoPreview').style.display = 'none';
             document.getElementById('retakePhotoBtn').style.display = 'none';
             document.getElementById('startCameraBtn').style.display = 'inline-block';
-            document.getElementById('startCameraBtn').click(); // Auto-restart camera
+            
+            // Restart camera directly
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+                
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraPreview');
+                video.srcObject = cameraStream;
+                
+                document.getElementById('startCameraBtn').style.display = 'none';
+                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
+            } catch (error) {
+                console.error('Camera restart error:', error);
+                alert('Unable to restart camera. Please try Start Camera button.');
+            }
         });
 
         // Stop camera stream
@@ -2010,7 +2047,15 @@
                     
                     // Reset form
                     document.getElementById('uploadDrawPhotoForm').reset();
-                    capturedPhotoBlob = null;
+                    
+                    // Clean up camera-related state
+                    if (capturedPhotoBlob) {
+                        const previewImg = document.getElementById('previewImage');
+                        if (previewImg.src) {
+                            URL.revokeObjectURL(previewImg.src);
+                        }
+                        capturedPhotoBlob = null;
+                    }
                     document.getElementById('capturedPhotoPreview').style.display = 'none';
                     document.getElementById('cameraPreview').style.display = 'block';
                     stopCamera();
