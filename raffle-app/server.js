@@ -2380,8 +2380,14 @@ app.delete('/api/admin/ticket-photo/:id', requireAuth, requireAdmin, async (req,
 
 // Serve uploaded ticket photos (with authentication)
 app.get('/uploads/ticket-photos/:filename', requireAuth, (req, res) => {
-  const filename = req.params.filename;
-  const filepath = path.join(__dirname, 'uploads', 'ticket-photos', filename);
+  const filename = path.basename(req.params.filename); // Prevent path traversal
+  const uploadsDir = path.join(__dirname, 'uploads', 'ticket-photos');
+  const filepath = path.resolve(uploadsDir, filename);
+  
+  // Validate that resolved path is within uploads directory
+  if (!filepath.startsWith(uploadsDir)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
   
   if (fs.existsSync(filepath)) {
     res.sendFile(filepath);
