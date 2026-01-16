@@ -1983,9 +1983,11 @@ app.post('/api/seller/draw-photo/upload', requireAuth, drawPhotoUpload.single('p
     if (req.session.user.role !== 'seller' && req.session.user.role !== 'admin') {
       // Clean up uploaded file
       if (req.file) {
-        fs.unlink(req.file.path, (err) => {
-          if (err) console.error('Error deleting file:', err);
-        });
+        try {
+          await fs.promises.unlink(req.file.path);
+        } catch (err) {
+          console.error('Error deleting file:', err);
+        }
       }
       return res.status(403).json({ 
         error: 'Only sellers can upload draw photos',
@@ -2005,9 +2007,11 @@ app.post('/api/seller/draw-photo/upload', requireAuth, drawPhotoUpload.single('p
     
     if (!draw_id) {
       // Clean up uploaded file
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Error deleting file:', err);
-      });
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
       return res.status(400).json({ 
         error: 'Draw ID is required',
         timestamp: new Date().toISOString()
@@ -2018,9 +2022,11 @@ app.post('/api/seller/draw-photo/upload', requireAuth, drawPhotoUpload.single('p
     const draw = await db.get("SELECT * FROM draws WHERE id = ?", [draw_id]);
     if (!draw) {
       // Clean up uploaded file
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Error deleting file:', err);
-      });
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
       return res.status(404).json({ 
         error: 'Draw not found',
         timestamp: new Date().toISOString()
@@ -2046,9 +2052,11 @@ app.post('/api/seller/draw-photo/upload', requireAuth, drawPhotoUpload.single('p
     console.error('Draw photo upload error:', error);
     // Clean up uploaded file on error
     if (req.file) {
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error('Error deleting file:', err);
-      });
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
     }
     res.status(500).json({ 
       error: 'An error occurred during upload',
