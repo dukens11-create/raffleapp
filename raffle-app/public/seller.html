@@ -977,7 +977,14 @@
                 departmentPlaceholder: "Search or select department...",
                 confirmDepartment: "Confirm Department",
                 departmentRequired: "Please select a valid department from the list",
-                departmentConfirmed: "Department confirmed"
+                departmentConfirmed: "Department confirmed",
+                buyerPhoneStep: "Step 2: Enter Buyer Phone Number",
+                buyerPhoneDesc: "Enter the customer's phone number before scanning tickets",
+                phoneLabel: "Buyer Phone Number",
+                phonePlaceholder: "e.g., 50912345678",
+                confirmPhone: "Confirm Phone Number",
+                phoneRequired: "Please enter a valid phone number (10-15 digits)",
+                phoneConfirmed: "Phone confirmed"
             },
             ht: {
                 title: "Tablo Vandè",
@@ -1046,7 +1053,14 @@
                 departmentPlaceholder: "Chèche oswa chwazi depatman...",
                 confirmDepartment: "Konfime Depatman",
                 departmentRequired: "Tanpri chwazi yon depatman valab nan lis la",
-                departmentConfirmed: "Depatman konfime"
+                departmentConfirmed: "Depatman konfime",
+                buyerPhoneStep: "Etap 2: Antre Nimewo Telefòn Achtè",
+                buyerPhoneDesc: "Antre nimewo telefòn kliyan an anvan eskane tikè yo",
+                phoneLabel: "Nimewo Telefòn Achtè",
+                phonePlaceholder: "pa egzanp, 50912345678",
+                confirmPhone: "Konfime Nimewo Telefòn",
+                phoneRequired: "Tanpri antre yon nimewo telefòn valab (10-15 chif)",
+                phoneConfirmed: "Telefòn konfime"
             },
             fr: {
                 title: "Tableau de Bord Vendeur",
@@ -1115,7 +1129,14 @@
                 departmentPlaceholder: "Rechercher ou sélectionner département...",
                 confirmDepartment: "Confirmer Département",
                 departmentRequired: "Veuillez sélectionner un département valide de la liste",
-                departmentConfirmed: "Département confirmé"
+                departmentConfirmed: "Département confirmé",
+                buyerPhoneStep: "Étape 2: Entrer Numéro de Téléphone Acheteur",
+                buyerPhoneDesc: "Entrez le numéro de téléphone du client avant de scanner les billets",
+                phoneLabel: "Numéro de Téléphone Acheteur",
+                phonePlaceholder: "p. ex., 50912345678",
+                confirmPhone: "Confirmer Numéro de Téléphone",
+                phoneRequired: "Veuillez entrer un numéro de téléphone valide (10-15 chiffres)",
+                phoneConfirmed: "Téléphone confirmé"
             }
         };
 
@@ -1475,7 +1496,7 @@
             // Validate phone number (10-15 digits)
             const phoneRegex = /^[0-9]{10,15}$/;
             if (!phoneInput || !phoneRegex.test(phoneInput)) {
-                errorDiv.textContent = 'Please enter a valid phone number (10-15 digits)';
+                errorDiv.textContent = t.phoneRequired;
                 errorDiv.style.display = 'block';
                 return;
             }
@@ -1490,7 +1511,7 @@
             const successMsg = document.createElement('div');
             successMsg.className = 'alert alert-success';
             successMsg.style.marginTop = '10px';
-            successMsg.innerHTML = `✅ Phone confirmed: <strong>${buyerPhoneNumber}</strong>`;
+            successMsg.innerHTML = `✅ ${t.phoneConfirmed}: <strong>${buyerPhoneNumber}</strong>`;
             buyerPhoneSection.appendChild(successMsg);
             
             // Disable form after submission
