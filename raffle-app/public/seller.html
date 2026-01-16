@@ -322,7 +322,270 @@
             transition: width 0.3s ease;
         }
 
+        /* Step Progress Indicator Styles */
+        .workflow-steps {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .steps-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .step-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            background: #e5e7eb;
+            color: #9ca3af;
+            border: 3px solid #e5e7eb;
+            transition: all 0.3s ease;
+            margin-bottom: 10px;
+        }
+
+        .step-item.completed .step-circle {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        .step-item.active .step-circle {
+            background: white;
+            color: #667eea;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .step-item.locked .step-circle {
+            background: #f3f4f6;
+            color: #d1d5db;
+            border-color: #e5e7eb;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(102, 126, 234, 0.2);
+            }
+        }
+
+        .step-label {
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            max-width: 150px;
+        }
+
+        .step-item.completed .step-label {
+            color: #10b981;
+        }
+
+        .step-item.active .step-label {
+            color: #667eea;
+        }
+
+        .step-item.locked .step-label {
+            color: #d1d5db;
+        }
+
+        .step-connector {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #e5e7eb;
+            z-index: 1;
+        }
+
+        .step-connector-progress {
+            height: 100%;
+            background: #10b981;
+            transition: width 0.5s ease;
+        }
+
+        /* Enhanced Section Styles */
+        .workflow-section {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            position: relative;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .workflow-section.active {
+            border-color: #667eea;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .workflow-section.completed {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .workflow-section.locked {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .workflow-section.locked::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .section-header-enhanced {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .section-header-enhanced h2 {
+            color: #333;
+            font-size: 20px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-description {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 20px;
+            padding-left: 32px;
+        }
+
+        .lock-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 10px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .workflow-section.locked .lock-overlay {
+            display: flex;
+        }
+
+        .lock-message {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .lock-message .lock-icon {
+            font-size: 48px;
+            color: #d1d5db;
+            margin-bottom: 10px;
+        }
+
+        .lock-message p {
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 0;
+        }
+
+        .btn-start-over {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+            margin-top: 15px;
+        }
+
+        .btn-start-over:hover {
+            background: #4b5563;
+        }
+
+        .help-text {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #1e40af;
+        }
+
+        .help-text strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+
         @media (max-width: 768px) {
+            .steps-container {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .step-connector {
+                display: none;
+            }
+
+            .step-item {
+                width: 100%;
+                flex-direction: row;
+                justify-content: flex-start;
+                gap: 15px;
+            }
+
+            .step-circle {
+                margin-bottom: 0;
+            }
+
+            .step-label {
+                text-align: left;
+            }
+
             .header {
                 flex-direction: column;
                 gap: 15px;
@@ -525,73 +788,6 @@
             border-radius: 5px;
             font-weight: 600;
         }
-
-        /* Camera Capture Styles */
-        .capture-method-toggle {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .method-btn {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #ddd;
-            background: white;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-
-        .method-btn.active {
-            border-color: #667eea;
-            background: #667eea;
-            color: white;
-        }
-
-        .method-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .capture-section {
-            margin-top: 15px;
-        }
-
-        #cameraPreview {
-            width: 100%;
-            max-width: 500px;
-            border-radius: 8px;
-            border: 2px solid #ddd;
-            background: #000;
-        }
-
-        .camera-controls {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        #capturedPhotoPreview {
-            margin-top: 15px;
-        }
-
-        #previewImage {
-            width: 100%;
-            max-width: 500px;
-            border-radius: 8px;
-            border: 2px solid #10b981;
-        }
-
-        /* Mobile responsive */
-        @media (max-width: 768px) {
-            #cameraPreview,
-            #previewImage {
-                max-width: 100%;
-            }
-        }
     </style>
 </head>
 <body>
@@ -617,6 +813,33 @@
             <div class="stat-card">
                 <div class="stat-label">Total Revenue</div>
                 <div class="stat-value currency" id="totalRevenue">0</div>
+            </div>
+        </div>
+
+        <!-- Step Progress Indicator -->
+        <div class="workflow-steps">
+            <h3 style="text-align: center; color: #333; margin-bottom: 20px; font-size: 18px;">Ticket Sales Workflow</h3>
+            <div class="steps-container">
+                <div class="step-connector">
+                    <div class="step-connector-progress" id="stepProgress" style="width: 0%"></div>
+                </div>
+                <div class="step-item" id="step1" data-step="1">
+                    <div class="step-circle">💳</div>
+                    <div class="step-label">Step 1: Verify Payment</div>
+                </div>
+                <div class="step-item locked" id="step2" data-step="2">
+                    <div class="step-circle">👤</div>
+                    <div class="step-label">Step 2: Buyer Info</div>
+                </div>
+                <div class="step-item locked" id="step3" data-step="3">
+                    <div class="step-circle">📱</div>
+                    <div class="step-label">Step 3: Scan Ticket</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn-start-over" onclick="startOver()" style="display: none;" id="startOverBtn">
+                    🔄 Start Over
+                </button>
             </div>
         </div>
 
@@ -652,12 +875,25 @@
             You can scan and assign tickets directly. Payment verification will be enabled once MonCash API is configured.
         </div>
 
-        <!-- Transaction ID Verification Section (Step 1) - OPTIONAL -->
-        <div class="txn-verification-section">
-            <h2>💳 Step 1: Verify Payment (Optional - Coming Soon)</h2>
-            <p>Enter customer's 12-15 digit MonCash Transaction ID (optional until MonCash is configured)</p>
+        <!-- Transaction ID Verification Section (Step 1) -->
+        <div class="workflow-section active" id="step1Section">
+            <div class="lock-overlay">
+                <div class="lock-message">
+                    <div class="lock-icon">🔒</div>
+                    <p>This step is locked</p>
+                </div>
+            </div>
+            <div class="section-header-enhanced">
+                <h2>💳 Step 1: Verify Payment</h2>
+            </div>
+            <p class="section-description">Enter customer's MonCash Transaction ID first (optional until MonCash is configured)</p>
             
-            <form id="txnVerificationForm">
+            <div class="help-text">
+                <strong>💡 Why payment verification?</strong>
+                Payment verification confirms the customer has paid and prevents fraud. Once verified, you can assign the correct number of tickets to the buyer.
+            </div>
+            
+            <form id="txnVerificationForm" style="margin-top: 20px;">
                 <div class="form-group">
                     <label for="txnIdInput">MonCash Transaction ID (12-15 digits)</label>
                     <input 
@@ -670,20 +906,53 @@
                         style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 16px; font-family: monospace; letter-spacing: 2px;"
                     />
                 </div>
-                <button type="submit" class="btn btn-primary">Verify Payment</button>
+                <button type="submit" class="btn btn-primary" id="verifyPaymentBtn">
+                    <span id="verifyBtnText">Verify Payment</span>
+                    <span id="verifyBtnLoading" style="display: none;">⏳ Verifying...</span>
+                </button>
             </form>
             
-            <div id="txnVerificationResult" style="display: none;">
+            <div id="txnVerificationResult" style="display: none; margin-top: 15px;">
                 <!-- Shows verification results -->
             </div>
         </div>
 
-        <!-- Buyer Information Section (Step 1.5) - DISABLED until txn verified -->
-        <div class="txn-verification-section" id="buyerInfoSection" style="opacity: 0.5; pointer-events: none; display: none;">
-            <h2>📍 Step 1.5: Buyer Department</h2>
-            <p id="buyerInfoDescription">Select the buyer's department/location</p>
+        <!-- Buyer Information Section (Step 2) -->
+        <div class="workflow-section locked" id="step2Section">
+            <div class="lock-overlay">
+                <div class="lock-message">
+                    <div class="lock-icon">🔒</div>
+                    <p>Complete Step 1 first</p>
+                </div>
+            </div>
+            <div class="section-header-enhanced">
+                <h2>👤 Step 2: Buyer Information</h2>
+            </div>
+            <p class="section-description">Collect buyer details before scanning ticket</p>
             
-            <form id="buyerInfoForm">
+            <div class="help-text">
+                <strong>💡 Why collect buyer information?</strong>
+                Buyer phone numbers and department info help track sales, prevent duplicate purchases, and enable us to contact winners. This information is kept secure and confidential.
+            </div>
+            
+            <form id="buyerInfoForm" style="margin-top: 20px;">
+                <div class="form-group">
+                    <label for="buyerPhone">
+                        <span data-translate="buyerPhoneLabel">Buyer Phone Number</span> *
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="buyerPhone" 
+                        placeholder="509-1234-5678"
+                        pattern="(\+?509|509)[-\s]?[0-9]{4}[-\s]?[0-9]{4}"
+                        maxlength="20"
+                        required
+                        style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px; margin-bottom: 15px;"
+                    >
+                    <small style="color: #6b7280; display: block; margin-top: -10px; margin-bottom: 15px;">
+                        <span data-translate="phoneFormatHelp">Format: 509-1234-5678 or 5091234567 or +509 1234 5678</span>
+                    </small>
+                </div>
                 <div class="form-group">
                     <label for="buyerDepartmentInput" id="departmentLabel">Department / Depatman / Département</label>
                     <input 
@@ -709,75 +978,64 @@
                     </datalist>
                     <div id="departmentError" style="color: #ef4444; font-size: 12px; margin-top: 5px; display: none;"></div>
                 </div>
-                <button type="submit" class="btn btn-primary" id="confirmDepartmentBtn">Confirm Department</button>
+                <button type="submit" class="btn btn-primary" id="confirmDepartmentBtn">Confirm Buyer Info</button>
             </form>
         </div>
 
-        <!-- Step 2: Buyer Phone Number (NEW) -->
-        <div class="txn-verification-section" id="buyerPhoneSection">
-            <h2>📱 <span data-translate="buyerPhoneStep">Step 2: Buyer Phone Number</span></h2>
-            <p data-translate="buyerPhoneDesc">Enter buyer's Haiti phone number (509 area code)</p>
-            
-            <form id="buyerPhoneForm" style="margin-top: 15px;">
-                <div class="form-group">
-                    <label for="buyerPhone">
-                        <span data-translate="buyerPhoneLabel">Buyer Phone Number</span> *
-                    </label>
-                    <input 
-                        type="tel" 
-                        id="buyerPhone" 
-                        placeholder="509-1234-5678"
-                        pattern="(\+?509|509)[-\s]?[0-9]{4}[-\s]?[0-9]{4}"
-                        maxlength="20"
-                        required
-                        style="width: 100%; padding: 12px; border: 2px solid #d1d5db; border-radius: 8px; font-size: 16px;"
-                    >
-                    <small style="color: #6b7280; display: block; margin-top: 5px;">
-                        <span data-translate="phoneFormatHelp">Format: 509-1234-5678 or 5091234567 or +509 1234 5678</span>
-                    </small>
+        <!-- Barcode Scanner Section (Step 3) -->
+        <div class="workflow-section locked" id="step3Section">
+            <div class="lock-overlay">
+                <div class="lock-message">
+                    <div class="lock-icon">🔒</div>
+                    <p>Complete Step 2 first</p>
                 </div>
-                
-                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 10px;">
-                    <span data-translate="confirmPhone">Confirm Phone Number</span>
-                </button>
-            </form>
+            </div>
+            <div class="section-header-enhanced">
+                <h2>📱 Step 3: Scan Ticket</h2>
+            </div>
+            <p class="section-description">Final step - Scan ticket to assign to buyer</p>
             
-            <div id="phoneConfirmationResult" style="margin-top: 15px;"></div>
-        </div>
-
-        <!-- Barcode Scanner Section (Step 3) - ENABLED by default -->
-        <div class="scanner-section" id="ticketScanningSection">
-            <h2>🎟️ <span data-translate="ticketScanningStep">Step 3: Scan Tickets</span></h2>
-            <p data-translate="scanDescription">Scan tickets to assign them to customers</p>
-            <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
-            <div id="scannerContainer" style="display: none;">
+            <div class="help-text">
+                <strong>💡 Why scan last?</strong>
+                Scanning is the final step that officially assigns the ticket to the buyer. This ensures payment is verified and buyer info is collected before the ticket is given out.
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" onclick="openBarcodeScanner()" style="margin-right: 10px;">
+                    📷 Open Scanner
+                </button>
+                <button class="btn btn-secondary" onclick="showManualEntry()">
+                    ✍️ Enter Manually
+                </button>
+            </div>
+            
+            <div id="scannerContainer" style="display: none; margin-top: 15px;">
                 <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
                 <canvas id="scannerCanvas" style="display: none;"></canvas>
                 <button class="btn btn-cancel" onclick="closeBarcodeScanner()">Close Scanner</button>
             </div>
             <div id="scanResult" style="margin-top: 15px;"></div>
-        </div>
-
-        <!-- Manual Ticket Entry Section -->
-        <div class="manual-entry-section" id="manualEntrySection">
-            <h2>✍️ Manual Ticket Entry</h2>
-            <p>Enter ticket number manually if scanner doesn't work</p>
-            <form id="manualTicketForm" style="display: flex; gap: 10px; align-items: flex-end;">
-                <div style="flex: 1;">
-                    <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Ticket Number</label>
-                    <input 
-                        type="text" 
-                        id="manualTicketNumber" 
-                        placeholder="Enter ticket number" 
-                        required 
-                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
-                    >
-                </div>
-                <button type="submit" class="btn btn-success">
-                    ✅ Register Sale
-                </button>
-            </form>
-            <div id="manualEntryResult" style="margin-top: 15px;"></div>
+            
+            <!-- Manual Entry inline in Step 3 -->
+            <div id="manualEntryInline" style="display: none; margin-top: 20px; padding: 20px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <h3 style="color: #333; font-size: 16px; margin-bottom: 15px;">✍️ Manual Ticket Entry</h3>
+                <form id="manualTicketForm" style="display: flex; gap: 10px; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Ticket Number</label>
+                        <input 
+                            type="text" 
+                            id="manualTicketNumber" 
+                            placeholder="Enter ticket number" 
+                            required 
+                            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                        >
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        ✅ Register Sale
+                    </button>
+                </form>
+                <div id="manualEntryResult" style="margin-top: 15px;"></div>
+            </div>
         </div>
 
         <!-- Report Concern Section -->
@@ -785,55 +1043,6 @@
             <h2>⚠️ Report a Concern</h2>
             <p>Report any issues you encounter</p>
             <button class="btn btn-warning" onclick="openConcernModal()">Report an Issue</button>
-        </div>
-
-        <!-- Upload Draw Photo Section -->
-        <div class="txn-verification-section">
-            <h2>📸 Upload Draw Event Photo</h2>
-            <p>Upload a photo of the draw event for verification</p>
-            
-            <form id="uploadDrawPhotoForm" enctype="multipart/form-data">
-                <div class="form-group">
-                    <label>Select Draw</label>
-                    <select id="drawSelect" required>
-                        <option value="">Loading draws...</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Capture Method</label>
-                    <div class="capture-method-toggle">
-                        <button type="button" id="useFileBtn" class="method-btn active">📁 Choose File</button>
-                        <button type="button" id="useCameraBtn" class="method-btn">📷 Use Camera</button>
-                    </div>
-                </div>
-
-                <!-- File input (existing) -->
-                <div id="fileInputSection" class="capture-section">
-                    <input type="file" id="drawPhoto" accept="image/*">
-                    <div style="color: #666; font-size: 12px; margin-top: 5px;">Max size: 10MB. Accepted formats: JPG, PNG</div>
-                </div>
-
-                <!-- Camera capture section (new) -->
-                <div id="cameraSection" class="capture-section" style="display: none;">
-                    <video id="cameraPreview" autoplay playsinline></video>
-                    <canvas id="photoCanvas" style="display: none;"></canvas>
-                    
-                    <div class="camera-controls">
-                        <button type="button" id="startCameraBtn" class="btn btn-secondary">📷 Start Camera</button>
-                        <button type="button" id="capturePhotoBtn" class="btn btn-primary" style="display: none;">📸 Take Photo</button>
-                        <button type="button" id="retakePhotoBtn" class="btn btn-secondary" style="display: none;">🔄 Retake</button>
-                    </div>
-                    
-                    <div id="capturedPhotoPreview" style="display: none;">
-                        <img id="previewImage" alt="Captured photo">
-                    </div>
-                </div>
-                
-                <button type="submit" class="btn btn-primary" style="margin-top: 15px;">Upload Photo</button>
-            </form>
-            
-            <div id="uploadResult" style="margin-top: 15px;"></div>
         </div>
     </div>
 
@@ -914,8 +1123,9 @@
         // Global state for current verified payment
         let currentVerifiedPayment = null;
         let currentSeller = null;
-        let confirmedBuyerPhone = null; // Store buyer phone after verification
         let selectedDepartment = null; // Store selected department
+        let confirmedBuyerPhone = null; // Store buyer phone after confirmation
+        let currentStep = 1; // Track current workflow step
 
         // Haiti Departments list (must match server.js order)
         const HAITI_DEPARTMENTS = [
@@ -939,6 +1149,28 @@
                 logout: "Logout",
                 ticketsSold: "Tickets Sold",
                 totalRevenue: "Total Revenue",
+                workflowTitle: "Ticket Sales Workflow",
+                step1Title: "Step 1: Verify Payment",
+                step2Title: "Step 2: Buyer Info",
+                step3Title: "Step 3: Scan Ticket",
+                startOver: "Start Over",
+                step1Header: "💳 Step 1: Verify Payment",
+                step1Description: "Enter customer's MonCash Transaction ID first (optional until MonCash is configured)",
+                step1Help: "Payment verification confirms the customer has paid and prevents fraud. Once verified, you can assign the correct number of tickets to the buyer.",
+                step1HelpTitle: "💡 Why payment verification?",
+                step2Header: "👤 Step 2: Buyer Information",
+                step2Description: "Collect buyer details before scanning ticket",
+                step2Help: "Buyer phone numbers and department info help track sales, prevent duplicate purchases, and enable us to contact winners. This information is kept secure and confidential.",
+                step2HelpTitle: "💡 Why collect buyer information?",
+                step3Header: "📱 Step 3: Scan Ticket",
+                step3Description: "Final step - Scan ticket to assign to buyer",
+                step3Help: "Scanning is the final step that officially assigns the ticket to the buyer. This ensures payment is verified and buyer info is collected before the ticket is given out.",
+                step3HelpTitle: "💡 Why scan last?",
+                completeStep1: "Complete Step 1 first",
+                completeStep2: "Complete Step 2 first",
+                openScanner: "📷 Open Scanner",
+                enterManually: "✍️ Enter Manually",
+                manualEntryTitle: "✍️ Manual Ticket Entry",
                 recentSales: "Recent Sales",
                 recentSalesDesc: "View your most recent ticket sales with buyer information",
                 buyerName: "Buyer Name",
@@ -952,7 +1184,7 @@
                 transactionId: "MonCash Transaction ID (12-15 digits)",
                 transactionIdPlaceholder: "123456789012",
                 verifyPaymentButton: "Verify Payment",
-                verifyingPayment: "Verifying payment...",
+                verifyingPayment: "⏳ Verifying...",
                 paymentVerified: "Payment Verified!",
                 customer: "Customer",
                 phone: "Phone",
@@ -966,24 +1198,14 @@
                 previouslyAssignedTo: "Previously assigned to:",
                 tickets: "Tickets",
                 by: "By",
-                ticketScanningStep: "Step 3: Scan Tickets",
+                ticketScanningStep: "Step 2: Scan Tickets",
                 verifyFirstLocked: "Scan tickets to assign them to customers",
-                buyerPhoneStep: "Step 2: Buyer Phone Number",
-                buyerPhoneDesc: "Enter buyer's Haiti phone number (509 area code)",
-                buyerPhoneLabel: "Buyer Phone Number",
-                phoneFormatHelp: "Format: 509-1234-5678 or 5091234567 or +509 1234 5678",
-                confirmPhone: "Confirm Phone Number",
-                phoneConfirmed: "Phone Confirmed!",
-                invalidPhone509: "Invalid phone number. Must be Haiti 509 area code",
-                enterPhoneFirst: "Please enter buyer phone number first",
                 scanTicket: "Scan Ticket",
                 scanDescription: "Scan tickets to assign them to customers",
-                openScanner: "Open Camera Scanner",
                 closeScanner: "Close Scanner",
                 manualEntry: "Manual Ticket Entry",
                 manualDescription: "Enter ticket number manually if scanner doesn't work",
-                ticketNumber: "Ticket Number",
-                registerSale: "Register Sale",
+                registerSale: "✅ Register Sale",
                 reportConcern: "Report a Concern",
                 reportDescription: "Report any issues you encounter",
                 reportIssue: "Report an Issue",
@@ -1008,15 +1230,18 @@
                 enterTicket: "Please enter a ticket number",
                 cameraError: "Unable to access camera. Please check permissions.",
                 scannerLibraryError: "Scanner library not available. Please use Manual Ticket Entry below instead.",
-                enterManually: "Enter ticket number manually",
+                enterManuallyLabel: "Enter ticket number manually",
                 enterBarcode: "Enter barcode manually (scanner integration in progress):",
                 buyerDepartmentStep: "Step 1.5: Buyer Department",
                 buyerDepartmentDesc: "Select the buyer's department/location",
                 departmentLabel: "Department",
                 departmentPlaceholder: "Search or select department...",
-                confirmDepartment: "Confirm Department",
+                confirmDepartment: "Confirm Buyer Info",
                 departmentRequired: "Please select a valid department from the list",
-                departmentConfirmed: "Department confirmed"
+                departmentConfirmed: "Department confirmed",
+                startOverConfirm: "Are you sure you want to start over? This will reset the current workflow.",
+                buyerPhoneLabel: "Buyer Phone Number",
+                phoneFormatHelp: "Format: 509-1234-5678 or 5091234567 or +509 1234 5678"
             },
             ht: {
                 title: "Tablo Vandè",
@@ -1024,6 +1249,28 @@
                 logout: "Dekonekte",
                 ticketsSold: "Tikè Vann",
                 totalRevenue: "Total Lajan",
+                workflowTitle: "Travay Vant Tikè",
+                step1Title: "Etap 1: Verifye Peman",
+                step2Title: "Etap 2: Enfòmasyon Achtè",
+                step3Title: "Etap 3: Eskane Tikè",
+                startOver: "Rekòmanse",
+                step1Header: "💳 Etap 1: Verifye Peman",
+                step1Description: "Antre ID Tranzaksyon MonCash kliyan an anvan (opsyonèl jiskaske MonCash konfigire)",
+                step1Help: "Verifikasyon peman konfime kliyan an te peye epi li anpeche fwod. Yon fwa verifye, ou ka asiyen kantite tikè ki kòrèk bay achtè a.",
+                step1HelpTitle: "💡 Poukisa verifikasyon peman?",
+                step2Header: "👤 Etap 2: Enfòmasyon Achtè",
+                step2Description: "Kolekte detay achtè a anvan eskane tikè",
+                step2Help: "Nimewo telefòn achtè yo ak enfòmasyon depatman ede swiv vant, anpeche acha double, epi pèmèt nou kontakte ganyan yo. Enfòmasyon sa yo kenbe an sekirite epi konfidansyèl.",
+                step2HelpTitle: "💡 Poukisa kolekte enfòmasyon achtè?",
+                step3Header: "📱 Etap 3: Eskane Tikè",
+                step3Description: "Dènye etap - Eskane tikè pou asiyen bay achtè",
+                step3Help: "Eskanè se dènye etap ki ofisyèlman asiyen tikè a bay achtè a. Sa asire peman verifye epi enfòmasyon achtè kolekte anvan bay tikè a.",
+                step3HelpTitle: "💡 Poukisa eskane dènye?",
+                completeStep1: "Konplete Etap 1 anvan",
+                completeStep2: "Konplete Etap 2 anvan",
+                openScanner: "📷 Louvri Eskanè",
+                enterManually: "✍️ Antre Manyèlman",
+                manualEntryTitle: "✍️ Antre Tikè Manyèlman",
                 recentSales: "Vant Resan",
                 recentSalesDesc: "Gade dènye vant tikè ou yo avèk enfòmasyon sou achtè yo",
                 buyerName: "Non Achtè",
@@ -1037,7 +1284,7 @@
                 transactionId: "ID Tranzaksyon MonCash (12-15 chif)",
                 transactionIdPlaceholder: "123456789012",
                 verifyPaymentButton: "Verifye Peman",
-                verifyingPayment: "K ap verifye peman...",
+                verifyingPayment: "⏳ K ap verifye...",
                 paymentVerified: "Peman Verifye!",
                 customer: "Kliyan",
                 phone: "Telefòn",
@@ -1051,24 +1298,14 @@
                 previouslyAssignedTo: "Deja asiye bay:",
                 tickets: "Tikè",
                 by: "Pa",
-                ticketScanningStep: "Etap 3: Eskane Tikè",
+                ticketScanningStep: "Etap 2: Eskane Tikè",
                 verifyFirstLocked: "Eskane tikè pou asiyen yo bay kliyan yo",
-                buyerPhoneStep: "Etap 2: Nimewo Telefòn Achtè",
-                buyerPhoneDesc: "Antre nimewo telefòn Ayiti achtè a (kòd zòn 509)",
-                buyerPhoneLabel: "Nimewo Telefòn Achtè",
-                phoneFormatHelp: "Fòma: 509-1234-5678 oswa 5091234567 oswa +509 1234 5678",
-                confirmPhone: "Konfime Nimewo Telefòn",
-                phoneConfirmed: "Telefòn Konfime!",
-                invalidPhone509: "Nimewo telefòn pa valid. Dwe gen kòd zòn 509 Ayiti",
-                enterPhoneFirst: "Tanpri antre nimewo telefòn achtè dabò",
                 scanTicket: "Eskane Tikè",
                 scanDescription: "Eskane tikè pou asiyen yo bay kliyan yo",
-                openScanner: "Louvri Kamera",
-                closeScanner: "Fèmen Kamera",
+                closeScanner: "Fèmen Eskanè",
                 manualEntry: "Antre Tikè Manyèlman",
                 manualDescription: "Antre nimewo tikè manyèlman si eskanè a pa travay",
-                ticketNumber: "Nimewo Tikè",
-                registerSale: "Anrejistre Vant",
+                registerSale: "✅ Anrejistre Vant",
                 reportConcern: "Rapòte yon Pwoblèm",
                 reportDescription: "Rapòte nenpòt pwoblèm ou rankontre",
                 reportIssue: "Rapòte yon Pwoblèm",
@@ -1093,15 +1330,18 @@
                 enterTicket: "Tanpri antre yon nimewo tikè",
                 cameraError: "Pa ka aksede kamera. Tanpri verifye pèmisyon yo.",
                 scannerLibraryError: "Bibliyotèk eskanè pa disponib. Tanpri itilize Antre Tikè Manyèlman.",
-                enterManually: "Antre nimewo tikè manyèlman",
+                enterManuallyLabel: "Antre nimewo tikè manyèlman",
                 enterBarcode: "Antre kòd manyèlman (entegrasyon eskanè an pwogrè):",
                 buyerDepartmentStep: "Etap 1.5: Depatman Achtè",
                 buyerDepartmentDesc: "Chwazi depatman/kote achtè a ye",
                 departmentLabel: "Depatman",
                 departmentPlaceholder: "Chèche oswa chwazi depatman...",
-                confirmDepartment: "Konfime Depatman",
+                confirmDepartment: "Konfime Enfòmasyon Achtè",
                 departmentRequired: "Tanpri chwazi yon depatman valab nan lis la",
-                departmentConfirmed: "Depatman konfime"
+                departmentConfirmed: "Depatman konfime",
+                startOverConfirm: "Ou si ou vle rekòmanse? Sa ap reyajiste travay aktyèl la.",
+                buyerPhoneLabel: "Nimewo Telefòn Achtè",
+                phoneFormatHelp: "Fòma: 509-1234-5678 oswa 5091234567 oswa +509 1234 5678"
             },
             fr: {
                 title: "Tableau de Bord Vendeur",
@@ -1109,6 +1349,28 @@
                 logout: "Déconnexion",
                 ticketsSold: "Billets Vendus",
                 totalRevenue: "Revenu Total",
+                workflowTitle: "Flux de Vente de Billets",
+                step1Title: "Étape 1: Vérifier le Paiement",
+                step2Title: "Étape 2: Info Acheteur",
+                step3Title: "Étape 3: Scanner Billet",
+                startOver: "Recommencer",
+                step1Header: "💳 Étape 1: Vérifier le Paiement",
+                step1Description: "Entrez d'abord l'ID de transaction MonCash du client (optionnel jusqu'à configuration MonCash)",
+                step1Help: "La vérification du paiement confirme que le client a payé et prévient la fraude. Une fois vérifié, vous pouvez attribuer le bon nombre de billets à l'acheteur.",
+                step1HelpTitle: "💡 Pourquoi vérifier le paiement?",
+                step2Header: "👤 Étape 2: Informations Acheteur",
+                step2Description: "Collecter les détails de l'acheteur avant de scanner le billet",
+                step2Help: "Les numéros de téléphone et les informations sur le département aident à suivre les ventes, à prévenir les achats en double et à nous permettre de contacter les gagnants. Ces informations sont conservées en toute sécurité et confidentialité.",
+                step2HelpTitle: "💡 Pourquoi collecter les informations de l'acheteur?",
+                step3Header: "📱 Étape 3: Scanner le Billet",
+                step3Description: "Dernière étape - Scanner le billet pour l'attribuer à l'acheteur",
+                step3Help: "La numérisation est la dernière étape qui attribue officiellement le billet à l'acheteur. Cela garantit que le paiement est vérifié et que les informations sur l'acheteur sont collectées avant de remettre le billet.",
+                step3HelpTitle: "💡 Pourquoi scanner en dernier?",
+                completeStep1: "Compléter l'Étape 1 d'abord",
+                completeStep2: "Compléter l'Étape 2 d'abord",
+                openScanner: "📷 Ouvrir Scanner",
+                enterManually: "✍️ Entrer Manuellement",
+                manualEntryTitle: "✍️ Saisie Manuelle de Billet",
                 recentSales: "Ventes Récentes",
                 recentSalesDesc: "Voir vos ventes de billets les plus récentes avec les informations sur l'acheteur",
                 buyerName: "Nom de l'Acheteur",
@@ -1122,7 +1384,7 @@
                 transactionId: "ID de Transaction MonCash (12-15 chiffres)",
                 transactionIdPlaceholder: "123456789012",
                 verifyPaymentButton: "Vérifier le Paiement",
-                verifyingPayment: "Vérification du paiement...",
+                verifyingPayment: "⏳ Vérification...",
                 paymentVerified: "Paiement Vérifié!",
                 customer: "Client",
                 phone: "Téléphone",
@@ -1136,24 +1398,14 @@
                 previouslyAssignedTo: "Précédemment attribué à:",
                 tickets: "Billets",
                 by: "Par",
-                ticketScanningStep: "Étape 3: Scanner les Billets",
+                ticketScanningStep: "Étape 2: Scanner les Billets",
                 verifyFirstLocked: "Scanner les billets pour les attribuer aux clients",
-                buyerPhoneStep: "Étape 2: Numéro de Téléphone de l'Acheteur",
-                buyerPhoneDesc: "Entrez le numéro de téléphone haïtien de l'acheteur (indicatif 509)",
-                buyerPhoneLabel: "Numéro de Téléphone de l'Acheteur",
-                phoneFormatHelp: "Format: 509-1234-5678 ou 5091234567 ou +509 1234 5678",
-                confirmPhone: "Confirmer le Numéro",
-                phoneConfirmed: "Téléphone Confirmé!",
-                invalidPhone509: "Numéro invalide. Doit avoir l'indicatif 509 d'Haïti",
-                enterPhoneFirst: "Veuillez entrer le numéro de téléphone de l'acheteur d'abord",
                 scanTicket: "Scanner Billet",
                 scanDescription: "Scanner les billets pour les attribuer aux clients",
-                openScanner: "Ouvrir Scanner",
                 closeScanner: "Fermer Scanner",
                 manualEntry: "Saisie Manuelle de Billet",
                 manualDescription: "Entrez le numéro de billet manuellement si le scanner ne fonctionne pas",
-                ticketNumber: "Numéro de Billet",
-                registerSale: "Enregistrer Vente",
+                registerSale: "✅ Enregistrer Vente",
                 reportConcern: "Signaler un Problème",
                 reportDescription: "Signalez tout problème rencontré",
                 reportIssue: "Signaler un Problème",
@@ -1178,20 +1430,127 @@
                 enterTicket: "Veuillez entrer un numéro de billet",
                 cameraError: "Impossible d'accéder à la caméra. Veuillez vérifier les autorisations.",
                 scannerLibraryError: "Bibliothèque de scanner non disponible. Veuillez utiliser la saisie manuelle.",
-                enterManually: "Entrer le numéro de billet manuellement",
+                enterManuallyLabel: "Entrer le numéro de billet manuellement",
                 enterBarcode: "Entrez le code-barres manuellement (intégration du scanner en cours):",
                 buyerDepartmentStep: "Étape 1.5: Département de l'Acheteur",
                 buyerDepartmentDesc: "Sélectionner le département/localisation de l'acheteur",
                 departmentLabel: "Département",
                 departmentPlaceholder: "Rechercher ou sélectionner département...",
-                confirmDepartment: "Confirmer Département",
+                confirmDepartment: "Confirmer Info Acheteur",
                 departmentRequired: "Veuillez sélectionner un département valide de la liste",
-                departmentConfirmed: "Département confirmé"
+                departmentConfirmed: "Département confirmé",
+                startOverConfirm: "Êtes-vous sûr de vouloir recommencer? Cela réinitialisera le flux de travail actuel.",
+                buyerPhoneLabel: "Numéro de Téléphone de l'Acheteur",
+                phoneFormatHelp: "Format: 509-1234-5678 ou 5091234567 ou +509 1234 5678"
             }
         };
 
         // Get saved language or default to English
         let currentLanguage = localStorage.getItem('sellerLanguage') || 'en';
+
+        // Step Management Functions
+        function updateStepProgress() {
+            // Update step indicators
+            const step1El = document.getElementById('step1');
+            const step2El = document.getElementById('step2');
+            const step3El = document.getElementById('step3');
+            const progressBar = document.getElementById('stepProgress');
+            const startOverBtn = document.getElementById('startOverBtn');
+
+            // Reset all steps
+            [step1El, step2El, step3El].forEach(el => {
+                el.classList.remove('active', 'completed', 'locked');
+            });
+
+            // Update based on current step
+            if (currentStep >= 1) {
+                step1El.classList.add(currentStep === 1 ? 'active' : 'completed');
+                step1El.querySelector('.step-circle').textContent = currentStep > 1 ? '✓' : '💳';
+            }
+            
+            if (currentStep >= 2) {
+                step2El.classList.remove('locked');
+                step2El.classList.add(currentStep === 2 ? 'active' : 'completed');
+                step2El.querySelector('.step-circle').textContent = currentStep > 2 ? '✓' : '👤';
+            } else {
+                step2El.classList.add('locked');
+                step2El.querySelector('.step-circle').textContent = '🔒';
+            }
+            
+            if (currentStep >= 3) {
+                step3El.classList.remove('locked');
+                step3El.classList.add(currentStep === 3 ? 'active' : 'completed');
+                step3El.querySelector('.step-circle').textContent = currentStep > 3 ? '✓' : '📱';
+            } else {
+                step3El.classList.add('locked');
+                step3El.querySelector('.step-circle').textContent = '🔒';
+            }
+
+            // Update progress bar
+            const progressPercent = ((currentStep - 1) / 2) * 100;
+            progressBar.style.width = progressPercent + '%';
+
+            // Show "Start Over" button if past step 1
+            startOverBtn.style.display = currentStep > 1 ? 'inline-block' : 'none';
+
+            // Update section states
+            updateSectionStates();
+        }
+
+        function updateSectionStates() {
+            const step1Section = document.getElementById('step1Section');
+            const step2Section = document.getElementById('step2Section');
+            const step3Section = document.getElementById('step3Section');
+
+            // Reset all sections
+            [step1Section, step2Section, step3Section].forEach(el => {
+                el.classList.remove('active', 'completed', 'locked');
+            });
+
+            // Step 1
+            if (currentStep === 1) {
+                step1Section.classList.add('active');
+            } else if (currentStep > 1) {
+                step1Section.classList.add('completed');
+            }
+
+            // Step 2
+            if (currentStep === 2) {
+                step2Section.classList.add('active');
+            } else if (currentStep > 2) {
+                step2Section.classList.add('completed');
+            } else {
+                step2Section.classList.add('locked');
+            }
+
+            // Step 3
+            if (currentStep === 3) {
+                step3Section.classList.add('active');
+            } else if (currentStep > 3) {
+                step3Section.classList.add('completed');
+            } else {
+                step3Section.classList.add('locked');
+            }
+        }
+
+        function advanceToStep(stepNumber) {
+            currentStep = stepNumber;
+            updateStepProgress();
+        }
+
+        function startOver() {
+            const t = translations[currentLanguage];
+            if (confirm(t.startOverConfirm || 'Are you sure you want to start over? This will reset the current workflow.')) {
+                resetVerification();
+                currentStep = 1;
+                updateStepProgress();
+            }
+        }
+
+        function showManualEntry() {
+            const manualDiv = document.getElementById('manualEntryInline');
+            manualDiv.style.display = manualDiv.style.display === 'none' ? 'block' : 'none';
+        }
 
         // Change language function
         function changeLanguage() {
@@ -1213,6 +1572,49 @@
             document.querySelectorAll('.stat-label')[0].textContent = t.ticketsSold;
             document.querySelectorAll('.stat-label')[1].textContent = t.totalRevenue;
             
+            // Workflow steps
+            document.querySelector('.workflow-steps h3').textContent = t.workflowTitle || 'Ticket Sales Workflow';
+            document.querySelector('#step1 .step-label').textContent = t.step1Title || 'Step 1: Verify Payment';
+            document.querySelector('#step2 .step-label').textContent = t.step2Title || 'Step 2: Buyer Info';
+            document.querySelector('#step3 .step-label').textContent = t.step3Title || 'Step 3: Scan Ticket';
+            document.getElementById('startOverBtn').innerHTML = '🔄 ' + (t.startOver || 'Start Over');
+            
+            // Step 1 section
+            const step1Section = document.getElementById('step1Section');
+            step1Section.querySelector('.section-header-enhanced h2').textContent = t.step1Header || '💳 Step 1: Verify Payment';
+            step1Section.querySelector('.section-description').textContent = t.step1Description || "Enter customer's MonCash Transaction ID first";
+            const step1Help = step1Section.querySelector('.help-text');
+            step1Help.querySelector('strong').textContent = t.step1HelpTitle || '💡 Why payment verification?';
+            // Update help text by getting all text nodes
+            const step1HelpText = Array.from(step1Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            if (step1HelpText) step1HelpText.textContent = t.step1Help || 'Payment verification confirms the customer has paid and prevents fraud.';
+            step1Section.querySelector('label[for="txnIdInput"]').textContent = t.transactionId || 'MonCash Transaction ID (12-15 digits)';
+            step1Section.querySelector('#verifyBtnText').textContent = t.verifyPaymentButton || 'Verify Payment';
+            step1Section.querySelector('#verifyBtnLoading').textContent = t.verifyingPayment || '⏳ Verifying...';
+            
+            // Step 2 section
+            const step2Section = document.getElementById('step2Section');
+            step2Section.querySelector('.section-header-enhanced h2').textContent = t.step2Header || '👤 Step 2: Buyer Information';
+            step2Section.querySelector('.section-description').textContent = t.step2Description || 'Collect buyer details before scanning ticket';
+            const step2Help = step2Section.querySelector('.help-text');
+            step2Help.querySelector('strong').textContent = t.step2HelpTitle || '💡 Why collect buyer information?';
+            const step2HelpText = Array.from(step2Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            if (step2HelpText) step2HelpText.textContent = t.step2Help || 'Buyer phone numbers and department info help track sales.';
+            step2Section.querySelector('#departmentLabel').textContent = t.departmentLabel || 'Department';
+            step2Section.querySelector('#buyerDepartmentInput').placeholder = t.departmentPlaceholder || 'Search or select department...';
+            step2Section.querySelector('#confirmDepartmentBtn').textContent = t.confirmDepartment || 'Confirm Buyer Info';
+            step2Section.querySelectorAll('.lock-message p')[0].textContent = t.completeStep1 || 'Complete Step 1 first';
+            
+            // Step 3 section
+            const step3Section = document.getElementById('step3Section');
+            step3Section.querySelector('.section-header-enhanced h2').textContent = t.step3Header || '📱 Step 3: Scan Ticket';
+            step3Section.querySelector('.section-description').textContent = t.step3Description || 'Final step - Scan ticket to assign to buyer';
+            const step3Help = step3Section.querySelector('.help-text');
+            step3Help.querySelector('strong').textContent = t.step3HelpTitle || '💡 Why scan last?';
+            const step3HelpText = Array.from(step3Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            if (step3HelpText) step3HelpText.textContent = t.step3Help || 'Scanning is the final step that officially assigns the ticket.';
+            step3Section.querySelectorAll('.lock-message p')[0].textContent = t.completeStep2 || 'Complete Step 2 first';
+            
             // Recent sales section (if exists)
             const recentSalesDesc = document.getElementById('recentSalesDescription');
             if (recentSalesDesc) {
@@ -1221,32 +1623,18 @@
                 loadRecentSales();
             }
             
-            // Scanner section
-            document.querySelector('.scanner-section h2').textContent = '📷 ' + t.scanTicket;
-            document.querySelector('.scanner-section p').textContent = t.scanDescription;
-            document.querySelector('.scanner-section .btn-primary').textContent = t.openScanner;
-            document.querySelector('#scannerContainer .btn-cancel').textContent = t.closeScanner;
-            
-            // Manual entry section
-            document.querySelector('.manual-entry-section h2').textContent = '✍️ ' + t.manualEntry;
-            document.querySelector('.manual-entry-section p').textContent = t.manualDescription;
-            document.querySelector('label[for="manualTicketNumber"]').textContent = t.ticketNumber;
-            document.querySelector('#manualTicketForm button').innerHTML = '✅ ' + t.registerSale;
+            // Manual entry (inline in step 3)
+            const manualInline = document.getElementById('manualEntryInline');
+            if (manualInline) {
+                manualInline.querySelector('h3').textContent = t.manualEntryTitle || '✍️ Manual Ticket Entry';
+                manualInline.querySelector('label[for="manualTicketNumber"]').textContent = t.ticketNumber || 'Ticket Number';
+                manualInline.querySelector('#manualTicketForm button').innerHTML = t.registerSale || '✅ Register Sale';
+            }
             
             // Concern section
             document.querySelector('.concern-section h2').textContent = '⚠️ ' + t.reportConcern;
             document.querySelector('.concern-section p').textContent = t.reportDescription;
             document.querySelector('.concern-section .btn-warning').textContent = t.reportIssue;
-            
-            // Buyer department section
-            const buyerInfoSection = document.getElementById('buyerInfoSection');
-            if (buyerInfoSection) {
-                buyerInfoSection.querySelector('h2').textContent = '📍 ' + t.buyerDepartmentStep;
-                buyerInfoSection.querySelector('#buyerInfoDescription').textContent = t.buyerDepartmentDesc;
-                buyerInfoSection.querySelector('#departmentLabel').textContent = t.departmentLabel;
-                buyerInfoSection.querySelector('#buyerDepartmentInput').placeholder = t.departmentPlaceholder;
-                buyerInfoSection.querySelector('#confirmDepartmentBtn').textContent = t.confirmDepartment;
-            }
             
             // Concern modal
             document.querySelector('.modal-header h3').textContent = t.concernTitle;
@@ -1491,6 +1879,14 @@
             const txnId = document.getElementById('txnIdInput').value.trim();
             const resultDiv = document.getElementById('txnVerificationResult');
             const t = translations[currentLanguage];
+            const verifyBtn = document.getElementById('verifyPaymentBtn');
+            const btnText = document.getElementById('verifyBtnText');
+            const btnLoading = document.getElementById('verifyBtnLoading');
+            
+            // Show loading state
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+            verifyBtn.disabled = true;
             
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '⏳ ' + t.verifyingPayment;
@@ -1522,6 +1918,11 @@
                     } else {
                         resultDiv.innerHTML = `<div class="alert alert-warning">❌ ${data.message}</div>`;
                     }
+                    
+                    // Reset button state
+                    btnText.style.display = 'inline';
+                    btnLoading.style.display = 'none';
+                    verifyBtn.disabled = false;
                     return;
                 }
                 
@@ -1543,62 +1944,42 @@
                 
                 // Check if payment already has department (from buyer's purchase)
                 if (data.payment.customer_department) {
-                    // Department already set - skip department form, show phone section
+                    // Department already set - skip department form, go directly to step 3
                     selectedDepartment = data.payment.customer_department;
                     console.log('[TXN-VERIFY] Department already set from payment:', selectedDepartment);
-                    showPhoneSection();
+                    advanceToStep(3); // Skip to scanning
                 } else {
-                    // No department - show department selection form
+                    // No department - advance to step 2 for department selection
                     console.log('[TXN-VERIFY] No department in payment, showing department form');
-                    showDepartmentSelection();
+                    advanceToStep(2);
                 }
                 
             } catch (error) {
                 resultDiv.innerHTML = `<div class="alert alert-danger">❌ ${t.errorPrefix} ${error.message}</div>`;
+                
+                // Reset button state
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
+                verifyBtn.disabled = false;
             }
         });
         
-        function showDepartmentSelection() {
-            const buyerInfoSection = document.getElementById('buyerInfoSection');
-            buyerInfoSection.style.display = 'block';
-            buyerInfoSection.style.opacity = '1';
-            buyerInfoSection.style.pointerEvents = 'auto';
-            
-            // Keep scanning sections disabled until department is confirmed
-            const scanSection = document.getElementById('ticketScanningSection');
-            scanSection.style.opacity = '0.5';
-            scanSection.style.pointerEvents = 'none';
-            
-            const manualSection = document.getElementById('manualEntrySection');
-            manualSection.style.opacity = '0.5';
-            manualSection.style.pointerEvents = 'none';
-        }
-        
-        function enableTicketScanning() {
-            // Hide department section
-            const buyerInfoSection = document.getElementById('buyerInfoSection');
-            buyerInfoSection.style.display = 'none';
-            
-            // Enable ticket scanning section
-            const scanSection = document.getElementById('ticketScanningSection');
-            scanSection.style.opacity = '1';
-            scanSection.style.pointerEvents = 'auto';
-            scanSection.querySelector('p').textContent = translations[currentLanguage].scanDescription;
-            
-            // Enable manual entry section
-            const manualSection = document.getElementById('manualEntrySection');
-            manualSection.style.opacity = '1';
-            manualSection.style.pointerEvents = 'auto';
-            manualSection.querySelector('p').textContent = translations[currentLanguage].manualDescription;
-        }
         
         // Buyer info form submission
         document.getElementById('buyerInfoForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
+            const phoneInput = document.getElementById('buyerPhone').value.trim();
             const departmentInput = document.getElementById('buyerDepartmentInput').value.trim();
             const errorDiv = document.getElementById('departmentError');
             const t = translations[currentLanguage];
+            
+            // Validate phone number
+            if (!phoneInput) {
+                errorDiv.textContent = "Phone number is required";
+                errorDiv.style.display = 'block';
+                return;
+            }
             
             // Validate department
             if (!departmentInput || !HAITI_DEPARTMENTS.includes(departmentInput)) {
@@ -1607,130 +1988,58 @@
                 return;
             }
             
-            // Success - store department and show phone section
+            // Success - store both phone and department
+            confirmedBuyerPhone = phoneInput;
             selectedDepartment = departmentInput;
             errorDiv.style.display = 'none';
+            console.log('[BUYER-INFO] Phone confirmed:', confirmedBuyerPhone);
             console.log('[BUYER-INFO] Department selected:', selectedDepartment);
             
             // Show success message
-            const buyerInfoSection = document.getElementById('buyerInfoSection');
+            const step2Section = document.getElementById('step2Section');
             const successMsg = document.createElement('div');
             successMsg.className = 'alert alert-success';
             successMsg.style.marginTop = '10px';
             successMsg.innerHTML = `✅ ${t.departmentConfirmed}: <strong>${selectedDepartment}</strong>`;
-            buyerInfoSection.appendChild(successMsg);
+            step2Section.appendChild(successMsg);
             
             // Disable form after submission
             document.getElementById('buyerInfoForm').style.display = 'none';
             
-            // Enable phone section (Step 2)
+            // Advance to step 3
             setTimeout(() => {
-                showPhoneSection();
+                advanceToStep(3);
             }, 1000);
         });
         
-        function showPhoneSection() {
-            const phoneSection = document.getElementById('buyerPhoneSection');
-            phoneSection.style.display = 'block';
-            phoneSection.style.opacity = '1';
-            phoneSection.style.pointerEvents = 'auto';
-            
-            // Keep scanning section disabled
-            const scanSection = document.getElementById('ticketScanningSection');
-            scanSection.style.opacity = '0.5';
-            scanSection.style.pointerEvents = 'none';
-            
-            const manualSection = document.getElementById('manualEntrySection');
-            manualSection.style.opacity = '0.5';
-            manualSection.style.pointerEvents = 'none';
-            
-            // Scroll to phone section
-            phoneSection.scrollIntoView({ behavior: 'smooth' });
-        }
-        
-        // Buyer phone form submission
-        document.getElementById('buyerPhoneForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const phoneInput = document.getElementById('buyerPhone').value.trim();
-            const t = translations[currentLanguage];
-            
-            // Normalize phone number - remove spaces, dashes, parentheses, plus
-            const normalizedPhone = phoneInput.replace(/[\s\-\(\)\+]/g, '');
-            
-            // Validate 509 area code formats (after normalization, should be 509 + 8 digits = 11 total)
-            const valid509Format = /^509\d{8}$/;
-            
-            const isValid = valid509Format.test(normalizedPhone);
-            
-            if (!isValid) {
-                showPhoneError(t.invalidPhone509);
-                return;
-            }
-            
-            // Format for display: 509-XXXX-XXXX
-            const displayPhone = normalizedPhone.replace(/^(509)(\d{4})(\d{4})$/, '$1-$2-$3');
-            confirmedBuyerPhone = normalizedPhone;
-            
-            // Show success and enable ticket scanning
-            document.getElementById('phoneConfirmationResult').innerHTML = `
-                <div style="background: #d1fae5; border: 2px solid #10b981; padding: 15px; border-radius: 8px; color: #065f46;">
-                    <strong>✅ ${t.phoneConfirmed}</strong><br>
-                    ${t.buyerPhoneLabel}: <strong>${displayPhone}</strong>
-                </div>
-            `;
-            
-            // Enable ticket scanning section
-            enableTicketScanning();
-            
-            // Scroll to scanning section
-            document.getElementById('ticketScanningSection').scrollIntoView({ behavior: 'smooth' });
-        });
-        
-        function showPhoneError(message) {
-            document.getElementById('phoneConfirmationResult').innerHTML = `
-                <div style="background: #fee; border: 2px solid #f87171; padding: 15px; border-radius: 8px; color: #991b1b;">
-                    <strong>❌ ${translations[currentLanguage].errorPrefix}</strong> ${message}
-                </div>
-            `;
-        }
-        
         function resetVerification() {
             currentVerifiedPayment = null;
+            confirmedBuyerPhone = null;
             selectedDepartment = null;
-            confirmedBuyerPhone = null; // Clear phone
             document.getElementById('txnIdInput').value = '';
             document.getElementById('txnVerificationResult').style.display = 'none';
             
-            // Reset and hide department section
-            const buyerInfoSection = document.getElementById('buyerInfoSection');
-            buyerInfoSection.style.display = 'none';
-            buyerInfoSection.style.opacity = '0.5';
-            buyerInfoSection.style.pointerEvents = 'none';
+            // Reset button state
+            const btnText = document.getElementById('verifyBtnText');
+            const btnLoading = document.getElementById('verifyBtnLoading');
+            const verifyBtn = document.getElementById('verifyPaymentBtn');
+            btnText.style.display = 'inline';
+            btnLoading.style.display = 'none';
+            verifyBtn.disabled = false;
+            
+            // Reset department and phone section
+            const step2Section = document.getElementById('step2Section');
+            document.getElementById('buyerPhone').value = '';
             document.getElementById('buyerDepartmentInput').value = '';
             document.getElementById('departmentError').style.display = 'none';
             document.getElementById('buyerInfoForm').style.display = 'block';
             // Remove any success messages
-            const successMsgs = buyerInfoSection.querySelectorAll('.alert-success');
+            const successMsgs = step2Section.querySelectorAll('.alert-success');
             successMsgs.forEach(msg => msg.remove());
             
-            // Reset and hide phone section
-            const phoneSection = document.getElementById('buyerPhoneSection');
-            phoneSection.style.display = 'none';
-            phoneSection.style.opacity = '0.5';
-            phoneSection.style.pointerEvents = 'none';
-            document.getElementById('buyerPhoneForm').reset();
-            document.getElementById('phoneConfirmationResult').innerHTML = '';
-            
-            const scanSection = document.getElementById('ticketScanningSection');
-            scanSection.style.opacity = '0.5';
-            scanSection.style.pointerEvents = 'none';
-            scanSection.querySelector('p').textContent = translations[currentLanguage].verifyFirstLocked;
-            
-            const manualSection = document.getElementById('manualEntrySection');
-            manualSection.style.opacity = '0.5';
-            manualSection.style.pointerEvents = 'none';
-            manualSection.querySelector('p').textContent = translations[currentLanguage].manualDescription.replace('Enter ticket number manually if scanner doesn\'t work', translations[currentLanguage].manualDescription);
+            // Reset to step 1
+            currentStep = 1;
+            updateStepProgress();
         }
 
         // Barcode Scanner Functions
@@ -1830,13 +2139,6 @@
             // TEMPORARY: Payment verification disabled - allow scanning without payment
             // TODO: Re-enable payment verification requirement once MonCash API is configured
             // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
-            
-            // Check if buyer phone is entered (if payment was verified)
-            if (currentVerifiedPayment && !confirmedBuyerPhone) {
-                const t = translations[currentLanguage];
-                alert(t.enterPhoneFirst);
-                return;
-            }
             
             const resultDiv = document.getElementById('scanResult');
             const t = translations[currentLanguage];
@@ -1973,15 +2275,9 @@
             // TODO: Re-enable payment verification requirement once MonCash API is configured
             // Original code checked: if (!currentVerifiedPayment) { alert(...); return; }
             
-            // Check if buyer phone is entered (if payment was verified)
-            const t = translations[currentLanguage];
-            if (currentVerifiedPayment && !confirmedBuyerPhone) {
-                alert(t.enterPhoneFirst);
-                return;
-            }
-            
             const ticketNumber = document.getElementById('manualTicketNumber').value.trim();
             const resultDiv = document.getElementById('manualEntryResult');
+            const t = translations[currentLanguage];
             
             if (!ticketNumber) {
                 resultDiv.innerHTML = '❌ ' + t.enterTicket;
@@ -2092,292 +2388,18 @@
             window.location.href = '/logout';
         }
 
-        // Load recent draws for photo upload
-        async function loadRecentDraws() {
-            try {
-                const response = await fetch('/api/seller/recent-draws');
-                const data = await response.json();
-                
-                const drawSelect = document.getElementById('drawSelect');
-                drawSelect.innerHTML = '<option value="">Select a draw...</option>';
-                
-                if (data.draws && data.draws.length > 0) {
-                    data.draws.forEach(draw => {
-                        const date = new Date(draw.drawn_at).toLocaleDateString();
-                        const option = document.createElement('option');
-                        option.value = draw.id;
-                        option.textContent = `Draw #${draw.draw_number} - ${draw.prize_name} - ${date}`;
-                        drawSelect.appendChild(option);
-                    });
-                } else {
-                    drawSelect.innerHTML = '<option value="">No recent draws available</option>';
-                }
-            } catch (error) {
-                console.error('Error loading draws:', error);
-                const drawSelect = document.getElementById('drawSelect');
-                drawSelect.innerHTML = '<option value="">Error loading draws</option>';
-            }
-        }
-
-        // Camera state management
-        let cameraStream = null;
-        let capturedPhotoBlob = null;
-
-        // Check if camera is available
-        function checkCameraSupport() {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                document.getElementById('useCameraBtn').disabled = true;
-                document.getElementById('useCameraBtn').title = 'Camera not supported in this browser';
-                console.warn('Camera API not supported');
-                return false;
-            }
-            return true;
-        }
-
-        // Start camera (reusable function)
-        async function startCamera() {
-            try {
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' }, // Prefer back camera
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                };
-                
-                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const video = document.getElementById('cameraPreview');
-                video.srcObject = cameraStream;
-                
-                // Show capture button, hide start button
-                document.getElementById('startCameraBtn').style.display = 'none';
-                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
-                document.getElementById('capturedPhotoPreview').style.display = 'none';
-                
-            } catch (error) {
-                console.error('Camera access error:', error);
-                alert('Unable to access camera. Please check permissions or use file upload instead.');
-            }
-        }
-
-        // Toggle between file and camera methods
-        document.getElementById('useFileBtn').addEventListener('click', () => {
-            document.getElementById('useFileBtn').classList.add('active');
-            document.getElementById('useCameraBtn').classList.remove('active');
-            document.getElementById('fileInputSection').style.display = 'block';
-            document.getElementById('cameraSection').style.display = 'none';
-            
-            // Clean up camera resources and preview
-            stopCamera();
-            const previewImg = document.getElementById('previewImage');
-            if (previewImg.src && previewImg.src.startsWith('blob:')) {
-                URL.revokeObjectURL(previewImg.src);
-            }
-            capturedPhotoBlob = null;
-        });
-
-        document.getElementById('useCameraBtn').addEventListener('click', () => {
-            document.getElementById('useCameraBtn').classList.add('active');
-            document.getElementById('useFileBtn').classList.remove('active');
-            document.getElementById('fileInputSection').style.display = 'none';
-            document.getElementById('cameraSection').style.display = 'block';
-        });
-
-        // Start camera button handler
-        document.getElementById('startCameraBtn').addEventListener('click', startCamera);
-
-        // Capture photo from video stream
-        document.getElementById('capturePhotoBtn').addEventListener('click', () => {
-            const video = document.getElementById('cameraPreview');
-            const canvas = document.getElementById('photoCanvas');
-            const context = canvas.getContext('2d');
-            
-            // Check if video is ready
-            if (video.videoWidth === 0 || video.videoHeight === 0) {
-                alert('Camera is not ready yet. Please wait a moment and try again.');
-                return;
-            }
-            
-            // Set canvas dimensions to match video
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            
-            // Draw current video frame to canvas
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            // Convert canvas to blob
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    console.error('Failed to capture photo from canvas');
-                    alert('Failed to capture photo. Please try again.');
-                    return;
-                }
-                
-                capturedPhotoBlob = blob;
-                
-                // Revoke previous object URL if exists to prevent memory leak
-                const previewImg = document.getElementById('previewImage');
-                if (previewImg.src && previewImg.src.startsWith('blob:')) {
-                    URL.revokeObjectURL(previewImg.src);
-                }
-                
-                // Show preview
-                previewImg.src = URL.createObjectURL(blob);
-                document.getElementById('capturedPhotoPreview').style.display = 'block';
-                
-                // Hide video, show retake button
-                video.style.display = 'none';
-                document.getElementById('capturePhotoBtn').style.display = 'none';
-                document.getElementById('retakePhotoBtn').style.display = 'inline-block';
-                
-                // Stop camera stream
-                stopCamera();
-            }, 'image/jpeg', 0.95);
-        });
-
-        // Retake photo
-        document.getElementById('retakePhotoBtn').addEventListener('click', async () => {
-            // Revoke object URL to prevent memory leak
-            const previewImg = document.getElementById('previewImage');
-            if (previewImg.src && previewImg.src.startsWith('blob:')) {
-                URL.revokeObjectURL(previewImg.src);
-            }
-            
-            capturedPhotoBlob = null;
-            document.getElementById('cameraPreview').style.display = 'block';
-            document.getElementById('capturedPhotoPreview').style.display = 'none';
-            document.getElementById('retakePhotoBtn').style.display = 'none';
-            document.getElementById('startCameraBtn').style.display = 'inline-block';
-            
-            // Restart camera using the reusable function
-            await startCamera();
-        });
-
-        // Stop camera stream
-        function stopCamera() {
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraStream = null;
-            }
-        }
-
-        // Clean up camera on page unload
-        window.addEventListener('beforeunload', stopCamera);
-
-        // Handle draw photo upload form submission
-        document.getElementById('uploadDrawPhotoForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const drawId = document.getElementById('drawSelect').value;
-            if (!drawId) {
-                alert('Please select a draw');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('draw_id', drawId);
-            
-            // Determine which method was used
-            const usedCamera = document.getElementById('useCameraBtn').classList.contains('active');
-            
-            if (usedCamera) {
-                // Use captured photo blob
-                if (!capturedPhotoBlob) {
-                    alert('Please capture a photo first');
-                    return;
-                }
-                formData.append('photo', capturedPhotoBlob, 'draw-photo.jpg');
-            } else {
-                // Use file input
-                const fileInput = document.getElementById('drawPhoto');
-                if (!fileInput.files[0]) {
-                    alert('Please select a file');
-                    return;
-                }
-                
-                const photoFile = fileInput.files[0];
-                
-                // Validate file size (10MB max)
-                if (photoFile.size > 10 * 1024 * 1024) {
-                    alert('Photo size must be less than 10MB');
-                    return;
-                }
-                
-                // Validate file type
-                if (!photoFile.type.startsWith('image/')) {
-                    alert('Only image files are allowed');
-                    return;
-                }
-                
-                formData.append('photo', photoFile);
-            }
-            
-            // Show loading state
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Uploading...';
-            
-            const resultDiv = document.getElementById('uploadResult');
-            
-            try {
-                const response = await fetch('/api/seller/draw-photo/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    resultDiv.innerHTML = '<div class="alert alert-success">✅ Photo uploaded successfully! Awaiting admin verification.</div>';
-                    
-                    // Reset only the photo inputs, not the draw selection
-                    const fileInput = document.getElementById('drawPhoto');
-                    fileInput.value = '';
-                    
-                    // Clean up camera resources
-                    if (capturedPhotoBlob) {
-                        const previewImg = document.getElementById('previewImage');
-                        if (previewImg.src && previewImg.src.startsWith('blob:')) {
-                            URL.revokeObjectURL(previewImg.src);
-                        }
-                        capturedPhotoBlob = null;
-                    }
-                    
-                    document.getElementById('capturedPhotoPreview').style.display = 'none';
-                    document.getElementById('cameraPreview').style.display = 'block';
-                    document.getElementById('retakePhotoBtn').style.display = 'none';
-                    document.getElementById('startCameraBtn').style.display = 'inline-block';
-                    stopCamera();
-                    
-                    // Reset to file upload mode
-                    document.getElementById('useFileBtn').classList.add('active');
-                    document.getElementById('useCameraBtn').classList.remove('active');
-                    document.getElementById('fileInputSection').style.display = 'block';
-                    document.getElementById('cameraSection').style.display = 'none';
-                    
-                    // Clear success message after 5 seconds
-                    setTimeout(() => {
-                        resultDiv.innerHTML = '';
-                    }, 5000);
-                } else {
-                    resultDiv.innerHTML = `<div class="alert alert-danger">❌ Upload failed: ${data.error || 'Unknown error'}</div>`;
-                }
-            } catch (error) {
-                console.error('Upload error:', error);
-                resultDiv.innerHTML = '<div class="alert alert-danger">❌ Upload failed. Please check your connection and try again.</div>';
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
-            }
-        });
-
         // Initialize
         checkAuth();
-        loadRecentDraws();
         
-        // Check camera support immediately (script runs after DOM is loaded)
-        checkCameraSupport();
+        // Initialize step progress on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                updateStepProgress();
+            });
+        } else {
+            // DOM is already loaded
+            updateStepProgress();
+        }
     </script>
 </body>
 </html>
