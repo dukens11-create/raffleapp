@@ -628,6 +628,47 @@
       <canvas id="categoryChart" height="120"></canvas>
     </div>
     
+    <!-- Buyer Registrations Section (NEW) -->
+    <div class="section" id="buyerRegistrationsSection">
+      <h2>📋 <span data-translate="buyerRegistrations">Buyer Registrations</span></h2>
+      <p data-translate="buyerRegistrationsDesc">View all buyers registered by sellers with phone numbers</p>
+      
+      <div style="margin-bottom: 20px;">
+        <input 
+          type="text" 
+          id="searchBuyerPhone" 
+          placeholder="Search by phone number (509...)"
+          style="padding: 10px; width: 300px; border: 1px solid #ddd; border-radius: 5px; margin-right: 10px;"
+        >
+        <button onclick="searchBuyerRegistrations()" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+          🔍 <span data-translate="search">Search</span>
+        </button>
+        <button onclick="loadBuyerRegistrations()" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; margin-left: 10px;">
+          🔄 <span data-translate="refresh">Refresh</span>
+        </button>
+      </div>
+      
+      <table id="buyerRegistrationsTable">
+        <thead>
+          <tr>
+            <th data-translate="ticketNumber">Ticket Number</th>
+            <th data-translate="buyerPhone509">Buyer Phone (509)</th>
+            <th data-translate="buyerName">Buyer Name</th>
+            <th data-translate="sellerName">Seller Name</th>
+            <th data-translate="sellerPhone">Seller Phone</th>
+            <th data-translate="paymentRef">Payment Reference</th>
+            <th data-translate="department">Department</th>
+            <th data-translate="dateSold">Date Sold</th>
+            <th data-translate="category">Category</th>
+            <th data-translate="price">Price</th>
+          </tr>
+        </thead>
+        <tbody id="buyerRegistrationsBody">
+          <tr><td colspan="10" style="text-align: center; padding: 20px;">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
     <!-- Scanner Modal -->
     <div id="scannerModal" class="scanner-modal">
       <div class="scanner-content">
@@ -1260,7 +1301,19 @@
                                 'Buyer Name': 'Buyer Name',
                                 'Buyer Phone': 'Buyer Phone',
                                 'Seller': 'Seller',
-                                'Price': 'Price'
+                                'Price': 'Price',
+                                'buyerRegistrations': 'Buyer Registrations',
+                                'buyerRegistrationsDesc': 'View all buyers registered by sellers with phone numbers',
+                                'search': 'Search',
+                                'refresh': 'Refresh',
+                                'buyerPhone509': 'Buyer Phone (509)',
+                                'sellerName': 'Seller Name',
+                                'sellerPhone': 'Seller Phone',
+                                'paymentRef': 'Payment Reference',
+                                'department': 'Department',
+                                'dateSold': 'Date Sold',
+                                'category': 'Category',
+                                'ticketNumber': 'Ticket Number'
                               },
                               fr: {
                                 'Logout': 'Déconnexion',
@@ -1278,7 +1331,19 @@
                                 'Buyer Name': 'Nom de l\'acheteur',
                                 'Buyer Phone': 'Téléphone de l\'acheteur',
                                 'Seller': 'Vendeur',
-                                'Price': 'Prix'
+                                'Price': 'Prix',
+                                'buyerRegistrations': 'Inscriptions des Acheteurs',
+                                'buyerRegistrationsDesc': 'Voir tous les acheteurs enregistrés par les vendeurs avec numéros de téléphone',
+                                'search': 'Rechercher',
+                                'refresh': 'Actualiser',
+                                'buyerPhone509': 'Téléphone Acheteur (509)',
+                                'sellerName': 'Nom du Vendeur',
+                                'sellerPhone': 'Téléphone Vendeur',
+                                'paymentRef': 'Référence de Paiement',
+                                'department': 'Département',
+                                'dateSold': 'Date de Vente',
+                                'category': 'Catégorie',
+                                'ticketNumber': 'Numéro de Billet'
                               },
                               ht: {
                                 'Logout': 'Dekonekte',
@@ -1296,7 +1361,19 @@
                                 'Buyer Name': 'Non Achtè',
                                 'Buyer Phone': 'Nimewo Telefòn Achtè',
                                 'Seller': 'Vandè',
-                                'Price': 'Pri'
+                                'Price': 'Pri',
+                                'buyerRegistrations': 'Anrejistreman Achtè yo',
+                                'buyerRegistrationsDesc': 'Gade tout achtè ki anrejistre pa vandè yo avèk nimewo telefòn',
+                                'search': 'Chèche',
+                                'refresh': 'Rafrechi',
+                                'buyerPhone509': 'Telefòn Achtè (509)',
+                                'sellerName': 'Non Vandè',
+                                'sellerPhone': 'Telefòn Vandè',
+                                'paymentRef': 'Referans Peman',
+                                'department': 'Depatman',
+                                'dateSold': 'Dat Vann',
+                                'category': 'Kategori',
+                                'ticketNumber': 'Nimewo Tikè'
                               },
                               es: {
                                 'Logout': 'Cerrar sesión',
@@ -1750,6 +1827,68 @@
           });
         }
         loadInventory();
+        
+        // Load buyer registrations
+        async function loadBuyerRegistrations() {
+          try {
+            const response = await fetch('/api/admin/buyer-registrations', {
+              credentials: 'include'
+            });
+            
+            if (!response.ok) throw new Error('Failed to load registrations');
+            
+            const data = await response.json();
+            displayBuyerRegistrations(data.registrations);
+          } catch (error) {
+            console.error('Error:', error);
+            const tbody = document.getElementById('buyerRegistrationsBody');
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #ef4444;">Failed to load buyer registrations</td></tr>';
+          }
+        }
+
+        function displayBuyerRegistrations(registrations) {
+          const tbody = document.getElementById('buyerRegistrationsBody');
+          tbody.innerHTML = '';
+          
+          if (registrations.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">No registrations found</td></tr>';
+            return;
+          }
+          
+          registrations.forEach(reg => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+              <td>${reg.ticket_number}</td>
+              <td><strong>${reg.buyer_phone || 'N/A'}</strong></td>
+              <td>${reg.buyer_name || 'N/A'}</td>
+              <td>${reg.seller_name}</td>
+              <td>${reg.seller_phone}</td>
+              <td>${reg.payment_reference || 'N/A'}</td>
+              <td>${reg.customer_department || 'N/A'}</td>
+              <td>${new Date(reg.sold_at).toLocaleString()}</td>
+              <td>${reg.category}</td>
+              <td>$${reg.price}</td>
+            `;
+          });
+        }
+
+        async function searchBuyerRegistrations() {
+          const phone = document.getElementById('searchBuyerPhone').value.trim();
+          
+          try {
+            const response = await fetch(`/api/admin/buyer-registrations?phone=${encodeURIComponent(phone)}`, {
+              credentials: 'include'
+            });
+            
+            const data = await response.json();
+            displayBuyerRegistrations(data.registrations);
+          } catch (error) {
+            console.error('Search error:', error);
+          }
+        }
+        
+        // Load on page load
+        loadBuyerRegistrations();
     // Create ticket
     document.getElementById('create-ticket-form').addEventListener('submit', async function(e) {
       e.preventDefault();

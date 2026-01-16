@@ -2271,7 +2271,7 @@ app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
 // API: Scan ticket barcode (seller only)
 app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   try {
-    const { barcode, payment_reference, buyer_department } = req.body;
+    const { barcode, payment_reference, buyer_department, buyer_phone } = req.body;
     
     console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
     
@@ -2377,7 +2377,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
         req.session.user.name, 
         req.session.user.phone, 
         payment?.buyer_name || null,
-        payment?.buyer_phone || null,
+        buyer_phone || payment?.buyer_phone || null, // Use provided phone or payment phone
         payment_reference || null, 
         departmentToUse, 
         ticket.id
@@ -2795,6 +2795,53 @@ app.get('/api/admin/tickets/count', requireAuth, requireAdmin, async (req, res) 
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/buyer-registrations - View all buyer registrations
+app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { phone } = req.query;
+    
+    let query = `
+      SELECT 
+        ticket_number,
+        buyer_name,
+        buyer_phone,
+        seller_name,
+        seller_phone,
+        payment_reference,
+        customer_department,
+        category,
+        price,
+        sold_at,
+        status
+      FROM tickets
+      WHERE status = 'SOLD'
+    `;
+    
+    const params = [];
+    
+    // Filter by phone if provided
+    if (phone) {
+      const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+      query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'+\', \'\'), \'(\', \'\') LIKE ?';
+      params.push(`%${normalizedPhone}%`);
+    }
+    
+    query += ' ORDER BY sold_at DESC LIMIT 1000';
+    
+    const registrations = await db.all(query, params);
+    
+    res.json({
+      success: true,
+      registrations: registrations,
+      total: registrations.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching buyer registrations:', error);
+    res.status(500).json({ error: 'Failed to fetch registrations' });
   }
 });
 
