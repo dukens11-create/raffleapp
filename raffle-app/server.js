@@ -66,7 +66,8 @@ const ticketGenerationMutex = new Mutex();
 const PHOTO_CONFIG = {
   MAX_WIDTH: 1920,
   MAX_HEIGHT: 1080,
-  JPEG_QUALITY: 75, // Standard quality (~200KB)
+  JPEG_QUALITY: 75, // Standard quality (1-100 scale for Sharp)
+  JPEG_QUALITY_FRONTEND: 0.75, // Standard quality (0-1 scale for canvas.toBlob)
   CACHE_CONTROL: 'no-cache, no-store, must-revalidate' // No caching for sensitive audit photos
 };
 
@@ -1929,30 +1930,22 @@ app.post('/api/tickets/register-with-txn', requireAuth, upload.single('card_phot
     const seller_phone = req.session.user.phone;
     const seller_name = req.session.user.name;
     
-    // === VALIDATION ===
+    // === VALIDATION (Check all fields together for better error reporting) ===
+    const errors = [];
     
     // 0. Validate card photo (MANDATORY)
     if (!req.file) {
-      return res.status(400).json({ 
-        error: 'PHOTO_REQUIRED',
-        message: 'Scratch card photo is required before registration'
-      });
+      errors.push('Scratch card photo is required before registration');
     }
     
     // 1. Validate Txn ID format (must be exactly 12 digits)
     if (!txn_id || !/^\d{12}$/.test(txn_id)) {
-      return res.status(400).json({ 
-        error: 'INVALID_TXN_FORMAT',
-        message: 'Transaction ID must be exactly 12 digits'
-      });
+      errors.push('Transaction ID must be exactly 12 digits');
     }
     
     // 2. Validate ticket barcode
     if (!ticket_barcode) {
-      return res.status(400).json({ 
-        error: 'TICKET_REQUIRED',
-        message: 'Ticket number is required'
-      });
+      errors.push('Ticket number is required');
     }
     
     // 3. Validate department (optional but recommended)
@@ -1961,9 +1954,15 @@ app.post('/api/tickets/register-with-txn', requireAuth, upload.single('card_phot
       'Nord-Est', 'Nord-Ouest', 'Ouest', 'Sud', 'Sud-Est'
     ];
     if (department && !validDepartments.includes(department)) {
+      errors.push('Invalid Haiti department selected');
+    }
+    
+    // Return all validation errors at once
+    if (errors.length > 0) {
       return res.status(400).json({ 
-        error: 'INVALID_DEPARTMENT',
-        message: 'Invalid Haiti department selected'
+        error: 'VALIDATION_FAILED',
+        message: errors.join('; '),
+        errors: errors
       });
     }
     
