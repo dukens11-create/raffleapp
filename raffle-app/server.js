@@ -2160,15 +2160,19 @@ app.delete('/api/admin/draw-photo/:id', requireAuth, requireAdmin, async (req, r
       });
     }
     
-    // Delete file from filesystem
-    if (photo.photo_path && fs.existsSync(photo.photo_path)) {
-      fs.unlink(photo.photo_path, (err) => {
-        if (err) console.error('Error deleting photo file:', err);
-      });
-    }
-    
-    // Delete database record
+    // Delete database record first
     await db.run("DELETE FROM draw_photos WHERE id = ?", [id]);
+    
+    // Delete file from filesystem (after DB to ensure consistency)
+    if (photo.photo_path && fs.existsSync(photo.photo_path)) {
+      try {
+        await fs.promises.unlink(photo.photo_path);
+        console.log(`Photo file deleted: ${photo.photo_path}`);
+      } catch (err) {
+        console.error('Error deleting photo file:', err);
+        // Continue - DB record is already deleted
+      }
+    }
     
     console.log(`Draw photo deleted: Photo #${id} by ${req.session.user.name}`);
     

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Seller - Draw Photo Upload</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; }
+.txn-verification-section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin: 20px auto; max-width: 600px; }
+.txn-verification-section h2 { color: #333; font-size: 20px; margin-bottom: 10px; }
+.txn-verification-section p { color: #666; margin-bottom: 15px; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: 600; color: #333; }
+select, input[type="file"] { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; }
+.btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 600; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+</style>
+</head>
+<body>
+<div class="txn-verification-section">
+    <h2>📸 Upload Draw Event Photo</h2>
+    <p>Upload a photo of the draw event for verification</p>
+    
+    <form>
+        <div class="form-group">
+            <label>Select Draw</label>
+            <select>
+                <option>Draw #1 - Test Prize - 1/16/2026</option>
+                <option>Draw #2 - Grand Prize - 1/15/2026</option>
+                <option>Draw #3 - Second Place - 1/14/2026</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Upload Photo</label>
+            <input type="file" accept="image/*">
+            <div style="color: #666; font-size: 12px; margin-top: 5px;">Max size: 10MB. Accepted formats: JPG, PNG</div>
+        </div>
+        
+        <button type="button" class="btn-primary">Upload Photo</button>
+    </form>
+</div>
+</body>
+</html>

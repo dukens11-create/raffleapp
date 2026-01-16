@@ -3688,9 +3688,24 @@
           return;
         }
         
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+          const div = document.createElement('div');
+          div.textContent = text;
+          return div.innerHTML;
+        }
+        
         grid.innerHTML = data.photos.map(photo => {
           const uploadDate = new Date(photo.uploaded_at).toLocaleString();
           const drawDate = photo.drawn_at ? new Date(photo.drawn_at).toLocaleDateString() : 'N/A';
+          
+          // Escape all user-generated content
+          const escapedPath = escapeHtml(photo.photo_path || '');
+          const escapedPrizeName = escapeHtml(photo.prize_name || 'N/A');
+          const escapedSellerName = escapeHtml(photo.seller_name || '');
+          const escapedSellerPhone = escapeHtml(photo.seller_phone || '');
+          const escapedVerifiedBy = escapeHtml(photo.verified_by || '');
+          const escapedAdminNotes = escapeHtml(photo.admin_notes || '');
           
           let statusBadge = '';
           if (photo.verification_status === 'pending') {
@@ -3702,35 +3717,64 @@
           }
           
           return `
-            <div class="photo-card">
-              <img src="${photo.photo_path}" alt="Draw photo" class="photo-preview" onclick="openPhotoModal('${photo.photo_path}')">
+            <div class="photo-card" data-photo-id="${photo.id}">
+              <img src="${escapedPath}" alt="Draw photo" class="photo-preview" data-photo-path="${escapedPath}">
               <div class="photo-info">
                 ${statusBadge}
                 <p><strong>Draw:</strong> #${photo.draw_number || 'N/A'}</p>
-                <p><strong>Prize:</strong> ${photo.prize_name || 'N/A'}</p>
+                <p><strong>Prize:</strong> ${escapedPrizeName}</p>
                 <p><strong>Draw Date:</strong> ${drawDate}</p>
-                <p><strong>Seller:</strong> ${photo.seller_name}</p>
-                <p><strong>Phone:</strong> ${photo.seller_phone}</p>
+                <p><strong>Seller:</strong> ${escapedSellerName}</p>
+                <p><strong>Phone:</strong> ${escapedSellerPhone}</p>
                 <p><strong>Uploaded:</strong> ${uploadDate}</p>
-                ${photo.verified_by ? `<p><strong>Verified by:</strong> ${photo.verified_by}</p>` : ''}
-                ${photo.admin_notes ? `<p><strong>Notes:</strong> ${photo.admin_notes}</p>` : ''}
+                ${photo.verified_by ? `<p><strong>Verified by:</strong> ${escapedVerifiedBy}</p>` : ''}
+                ${photo.admin_notes ? `<p><strong>Notes:</strong> ${escapedAdminNotes}</p>` : ''}
               </div>
               <div class="photo-actions">
                 ${photo.verification_status === 'pending' ? `
-                  <button class="btn-verify" onclick="verifyDrawPhoto(${photo.id})">✅ Verify</button>
-                  <button class="btn-reject" onclick="rejectDrawPhoto(${photo.id})">❌ Reject</button>
+                  <button class="btn-verify" data-photo-id="${photo.id}">✅ Verify</button>
+                  <button class="btn-reject" data-photo-id="${photo.id}">❌ Reject</button>
                 ` : ''}
-                <button class="btn-view" onclick="openPhotoModal('${photo.photo_path}')">👁️ View Full</button>
-                <button class="btn-delete" onclick="deleteDrawPhoto(${photo.id}, '${photo.photo_path}')">🗑️ Delete</button>
+                <button class="btn-view" data-photo-path="${escapedPath}">👁️ View Full</button>
+                <button class="btn-delete" data-photo-id="${photo.id}">🗑️ Delete</button>
               </div>
             </div>
           `;
         }).join('');
         
+        // Add event listeners using event delegation
+        grid.addEventListener('click', handlePhotoCardClick);
+        
       } catch (error) {
         console.error('Error loading draw photos:', error);
         document.getElementById('drawPhotosGrid').innerHTML = 
           '<p style="grid-column: 1/-1; text-align: center; color: #ef4444;">Error loading photos</p>';
+      }
+    }
+
+    // Event delegation handler for photo card clicks
+    function handlePhotoCardClick(e) {
+      const target = e.target;
+      
+      // Handle preview image click
+      if (target.classList.contains('photo-preview')) {
+        const photoPath = target.getAttribute('data-photo-path');
+        if (photoPath) openPhotoModal(photoPath);
+        return;
+      }
+      
+      // Handle button clicks
+      const photoId = target.getAttribute('data-photo-id');
+      const photoPath = target.getAttribute('data-photo-path');
+      
+      if (target.classList.contains('btn-verify') && photoId) {
+        verifyDrawPhoto(parseInt(photoId));
+      } else if (target.classList.contains('btn-reject') && photoId) {
+        rejectDrawPhoto(parseInt(photoId));
+      } else if (target.classList.contains('btn-view') && photoPath) {
+        openPhotoModal(photoPath);
+      } else if (target.classList.contains('btn-delete') && photoId) {
+        deleteDrawPhoto(parseInt(photoId));
       }
     }
 
@@ -3804,7 +3848,7 @@
       }
     }
 
-    async function deleteDrawPhoto(photoId, photoPath) {
+    async function deleteDrawPhoto(photoId) {
       if (!confirm('Delete this draw photo? This action cannot be undone.')) {
         return;
       }
