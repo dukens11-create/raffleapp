@@ -939,6 +939,24 @@
             
             <form id="buyerInfoForm" style="margin-top: 20px;">
                 <div class="form-group">
+                    <label for="buyerPhone">
+                        <span data-translate="buyerPhoneLabel">Buyer Phone Number</span> *
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="buyerPhone" 
+                        placeholder="509-1234-5678"
+                        pattern="(\+?509|509)[-\s]?[0-9]{4}[-\s]?[0-9]{4}"
+                        maxlength="20"
+                        required
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                    >
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        <span data-translate="phoneFormatHelp">Format: 509-1234-5678 or 5091234567 or +509 1234 5678</span>
+                    </small>
+                </div>
+                
+                <div class="form-group">
                     <label for="buyerDepartmentInput" id="departmentLabel">Department / Depatman / Département</label>
                     <input 
                         list="departmentList" 
@@ -1109,6 +1127,7 @@
         let currentVerifiedPayment = null;
         let currentSeller = null;
         let selectedDepartment = null; // Store selected department
+        let confirmedBuyerPhone = null; // Store buyer phone after confirmation
         let currentStep = 1; // Track current workflow step
 
         // Haiti Departments list (must match server.js order)
@@ -1146,6 +1165,10 @@
                 step2Description: "Collect buyer details before scanning ticket",
                 step2Help: "Buyer phone numbers and department info help track sales, prevent duplicate purchases, and enable us to contact winners. This information is kept secure and confidential.",
                 step2HelpTitle: "💡 Why collect buyer information?",
+                buyerPhoneLabel: "Buyer Phone Number",
+                phoneFormatHelp: "Format: 509-1234-5678 or 5091234567 or +509 1234 5678",
+                invalidPhone509: "Invalid phone number. Must be Haiti number with 509 area code.",
+                phoneConfirmed: "Phone number confirmed!",
                 step3Header: "📱 Step 3: Scan Ticket",
                 step3Description: "Final step - Scan ticket to assign to buyer",
                 step3Help: "Scanning is the final step that officially assigns the ticket to the buyer. This ensures payment is verified and buyer info is collected before the ticket is given out.",
@@ -1244,6 +1267,10 @@
                 step2Description: "Kolekte detay achtè a anvan eskane tikè",
                 step2Help: "Nimewo telefòn achtè yo ak enfòmasyon depatman ede swiv vant, anpeche acha double, epi pèmèt nou kontakte ganyan yo. Enfòmasyon sa yo kenbe an sekirite epi konfidansyèl.",
                 step2HelpTitle: "💡 Poukisa kolekte enfòmasyon achtè?",
+                buyerPhoneLabel: "Nimewo Telefòn Achtè",
+                phoneFormatHelp: "Fòma: 509-1234-5678 oswa 5091234567 oswa +509 1234 5678",
+                invalidPhone509: "Nimewo telefòn envalid. Dwe nimewo Ayiti ak kòd zòn 509.",
+                phoneConfirmed: "Nimewo telefòn konfime!",
                 step3Header: "📱 Etap 3: Eskane Tikè",
                 step3Description: "Dènye etap - Eskane tikè pou asiyen bay achtè",
                 step3Help: "Eskanè se dènye etap ki ofisyèlman asiyen tikè a bay achtè a. Sa asire peman verifye epi enfòmasyon achtè kolekte anvan bay tikè a.",
@@ -1342,6 +1369,10 @@
                 step2Description: "Collecter les détails de l'acheteur avant de scanner le billet",
                 step2Help: "Les numéros de téléphone et les informations sur le département aident à suivre les ventes, à prévenir les achats en double et à nous permettre de contacter les gagnants. Ces informations sont conservées en toute sécurité et confidentialité.",
                 step2HelpTitle: "💡 Pourquoi collecter les informations de l'acheteur?",
+                buyerPhoneLabel: "Numéro de Téléphone de l'Acheteur",
+                phoneFormatHelp: "Format: 509-1234-5678 ou 5091234567 ou +509 1234 5678",
+                invalidPhone509: "Numéro de téléphone invalide. Doit être un numéro haïtien avec indicatif régional 509.",
+                phoneConfirmed: "Numéro de téléphone confirmé!",
                 step3Header: "📱 Étape 3: Scanner le Billet",
                 step3Description: "Dernière étape - Scanner le billet pour l'attribuer à l'acheteur",
                 step3Help: "La numérisation est la dernière étape qui attribue officiellement le billet à l'acheteur. Cela garantit que le paiement est vérifié et que les informations sur l'acheteur sont collectées avant de remettre le billet.",
@@ -1947,9 +1978,29 @@
         document.getElementById('buyerInfoForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
+            const phoneInput = document.getElementById('buyerPhone').value.trim();
             const departmentInput = document.getElementById('buyerDepartmentInput').value.trim();
             const errorDiv = document.getElementById('departmentError');
             const t = translations[currentLanguage];
+            
+            // Validate phone number first
+            if (!phoneInput) {
+                errorDiv.textContent = t.buyerPhoneLabel + ' is required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Normalize phone number - remove spaces, dashes, parentheses, plus
+            const normalizedPhone = phoneInput.replace(/[\s\-\(\)\+]/g, '');
+            
+            // Validate 509 area code formats (after normalization, should be 509 + 8 digits = 11 total)
+            const valid509Format = /^509\d{8}$/;
+            
+            if (!valid509Format.test(normalizedPhone)) {
+                errorDiv.textContent = t.invalidPhone509 || 'Invalid phone number. Must be Haiti number with 509 area code.';
+                errorDiv.style.display = 'block';
+                return;
+            }
             
             // Validate department
             if (!departmentInput || !HAITI_DEPARTMENTS.includes(departmentInput)) {
@@ -1958,17 +2009,26 @@
                 return;
             }
             
-            // Success - store department and advance to step 3
+            // Success - store phone and department
+            confirmedBuyerPhone = normalizedPhone;
             selectedDepartment = departmentInput;
             errorDiv.style.display = 'none';
-            console.log('[BUYER-INFO] Department selected:', selectedDepartment);
+            
+            // Format phone for display: 509-XXXX-XXXX
+            const displayPhone = normalizedPhone.replace(/^(509)(\d{4})(\d{4})$/, '$1-$2-$3');
+            
+            console.log('[BUYER-INFO] Phone:', displayPhone, 'Department:', selectedDepartment);
             
             // Show success message
             const step2Section = document.getElementById('step2Section');
             const successMsg = document.createElement('div');
             successMsg.className = 'alert alert-success';
             successMsg.style.marginTop = '10px';
-            successMsg.innerHTML = `✅ ${t.departmentConfirmed}: <strong>${selectedDepartment}</strong>`;
+            successMsg.innerHTML = `
+                ✅ ${t.phoneConfirmed || 'Buyer info confirmed'}<br>
+                <strong>${t.buyerPhoneLabel}:</strong> ${displayPhone}<br>
+                <strong>${t.departmentLabel}:</strong> ${selectedDepartment}
+            `;
             step2Section.appendChild(successMsg);
             
             // Disable form after submission
@@ -1983,6 +2043,7 @@
         function resetVerification() {
             currentVerifiedPayment = null;
             selectedDepartment = null;
+            confirmedBuyerPhone = null;
             document.getElementById('txnIdInput').value = '';
             document.getElementById('txnVerificationResult').style.display = 'none';
             
@@ -1994,8 +2055,9 @@
             btnLoading.style.display = 'none';
             verifyBtn.disabled = false;
             
-            // Reset department section
+            // Reset buyer info section
             const step2Section = document.getElementById('step2Section');
+            document.getElementById('buyerPhone').value = '';
             document.getElementById('buyerDepartmentInput').value = '';
             document.getElementById('departmentError').style.display = 'none';
             document.getElementById('buyerInfoForm').style.display = 'block';
@@ -2124,6 +2186,11 @@
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
                     requestBody.buyer_department = selectedDepartment;
+                }
+                
+                // Add buyer phone if confirmed
+                if (confirmedBuyerPhone) {
+                    requestBody.buyer_phone = confirmedBuyerPhone;
                 }
                 
                 const response = await fetch('/api/tickets/scan', {
@@ -2266,6 +2333,11 @@
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
                     requestBody.buyer_department = selectedDepartment;
+                }
+                
+                // Add buyer phone if confirmed
+                if (confirmedBuyerPhone) {
+                    requestBody.buyer_phone = confirmedBuyerPhone;
                 }
                 
                 const response = await fetch('/api/tickets/scan', {
