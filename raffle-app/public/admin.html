@@ -1810,7 +1810,7 @@
                        <td><strong>${ticket.buyer_phone || '-'}</strong></td>
                        <td>${ticket.seller_name || '-'}</td>
                        <td>${ticket.category || ''}</td>
-                       <td>$${ticket.price || '0'}</td>
+                       <td>$${parseFloat(ticket.price || 0).toFixed(2)}</td>
                        <td>${ticket.status}</td>
                        <td>${barcodeHtml}</td>
                        <td>${actions}</td>`;
