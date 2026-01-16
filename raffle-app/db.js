@@ -354,6 +354,30 @@ async function initializeSchema() {
       console.warn('⚠️  Could not create draw_photos indexes:', error.message);
     }
     
+    // Ticket photos table - for ticket scratch game verification before sale
+    await run(`
+      CREATE TABLE IF NOT EXISTS ticket_photos (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        ticket_number TEXT NOT NULL,
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        photo_path TEXT NOT NULL,
+        transaction_id TEXT,
+        uploaded_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        admin_notes TEXT
+      )
+    `);
+    
+    // Create indexes for ticket_photos table
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_ticket_photos_ticket_number ON ticket_photos(ticket_number)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_ticket_photos_seller_phone ON ticket_photos(seller_phone)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_ticket_photos_transaction_id ON ticket_photos(transaction_id)`);
+      console.log('✅ Created indexes on ticket_photos table');
+    } catch (error) {
+      console.warn('⚠️  Could not create ticket_photos indexes:', error.message);
+    }
+    
     // Seller requests table
     await run(`
       CREATE TABLE IF NOT EXISTS seller_requests (

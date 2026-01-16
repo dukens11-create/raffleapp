@@ -561,6 +561,92 @@
             margin-bottom: 5px;
         }
 
+        /* Ticket Photo Capture Styles */
+        .photo-capture-section {
+            background: #f0fdf4;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .photo-capture-section h4 {
+            color: #065f46;
+            margin: 0 0 12px 0;
+            font-size: 16px;
+        }
+
+        .camera-preview {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #ticketCameraVideo {
+            width: 100%;
+            display: block;
+        }
+
+        #ticketPhotoPreview {
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid #10b981;
+            display: none;
+            margin-top: 10px;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-camera {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-camera:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-camera:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .photo-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+
+        .photo-status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .photo-status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
         @media (max-width: 768px) {
             .steps-container {
                 flex-direction: column;
@@ -889,6 +975,37 @@
                 <h2>💳 Step 1: Verify Payment</h2>
             </div>
             <p class="section-description">Enter customer's MonCash Transaction ID first (optional until MonCash is configured)</p>
+            
+            <!-- Ticket Photo Capture Section -->
+            <div class="photo-capture-section">
+                <h4>📸 Capture Ticket Photo (Scratch Game Verification)</h4>
+                <p style="font-size: 13px; color: #047857; margin: 0 0 15px 0;">
+                    Take a clear photo of the front of the ticket showing the scratch game area before adding the transaction.
+                </p>
+                
+                <div class="camera-preview" id="ticketCameraPreview" style="display: none;">
+                    <video id="ticketCameraVideo" autoplay playsinline></video>
+                </div>
+                
+                <img id="ticketPhotoPreview" alt="Ticket Photo Preview" />
+                
+                <div class="camera-controls">
+                    <button type="button" class="btn-camera" id="openTicketCameraBtn" onclick="openTicketCamera()">
+                        📷 Open Camera
+                    </button>
+                    <button type="button" class="btn-camera" id="captureTicketPhotoBtn" onclick="captureTicketPhoto()" style="display: none;">
+                        📸 Capture Photo
+                    </button>
+                    <button type="button" class="btn-camera" id="retakeTicketPhotoBtn" onclick="retakeTicketPhoto()" style="display: none;">
+                        🔄 Retake Photo
+                    </button>
+                    <button type="button" class="btn-camera" id="uploadTicketPhotoBtn" onclick="uploadTicketPhoto()" style="display: none;">
+                        ✅ Confirm & Upload
+                    </button>
+                </div>
+                
+                <div id="ticketPhotoStatus" class="photo-status" style="display: none;"></div>
+            </div>
             
             <div class="help-text">
                 <strong>💡 Why payment verification?</strong>
@@ -2309,6 +2426,152 @@
                 alert('❌ ' + t.errorPrefix + ' ' + error.message);
             }
         });
+
+        // Ticket Photo Capture Functions
+        let ticketCameraStream = null;
+        let ticketPhotoBlob = null;
+        let currentTicketNumber = null;
+
+        async function openTicketCamera() {
+            try {
+                const video = document.getElementById('ticketCameraVideo');
+                const preview = document.getElementById('ticketCameraPreview');
+                const openBtn = document.getElementById('openTicketCameraBtn');
+                const captureBtn = document.getElementById('captureTicketPhotoBtn');
+                
+                // Request camera access
+                ticketCameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }, // Use back camera
+                    audio: false
+                });
+                
+                video.srcObject = ticketCameraStream;
+                preview.style.display = 'block';
+                openBtn.style.display = 'none';
+                captureBtn.style.display = 'inline-block';
+                
+                // Hide any previous status
+                document.getElementById('ticketPhotoStatus').style.display = 'none';
+            } catch (error) {
+                console.error('Camera access error:', error);
+                const t = translations[currentLanguage];
+                alert(t.cameraError || 'Unable to access camera. Please check permissions.');
+            }
+        }
+
+        function captureTicketPhoto() {
+            const video = document.getElementById('ticketCameraVideo');
+            const canvas = document.createElement('canvas');
+            const preview = document.getElementById('ticketPhotoPreview');
+            const captureBtn = document.getElementById('captureTicketPhotoBtn');
+            const retakeBtn = document.getElementById('retakeTicketPhotoBtn');
+            const uploadBtn = document.getElementById('uploadTicketPhotoBtn');
+            
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw video frame to canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            // Convert to blob
+            canvas.toBlob((blob) => {
+                ticketPhotoBlob = blob;
+                
+                // Show preview
+                preview.src = canvas.toDataURL('image/jpeg');
+                preview.style.display = 'block';
+                
+                // Stop camera
+                if (ticketCameraStream) {
+                    ticketCameraStream.getTracks().forEach(track => track.stop());
+                    ticketCameraStream = null;
+                }
+                
+                // Hide camera preview
+                document.getElementById('ticketCameraPreview').style.display = 'none';
+                
+                // Update buttons
+                captureBtn.style.display = 'none';
+                retakeBtn.style.display = 'inline-block';
+                uploadBtn.style.display = 'inline-block';
+            }, 'image/jpeg', 0.9);
+        }
+
+        function retakeTicketPhoto() {
+            const preview = document.getElementById('ticketPhotoPreview');
+            const openBtn = document.getElementById('openTicketCameraBtn');
+            const retakeBtn = document.getElementById('retakeTicketPhotoBtn');
+            const uploadBtn = document.getElementById('uploadTicketPhotoBtn');
+            
+            // Clear photo
+            ticketPhotoBlob = null;
+            preview.style.display = 'none';
+            preview.src = '';
+            
+            // Reset buttons
+            openBtn.style.display = 'inline-block';
+            retakeBtn.style.display = 'none';
+            uploadBtn.style.display = 'none';
+            
+            // Clear status
+            document.getElementById('ticketPhotoStatus').style.display = 'none';
+        }
+
+        async function uploadTicketPhoto() {
+            if (!ticketPhotoBlob) {
+                alert('No photo to upload');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('ticketPhotoStatus');
+            const uploadBtn = document.getElementById('uploadTicketPhotoBtn');
+            
+            // Get ticket number from transaction form (or generate a placeholder)
+            const txnId = document.getElementById('txnIdInput').value.trim();
+            currentTicketNumber = txnId ? `TXN-${txnId}` : `TEMP-${Date.now()}`;
+            
+            try {
+                uploadBtn.disabled = true;
+                statusDiv.textContent = '⏳ Uploading photo...';
+                statusDiv.className = 'photo-status';
+                statusDiv.style.display = 'block';
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('photo', ticketPhotoBlob, 'ticket-photo.jpg');
+                formData.append('ticket_number', currentTicketNumber);
+                if (txnId) {
+                    formData.append('transaction_id', txnId);
+                }
+                
+                const response = await fetch('/api/seller/ticket-photo/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+                
+                statusDiv.textContent = '✅ Photo uploaded successfully!';
+                statusDiv.className = 'photo-status success';
+                
+                // Disable retake/upload buttons after successful upload
+                document.getElementById('retakeTicketPhotoBtn').disabled = true;
+                uploadBtn.disabled = true;
+                
+                console.log('Ticket photo uploaded:', data);
+            } catch (error) {
+                console.error('Upload error:', error);
+                statusDiv.textContent = '❌ Upload failed: ' + error.message;
+                statusDiv.className = 'photo-status error';
+                uploadBtn.disabled = false;
+            }
+        }
 
         // Manual Ticket Entry
         document.getElementById('manualTicketForm').addEventListener('submit', async function(e) {

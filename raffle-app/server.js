@@ -1368,6 +1368,32 @@ const drawPhotoUpload = multer({
   }
 });
 
+// Configure multer for ticket photo uploads
+const ticketPhotoStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'uploads', 'ticket-photos');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'ticket-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const ticketPhotoUpload = multer({
+  storage: ticketPhotoStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: function (req, file, cb) {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
 // Submit registration request with validation
 const validateSellerRegistration = [
   body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
@@ -2195,6 +2221,172 @@ app.delete('/api/admin/draw-photo/:id', requireAuth, requireAdmin, async (req, r
       error: 'An error occurred during deletion',
       timestamp: new Date().toISOString()
     });
+  }
+});
+
+// POST /api/seller/ticket-photo/upload - Seller uploads ticket photo before sale
+app.post('/api/seller/ticket-photo/upload', requireAuth, ticketPhotoUpload.single('photo'), async (req, res) => {
+  try {
+    // Verify user is a seller
+    if (req.session.user.role !== 'seller' && req.session.user.role !== 'admin') {
+      // Clean up uploaded file
+      if (req.file) {
+        try {
+          await fs.promises.unlink(req.file.path);
+        } catch (err) {
+          console.error('Error deleting file:', err);
+        }
+      }
+      return res.status(403).json({ 
+        error: 'Only sellers can upload ticket photos',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Photo file is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { ticket_number, transaction_id } = req.body;
+    
+    if (!ticket_number) {
+      // Clean up uploaded file
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+      return res.status(400).json({ 
+        error: 'Ticket number is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Insert ticket photo record
+    const result = await db.run(
+      `INSERT INTO ticket_photos (ticket_number, seller_phone, seller_name, photo_path, transaction_id) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [ticket_number, req.session.user.phone, req.session.user.name, req.file.path, transaction_id || null]
+    );
+    
+    console.log(`Ticket photo uploaded: Ticket #${ticket_number} by ${req.session.user.name} (${req.session.user.phone})`);
+    
+    res.json({
+      success: true,
+      photo_id: result.lastID,
+      message: 'Photo uploaded successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Ticket photo upload error:', error);
+    // Clean up uploaded file on error
+    if (req.file) {
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+    }
+    res.status(500).json({ 
+      error: 'An error occurred during upload',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/admin/ticket-photos - Admin retrieves ticket photos
+app.get('/api/admin/ticket-photos', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticket_number } = req.query;
+    
+    let query = `
+      SELECT 
+        id, ticket_number, seller_phone, seller_name, 
+        photo_path, transaction_id, uploaded_at, admin_notes
+      FROM ticket_photos
+    `;
+    
+    let params = [];
+    if (ticket_number) {
+      query += ' WHERE ticket_number = ?';
+      params.push(ticket_number);
+    }
+    
+    query += ' ORDER BY uploaded_at DESC';
+    
+    const photos = await db.all(query, params);
+    
+    res.json({
+      success: true,
+      photos,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get ticket photos error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred retrieving photos',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// DELETE /api/admin/ticket-photo/:id - Admin deletes ticket photo
+app.delete('/api/admin/ticket-photo/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get photo record to find file path
+    const photo = await db.get("SELECT * FROM ticket_photos WHERE id = ?", [id]);
+    if (!photo) {
+      return res.status(404).json({ 
+        error: 'Photo not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Delete database record first
+    await db.run("DELETE FROM ticket_photos WHERE id = ?", [id]);
+    
+    // Delete file from filesystem (after DB to ensure consistency)
+    if (photo.photo_path && fs.existsSync(photo.photo_path)) {
+      try {
+        await fs.promises.unlink(photo.photo_path);
+        console.log(`Ticket photo file deleted: ${photo.photo_path}`);
+      } catch (err) {
+        console.error('Error deleting ticket photo file:', err);
+        // Continue - DB record is already deleted
+      }
+    }
+    
+    console.log(`Ticket photo deleted: Photo #${id} by ${req.session.user.name}`);
+    
+    res.json({
+      success: true,
+      message: 'Photo deleted successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Delete ticket photo error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during deletion',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Serve uploaded ticket photos (with authentication)
+app.get('/uploads/ticket-photos/:filename', requireAuth, (req, res) => {
+  const filename = req.params.filename;
+  const filepath = path.join(__dirname, 'uploads', 'ticket-photos', filename);
+  
+  if (fs.existsSync(filepath)) {
+    res.sendFile(filepath);
+  } else {
+    res.status(404).json({ error: 'Photo not found' });
   }
 });
 

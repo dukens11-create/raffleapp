@@ -947,6 +947,31 @@
       </table>
     </div>
     
+    <!-- Ticket Photos Section (NEW) -->
+    <div class="section" id="ticketPhotosSection">
+      <h2>📸 <span data-translate="ticketPhotos">Ticket Photos (Scratch Game Verification)</span></h2>
+      <p data-translate="ticketPhotosDesc">View photos of tickets captured by sellers before sales for scratch game rule verification</p>
+      
+      <div style="margin-bottom: 20px;">
+        <input 
+          type="text" 
+          id="searchTicketNumber" 
+          placeholder="Search by ticket number..."
+          style="padding: 10px; width: 300px; border: 1px solid #ddd; border-radius: 5px; margin-right: 10px;"
+        >
+        <button onclick="searchTicketPhotos()" style="padding: 10px 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
+          🔍 <span data-translate="search">Search</span>
+        </button>
+        <button onclick="loadTicketPhotos()" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600; margin-left: 10px;">
+          🔄 <span data-translate="refresh">Refresh</span>
+        </button>
+      </div>
+      
+      <div id="ticketPhotosGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+        <p style="text-align: center; padding: 40px; grid-column: 1 / -1;">Loading...</p>
+      </div>
+    </div>
+    
     <!-- Scanner Modal -->
     <div id="scannerModal" class="scanner-modal">
       <div class="scanner-content">
@@ -2169,6 +2194,171 @@
         
         // Load on page load
         loadBuyerRegistrations();
+        
+        // Ticket Photos Functions
+        async function loadTicketPhotos() {
+          try {
+            const response = await fetch('/api/admin/ticket-photos');
+            const data = await response.json();
+            
+            if (!response.ok) {
+              throw new Error(data.error || 'Failed to load photos');
+            }
+            
+            const grid = document.getElementById('ticketPhotosGrid');
+            
+            if (data.photos.length === 0) {
+              grid.innerHTML = '<p style="text-align: center; padding: 40px; grid-column: 1 / -1; color: #64748b;">No ticket photos found</p>';
+              return;
+            }
+            
+            grid.innerHTML = data.photos.map(photo => {
+              const uploadDate = new Date(photo.uploaded_at).toLocaleString();
+              return `
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: white;">
+                  <img 
+                    src="/uploads/ticket-photos/${photo.photo_path.split('/').pop()}" 
+                    alt="Ticket ${photo.ticket_number}"
+                    style="width: 100%; height: 200px; object-fit: cover; cursor: pointer;"
+                    onclick="viewFullPhoto('${photo.photo_path.split('/').pop()}')"
+                  />
+                  <div style="padding: 12px;">
+                    <p style="margin: 0 0 8px 0; font-weight: 600; color: #1e293b;">
+                      🎫 Ticket: ${photo.ticket_number}
+                    </p>
+                    <p style="margin: 0 0 4px 0; font-size: 13px; color: #64748b;">
+                      👤 Seller: ${photo.seller_name}
+                    </p>
+                    <p style="margin: 0 0 4px 0; font-size: 13px; color: #64748b;">
+                      📱 Phone: ${photo.seller_phone}
+                    </p>
+                    ${photo.transaction_id ? `
+                      <p style="margin: 0 0 4px 0; font-size: 13px; color: #64748b;">
+                        💳 TXN: ${photo.transaction_id}
+                      </p>
+                    ` : ''}
+                    <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8;">
+                      📅 ${uploadDate}
+                    </p>
+                    <button 
+                      onclick="deleteTicketPhoto(${photo.id})"
+                      style="width: 100%; padding: 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px;"
+                    >
+                      🗑️ Delete Photo
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          } catch (error) {
+            console.error('Error loading ticket photos:', error);
+            document.getElementById('ticketPhotosGrid').innerHTML = `
+              <p style="text-align: center; padding: 40px; grid-column: 1 / -1; color: #ef4444;">
+                Failed to load ticket photos: ${error.message}
+              </p>
+            `;
+          }
+        }
+        
+        async function searchTicketPhotos() {
+          const searchValue = document.getElementById('searchTicketNumber').value.trim();
+          
+          if (!searchValue) {
+            loadTicketPhotos();
+            return;
+          }
+          
+          try {
+            const response = await fetch(`/api/admin/ticket-photos?ticket_number=${encodeURIComponent(searchValue)}`);
+            const data = await response.json();
+            
+            if (!response.ok) {
+              throw new Error(data.error || 'Search failed');
+            }
+            
+            const grid = document.getElementById('ticketPhotosGrid');
+            
+            if (data.photos.length === 0) {
+              grid.innerHTML = `<p style="text-align: center; padding: 40px; grid-column: 1 / -1; color: #64748b;">No photos found for ticket number "${searchValue}"</p>`;
+              return;
+            }
+            
+            // Use same rendering logic as loadTicketPhotos
+            grid.innerHTML = data.photos.map(photo => {
+              const uploadDate = new Date(photo.uploaded_at).toLocaleString();
+              return `
+                <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: white;">
+                  <img 
+                    src="/uploads/ticket-photos/${photo.photo_path.split('/').pop()}" 
+                    alt="Ticket ${photo.ticket_number}"
+                    style="width: 100%; height: 200px; object-fit: cover; cursor: pointer;"
+                    onclick="viewFullPhoto('${photo.photo_path.split('/').pop()}')"
+                  />
+                  <div style="padding: 12px;">
+                    <p style="margin: 0 0 8px 0; font-weight: 600; color: #1e293b;">
+                      🎫 Ticket: ${photo.ticket_number}
+                    </p>
+                    <p style="margin: 0 0 4px 0; font-size: 13px; color: #64748b;">
+                      👤 Seller: ${photo.seller_name}
+                    </p>
+                    <p style="margin: 0 0 4px 0; font-size: 13px; color: #64748b;">
+                      📱 Phone: ${photo.seller_phone}
+                    </p>
+                    ${photo.transaction_id ? `
+                      <p style="margin: 0 0 4px 0; font-size: 13px; color: #64748b;">
+                        💳 TXN: ${photo.transaction_id}
+                      </p>
+                    ` : ''}
+                    <p style="margin: 0 0 8px 0; font-size: 12px; color: #94a3b8;">
+                      📅 ${uploadDate}
+                    </p>
+                    <button 
+                      onclick="deleteTicketPhoto(${photo.id})"
+                      style="width: 100%; padding: 8px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px;"
+                    >
+                      🗑️ Delete Photo
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('');
+          } catch (error) {
+            console.error('Search error:', error);
+            alert('❌ Search failed: ' + error.message);
+          }
+        }
+        
+        async function deleteTicketPhoto(photoId) {
+          if (!confirm('Delete this ticket photo? This action cannot be undone.')) {
+            return;
+          }
+          
+          try {
+            const response = await fetch(`/api/admin/ticket-photo/${photoId}`, {
+              method: 'DELETE'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+              alert('✅ Photo deleted successfully');
+              loadTicketPhotos();
+            } else {
+              alert(`❌ Error: ${data.error}`);
+            }
+          } catch (error) {
+            console.error('Error deleting photo:', error);
+            alert('❌ An error occurred');
+          }
+        }
+        
+        function viewFullPhoto(filename) {
+          window.open(`/uploads/ticket-photos/${filename}`, '_blank');
+        }
+        
+        // Load ticket photos on page load
+        loadTicketPhotos();
+        
     // Create ticket
     document.getElementById('create-ticket-form').addEventListener('submit', async function(e) {
       e.preventDefault();
