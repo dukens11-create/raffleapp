@@ -1505,9 +1505,7 @@ app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (r
     
     // Delete ID picture file after approval
     if (request.id_picture_path) {
-      const filePath = path.join(__dirname, request.id_picture_path);
-      
-      fs.unlink(filePath, (err) => {
+      fs.unlink(request.id_picture_path, (err) => {
         if (err) {
           console.error('Error deleting ID picture after approval:', err);
           // Don't fail the approval if file deletion fails
@@ -1566,9 +1564,7 @@ app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, async (re
     
     // Delete ID picture file after rejection
     if (request.id_picture_path) {
-      const filePath = path.join(__dirname, request.id_picture_path);
-      
-      fs.unlink(filePath, (err) => {
+      fs.unlink(request.id_picture_path, (err) => {
         if (err) {
           console.error('Error deleting ID picture after rejection:', err);
           // Don't fail the rejection if file deletion fails
