@@ -694,10 +694,35 @@
             </form>
         </div>
 
-        <!-- Barcode Scanner Section (Step 2) - ENABLED by default -->
-        <div class="scanner-section" id="ticketScanningSection">
-            <h2>🎟️ Step 2: Scan Tickets</h2>
-            <p>Scan tickets to assign them to customers</p>
+        <!-- Buyer Phone Number Section (Step 1.75) - REQUIRED before scanning -->
+        <div class="txn-verification-section" id="buyerPhoneSection">
+            <h2>📞 Step 2: Enter Buyer Phone Number</h2>
+            <p id="buyerPhoneDescription">Enter the customer's phone number before scanning tickets</p>
+            
+            <form id="buyerPhoneForm">
+                <div class="form-group">
+                    <label for="buyerPhoneInput" id="phoneLabel">Buyer Phone Number / Nimewo Telefòn Achtè / Numéro de Téléphone Acheteur</label>
+                    <input 
+                        type="tel" 
+                        id="buyerPhoneInput" 
+                        placeholder="e.g., 50912345678" 
+                        pattern="[0-9]{10,15}"
+                        maxlength="15"
+                        required
+                        autocomplete="tel"
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px; font-family: monospace; letter-spacing: 1px;"
+                    />
+                    <div style="color: #666; font-size: 12px; margin-top: 5px;">10-15 digits (e.g., 50912345678)</div>
+                    <div id="phoneError" style="color: #ef4444; font-size: 12px; margin-top: 5px; display: none;"></div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="confirmPhoneBtn">Confirm Phone Number</button>
+            </form>
+        </div>
+
+        <!-- Barcode Scanner Section (Step 3) - DISABLED until phone confirmed -->
+        <div class="scanner-section" id="ticketScanningSection" style="opacity: 0.5; pointer-events: none;">
+            <h2>🎟️ Step 3: Scan Tickets</h2>
+            <p>Enter buyer's phone number first before scanning tickets</p>
             <button class="btn btn-primary" onclick="openBarcodeScanner()">Open Camera Scanner</button>
             <div id="scannerContainer" style="display: none;">
                 <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
@@ -708,9 +733,9 @@
         </div>
 
         <!-- Manual Ticket Entry Section -->
-        <div class="manual-entry-section" id="manualEntrySection">
+        <div class="manual-entry-section" id="manualEntrySection" style="opacity: 0.5; pointer-events: none;">
             <h2>✍️ Manual Ticket Entry</h2>
-            <p>Enter ticket number manually if scanner doesn't work</p>
+            <p>Enter buyer's phone number first before entering ticket numbers</p>
             <form id="manualTicketForm" style="display: flex; gap: 10px; align-items: flex-end;">
                 <div style="flex: 1;">
                     <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Ticket Number</label>
@@ -867,6 +892,7 @@
         let currentVerifiedPayment = null;
         let currentSeller = null;
         let selectedDepartment = null; // Store selected department
+        let buyerPhoneNumber = null; // Store buyer's phone number
 
         // Haiti Departments list (must match server.js order)
         const HAITI_DEPARTMENTS = [
@@ -1438,9 +1464,48 @@
             }, 1000);
         });
         
+        // Buyer phone form submission
+        document.getElementById('buyerPhoneForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const phoneInput = document.getElementById('buyerPhoneInput').value.trim();
+            const errorDiv = document.getElementById('phoneError');
+            const t = translations[currentLanguage];
+            
+            // Validate phone number (10-15 digits)
+            const phoneRegex = /^[0-9]{10,15}$/;
+            if (!phoneInput || !phoneRegex.test(phoneInput)) {
+                errorDiv.textContent = 'Please enter a valid phone number (10-15 digits)';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Success - store phone number and enable scanning
+            buyerPhoneNumber = phoneInput;
+            errorDiv.style.display = 'none';
+            console.log('[BUYER-PHONE] Phone number entered:', buyerPhoneNumber);
+            
+            // Show success message
+            const buyerPhoneSection = document.getElementById('buyerPhoneSection');
+            const successMsg = document.createElement('div');
+            successMsg.className = 'alert alert-success';
+            successMsg.style.marginTop = '10px';
+            successMsg.innerHTML = `✅ Phone confirmed: <strong>${buyerPhoneNumber}</strong>`;
+            buyerPhoneSection.appendChild(successMsg);
+            
+            // Disable form after submission
+            document.getElementById('buyerPhoneForm').style.display = 'none';
+            
+            // Enable scanning sections
+            setTimeout(() => {
+                enableTicketScanning();
+            }, 1000);
+        });
+        
         function resetVerification() {
             currentVerifiedPayment = null;
             selectedDepartment = null;
+            buyerPhoneNumber = null;
             document.getElementById('txnIdInput').value = '';
             document.getElementById('txnVerificationResult').style.display = 'none';
             
@@ -1455,6 +1520,15 @@
             // Remove any success messages
             const successMsgs = buyerInfoSection.querySelectorAll('.alert-success');
             successMsgs.forEach(msg => msg.remove());
+            
+            // Reset and hide phone section
+            const buyerPhoneSection = document.getElementById('buyerPhoneSection');
+            document.getElementById('buyerPhoneInput').value = '';
+            document.getElementById('phoneError').style.display = 'none';
+            document.getElementById('buyerPhoneForm').style.display = 'block';
+            // Remove any success messages from phone section
+            const phoneSuccessMsgs = buyerPhoneSection.querySelectorAll('.alert-success');
+            phoneSuccessMsgs.forEach(msg => msg.remove());
             
             const scanSection = document.getElementById('ticketScanningSection');
             scanSection.style.opacity = '0.5';
@@ -1583,6 +1657,11 @@
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
                     requestBody.buyer_department = selectedDepartment;
+                }
+                
+                // Add buyer phone number (required)
+                if (buyerPhoneNumber) {
+                    requestBody.buyer_phone = buyerPhoneNumber;
                 }
                 
                 const response = await fetch('/api/tickets/scan', {
@@ -1725,6 +1804,11 @@
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
                     requestBody.buyer_department = selectedDepartment;
+                }
+                
+                // Add buyer phone number (required)
+                if (buyerPhoneNumber) {
+                    requestBody.buyer_phone = buyerPhoneNumber;
                 }
                 
                 const response = await fetch('/api/tickets/scan', {

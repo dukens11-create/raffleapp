@@ -2548,13 +2548,25 @@ app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
 // API: Scan ticket barcode (seller only)
 app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   try {
-    const { barcode, payment_reference, buyer_department } = req.body;
+    const { barcode, payment_reference, buyer_department, buyer_phone } = req.body;
     
     console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
     
     if (!barcode) {
       console.log('[SCAN] Error: No barcode provided');
       return res.status(400).json({ error: 'Barcode is required' });
+    }
+    
+    // Validate buyer_phone if provided
+    if (buyer_phone) {
+      const phoneRegex = /^[0-9]{10,15}$/;
+      if (!phoneRegex.test(buyer_phone)) {
+        console.log('[SCAN] Error: Invalid buyer phone');
+        return res.status(400).json({ 
+          error: 'INVALID_PHONE',
+          message: 'Buyer phone must be 10-15 digits'
+        });
+      }
     }
     
     // TEMPORARY: Make payment_reference optional until MonCash API is configured
@@ -2638,7 +2650,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       });
     }
     
-    // Mark as sold and link to payment (if exists), including department
+    // Mark as sold and link to payment (if exists), including department and buyer phone
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
@@ -2646,9 +2658,10 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
            seller_phone = ?, 
            payment_reference = ?,
            customer_department = ?,
+           buyer_phone = ?,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [req.session.user.name, req.session.user.phone, payment_reference || null, departmentToUse, ticket.id]
+      [req.session.user.name, req.session.user.phone, payment_reference || null, departmentToUse, buyer_phone || null, ticket.id]
     );
     
     // Update payment record with ticket numbers (if payment exists)
