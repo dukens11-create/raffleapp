@@ -2069,7 +2069,7 @@ app.post('/api/tickets/register-with-txn', requireAuth, upload.single('card_phot
       console.error('Photo processing error:', photoError);
       return res.status(500).json({ 
         error: 'PHOTO_PROCESSING_FAILED',
-        message: 'Failed to process scratch card photo'
+        message: `Failed to process scratch card photo: ${photoError.message}`
       });
     }
     

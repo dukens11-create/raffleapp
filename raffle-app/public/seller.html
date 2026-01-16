@@ -1476,13 +1476,18 @@
             document.getElementById('photoNotCaptured').style.display = 'none';
             document.getElementById('photoCaptured').style.display = 'none';
             
-            // Request camera access with rear camera preference
+            // Request camera access with rear camera preference and fallback
             navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'environment', // Prefer rear camera
                     width: { ideal: PHOTO_CONFIG.MAX_WIDTH },
                     height: { ideal: PHOTO_CONFIG.MAX_HEIGHT }
                 } 
+            })
+            .catch(() => {
+                // Fallback: Try again with basic video constraints
+                console.log('Falling back to basic camera constraints...');
+                return navigator.mediaDevices.getUserMedia({ video: true });
             })
             .then(stream => {
                 cameraStream = stream;
@@ -1491,7 +1496,18 @@
             })
             .catch(err => {
                 console.error('Camera access error:', err);
-                alert('Camera access denied. Please allow camera access to capture photos.');
+                // Provide specific error message based on error type
+                let errorMsg = 'Camera access failed. ';
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    errorMsg += 'Please allow camera access in your browser settings.';
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    errorMsg += 'No camera found on this device.';
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    errorMsg += 'Camera is in use by another application.';
+                } else {
+                    errorMsg += `Error: ${err.message}`;
+                }
+                alert(errorMsg);
                 closeCamera();
             });
         }
