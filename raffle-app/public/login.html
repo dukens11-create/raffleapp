@@ -833,12 +833,12 @@
         
         // Get current language from localStorage or default to English
         function getCurrentLanguage() {
-            return localStorage.getItem('raffleAppLanguage') || 'en';
+            return localStorage.getItem('grateGenyenLanguage') || 'en';
         }
         
         // Set language
         function setLanguage(lang) {
-            localStorage.setItem('raffleAppLanguage', lang);
+            localStorage.setItem('grateGenyenLanguage', lang);
             
             // Update all elements with data-translate attribute
             document.querySelectorAll('[data-translate]').forEach(element => {
