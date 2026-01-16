@@ -1848,6 +1848,32 @@
             return true;
         }
 
+        // Start camera (reusable function)
+        async function startCamera() {
+            try {
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' }, // Prefer back camera
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                };
+                
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraPreview');
+                video.srcObject = cameraStream;
+                
+                // Show capture button, hide start button
+                document.getElementById('startCameraBtn').style.display = 'none';
+                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
+                document.getElementById('capturedPhotoPreview').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                alert('Unable to access camera. Please check permissions or use file upload instead.');
+            }
+        }
+
         // Toggle between file and camera methods
         document.getElementById('useFileBtn').addEventListener('click', () => {
             document.getElementById('useFileBtn').classList.add('active');
@@ -1871,38 +1897,20 @@
             document.getElementById('cameraSection').style.display = 'block';
         });
 
-        // Start camera
-        document.getElementById('startCameraBtn').addEventListener('click', async () => {
-            try {
-                // Request camera access with back camera preference for mobile
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' }, // Prefer back camera
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                };
-                
-                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const video = document.getElementById('cameraPreview');
-                video.srcObject = cameraStream;
-                
-                // Show capture button, hide start button
-                document.getElementById('startCameraBtn').style.display = 'none';
-                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
-                document.getElementById('capturedPhotoPreview').style.display = 'none';
-                
-            } catch (error) {
-                console.error('Camera access error:', error);
-                alert('Unable to access camera. Please check permissions or use file upload instead.');
-            }
-        });
+        // Start camera button handler
+        document.getElementById('startCameraBtn').addEventListener('click', startCamera);
 
         // Capture photo from video stream
         document.getElementById('capturePhotoBtn').addEventListener('click', () => {
             const video = document.getElementById('cameraPreview');
             const canvas = document.getElementById('photoCanvas');
             const context = canvas.getContext('2d');
+            
+            // Check if video is ready
+            if (video.videoWidth === 0 || video.videoHeight === 0) {
+                alert('Camera is not ready yet. Please wait a moment and try again.');
+                return;
+            }
             
             // Set canvas dimensions to match video
             canvas.width = video.videoWidth;
@@ -1955,27 +1963,8 @@
             document.getElementById('retakePhotoBtn').style.display = 'none';
             document.getElementById('startCameraBtn').style.display = 'inline-block';
             
-            // Directly start the camera instead of simulating click
-            try {
-                const constraints = {
-                    video: {
-                        facingMode: { ideal: 'environment' },
-                        width: { ideal: 1920 },
-                        height: { ideal: 1080 }
-                    }
-                };
-                
-                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
-                const video = document.getElementById('cameraPreview');
-                video.srcObject = cameraStream;
-                
-                document.getElementById('startCameraBtn').style.display = 'none';
-                document.getElementById('capturePhotoBtn').style.display = 'inline-block';
-                
-            } catch (error) {
-                console.error('Camera access error on retake:', error);
-                alert('Unable to access camera. Please try again or use file upload instead.');
-            }
+            // Restart camera using the reusable function
+            await startCamera();
         });
 
         // Stop camera stream
@@ -2100,10 +2089,8 @@
         checkAuth();
         loadRecentDraws();
         
-        // Check camera support on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            checkCameraSupport();
-        });
+        // Check camera support immediately (script runs after DOM is loaded)
+        checkCameraSupport();
     </script>
 </body>
 </html>
