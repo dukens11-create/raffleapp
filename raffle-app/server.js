@@ -2361,17 +2361,27 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       });
     }
     
-    // Mark as sold and link to payment (if exists), including department
+    // Mark as sold and link to payment (if exists), including department and buyer info
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
            seller_name = ?, 
            seller_phone = ?, 
+           buyer_name = ?,
+           buyer_phone = ?,
            payment_reference = ?,
            customer_department = ?,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
-      [req.session.user.name, req.session.user.phone, payment_reference || null, departmentToUse, ticket.id]
+      [
+        req.session.user.name, 
+        req.session.user.phone, 
+        payment?.buyer_name || null,
+        payment?.buyer_phone || null,
+        payment_reference || null, 
+        departmentToUse, 
+        ticket.id
+      ]
     );
     
     // Update payment record with ticket numbers (if payment exists)
@@ -2512,11 +2522,11 @@ app.put('/api/seller-concerns/:id/resolve', requireAuth, requireAdmin, async (re
 // Legacy endpoints (for backward compatibility with frontend)
 app.get('/tickets', requireAuth, async (req, res) => {
   try {
-    let query = "SELECT ticket_number as number, category, status, barcode FROM tickets ORDER BY ticket_number";
+    let query = "SELECT ticket_number as number, buyer_name, buyer_phone, seller_name, category, price, status, barcode, sold_at, created_at FROM tickets ORDER BY ticket_number";
     let params = [];
     
     if (req.session.user.role === 'seller') {
-      query = "SELECT ticket_number as number, category, status, barcode FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
+      query = "SELECT ticket_number as number, buyer_name, buyer_phone, seller_name, category, price, status, barcode, sold_at, created_at FROM tickets WHERE seller_phone = ? ORDER BY ticket_number";
       params = [req.session.user.phone];
     }
     

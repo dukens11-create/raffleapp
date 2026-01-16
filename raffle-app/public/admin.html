@@ -953,7 +953,11 @@
         <tr>
           <th><input type="checkbox" id="select-all-tickets"></th>
           <th data-translate="number">Number</th>
+          <th data-translate="buyerName">Buyer Name</th>
+          <th data-translate="buyerPhone">Buyer Phone</th>
+          <th data-translate="sellerName">Seller</th>
           <th data-translate="category">Category</th>
+          <th data-translate="price">Price</th>
           <th data-translate="status">Status</th>
           <th data-translate="barcode">Barcode</th>
           <th data-translate="actions">Actions</th>
@@ -1252,7 +1256,11 @@
                                 'Delete Selected Tickets': 'Delete Selected Tickets',
                                 'Delete Selected Users': 'Delete Selected Users',
                                 'Sales Trends (Last 30 Days)': 'Sales Trends (Last 30 Days)',
-                                'Tickets by Category': 'Tickets by Category'
+                                'Tickets by Category': 'Tickets by Category',
+                                'Buyer Name': 'Buyer Name',
+                                'Buyer Phone': 'Buyer Phone',
+                                'Seller': 'Seller',
+                                'Price': 'Price'
                               },
                               fr: {
                                 'Logout': 'Déconnexion',
@@ -1266,7 +1274,11 @@
                                 'Delete Selected Tickets': 'Supprimer les billets sélectionnés',
                                 'Delete Selected Users': 'Supprimer les utilisateurs sélectionnés',
                                 'Sales Trends (Last 30 Days)': 'Tendances des ventes (30 derniers jours)',
-                                'Tickets by Category': 'Billets par catégorie'
+                                'Tickets by Category': 'Billets par catégorie',
+                                'Buyer Name': 'Nom de l\'acheteur',
+                                'Buyer Phone': 'Téléphone de l\'acheteur',
+                                'Seller': 'Vendeur',
+                                'Price': 'Prix'
                               },
                               ht: {
                                 'Logout': 'Dekonekte',
@@ -1280,7 +1292,11 @@
                                 'Delete Selected Tickets': 'Efase Tikè Chwazi yo',
                                 'Delete Selected Users': 'Efase Itilizatè Chwazi yo',
                                 'Sales Trends (Last 30 Days)': 'Tandans Vant (30 Dènye Jou yo)',
-                                'Tickets by Category': 'Tikè pa Kategori'
+                                'Tickets by Category': 'Tikè pa Kategori',
+                                'Buyer Name': 'Non Achtè',
+                                'Buyer Phone': 'Nimewo Telefòn Achtè',
+                                'Seller': 'Vandè',
+                                'Price': 'Pri'
                               },
                               es: {
                                 'Logout': 'Cerrar sesión',
@@ -1294,7 +1310,11 @@
                                 'Delete Selected Tickets': 'Eliminar boletos seleccionados',
                                 'Delete Selected Users': 'Eliminar usuarios seleccionados',
                                 'Sales Trends (Last 30 Days)': 'Tendencias de ventas (últimos 30 días)',
-                                'Tickets by Category': 'Boletos por categoría'
+                                'Tickets by Category': 'Boletos por categoría',
+                                'Buyer Name': 'Nombre del Comprador',
+                                'Buyer Phone': 'Teléfono del Comprador',
+                                'Seller': 'Vendedor',
+                                'Price': 'Precio'
                               }
                             };
 
@@ -1784,7 +1804,16 @@
           barcodeHtml = '<span style="color:#94a3b8;">No barcode</span>';
         }
         
-        tr.innerHTML = `<td><input type="checkbox" value="${ticket.number}"></td><td>${ticket.number}</td><td>${ticket.category || ''}</td><td>${ticket.status}</td><td>${barcodeHtml}</td><td>${actions}</td>`;
+        tr.innerHTML = `<td><input type="checkbox" value="${ticket.number}"></td>
+                       <td>${ticket.number}</td>
+                       <td>${ticket.buyer_name || '-'}</td>
+                       <td><strong>${ticket.buyer_phone || '-'}</strong></td>
+                       <td>${ticket.seller_name || '-'}</td>
+                       <td>${ticket.category || ''}</td>
+                       <td>$${parseFloat(ticket.price || 0).toFixed(2)}</td>
+                       <td>${ticket.status}</td>
+                       <td>${barcodeHtml}</td>
+                       <td>${actions}</td>`;
         tbody.appendChild(tr);
       });
       // Add refund/cancel handlers
