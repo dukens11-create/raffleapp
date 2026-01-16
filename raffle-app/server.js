@@ -62,6 +62,14 @@ class Mutex {
 // Create mutex for ticket generation to prevent race conditions
 const ticketGenerationMutex = new Mutex();
 
+// Photo compression configuration
+const PHOTO_CONFIG = {
+  MAX_WIDTH: 1920,
+  MAX_HEIGHT: 1080,
+  JPEG_QUALITY: 75, // Standard quality (~200KB)
+  CACHE_CONTROL: 'no-cache, no-store, must-revalidate' // No caching for sensitive audit photos
+};
+
 // Load environment variables
 require('dotenv').config();
 
@@ -2046,15 +2054,15 @@ app.post('/api/tickets/register-with-txn', requireAuth, upload.single('card_phot
     
     // === ALL CHECKS PASSED - PROCESS PHOTO AND REGISTER TICKET ===
     
-    // Process photo: compress to standard quality (~200KB)
+    // Process photo: compress to standard quality using configuration
     let photoBuffer;
     try {
       photoBuffer = await sharp(req.file.buffer)
-        .resize(1920, 1080, { 
+        .resize(PHOTO_CONFIG.MAX_WIDTH, PHOTO_CONFIG.MAX_HEIGHT, { 
           fit: 'inside', // Maintain aspect ratio
           withoutEnlargement: true 
         })
-        .jpeg({ quality: 75 }) // Standard quality
+        .jpeg({ quality: PHOTO_CONFIG.JPEG_QUALITY })
         .toBuffer();
       
       console.log(`[PHOTO PROCESSED] Original: ${(req.file.size / 1024).toFixed(1)}KB → Compressed: ${(photoBuffer.length / 1024).toFixed(1)}KB`);
@@ -2191,11 +2199,11 @@ app.get('/api/admin/tickets/:ticketNumber/photo', requireAuth, requireAdmin, asy
       return res.status(404).json({ error: 'No photo available for this ticket' });
     }
     
-    // Set appropriate headers for JPEG image
+    // Set appropriate headers for JPEG image with secure caching
     res.set({
       'Content-Type': 'image/jpeg',
       'Content-Length': ticket.card_photo.length,
-      'Cache-Control': 'private, max-age=3600' // Cache for 1 hour
+      'Cache-Control': PHOTO_CONFIG.CACHE_CONTROL // No caching for sensitive audit photos
     });
     
     res.send(ticket.card_photo);
