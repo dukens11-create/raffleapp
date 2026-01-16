@@ -1933,9 +1933,19 @@ app.post('/api/tickets/register-with-txn', requireAuth, upload.single('card_phot
     // === VALIDATION (Check all fields together for better error reporting) ===
     const errors = [];
     
-    // 0. Validate card photo (MANDATORY)
+    // 0. Validate card photo (MANDATORY with file type check)
     if (!req.file) {
       errors.push('Scratch card photo is required before registration');
+    } else {
+      // Validate file type (must be image)
+      const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        errors.push('Photo must be a valid image format (JPEG, PNG, or WebP)');
+      }
+      // Validate file size (max 10MB - multer also enforces this)
+      if (req.file.size > 10 * 1024 * 1024) {
+        errors.push('Photo size must be less than 10MB');
+      }
     }
     
     // 1. Validate Txn ID format (must be exactly 12 digits)

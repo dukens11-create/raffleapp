@@ -1616,7 +1616,11 @@
                 formData.append('txn_id', txnId);
                 formData.append('ticket_barcode', ticketNumber);
                 formData.append('department', department);
-                formData.append('card_photo', capturedPhotoBlob, 'scratch-card.jpg');
+                
+                // Use unique filename with timestamp for traceability
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `scratch-card-${ticketNumber}-${timestamp}.jpg`;
+                formData.append('card_photo', capturedPhotoBlob, filename);
                 
                 const response = await fetch('/api/tickets/register-with-txn', {
                     method: 'POST',
