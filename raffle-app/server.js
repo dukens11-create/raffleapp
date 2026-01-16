@@ -2824,8 +2824,8 @@ app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req,
     
     // Filter by phone if provided
     if (phone) {
-      const normalizedPhone = phone.replace(/[\s\-\(\)]/g, '');
-      query += ' AND REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'+\', \'\') LIKE ?';
+      const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+      query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'+\', \'\'), \'(\', \'\') LIKE ?';
       params.push(`%${normalizedPhone}%`);
     }
     

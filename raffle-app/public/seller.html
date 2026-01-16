@@ -1427,10 +1427,10 @@
                 
                 // Check if payment already has department (from buyer's purchase)
                 if (data.payment.customer_department) {
-                    // Department already set - skip department form, enable scanning directly
+                    // Department already set - skip department form, show phone section
                     selectedDepartment = data.payment.customer_department;
                     console.log('[TXN-VERIFY] Department already set from payment:', selectedDepartment);
-                    enableTicketScanning();
+                    showPhoneSection();
                 } else {
                     // No department - show department selection form
                     console.log('[TXN-VERIFY] No department in payment, showing department form');
@@ -1539,16 +1539,13 @@
             const phoneInput = document.getElementById('buyerPhone').value.trim();
             const t = translations[currentLanguage];
             
-            // Normalize phone number - remove spaces, dashes, parentheses
-            const normalizedPhone = phoneInput.replace(/[\s\-\(\)]/g, '');
+            // Normalize phone number - remove spaces, dashes, parentheses, plus
+            const normalizedPhone = phoneInput.replace(/[\s\-\(\)\+]/g, '');
             
-            // Validate 509 area code formats
-            const valid509Formats = [
-                /^509\d{8}$/,        // 5091234567 (11 digits)
-                /^\+509\d{8}$/,      // +5091234567 (12 digits with +)
-            ];
+            // Validate 509 area code formats (after normalization, should be 509 + 8 digits = 11 total)
+            const valid509Format = /^509\d{8}$/;
             
-            const isValid = valid509Formats.some(regex => regex.test(normalizedPhone));
+            const isValid = valid509Format.test(normalizedPhone);
             
             if (!isValid) {
                 showPhoneError(t.invalidPhone509);
@@ -1556,7 +1553,7 @@
             }
             
             // Format for display: 509-XXXX-XXXX
-            const displayPhone = normalizedPhone.replace(/^(\+?509)(\d{4})(\d{4})$/, '$1-$2-$3');
+            const displayPhone = normalizedPhone.replace(/^(509)(\d{4})(\d{4})$/, '$1-$2-$3');
             confirmedBuyerPhone = normalizedPhone;
             
             // Show success and enable ticket scanning
