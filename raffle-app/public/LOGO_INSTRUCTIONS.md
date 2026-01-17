@@ -105,12 +105,16 @@ After replacing the logo, users may need to clear their browser cache or perform
 Since the logo is cached by the service worker, you need to update the cache version:
 
 1. Open `raffle-app/public/service-worker.js`
-2. Update the cache version number on line 1 (increment from current version):
+2. Find line 1 which currently reads:
    ```javascript
-   const CACHE_NAME = 'raffleapp-v2'; // Change from 'raffleapp-v1' to 'raffleapp-v2'
+   const CACHE_NAME = 'raffleapp-v1';
    ```
-3. Save the file
-4. The service worker will automatically update on the next page load
+3. Increment the version number (e.g., from `v1` to `v2`, or from `v2` to `v3`):
+   ```javascript
+   const CACHE_NAME = 'raffleapp-v2'; // Updated version to force cache refresh
+   ```
+4. Save the file
+5. The service worker will automatically update on the next page load and cache the new logo
 
 ## How to Verify Logo Displays Correctly
 
@@ -198,16 +202,49 @@ Verify logo loading performance:
 
 ### Multiple Logo Variants
 
-The application also includes:
-- `logo-transparent.png` - Used in some header sections (seller.html)
+The application also includes a transparent logo variant:
+- **File:** `logo-transparent.png`
+- **Location:** `raffle-app/public/logo-transparent.png`
+- **Used in:** Seller dashboard header (`seller.html`)
+- **Purpose:** Logo with transparent background for better integration with colored backgrounds
 
-If you want to update this variant as well, follow the same process but save your logo with transparency.
+#### How to Update `logo-transparent.png`
+
+If you want to update this variant as well:
+1. Prepare your logo with a transparent background (PNG format)
+2. Ensure the logo looks good on both light and dark backgrounds
+3. Save as `logo-transparent.png` in the `raffle-app/public/` directory
+4. Follow the same cache update steps as the main logo
+
+**Note:** If you don't need a separate transparent variant, you can replace `logo-transparent.png` with the same file as `logo.png`.
 
 ### PWA Icons
 
-For a complete branding experience, you may also want to update:
-- `/icons/icon-*.png` files - Progressive Web App icons in various sizes
-- These appear when the app is installed on mobile devices
+For a complete branding experience, you may also want to update the Progressive Web App (PWA) icons that appear when the app is installed on mobile devices.
+
+#### Icon Files to Update
+
+All PWA icons are located in: `raffle-app/public/icons/`
+
+The following icon files should be updated:
+- `icon-72x72.png` - 72×72 pixels
+- `icon-96x96.png` - 96×96 pixels
+- `icon-128x128.png` - 128×128 pixels
+- `icon-144x144.png` - 144×144 pixels
+- `icon-152x152.png` - 152×152 pixels
+- `icon-192x192.png` - 192×192 pixels (Android home screen)
+- `icon-384x384.png` - 384×384 pixels
+- `icon-512x512.png` - 512×512 pixels (Android splash screen)
+
+#### How to Update PWA Icons
+
+1. Start with your high-resolution logo (at least 512×512px)
+2. Resize the logo to each required dimension
+3. Save each as PNG with the exact filename listed above
+4. Replace the existing files in `raffle-app/public/icons/`
+5. Test installation on mobile devices to verify
+
+**Tip:** You can use online tools like "PWA Asset Generator" or image editing software to create all sizes at once from your master logo file.
 
 ### Favicon
 
