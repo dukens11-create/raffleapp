@@ -1,8 +1,14 @@
 # Logo Instructions for Grate Genyen Raffle App
 
+## ⚠️ About This Document
+
+This document provides instructions for managing the logo files in the Grate Genyen Raffle App. The application currently contains a **placeholder logo** that demonstrates the proper design style (colorful raffle tickets with text). This placeholder uses "RaffleApp" branding and should be replaced with your official "Grate Genyen" branded logo when ready.
+
 ## Current Logo Status
 
-The raffle application currently uses a placeholder logo at `raffle-app/public/logo.png`. This placeholder displays a colorful raffle-themed design with "RaffleApp" text that matches the application's color scheme.
+The raffle application currently uses a **placeholder logo** at `raffle-app/public/logo.png`. This placeholder is a professional-quality raffle-themed design that demonstrates the proper style and format, but displays "RaffleApp" branding instead of the actual "Grate Genyen" branding.
+
+**⚠️ Important:** The current placeholder should be replaced with your official "Grate Genyen" branded logo following the instructions in this document.
 
 ## Logo File Location
 
@@ -25,9 +31,9 @@ This logo file is referenced throughout the application in the following files:
 - `raffle-app/public/payments-admin.html` - Header logo and favicon
 - `raffle-app/public/print-tickets.html` - Header logo and favicon
 
-## Actual "Grate Genyen" Logo Description
+## Target "Grate Genyen" Logo Description
 
-The actual logo that should be uploaded by the repository owner features:
+When you're ready to replace the placeholder, your actual "Grate Genyen" logo should feature the following elements for consistency with the application design:
 
 ### Visual Elements
 - **Text:** "Grate Genyen" 
