@@ -116,13 +116,19 @@ After replacing the logo, users may need to clear their browser cache or perform
 Since the logo is cached by the service worker, you need to update the cache version:
 
 1. Open `raffle-app/public/service-worker.js`
-2. Find line 1 which currently reads:
+2. Find line 1 and note the current version number
+3. Increment the version number by one (examples below):
+   - If current is `raffleapp-v1`, change to `raffleapp-v2`
+   - If current is `raffleapp-v2`, change to `raffleapp-v3`
+   - If current is `raffleapp-v5`, change to `raffleapp-v6`
+   
+   Example code change:
    ```javascript
+   // Before:
    const CACHE_NAME = 'raffleapp-v1';
-   ```
-3. Increment the version number (e.g., from `v1` to `v2`, or from `v2` to `v3`):
-   ```javascript
-   const CACHE_NAME = 'raffleapp-v2'; // Updated version to force cache refresh
+   
+   // After:
+   const CACHE_NAME = 'raffleapp-v2'; // Incremented to force cache refresh
    ```
 4. Save the file
 5. The service worker will automatically update on the next page load and cache the new logo
