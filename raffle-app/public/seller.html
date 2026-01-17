@@ -453,8 +453,9 @@
         }
 
         .workflow-section.locked {
-            opacity: 0.5;
+            opacity: 0.85;
             pointer-events: none;
+            border-color: #e5e7eb;
         }
 
         .workflow-section.locked::after {
@@ -464,7 +465,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.4);
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -500,12 +501,13 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.75);
             border-radius: 10px;
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 10;
+            backdrop-filter: blur(2px);
         }
 
         .workflow-section.locked .lock-overlay {
@@ -515,18 +517,22 @@
         .lock-message {
             text-align: center;
             padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 2px solid #e5e7eb;
         }
 
         .lock-message .lock-icon {
             font-size: 48px;
-            color: #d1d5db;
+            color: #9ca3af;
             margin-bottom: 10px;
         }
 
         .lock-message p {
-            color: #6b7280;
+            color: #374151;
             font-weight: 600;
-            font-size: 16px;
+            font-size: 15px;
             margin: 0;
         }
 
