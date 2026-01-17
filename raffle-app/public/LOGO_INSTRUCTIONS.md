@@ -16,20 +16,25 @@ The raffle application currently uses a **placeholder logo** at `raffle-app/publ
 
 This logo file is referenced throughout the application in the following files:
 - `raffle-app/public/service-worker.js` - Cached for offline use
-- `raffle-app/public/seller.html` - Header logo
 - `raffle-app/public/admin.html` - Header logo and favicon
-- `raffle-app/public/bulk-print.html` - Header logo and favicon
-- `raffle-app/public/manage-templates.html` - Header logo and favicon
+- `raffle-app/public/seller.html` - Header logo (uses logo-transparent.png variant)
+- `raffle-app/public/login.html` - Login page logo
 - `raffle-app/public/register-seller.html` - Registration page logo
+- `raffle-app/public/buyers.html` - Header logo and favicon
+- `raffle-app/public/bulk-print.html` - Header logo and favicon
+- `raffle-app/public/bulk-ticket-manager.html` - Favicon
+- `raffle-app/public/manage-templates.html` - Header logo and favicon
 - `raffle-app/public/upload-template.html` - Header logo and favicon
-- `raffle-app/public/print-custom-tickets.html` - Header logo and favicon
+- `raffle-app/public/print-custom-tickets.html` - Favicon
+- `raffle-app/public/print-tickets.html` - Header logo and favicon
 - `raffle-app/public/raffle-print.html` - Header logo and favicon
 - `raffle-app/public/raffle-dashboard.html` - Header logo and favicon
-- `raffle-app/public/generate-tickets.html` - Header logo and favicon
-- `raffle-app/public/buyers.html` - Header logo and favicon
-- `raffle-app/public/login.html` - Login page logo
+- `raffle-app/public/raffle-import.html` - Header logo and favicon
+- `raffle-app/public/generate-tickets.html` - Favicon
 - `raffle-app/public/payments-admin.html` - Header logo and favicon
-- `raffle-app/public/print-tickets.html` - Header logo and favicon
+- `raffle-app/public/custom-ticket-design.html` - Favicon
+- `raffle-app/public/ticket-design-manager.html` - Header logo
+- `raffle-app/public/verify-tickets.html` - Header logo
 
 ## Target "Grate Genyen" Logo Description
 
@@ -137,13 +142,18 @@ Visit each of the following pages and confirm the logo displays properly:
 - [ ] `/bulk-print.html` - Logo in header
 - [ ] `/manage-templates.html` - Logo in header
 - [ ] `/upload-template.html` - Logo in header
-- [ ] `/print-custom-tickets.html` - Logo in header
+- [ ] `/print-custom-tickets.html` - Logo favicon
 - [ ] `/raffle-print.html` - Logo in header
 - [ ] `/raffle-dashboard.html` - Logo in header
-- [ ] `/generate-tickets.html` - Logo in header
+- [ ] `/raffle-import.html` - Logo in header
+- [ ] `/generate-tickets.html` - Logo favicon
 - [ ] `/buyers.html` - Logo in header
 - [ ] `/payments-admin.html` - Logo in header
 - [ ] `/print-tickets.html` - Logo in header
+- [ ] `/bulk-ticket-manager.html` - Logo favicon
+- [ ] `/custom-ticket-design.html` - Logo favicon
+- [ ] `/ticket-design-manager.html` - Logo in header
+- [ ] `/verify-tickets.html` - Logo in header
 
 ### Verification Points
 
@@ -271,6 +281,6 @@ If you encounter any issues replacing the logo or have questions:
 
 ---
 
-**Last Updated:** January 2026  
+**Last Updated:** January 17, 2026  
 **Application:** Grate Genyen Raffle App  
 **Version:** 1.0
