@@ -1905,7 +1905,7 @@
             } catch (error) {
                 console.error('❌ Auth check error:', error);
                 // Don't redirect immediately on network errors - could be transient
-                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                if (error instanceof TypeError || error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
                     console.log('Network error - retrying in 2 seconds...');
                     setTimeout(checkAuth, 2000);
                 } else {
