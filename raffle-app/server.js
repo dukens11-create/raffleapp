@@ -1075,7 +1075,6 @@ app.get('/api/session-check', (req, res) => {
     lastActivity: req.session?.lastActivity ? new Date(req.session.lastActivity).toISOString() : null,
     timeSinceActivity: req.session?.lastActivity ? Date.now() - req.session.lastActivity : null,
     sessionTimeout: SESSION_TIMEOUT,
-    cookies: req.headers.cookie ? 'present' : 'missing',
     timestamp: new Date().toISOString()
   };
   
