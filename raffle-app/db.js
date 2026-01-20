@@ -72,7 +72,8 @@ function query(sql, params = []) {
       });
     } else {
       // SQLite
-      if (sql.trim().toUpperCase().startsWith('SELECT')) {
+      // Use db.all for SELECT and PRAGMA statements
+      if (sql.trim().toUpperCase().startsWith('SELECT') || sql.trim().toUpperCase().startsWith('PRAGMA')) {
         db.all(sql, params, (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -687,17 +688,20 @@ async function initializeSchema() {
           ALTER TABLE tickets 
           ADD COLUMN IF NOT EXISTS ticket_photo_path TEXT
         `);
+        console.log('✅ Added ticket_photo_path column to tickets table');
       } else {
         // SQLite doesn't support IF NOT EXISTS for columns, so check first
         const columns = await all(`PRAGMA table_info(tickets)`);
         const hasTicketPhotoPath = columns.some(col => col.name === 'ticket_photo_path');
         if (!hasTicketPhotoPath) {
           await run(`ALTER TABLE tickets ADD COLUMN ticket_photo_path TEXT`);
+          console.log('✅ Added ticket_photo_path column to tickets table');
+        } else {
+          console.log('Note: ticket_photo_path column already exists');
         }
       }
-      console.log('✅ Added ticket_photo_path column to tickets table');
     } catch (error) {
-      console.log('Note: ticket_photo_path column already exists or could not be added');
+      console.error('Error adding ticket_photo_path column:', error.message);
     }
     
     // Add ticket_photo_uploaded_at column to tickets table if it doesn't exist
@@ -707,17 +711,20 @@ async function initializeSchema() {
           ALTER TABLE tickets 
           ADD COLUMN IF NOT EXISTS ticket_photo_uploaded_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'}
         `);
+        console.log('✅ Added ticket_photo_uploaded_at column to tickets table');
       } else {
         // SQLite doesn't support IF NOT EXISTS for columns, so check first
         const columns = await all(`PRAGMA table_info(tickets)`);
         const hasTicketPhotoUploadedAt = columns.some(col => col.name === 'ticket_photo_uploaded_at');
         if (!hasTicketPhotoUploadedAt) {
           await run(`ALTER TABLE tickets ADD COLUMN ticket_photo_uploaded_at DATETIME`);
+          console.log('✅ Added ticket_photo_uploaded_at column to tickets table');
+        } else {
+          console.log('Note: ticket_photo_uploaded_at column already exists');
         }
       }
-      console.log('✅ Added ticket_photo_uploaded_at column to tickets table');
     } catch (error) {
-      console.log('Note: ticket_photo_uploaded_at column already exists or could not be added');
+      console.error('Error adding ticket_photo_uploaded_at column:', error.message);
     }
     
     // Add txn_number column to tickets table if it doesn't exist
@@ -727,17 +734,20 @@ async function initializeSchema() {
           ALTER TABLE tickets 
           ADD COLUMN IF NOT EXISTS txn_number TEXT
         `);
+        console.log('✅ Added txn_number column to tickets table');
       } else {
         // SQLite doesn't support IF NOT EXISTS for columns, so check first
         const columns = await all(`PRAGMA table_info(tickets)`);
         const hasTxnNumber = columns.some(col => col.name === 'txn_number');
         if (!hasTxnNumber) {
           await run(`ALTER TABLE tickets ADD COLUMN txn_number TEXT`);
+          console.log('✅ Added txn_number column to tickets table');
+        } else {
+          console.log('Note: txn_number column already exists');
         }
       }
-      console.log('✅ Added txn_number column to tickets table');
     } catch (error) {
-      console.log('Note: txn_number column already exists or could not be added');
+      console.error('Error adding txn_number column:', error.message);
     }
     
     // Add performance indexes
