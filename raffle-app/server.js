@@ -1368,6 +1368,37 @@ const drawPhotoUpload = multer({
   }
 });
 
+// Configure multer for ticket photo uploads
+const ticketPhotoStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'uploads', 'ticket-photos');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Use ticket number in filename if available, otherwise use timestamp
+    const ticketNumber = req.body.barcode || req.body.ticket_number || 'unknown';
+    const timestamp = Date.now();
+    const sanitizedTicketNumber = ticketNumber.replace(/[^a-zA-Z0-9]/g, '-');
+    cb(null, `ticket-${sanitizedTicketNumber}-${timestamp}${path.extname(file.originalname)}`);
+  }
+});
+
+const ticketPhotoUpload = multer({
+  storage: ticketPhotoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: function (req, file, cb) {
+    // Accept JPEG, PNG, and WebP only
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      return cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
 // Submit registration request with validation
 const validateSellerRegistration = [
   body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
@@ -2545,8 +2576,8 @@ app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
   }
 });
 
-// API: Scan ticket barcode (seller only)
-app.post('/api/tickets/scan', requireAuth, async (req, res) => {
+// API: Scan ticket barcode (seller only) - Now with required ticket photo
+app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto'), async (req, res) => {
   try {
     const { barcode, payment_reference, buyer_department, buyer_phone } = req.body;
     
@@ -2556,6 +2587,17 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       console.log('[SCAN] Error: No barcode provided');
       return res.status(400).json({ error: 'Barcode is required' });
     }
+    
+    // REQUIRE ticket photo
+    if (!req.file) {
+      console.log('[SCAN] Error: No ticket photo provided');
+      return res.status(400).json({ 
+        error: 'PHOTO_REQUIRED',
+        message: 'Ticket photo is required. Please take a photo of the physical ticket before registering.'
+      });
+    }
+    
+    console.log(`[SCAN] Ticket photo received: ${req.file.filename} (${(req.file.size / 1024).toFixed(2)} KB)`);
     
     // TEMPORARY: Make payment_reference optional until MonCash API is configured
     // This allows sellers to assign tickets without payment verification
@@ -2569,6 +2611,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       
       if (!payment) {
         console.log('[SCAN] Error: Invalid payment reference');
+        // Delete uploaded photo since validation failed
+        fs.unlinkSync(req.file.path);
         return res.status(404).json({ 
           error: 'INVALID_PAYMENT',
           message: 'Payment reference not found'
@@ -2586,6 +2630,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     // Validate department if provided
     if (departmentToUse && !isValidDepartment(departmentToUse)) {
       console.log('[SCAN] Error: Invalid department');
+      // Delete uploaded photo since validation failed
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({ 
         error: 'INVALID_DEPARTMENT',
         message: 'Invalid department. Must be one of the 10 Haiti departments.'
@@ -2605,6 +2651,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       
       if (assignedCount.count >= payment.ticket_quantity) {
         console.log('[SCAN] 🚨 FRAUD ALERT: Ticket limit exceeded');
+        // Delete uploaded photo since validation failed
+        fs.unlinkSync(req.file.path);
         return res.status(400).json({ 
           error: 'TICKET_LIMIT_EXCEEDED',
           message: `All ${payment.ticket_quantity} tickets for this payment have been assigned`,
@@ -2619,6 +2667,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     
     if (!validation.valid) {
       console.log(`[SCAN] Validation failed: ${validation.error} - ${validation.message}`);
+      // Delete uploaded photo since validation failed
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({ 
         error: validation.error,
         message: validation.message
@@ -2631,6 +2681,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
     // FRAUD CHECK: Ensure ticket not already linked to another payment (if payment exists)
     if (payment && ticket.payment_reference && ticket.payment_reference !== payment_reference) {
       console.log('[SCAN] 🚨 FRAUD ALERT: Ticket already linked to different payment');
+      // Delete uploaded photo since validation failed
+      fs.unlinkSync(req.file.path);
       return res.status(400).json({ 
         error: 'TICKET_ALREADY_LINKED',
         message: 'This ticket is already assigned to a different payment',
@@ -2638,7 +2690,41 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       });
     }
     
-    // Mark as sold and link to payment (if exists), including department and buyer info
+    // Compress the uploaded photo using sharp
+    const compressedPhotoPath = path.join(__dirname, 'uploads', 'ticket-photos', `compressed-${req.file.filename}`);
+    
+    try {
+      // Convert to JPEG for consistent format and optimal compression
+      // JPEG provides best compression ratio for photos while maintaining quality
+      await sharp(req.file.path)
+        .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+        .jpeg({ quality: 85 })
+        .toFile(compressedPhotoPath);
+      
+      // Delete original uncompressed file using async operation
+      await fs.promises.unlink(req.file.path);
+      
+      const compressedSize = fs.statSync(compressedPhotoPath).size;
+      console.log(`[SCAN] Photo compressed: ${(compressedSize / 1024).toFixed(2)} KB`);
+    } catch (compressionError) {
+      console.error('[SCAN] Photo compression error:', compressionError);
+      // If compression fails, use original file (async operation)
+      try {
+        await fs.promises.rename(req.file.path, compressedPhotoPath);
+      } catch (renameError) {
+        console.error('[SCAN] Error moving original file:', renameError);
+        // If even rename fails, clean up and throw error
+        if (fs.existsSync(req.file.path)) {
+          await fs.promises.unlink(req.file.path);
+        }
+        throw new Error('Failed to process ticket photo');
+      }
+    }
+    
+    // Store relative path for database
+    const relativePhotoPath = `uploads/ticket-photos/compressed-${req.file.filename}`;
+    
+    // Mark as sold and link to payment (if exists), including department, buyer info, and photo
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
@@ -2648,6 +2734,8 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
            buyer_phone = ?,
            payment_reference = ?,
            customer_department = ?,
+           ticket_photo_path = ?,
+           ticket_photo_uploaded_at = CURRENT_TIMESTAMP,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
       [
@@ -2657,6 +2745,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
         buyer_phone || payment?.buyer_phone || null, // Use provided phone or payment phone
         payment_reference || null, 
         departmentToUse, 
+        relativePhotoPath,
         ticket.id
       ]
     );
@@ -2674,7 +2763,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
         [ticketNumbers, req.session.user.name, payment_reference]
       );
       
-      console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name}`);
+      console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name} with photo`);
       
       // Return success with remaining count
       const newCount = updatedTickets.length;
@@ -2690,7 +2779,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
       });
     } else {
       // No payment reference - just confirm ticket sold
-      console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name} (no payment verification)`);
+      console.log(`[SCAN] Success: Ticket ${barcode} sold by ${req.session.user.name} with photo (no payment verification)`);
       
       res.json({ 
         success: true, 
@@ -2701,6 +2790,16 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('[SCAN] Error processing ticket:', error);
     console.error('[SCAN] Stack trace:', error.stack);
+    
+    // Clean up uploaded file if it exists
+    if (req.file && fs.existsSync(req.file.path)) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('[SCAN] Error cleaning up file:', cleanupError);
+      }
+    }
+    
     res.status(500).json({ 
       error: 'Failed to process ticket',
       message: 'An unexpected error occurred. Please try again or contact support.',
@@ -3092,7 +3191,9 @@ app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req,
         category,
         price,
         sold_at,
-        status
+        status,
+        ticket_photo_path,
+        ticket_photo_uploaded_at
       FROM tickets
       WHERE status = 'SOLD'
     `;
@@ -3119,6 +3220,47 @@ app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req,
   } catch (error) {
     console.error('Error fetching buyer registrations:', error);
     res.status(500).json({ error: 'Failed to fetch registrations' });
+  }
+});
+
+// GET /api/admin/ticket-photos/:ticketNumber - Get ticket photo by ticket number
+app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber } = req.params;
+    
+    if (!ticketNumber) {
+      return res.status(400).json({ error: 'Ticket number is required' });
+    }
+    
+    // Get ticket photo path from database
+    const ticket = await db.get(
+      'SELECT ticket_photo_path, ticket_number FROM tickets WHERE ticket_number = ?',
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ error: 'Ticket not found' });
+    }
+    
+    if (!ticket.ticket_photo_path) {
+      return res.status(404).json({ error: 'No photo available for this ticket' });
+    }
+    
+    // Construct absolute path
+    const photoPath = path.join(__dirname, ticket.ticket_photo_path);
+    
+    // Check if file exists
+    if (!fs.existsSync(photoPath)) {
+      console.error(`Ticket photo not found on disk: ${photoPath}`);
+      return res.status(404).json({ error: 'Photo file not found on server' });
+    }
+    
+    // Serve the image file
+    res.sendFile(photoPath);
+    
+  } catch (error) {
+    console.error('Error fetching ticket photo:', error);
+    res.status(500).json({ error: 'Failed to fetch ticket photo' });
   }
 });
 
