@@ -831,6 +831,10 @@
                     <div class="step-circle">👤</div>
                     <div class="step-label">Step 2: Buyer Info</div>
                 </div>
+                <div class="step-item locked" id="step2_5" data-step="2.5">
+                    <div class="step-circle">📸</div>
+                    <div class="step-label">Step 2.5: Ticket Photo</div>
+                </div>
                 <div class="step-item locked" id="step3" data-step="3">
                     <div class="step-circle">📱</div>
                     <div class="step-label">Step 3: Scan Ticket</div>
@@ -982,12 +986,68 @@
             </form>
         </div>
 
+        <!-- Ticket Photo Section (Step 2.5) -->
+        <div class="workflow-section locked" id="step2_5Section">
+            <div class="lock-overlay">
+                <div class="lock-message">
+                    <div class="lock-icon">🔒</div>
+                    <p>Complete Step 2 first</p>
+                </div>
+            </div>
+            <div class="section-header-enhanced">
+                <h2>📸 Step 2.5: Take Ticket Photo</h2>
+            </div>
+            <p class="section-description">Take a clear photo of the physical ticket</p>
+            
+            <div class="help-text">
+                <strong>💡 Why take a ticket photo?</strong>
+                This photo will be used for verification by admins after the ticket is sold.
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" id="startCameraBtn" onclick="startTicketCamera()">
+                    📷 Start Camera
+                </button>
+            </div>
+            
+            <div id="cameraContainer" style="display: none; margin-top: 20px;">
+                <video id="ticketVideo" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #667eea;"></video>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-success" onclick="captureTicketPhoto()">
+                        📷 Capture Photo
+                    </button>
+                    <button class="btn btn-cancel" onclick="stopTicketCamera()">
+                        Close Camera
+                    </button>
+                </div>
+            </div>
+            
+            <div id="photoPreviewContainer" style="display: none; margin-top: 20px;">
+                <h3 style="color: #333; font-size: 16px; margin-bottom: 10px;">Preview:</h3>
+                <canvas id="photoCanvas" style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #10b981;"></canvas>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-warning" onclick="retakeTicketPhoto()">
+                        🔄 Retake
+                    </button>
+                    <button class="btn btn-success" onclick="confirmTicketPhoto()">
+                        ✅ Photo Ready
+                    </button>
+                </div>
+            </div>
+            
+            <div id="photoConfirmation" style="display: none; margin-top: 20px;">
+                <div class="alert alert-success">
+                    ✅ Photo uploaded successfully
+                </div>
+            </div>
+        </div>
+
         <!-- Barcode Scanner Section (Step 3) -->
         <div class="workflow-section locked" id="step3Section">
             <div class="lock-overlay">
                 <div class="lock-message">
                     <div class="lock-icon">🔒</div>
-                    <p>Complete Step 2 first</p>
+                    <p>Complete Step 2.5 first</p>
                 </div>
             </div>
             <div class="section-header-enhanced">
@@ -1126,6 +1186,8 @@
         let selectedDepartment = null; // Store selected department
         let confirmedBuyerPhone = null; // Store buyer phone after confirmation
         let currentStep = 1; // Track current workflow step
+        let capturedTicketPhoto = null; // Store captured ticket photo blob
+        let ticketVideoStream = null; // Store video stream for cleanup
 
         // Haiti Departments list (must match server.js order)
         const HAITI_DEPARTMENTS = [
@@ -1152,6 +1214,7 @@
                 workflowTitle: "Ticket Sales Workflow",
                 step1Title: "Step 1: Verify Payment",
                 step2Title: "Step 2: Buyer Info",
+                step2_5Title: "Step 2.5: Ticket Photo",
                 step3Title: "Step 3: Scan Ticket",
                 startOver: "Start Over",
                 step1Header: "💳 Step 1: Verify Payment",
@@ -1162,12 +1225,25 @@
                 step2Description: "Collect buyer details before scanning ticket",
                 step2Help: "Buyer phone numbers and department info help track sales, prevent duplicate purchases, and enable us to contact winners. This information is kept secure and confidential.",
                 step2HelpTitle: "💡 Why collect buyer information?",
+                step2_5Header: "📸 Step 2.5: Take Ticket Photo",
+                step2_5Description: "Take a clear photo of the physical ticket",
+                step2_5Help: "This photo will be used for verification by admins after the ticket is sold.",
+                step2_5HelpTitle: "💡 Why take a ticket photo?",
                 step3Header: "📱 Step 3: Scan Ticket",
                 step3Description: "Final step - Scan ticket to assign to buyer",
                 step3Help: "Scanning is the final step that officially assigns the ticket to the buyer. This ensures payment is verified and buyer info is collected before the ticket is given out.",
                 step3HelpTitle: "💡 Why scan last?",
                 completeStep1: "Complete Step 1 first",
                 completeStep2: "Complete Step 2 first",
+                completeStep2_5: "Complete Step 2.5 first",
+                takeTicketPhoto: "Take Ticket Photo",
+                capturePhoto: "Capture Photo",
+                retakePhoto: "Retake",
+                photoRequired: "Ticket photo is required",
+                photoUploaded: "Photo uploaded successfully",
+                photoReady: "Photo Ready",
+                startCamera: "📷 Start Camera",
+                closeCamera: "Close Camera",
                 openScanner: "📷 Open Scanner",
                 enterManually: "✍️ Enter Manually",
                 manualEntryTitle: "✍️ Manual Ticket Entry",
@@ -1252,6 +1328,7 @@
                 workflowTitle: "Travay Vant Tikè",
                 step1Title: "Etap 1: Verifye Peman",
                 step2Title: "Etap 2: Enfòmasyon Achtè",
+                step2_5Title: "Etap 2.5: Foto Tikè",
                 step3Title: "Etap 3: Eskane Tikè",
                 startOver: "Rekòmanse",
                 step1Header: "💳 Etap 1: Verifye Peman",
@@ -1262,12 +1339,25 @@
                 step2Description: "Kolekte detay achtè a anvan eskane tikè",
                 step2Help: "Nimewo telefòn achtè yo ak enfòmasyon depatman ede swiv vant, anpeche acha double, epi pèmèt nou kontakte ganyan yo. Enfòmasyon sa yo kenbe an sekirite epi konfidansyèl.",
                 step2HelpTitle: "💡 Poukisa kolekte enfòmasyon achtè?",
+                step2_5Header: "📸 Etap 2.5: Pran Foto Tikè",
+                step2_5Description: "Pran yon foto kle tikè fizik la",
+                step2_5Help: "Foto sa ap itilize pou verifikasyon pa administratè yo apre tikè a vann.",
+                step2_5HelpTitle: "💡 Poukisa pran foto tikè?",
                 step3Header: "📱 Etap 3: Eskane Tikè",
                 step3Description: "Dènye etap - Eskane tikè pou asiyen bay achtè",
                 step3Help: "Eskanè se dènye etap ki ofisyèlman asiyen tikè a bay achtè a. Sa asire peman verifye epi enfòmasyon achtè kolekte anvan bay tikè a.",
                 step3HelpTitle: "💡 Poukisa eskane dènye?",
                 completeStep1: "Konplete Etap 1 anvan",
                 completeStep2: "Konplete Etap 2 anvan",
+                completeStep2_5: "Konplete Etap 2.5 dabò",
+                takeTicketPhoto: "Pran Foto Tikè",
+                capturePhoto: "Kaptire Foto",
+                retakePhoto: "Pran Ankò",
+                photoRequired: "Foto tikè obligatwa",
+                photoUploaded: "Foto telechaje ak sikse",
+                photoReady: "Foto Pare",
+                startCamera: "📷 Kòmanse Kamera",
+                closeCamera: "Fèmen Kamera",
                 openScanner: "📷 Louvri Eskanè",
                 enterManually: "✍️ Antre Manyèlman",
                 manualEntryTitle: "✍️ Antre Tikè Manyèlman",
@@ -1352,6 +1442,7 @@
                 workflowTitle: "Flux de Vente de Billets",
                 step1Title: "Étape 1: Vérifier le Paiement",
                 step2Title: "Étape 2: Info Acheteur",
+                step2_5Title: "Étape 2.5: Photo du Ticket",
                 step3Title: "Étape 3: Scanner Billet",
                 startOver: "Recommencer",
                 step1Header: "💳 Étape 1: Vérifier le Paiement",
@@ -1362,12 +1453,25 @@
                 step2Description: "Collecter les détails de l'acheteur avant de scanner le billet",
                 step2Help: "Les numéros de téléphone et les informations sur le département aident à suivre les ventes, à prévenir les achats en double et à nous permettre de contacter les gagnants. Ces informations sont conservées en toute sécurité et confidentialité.",
                 step2HelpTitle: "💡 Pourquoi collecter les informations de l'acheteur?",
+                step2_5Header: "📸 Étape 2.5: Prendre Photo du Ticket",
+                step2_5Description: "Prenez une photo claire du billet physique",
+                step2_5Help: "Cette photo sera utilisée pour vérification par les administrateurs après la vente du billet.",
+                step2_5HelpTitle: "💡 Pourquoi prendre une photo du ticket?",
                 step3Header: "📱 Étape 3: Scanner le Billet",
                 step3Description: "Dernière étape - Scanner le billet pour l'attribuer à l'acheteur",
                 step3Help: "La numérisation est la dernière étape qui attribue officiellement le billet à l'acheteur. Cela garantit que le paiement est vérifié et que les informations sur l'acheteur sont collectées avant de remettre le billet.",
                 step3HelpTitle: "💡 Pourquoi scanner en dernier?",
                 completeStep1: "Compléter l'Étape 1 d'abord",
                 completeStep2: "Compléter l'Étape 2 d'abord",
+                completeStep2_5: "Compléter l'Étape 2.5 d'abord",
+                takeTicketPhoto: "Prendre une Photo du Ticket",
+                capturePhoto: "Capturer la Photo",
+                retakePhoto: "Reprendre",
+                photoRequired: "Photo du ticket requise",
+                photoUploaded: "Photo téléchargée avec succès",
+                photoReady: "Photo Prête",
+                startCamera: "📷 Démarrer Caméra",
+                closeCamera: "Fermer Caméra",
                 openScanner: "📷 Ouvrir Scanner",
                 enterManually: "✍️ Entrer Manuellement",
                 manualEntryTitle: "✍️ Saisie Manuelle de Billet",
@@ -1453,12 +1557,13 @@
             // Update step indicators
             const step1El = document.getElementById('step1');
             const step2El = document.getElementById('step2');
+            const step2_5El = document.getElementById('step2_5');
             const step3El = document.getElementById('step3');
             const progressBar = document.getElementById('stepProgress');
             const startOverBtn = document.getElementById('startOverBtn');
 
             // Reset all steps
-            [step1El, step2El, step3El].forEach(el => {
+            [step1El, step2El, step2_5El, step3El].forEach(el => {
                 el.classList.remove('active', 'completed', 'locked');
             });
 
@@ -1477,6 +1582,15 @@
                 step2El.querySelector('.step-circle').textContent = '🔒';
             }
             
+            if (currentStep >= 2.5) {
+                step2_5El.classList.remove('locked');
+                step2_5El.classList.add(currentStep === 2.5 ? 'active' : 'completed');
+                step2_5El.querySelector('.step-circle').textContent = currentStep > 2.5 ? '✓' : '📸';
+            } else {
+                step2_5El.classList.add('locked');
+                step2_5El.querySelector('.step-circle').textContent = '🔒';
+            }
+            
             if (currentStep >= 3) {
                 step3El.classList.remove('locked');
                 step3El.classList.add(currentStep === 3 ? 'active' : 'completed');
@@ -1486,8 +1600,12 @@
                 step3El.querySelector('.step-circle').textContent = '🔒';
             }
 
-            // Update progress bar
-            const progressPercent = ((currentStep - 1) / 2) * 100;
+            // Update progress bar (3 total steps: 1, 2, 2.5, 3 = progress through 3 stages)
+            let progressPercent = 0;
+            if (currentStep === 1) progressPercent = 0;
+            else if (currentStep === 2) progressPercent = 33;
+            else if (currentStep === 2.5) progressPercent = 66;
+            else if (currentStep >= 3) progressPercent = 100;
             progressBar.style.width = progressPercent + '%';
 
             // Show "Start Over" button if past step 1
@@ -1500,10 +1618,11 @@
         function updateSectionStates() {
             const step1Section = document.getElementById('step1Section');
             const step2Section = document.getElementById('step2Section');
+            const step2_5Section = document.getElementById('step2_5Section');
             const step3Section = document.getElementById('step3Section');
 
             // Reset all sections
-            [step1Section, step2Section, step3Section].forEach(el => {
+            [step1Section, step2Section, step2_5Section, step3Section].forEach(el => {
                 el.classList.remove('active', 'completed', 'locked');
             });
 
@@ -1521,6 +1640,15 @@
                 step2Section.classList.add('completed');
             } else {
                 step2Section.classList.add('locked');
+            }
+
+            // Step 2.5
+            if (currentStep === 2.5) {
+                step2_5Section.classList.add('active');
+            } else if (currentStep > 2.5) {
+                step2_5Section.classList.add('completed');
+            } else {
+                step2_5Section.classList.add('locked');
             }
 
             // Step 3
@@ -1576,6 +1704,7 @@
             document.querySelector('.workflow-steps h3').textContent = t.workflowTitle || 'Ticket Sales Workflow';
             document.querySelector('#step1 .step-label').textContent = t.step1Title || 'Step 1: Verify Payment';
             document.querySelector('#step2 .step-label').textContent = t.step2Title || 'Step 2: Buyer Info';
+            document.querySelector('#step2_5 .step-label').textContent = t.step2_5Title || 'Step 2.5: Ticket Photo';
             document.querySelector('#step3 .step-label').textContent = t.step3Title || 'Step 3: Scan Ticket';
             document.getElementById('startOverBtn').innerHTML = '🔄 ' + (t.startOver || 'Start Over');
             
@@ -1605,6 +1734,29 @@
             step2Section.querySelector('#confirmDepartmentBtn').textContent = t.confirmDepartment || 'Confirm Buyer Info';
             step2Section.querySelectorAll('.lock-message p')[0].textContent = t.completeStep1 || 'Complete Step 1 first';
             
+            // Step 2.5 section
+            const step2_5Section = document.getElementById('step2_5Section');
+            step2_5Section.querySelector('.section-header-enhanced h2').textContent = t.step2_5Header || '📸 Step 2.5: Take Ticket Photo';
+            step2_5Section.querySelector('.section-description').textContent = t.step2_5Description || 'Take a clear photo of the physical ticket';
+            const step2_5Help = step2_5Section.querySelector('.help-text');
+            step2_5Help.querySelector('strong').textContent = t.step2_5HelpTitle || '💡 Why take a ticket photo?';
+            const step2_5HelpText = Array.from(step2_5Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+            if (step2_5HelpText) step2_5HelpText.textContent = t.step2_5Help || 'This photo will be used for verification by admins after the ticket is sold.';
+            step2_5Section.querySelector('#startCameraBtn').textContent = t.startCamera || '📷 Start Camera';
+            step2_5Section.querySelectorAll('.lock-message p')[0].textContent = t.completeStep2 || 'Complete Step 2 first';
+            
+            // Update step 2.5 buttons
+            const captureBtn = step2_5Section.querySelector('button[onclick="captureTicketPhoto()"]');
+            if (captureBtn) captureBtn.innerHTML = '📷 ' + (t.capturePhoto || 'Capture Photo');
+            const closeCameraBtn = step2_5Section.querySelector('button[onclick="stopTicketCamera()"]');
+            if (closeCameraBtn) closeCameraBtn.textContent = t.closeCamera || 'Close Camera';
+            const retakeBtn = step2_5Section.querySelector('button[onclick="retakeTicketPhoto()"]');
+            if (retakeBtn) retakeBtn.innerHTML = '🔄 ' + (t.retakePhoto || 'Retake');
+            const photoReadyBtn = step2_5Section.querySelector('button[onclick="confirmTicketPhoto()"]');
+            if (photoReadyBtn) photoReadyBtn.innerHTML = '✅ ' + (t.photoReady || 'Photo Ready');
+            const photoConfirmDiv = step2_5Section.querySelector('#photoConfirmation .alert-success');
+            if (photoConfirmDiv) photoConfirmDiv.textContent = '✅ ' + (t.photoUploaded || 'Photo uploaded successfully');
+            
             // Step 3 section
             const step3Section = document.getElementById('step3Section');
             step3Section.querySelector('.section-header-enhanced h2').textContent = t.step3Header || '📱 Step 3: Scan Ticket';
@@ -1613,7 +1765,7 @@
             step3Help.querySelector('strong').textContent = t.step3HelpTitle || '💡 Why scan last?';
             const step3HelpText = Array.from(step3Help.childNodes).find(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
             if (step3HelpText) step3HelpText.textContent = t.step3Help || 'Scanning is the final step that officially assigns the ticket.';
-            step3Section.querySelectorAll('.lock-message p')[0].textContent = t.completeStep2 || 'Complete Step 2 first';
+            step3Section.querySelectorAll('.lock-message p')[0].textContent = t.completeStep2_5 || 'Complete Step 2.5 first';
             
             // Recent sales section (if exists)
             const recentSalesDesc = document.getElementById('recentSalesDescription');
@@ -1944,10 +2096,10 @@
                 
                 // Check if payment already has department (from buyer's purchase)
                 if (data.payment.customer_department) {
-                    // Department already set - skip department form, go directly to step 3
+                    // Department already set - skip department form, go to step 2.5 (photo)
                     selectedDepartment = data.payment.customer_department;
                     console.log('[TXN-VERIFY] Department already set from payment:', selectedDepartment);
-                    advanceToStep(3); // Skip to scanning
+                    advanceToStep(2.5); // Go to photo capture
                 } else {
                     // No department - advance to step 2 for department selection
                     console.log('[TXN-VERIFY] No department in payment, showing department form');
@@ -2006,9 +2158,9 @@
             // Disable form after submission
             document.getElementById('buyerInfoForm').style.display = 'none';
             
-            // Advance to step 3
+            // Advance to step 2.5 (photo capture)
             setTimeout(() => {
-                advanceToStep(3);
+                advanceToStep(2.5);
             }, 1000);
         });
         
@@ -2016,6 +2168,7 @@
             currentVerifiedPayment = null;
             confirmedBuyerPhone = null;
             selectedDepartment = null;
+            capturedTicketPhoto = null;
             document.getElementById('txnIdInput').value = '';
             document.getElementById('txnVerificationResult').style.display = 'none';
             
@@ -2037,9 +2190,108 @@
             const successMsgs = step2Section.querySelectorAll('.alert-success');
             successMsgs.forEach(msg => msg.remove());
             
+            // Reset photo section
+            stopTicketCamera();
+            document.getElementById('cameraContainer').style.display = 'none';
+            document.getElementById('photoPreviewContainer').style.display = 'none';
+            document.getElementById('photoConfirmation').style.display = 'none';
+            document.getElementById('startCameraBtn').style.display = 'block';
+            
             // Reset to step 1
             currentStep = 1;
             updateStepProgress();
+        }
+
+        // Ticket Photo Capture Functions
+        async function startTicketCamera() {
+            const videoElement = document.getElementById('ticketVideo');
+            const cameraContainer = document.getElementById('cameraContainer');
+            const startBtn = document.getElementById('startCameraBtn');
+            const t = translations[currentLanguage];
+            
+            try {
+                // Request camera access with back camera preference
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                
+                ticketVideoStream = stream;
+                videoElement.srcObject = stream;
+                cameraContainer.style.display = 'block';
+                startBtn.style.display = 'none';
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                alert(t.cameraError || 'Unable to access camera. Please check permissions.');
+            }
+        }
+
+        function stopTicketCamera() {
+            if (ticketVideoStream) {
+                ticketVideoStream.getTracks().forEach(track => track.stop());
+                ticketVideoStream = null;
+            }
+            const videoElement = document.getElementById('ticketVideo');
+            videoElement.srcObject = null;
+            document.getElementById('cameraContainer').style.display = 'none';
+            document.getElementById('startCameraBtn').style.display = 'block';
+        }
+
+        function captureTicketPhoto() {
+            const videoElement = document.getElementById('ticketVideo');
+            const canvas = document.getElementById('photoCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match video
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            
+            // Draw video frame to canvas
+            ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            
+            // Convert canvas to blob
+            canvas.toBlob((blob) => {
+                capturedTicketPhoto = blob;
+                console.log('[PHOTO] Captured photo blob:', blob.size, 'bytes');
+                
+                // Show preview
+                document.getElementById('photoPreviewContainer').style.display = 'block';
+                document.getElementById('cameraContainer').style.display = 'none';
+            }, 'image/jpeg', 0.9);
+        }
+
+        function retakeTicketPhoto() {
+            capturedTicketPhoto = null;
+            document.getElementById('photoPreviewContainer').style.display = 'none';
+            startTicketCamera();
+        }
+
+        function confirmTicketPhoto() {
+            const t = translations[currentLanguage];
+            
+            if (!capturedTicketPhoto) {
+                alert(t.photoRequired || 'Ticket photo is required');
+                return;
+            }
+            
+            // Stop camera
+            stopTicketCamera();
+            
+            // Show confirmation
+            document.getElementById('photoPreviewContainer').style.display = 'none';
+            document.getElementById('photoConfirmation').style.display = 'block';
+            document.getElementById('startCameraBtn').style.display = 'none';
+            
+            console.log('[PHOTO] Photo confirmed, advancing to step 3');
+            
+            // Advance to step 3
+            setTimeout(() => {
+                advanceToStep(3);
+            }, 1000);
         }
 
         // Barcode Scanner Functions
@@ -2146,29 +2398,34 @@
             resultDiv.style.color = '#666';
             
             try {
-                const requestBody = { 
-                    barcode: barcode
-                };
+                // Create FormData to send photo along with ticket data
+                const formData = new FormData();
+                formData.append('barcode', barcode);
                 
                 // Add payment reference if available (optional)
                 if (currentVerifiedPayment) {
-                    requestBody.payment_reference = currentVerifiedPayment.payment_reference;
+                    formData.append('payment_reference', currentVerifiedPayment.payment_reference);
                 }
                 
                 // Add buyer phone if confirmed
                 if (confirmedBuyerPhone) {
-                    requestBody.buyer_phone = confirmedBuyerPhone;
+                    formData.append('buyer_phone', confirmedBuyerPhone);
                 }
                 
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
-                    requestBody.buyer_department = selectedDepartment;
+                    formData.append('buyer_department', selectedDepartment);
+                }
+                
+                // Add ticket photo if captured
+                if (capturedTicketPhoto) {
+                    formData.append('ticket_photo', capturedTicketPhoto, 'ticket_photo.jpg');
+                    console.log('[PHOTO] Sending photo with ticket scan:', capturedTicketPhoto.size, 'bytes');
                 }
                 
                 const response = await fetch('/api/tickets/scan', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
+                    body: formData // Send as multipart/form-data
                 });
                 
                 const data = await response.json();
@@ -2293,29 +2550,34 @@
             resultDiv.style.display = 'block';
             
             try {
-                const requestBody = { 
-                    barcode: ticketNumber
-                };
+                // Create FormData to send photo along with ticket data
+                const formData = new FormData();
+                formData.append('barcode', ticketNumber);
                 
                 // Add payment reference if available (optional)
                 if (currentVerifiedPayment) {
-                    requestBody.payment_reference = currentVerifiedPayment.payment_reference;
+                    formData.append('payment_reference', currentVerifiedPayment.payment_reference);
                 }
                 
                 // Add buyer phone if confirmed
                 if (confirmedBuyerPhone) {
-                    requestBody.buyer_phone = confirmedBuyerPhone;
+                    formData.append('buyer_phone', confirmedBuyerPhone);
                 }
                 
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
-                    requestBody.buyer_department = selectedDepartment;
+                    formData.append('buyer_department', selectedDepartment);
+                }
+                
+                // Add ticket photo if captured
+                if (capturedTicketPhoto) {
+                    formData.append('ticket_photo', capturedTicketPhoto, 'ticket_photo.jpg');
+                    console.log('[PHOTO] Sending photo with manual entry:', capturedTicketPhoto.size, 'bytes');
                 }
                 
                 const response = await fetch('/api/tickets/scan', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
+                    body: formData // Send as multipart/form-data
                 });
                 
                 const data = await response.json();
