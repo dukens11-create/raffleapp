@@ -71,8 +71,9 @@ function query(sql, params = []) {
         }
       });
     } else {
-      // SQLite
-      if (sql.trim().toUpperCase().startsWith('SELECT')) {
+      // SQLite - Use db.all for SELECT and PRAGMA statements
+      const sqlUpper = sql.trim().toUpperCase();
+      if (sqlUpper.startsWith('SELECT') || sqlUpper.startsWith('PRAGMA')) {
         db.all(sql, params, (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
@@ -680,6 +681,75 @@ async function initializeSchema() {
       console.log('Note: available_online column already exists or could not be added');
     }
     
+    // Add ticket_photo_path column to tickets table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS ticket_photo_path TEXT
+        `);
+        console.log('✅ Added ticket_photo_path column to tickets table');
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasTicketPhotoPath = columns.some(col => col.name === 'ticket_photo_path');
+        if (!hasTicketPhotoPath) {
+          await run(`ALTER TABLE tickets ADD COLUMN ticket_photo_path TEXT`);
+          console.log('✅ Added ticket_photo_path column to tickets table');
+        } else {
+          console.log('Note: ticket_photo_path column already exists');
+        }
+      }
+    } catch (error) {
+      console.error('Error adding ticket_photo_path column:', error.message);
+    }
+    
+    // Add ticket_photo_uploaded_at column to tickets table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS ticket_photo_uploaded_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'}
+        `);
+        console.log('✅ Added ticket_photo_uploaded_at column to tickets table');
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasTicketPhotoUploadedAt = columns.some(col => col.name === 'ticket_photo_uploaded_at');
+        if (!hasTicketPhotoUploadedAt) {
+          await run(`ALTER TABLE tickets ADD COLUMN ticket_photo_uploaded_at DATETIME`);
+          console.log('✅ Added ticket_photo_uploaded_at column to tickets table');
+        } else {
+          console.log('Note: ticket_photo_uploaded_at column already exists');
+        }
+      }
+    } catch (error) {
+      console.error('Error adding ticket_photo_uploaded_at column:', error.message);
+    }
+    
+    // Add txn_number column to tickets table if it doesn't exist
+    try {
+      if (USE_POSTGRES) {
+        await run(`
+          ALTER TABLE tickets 
+          ADD COLUMN IF NOT EXISTS txn_number TEXT
+        `);
+        console.log('✅ Added txn_number column to tickets table');
+      } else {
+        // SQLite doesn't support IF NOT EXISTS for columns, so check first
+        const columns = await all(`PRAGMA table_info(tickets)`);
+        const hasTxnNumber = columns.some(col => col.name === 'txn_number');
+        if (!hasTxnNumber) {
+          await run(`ALTER TABLE tickets ADD COLUMN txn_number TEXT`);
+          console.log('✅ Added txn_number column to tickets table');
+        } else {
+          console.log('Note: txn_number column already exists');
+        }
+      }
+    } catch (error) {
+      console.error('Error adding txn_number column:', error.message);
+    }
+    
     // Add performance indexes
     console.log('📊 Creating performance indexes...');
 
@@ -689,6 +759,8 @@ async function initializeSchema() {
       'CREATE INDEX IF NOT EXISTS idx_tickets_seller_name ON tickets(seller_name)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status)',
       'CREATE INDEX IF NOT EXISTS idx_tickets_available_online ON tickets(available_online)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_ticket_photo_path ON tickets(ticket_photo_path)',
+      'CREATE INDEX IF NOT EXISTS idx_tickets_txn_number ON tickets(txn_number)',
       
       // Seller requests indexes
       'CREATE INDEX IF NOT EXISTS idx_seller_requests_status ON seller_requests(status)',

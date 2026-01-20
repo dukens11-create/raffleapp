@@ -928,6 +928,7 @@
             <th data-translate="sellerName">Seller Name</th>
             <th data-translate="sellerPhone">Seller Phone</th>
             <th data-translate="paymentRef">Payment Reference</th>
+            <th data-translate="txnNumber">TXN Number</th>
             <th data-translate="department">Department</th>
             <th data-translate="dateSold">Date Sold</th>
             <th data-translate="category">Category</th>
@@ -936,7 +937,7 @@
           </tr>
         </thead>
         <tbody id="buyerRegistrationsBody">
-          <tr><td colspan="11" style="text-align: center; padding: 20px;">Loading...</td></tr>
+          <tr><td colspan="12" style="text-align: center; padding: 20px;">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -951,6 +952,7 @@
             <h3 style="color: #475569; font-size: 16px; margin-bottom: 12px;">Ticket Details</h3>
             <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
               <p style="margin: 8px 0;"><strong>Ticket Number:</strong> <span id="photoModalTicketNumber"></span></p>
+              <p style="margin: 8px 0;"><strong>TXN Number:</strong> <span id="photoModalTxnNumber"></span></p>
               <p style="margin: 8px 0;"><strong>Buyer:</strong> <span id="photoModalBuyerName"></span></p>
               <p style="margin: 8px 0;"><strong>Buyer Phone:</strong> <span id="photoModalBuyerPhone"></span></p>
               <p style="margin: 8px 0;"><strong>Seller:</strong> <span id="photoModalSellerName"></span></p>
@@ -2160,7 +2162,7 @@
           tbody.innerHTML = '';
           
           if (registrations.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">No registrations found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12" style="text-align: center;">No registrations found</td></tr>';
             return;
           }
           
@@ -2172,6 +2174,11 @@
               ? `<button onclick='openTicketPhotoModal(${index})' style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">📷 View</button>`
               : `<span style="color: #94a3b8; font-style: italic;">No Photo</span>`;
             
+            // TXN Number column
+            const txnCell = reg.txn_number 
+              ? `<span style="font-family: monospace; background: #f0f9ff; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${reg.txn_number}</span>`
+              : `<span style="color: #94a3b8; font-style: italic;">N/A</span>`;
+            
             row.innerHTML = `
               <td>${reg.ticket_number}</td>
               <td><strong>${reg.buyer_phone || 'N/A'}</strong></td>
@@ -2179,6 +2186,7 @@
               <td>${reg.seller_name}</td>
               <td>${reg.seller_phone}</td>
               <td>${reg.payment_reference || 'N/A'}</td>
+              <td>${txnCell}</td>
               <td>${reg.customer_department || 'N/A'}</td>
               <td>${new Date(reg.sold_at).toLocaleString()}</td>
               <td>${reg.category}</td>
@@ -2210,6 +2218,7 @@
           
           // Populate ticket details
           document.getElementById('photoModalTicketNumber').textContent = registration.ticket_number;
+          document.getElementById('photoModalTxnNumber').textContent = registration.txn_number || 'N/A';
           document.getElementById('photoModalBuyerName').textContent = registration.buyer_name || 'N/A';
           document.getElementById('photoModalBuyerPhone').textContent = registration.buyer_phone || 'N/A';
           document.getElementById('photoModalSellerName').textContent = registration.seller_name;

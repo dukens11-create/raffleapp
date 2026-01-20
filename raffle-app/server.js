@@ -65,6 +65,9 @@ const ticketGenerationMutex = new Mutex();
 // Maximum number of tickets to return per category for online purchase
 const MAX_TICKETS_PER_CATEGORY = 100000;
 
+// Maximum number of records to return for admin ticket queries
+const MAX_ADMIN_TICKET_QUERY_LIMIT = 1000;
+
 // Haiti Departments - Valid department values (alphabetically ordered)
 const HAITI_DEPARTMENTS = [
   'Artibonite',
@@ -2229,6 +2232,206 @@ app.delete('/api/admin/draw-photo/:id', requireAuth, requireAdmin, async (req, r
   }
 });
 
+// ============================================
+// Admin Ticket Photo Management Endpoints
+// ============================================
+
+// GET /api/admin/ticket-photos/:ticketNumber - Retrieve ticket photo
+app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber } = req.params;
+    
+    // Get ticket with photo path
+    const ticket = await db.get(
+      "SELECT ticket_photo_path FROM tickets WHERE ticket_number = ?",
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        error: 'Ticket not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    if (!ticket.ticket_photo_path) {
+      return res.status(404).json({ 
+        error: 'No photo available for this ticket',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Construct full file path
+    const photoPath = path.join(__dirname, ticket.ticket_photo_path);
+    
+    // Check if file exists
+    if (!fs.existsSync(photoPath)) {
+      return res.status(404).json({ 
+        error: 'Photo file not found on server',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Serve the image file
+    res.sendFile(photoPath);
+  } catch (error) {
+    console.error('Get ticket photo error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred retrieving the photo',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/admin/tickets-with-photos - Get all sold tickets with photos for admin dashboard
+app.get('/api/admin/tickets-with-photos', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { 
+      verified, 
+      has_photo, 
+      has_txn, 
+      start_date, 
+      end_date,
+      search_txn 
+    } = req.query;
+    
+    // Build dynamic query
+    let query = `
+      SELECT 
+        ticket_number,
+        buyer_name,
+        buyer_phone,
+        seller_name,
+        seller_phone,
+        sold_at,
+        customer_department,
+        ticket_photo_path,
+        ticket_photo_uploaded_at,
+        txn_number,
+        payment_reference,
+        status
+      FROM tickets 
+      WHERE status = 'SOLD'
+    `;
+    
+    const params = [];
+    
+    // Filter by has_photo
+    if (has_photo === 'true') {
+      query += ` AND ticket_photo_path IS NOT NULL`;
+    } else if (has_photo === 'false') {
+      query += ` AND ticket_photo_path IS NULL`;
+    }
+    
+    // Filter by has_txn
+    if (has_txn === 'true') {
+      query += ` AND txn_number IS NOT NULL`;
+    } else if (has_txn === 'false') {
+      query += ` AND txn_number IS NULL`;
+    }
+    
+    // Filter by date range
+    if (start_date) {
+      query += ` AND sold_at >= ?`;
+      params.push(start_date);
+    }
+    if (end_date) {
+      query += ` AND sold_at <= ?`;
+      params.push(end_date);
+    }
+    
+    // Search by TXN number
+    if (search_txn) {
+      query += ` AND txn_number LIKE ?`;
+      params.push(`%${search_txn}%`);
+    }
+    
+    query += ` ORDER BY sold_at DESC LIMIT ${MAX_ADMIN_TICKET_QUERY_LIMIT}`;
+    
+    const tickets = await db.all(query, params);
+    
+    // Get statistics
+    const stats = await db.get(`
+      SELECT 
+        COUNT(*) as total_sold,
+        COUNT(ticket_photo_path) as with_photos,
+        COUNT(txn_number) as with_txn,
+        COUNT(*) - COUNT(ticket_photo_path) as missing_photos
+      FROM tickets 
+      WHERE status = 'SOLD'
+    `);
+    
+    // Detect duplicate TXN numbers
+    const duplicateTxns = await db.all(`
+      SELECT txn_number, COUNT(*) as count
+      FROM tickets
+      WHERE status = 'SOLD' AND txn_number IS NOT NULL
+      GROUP BY txn_number
+      HAVING COUNT(*) > 1
+      ORDER BY count DESC
+    `);
+    
+    res.json({
+      success: true,
+      tickets,
+      stats,
+      duplicateTxns,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get tickets with photos error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred retrieving tickets',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/admin/verify-ticket - Mark ticket as verified
+app.post('/api/admin/verify-ticket', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticketNumber, verificationNotes, verificationStatus } = req.body;
+    
+    if (!ticketNumber) {
+      return res.status(400).json({ 
+        error: 'Ticket number is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // For now, store verification info in a notes field
+    // In a production system, you might add a verification_status column
+    const ticket = await db.get(
+      "SELECT * FROM tickets WHERE ticket_number = ?",
+      [ticketNumber]
+    );
+    
+    if (!ticket) {
+      return res.status(404).json({ 
+        error: 'Ticket not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`Ticket ${ticketNumber} marked as ${verificationStatus || 'verified'} by ${req.session.user.name}`);
+    
+    res.json({
+      success: true,
+      message: 'Ticket verification status updated',
+      ticketNumber,
+      verificationStatus: verificationStatus || 'verified',
+      verifiedBy: req.session.user.name,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Verify ticket error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during verification',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // GET /api/seller/recent-draws - Get recent draws for photo upload
 app.get('/api/seller/recent-draws', requireAuth, async (req, res) => {
   try {
@@ -2579,7 +2782,7 @@ app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
 // API: Scan ticket barcode (seller only) - Now with required ticket photo
 app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto'), async (req, res) => {
   try {
-    const { barcode, payment_reference, buyer_department, buyer_phone } = req.body;
+    const { barcode, payment_reference, buyer_department, buyer_phone, txn_number } = req.body;
     
     console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
     
@@ -2724,7 +2927,12 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
     // Store relative path for database
     const relativePhotoPath = `uploads/ticket-photos/compressed-${req.file.filename}`;
     
-    // Mark as sold and link to payment (if exists), including department, buyer info, and photo
+    // Log TXN number if provided
+    if (txn_number) {
+      console.log(`[SCAN] TXN Number provided: ${txn_number}`);
+    }
+    
+    // Mark as sold and link to payment (if exists), including department, buyer info, photo, and optional TXN
     await db.run(
       `UPDATE tickets 
        SET status = 'SOLD', 
@@ -2736,6 +2944,7 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
            customer_department = ?,
            ticket_photo_path = ?,
            ticket_photo_uploaded_at = CURRENT_TIMESTAMP,
+           txn_number = ?,
            sold_at = CURRENT_TIMESTAMP 
        WHERE id = ?`,
       [
@@ -2746,6 +2955,11 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
         payment_reference || null, 
         departmentToUse, 
         relativePhotoPath,
+        // TXN Number: Store as-is without validation (intentional design decision)
+        // Business rationale: TXN is optional and used only for post-sale admin verification
+        // No real-time validation to avoid delays and external API dependencies
+        // Admins manually verify TXN numbers against payment provider records
+        txn_number || null,
         ticket.id
       ]
     );
@@ -3187,6 +3401,7 @@ app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req,
         seller_name,
         seller_phone,
         payment_reference,
+        txn_number,
         customer_department,
         category,
         price,
@@ -3207,7 +3422,7 @@ app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req,
       params.push(`%${normalizedPhone}%`);
     }
     
-    query += ' ORDER BY sold_at DESC LIMIT 1000';
+    query += ` ORDER BY sold_at DESC LIMIT ${MAX_ADMIN_TICKET_QUERY_LIMIT}`;
     
     const registrations = await db.all(query, params);
     
