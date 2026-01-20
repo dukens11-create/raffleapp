@@ -825,19 +825,19 @@
                 </div>
                 <div class="step-item" id="step1" data-step="1">
                     <div class="step-circle">💳</div>
-                    <div class="step-label">Step 1: Verify Payment</div>
+                    <div class="step-label" data-translate="step1Title">Step 1: Transaction ID (Optional)</div>
                 </div>
                 <div class="step-item locked" id="step2" data-step="2">
-                    <div class="step-circle">👤</div>
-                    <div class="step-label">Step 2: Buyer Info</div>
-                </div>
-                <div class="step-item locked" id="step2_5" data-step="2.5">
                     <div class="step-circle">📸</div>
-                    <div class="step-label">Step 2.5: Ticket Photo</div>
+                    <div class="step-label" data-translate="step2Title">Step 2: Take Ticket Photo</div>
                 </div>
                 <div class="step-item locked" id="step3" data-step="3">
+                    <div class="step-circle">👤</div>
+                    <div class="step-label" data-translate="step3Title">Step 3: Buyer Info</div>
+                </div>
+                <div class="step-item locked" id="step4" data-step="4">
                     <div class="step-circle">📱</div>
-                    <div class="step-label">Step 3: Scan Ticket</div>
+                    <div class="step-label" data-translate="step4Title">Step 4: Scan Ticket</div>
                 </div>
             </div>
             <div style="text-align: center; margin-top: 20px;">
@@ -879,7 +879,7 @@
             You can scan and assign tickets directly. Payment verification will be enabled once MonCash API is configured.
         </div>
 
-        <!-- Transaction ID Verification Section (Step 1) -->
+        <!-- Transaction ID Entry Section (Step 1 - OPTIONAL) -->
         <div class="workflow-section active" id="step1Section">
             <div class="lock-overlay">
                 <div class="lock-message">
@@ -888,55 +888,107 @@
                 </div>
             </div>
             <div class="section-header-enhanced">
-                <h2>💳 Step 1: Verify Payment</h2>
+                <h2>💳 <span data-translate="step1Title">Step 1: Transaction ID (Optional)</span></h2>
             </div>
-            <p class="section-description">Enter customer's MonCash Transaction ID first (optional until MonCash is configured)</p>
+            <p class="section-description" data-translate="step1Description">Enter MonCash/NatCash Transaction ID if customer paid electronically (optional)</p>
             
             <div class="help-text">
-                <strong>💡 Why payment verification?</strong>
-                Payment verification confirms the customer has paid and prevents fraud. Once verified, you can assign the correct number of tickets to the buyer.
+                <strong>💡 <span data-translate="step1HelpTitle">Optional Transaction ID</span></strong>
+                <span data-translate="step1HelpText">If the customer paid via MonCash or NatCash, you can enter the transaction ID here for admin verification later. This is completely optional - click "Continue" to skip if not applicable.</span>
             </div>
             
-            <form id="txnVerificationForm" style="margin-top: 20px;">
+            <form id="txnEntryForm" style="margin-top: 20px;">
                 <div class="form-group">
-                    <label for="txnIdInput">MonCash Transaction ID (12-15 digits)</label>
+                    <label for="txnIdInput"><span data-translate="txnLabel">MonCash/NatCash Transaction ID (Optional)</span></label>
                     <input 
                         type="text" 
                         id="txnIdInput" 
                         placeholder="123456789012" 
-                        pattern="[0-9]{12,15}" 
-                        maxlength="15"
-                        required
+                        maxlength="50"
                         style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 16px; font-family: monospace; letter-spacing: 2px;"
                     />
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        <span data-translate="txnHelp">Leave blank if customer paid cash or if TXN is not available</span>
+                    </small>
                 </div>
-                <button type="submit" class="btn btn-primary" id="verifyPaymentBtn">
-                    <span id="verifyBtnText">Verify Payment</span>
-                    <span id="verifyBtnLoading" style="display: none;">⏳ Verifying...</span>
+                <button type="submit" class="btn btn-primary" id="continueTxnBtn">
+                    <span data-translate="continueBtn">Continue</span> →
                 </button>
             </form>
-            
-            <div id="txnVerificationResult" style="display: none; margin-top: 15px;">
-                <!-- Shows verification results -->
-            </div>
         </div>
 
-        <!-- Buyer Information Section (Step 2) -->
+        <!-- Ticket Photo Section (Step 2 - REQUIRED) -->
         <div class="workflow-section locked" id="step2Section">
             <div class="lock-overlay">
                 <div class="lock-message">
                     <div class="lock-icon">🔒</div>
-                    <p>Complete Step 1 first</p>
+                    <p data-translate="completeStep1">Complete Step 1 first</p>
                 </div>
             </div>
             <div class="section-header-enhanced">
-                <h2>👤 Step 2: Buyer Information</h2>
+                <h2>📸 <span data-translate="step2Title">Step 2: Take Ticket Photo</span> <span style="color: #ef4444;">*</span></h2>
             </div>
-            <p class="section-description">Collect buyer details before scanning ticket</p>
+            <p class="section-description" data-translate="step2Description">Take a clear photo of the physical ticket (REQUIRED)</p>
             
             <div class="help-text">
-                <strong>💡 Why collect buyer information?</strong>
-                Buyer phone numbers and department info help track sales, prevent duplicate purchases, and enable us to contact winners. This information is kept secure and confidential.
+                <strong>💡 <span data-translate="photoHelpTitle">Why take a ticket photo?</span></strong>
+                <span data-translate="photoHelpText">This photo will be used by admins to verify the authenticity of tickets AFTER they've been sold. It's a critical security measure to prevent fraud.</span>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn btn-primary" id="startCameraBtn" onclick="startTicketCamera()">
+                    📷 <span data-translate="startCamera">Start Camera</span>
+                </button>
+            </div>
+            
+            <div id="cameraContainer" style="display: none; margin-top: 20px;">
+                <video id="ticketVideo" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #667eea;"></video>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-success" onclick="captureTicketPhoto()">
+                        📷 <span data-translate="capturePhoto">Capture Photo</span>
+                    </button>
+                    <button class="btn btn-cancel" onclick="stopTicketCamera()">
+                        <span data-translate="closeCamera">Close Camera</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="photoPreviewContainer" style="display: none; margin-top: 20px;">
+                <h3 style="color: #333; font-size: 16px; margin-bottom: 10px;"><span data-translate="photoPreview">Preview:</span></h3>
+                <canvas id="photoCanvas" style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #10b981;"></canvas>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-warning" onclick="retakeTicketPhoto()">
+                        🔄 <span data-translate="retakePhoto">Retake</span>
+                    </button>
+                    <button class="btn btn-success" onclick="confirmTicketPhoto()">
+                        ✅ <span data-translate="photoReady">Photo Ready - Continue</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="photoConfirmation" style="display: none; margin-top: 20px;">
+                <div class="alert alert-success">
+                    ✅ <span data-translate="photoUploaded">Photo captured successfully</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buyer Information Section (Step 3) -->
+        <div class="workflow-section locked" id="step3Section">
+            <div class="lock-overlay">
+                <div class="lock-message">
+                    <div class="lock-icon">🔒</div>
+                    <p data-translate="completeStep2">Complete Step 2 first</p>
+                </div>
+            </div>
+            <div class="section-header-enhanced">
+                <h2>👤 <span data-translate="step3Title">Step 3: Buyer Information</span></h2>
+            </div>
+            <p class="section-description" data-translate="step3Description">Collect buyer details before scanning ticket</p>
+            
+            <div class="help-text">
+                <strong>💡 <span data-translate="buyerInfoHelpTitle">Why collect buyer information?</span></strong>
+                <span data-translate="buyerInfoHelpText">Buyer phone numbers and department info help track sales, prevent duplicate purchases, and enable us to contact winners. This information is kept secure and confidential.</span>
             </div>
             
             <form id="buyerInfoForm" style="margin-top: 20px;">
@@ -982,106 +1034,50 @@
                     </datalist>
                     <div id="departmentError" style="color: #ef4444; font-size: 12px; margin-top: 5px; display: none;"></div>
                 </div>
-                <button type="submit" class="btn btn-primary" id="confirmDepartmentBtn">Confirm Buyer Info</button>
+                <button type="submit" class="btn btn-primary" id="confirmDepartmentBtn"><span data-translate="confirmBuyerInfo">Confirm Buyer Info</span></button>
             </form>
         </div>
 
-        <!-- Ticket Photo Section (Step 2.5) -->
-        <div class="workflow-section locked" id="step2_5Section">
+        <!-- Barcode Scanner Section (Step 4) -->
+        <div class="workflow-section locked" id="step4Section">
             <div class="lock-overlay">
                 <div class="lock-message">
                     <div class="lock-icon">🔒</div>
-                    <p>Complete Step 2 first</p>
+                    <p data-translate="completeStep3">Complete Step 3 first</p>
                 </div>
             </div>
             <div class="section-header-enhanced">
-                <h2>📸 Step 2.5: Take Ticket Photo</h2>
+                <h2>📱 <span data-translate="step4Title">Step 4: Scan Ticket</span></h2>
             </div>
-            <p class="section-description">Take a clear photo of the physical ticket</p>
+            <p class="section-description" data-translate="step4Description">Final step - Scan ticket to assign to buyer</p>
             
             <div class="help-text">
-                <strong>💡 Why take a ticket photo?</strong>
-                This photo will be used for verification by admins after the ticket is sold.
-            </div>
-            
-            <div style="margin-top: 20px;">
-                <button class="btn btn-primary" id="startCameraBtn" onclick="startTicketCamera()">
-                    📷 Start Camera
-                </button>
-            </div>
-            
-            <div id="cameraContainer" style="display: none; margin-top: 20px;">
-                <video id="ticketVideo" autoplay playsinline style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #667eea;"></video>
-                <div style="margin-top: 10px;">
-                    <button class="btn btn-success" onclick="captureTicketPhoto()">
-                        📷 Capture Photo
-                    </button>
-                    <button class="btn btn-cancel" onclick="stopTicketCamera()">
-                        Close Camera
-                    </button>
-                </div>
-            </div>
-            
-            <div id="photoPreviewContainer" style="display: none; margin-top: 20px;">
-                <h3 style="color: #333; font-size: 16px; margin-bottom: 10px;">Preview:</h3>
-                <canvas id="photoCanvas" style="width: 100%; max-width: 500px; border-radius: 8px; border: 2px solid #10b981;"></canvas>
-                <div style="margin-top: 10px;">
-                    <button class="btn btn-warning" onclick="retakeTicketPhoto()">
-                        🔄 Retake
-                    </button>
-                    <button class="btn btn-success" onclick="confirmTicketPhoto()">
-                        ✅ Photo Ready
-                    </button>
-                </div>
-            </div>
-            
-            <div id="photoConfirmation" style="display: none; margin-top: 20px;">
-                <div class="alert alert-success">
-                    ✅ Photo uploaded successfully
-                </div>
-            </div>
-        </div>
-
-        <!-- Barcode Scanner Section (Step 3) -->
-        <div class="workflow-section locked" id="step3Section">
-            <div class="lock-overlay">
-                <div class="lock-message">
-                    <div class="lock-icon">🔒</div>
-                    <p>Complete Step 2.5 first</p>
-                </div>
-            </div>
-            <div class="section-header-enhanced">
-                <h2>📱 Step 3: Scan Ticket</h2>
-            </div>
-            <p class="section-description">Final step - Scan ticket to assign to buyer</p>
-            
-            <div class="help-text">
-                <strong>💡 Why scan last?</strong>
-                Scanning is the final step that officially assigns the ticket to the buyer. This ensures payment is verified and buyer info is collected before the ticket is given out.
+                <strong>💡 <span data-translate="scanHelpTitle">Why scan last?</span></strong>
+                <span data-translate="scanHelpText">Scanning is the final step that officially assigns the ticket to the buyer. This ensures payment is verified, photo is taken, and buyer info is collected before the ticket is given out.</span>
             </div>
             
             <div style="margin-top: 20px;">
                 <button class="btn btn-primary" onclick="openBarcodeScanner()" style="margin-right: 10px;">
-                    📷 Open Scanner
+                    📷 <span data-translate="openScanner">Open Scanner</span>
                 </button>
                 <button class="btn btn-secondary" onclick="showManualEntry()">
-                    ✍️ Enter Manually
+                    ✍️ <span data-translate="enterManually">Enter Manually</span>
                 </button>
             </div>
             
             <div id="scannerContainer" style="display: none; margin-top: 15px;">
                 <video id="scannerVideo" width="100%" autoplay style="display: none;"></video>
                 <canvas id="scannerCanvas" style="display: none;"></canvas>
-                <button class="btn btn-cancel" onclick="closeBarcodeScanner()">Close Scanner</button>
+                <button class="btn btn-cancel" onclick="closeBarcodeScanner()"><span data-translate="closeScanner">Close Scanner</span></button>
             </div>
             <div id="scanResult" style="margin-top: 15px;"></div>
             
-            <!-- Manual Entry inline in Step 3 -->
+            <!-- Manual Entry inline in Step 4 -->
             <div id="manualEntryInline" style="display: none; margin-top: 20px; padding: 20px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
-                <h3 style="color: #333; font-size: 16px; margin-bottom: 15px;">✍️ Manual Ticket Entry</h3>
+                <h3 style="color: #333; font-size: 16px; margin-bottom: 15px;">✍️ <span data-translate="manualTicketEntry">Manual Ticket Entry</span></h3>
                 <form id="manualTicketForm" style="display: flex; gap: 10px; align-items: flex-end;">
                     <div style="flex: 1;">
-                        <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;">Ticket Number</label>
+                        <label for="manualTicketNumber" style="display: block; margin-bottom: 5px; color: #666; font-size: 14px;"><span data-translate="ticketNumber">Ticket Number</span></label>
                         <input 
                             type="text" 
                             id="manualTicketNumber" 
@@ -1091,7 +1087,7 @@
                         >
                     </div>
                     <button type="submit" class="btn btn-success">
-                        ✅ Register Sale
+                        ✅ <span data-translate="registerSale">Register Sale</span>
                     </button>
                 </form>
                 <div id="manualEntryResult" style="margin-top: 15px;"></div>
@@ -1557,13 +1553,13 @@
             // Update step indicators
             const step1El = document.getElementById('step1');
             const step2El = document.getElementById('step2');
-            const step2_5El = document.getElementById('step2_5');
             const step3El = document.getElementById('step3');
+            const step4El = document.getElementById('step4');
             const progressBar = document.getElementById('stepProgress');
             const startOverBtn = document.getElementById('startOverBtn');
 
             // Reset all steps
-            [step1El, step2El, step2_5El, step3El].forEach(el => {
+            [step1El, step2El, step3El, step4El].forEach(el => {
                 el.classList.remove('active', 'completed', 'locked');
             });
 
@@ -1576,36 +1572,36 @@
             if (currentStep >= 2) {
                 step2El.classList.remove('locked');
                 step2El.classList.add(currentStep === 2 ? 'active' : 'completed');
-                step2El.querySelector('.step-circle').textContent = currentStep > 2 ? '✓' : '👤';
+                step2El.querySelector('.step-circle').textContent = currentStep > 2 ? '✓' : '📸';
             } else {
                 step2El.classList.add('locked');
                 step2El.querySelector('.step-circle').textContent = '🔒';
             }
             
-            if (currentStep >= 2.5) {
-                step2_5El.classList.remove('locked');
-                step2_5El.classList.add(currentStep === 2.5 ? 'active' : 'completed');
-                step2_5El.querySelector('.step-circle').textContent = currentStep > 2.5 ? '✓' : '📸';
-            } else {
-                step2_5El.classList.add('locked');
-                step2_5El.querySelector('.step-circle').textContent = '🔒';
-            }
-            
             if (currentStep >= 3) {
                 step3El.classList.remove('locked');
                 step3El.classList.add(currentStep === 3 ? 'active' : 'completed');
-                step3El.querySelector('.step-circle').textContent = currentStep > 3 ? '✓' : '📱';
+                step3El.querySelector('.step-circle').textContent = currentStep > 3 ? '✓' : '👤';
             } else {
                 step3El.classList.add('locked');
                 step3El.querySelector('.step-circle').textContent = '🔒';
             }
+            
+            if (currentStep >= 4) {
+                step4El.classList.remove('locked');
+                step4El.classList.add(currentStep === 4 ? 'active' : 'completed');
+                step4El.querySelector('.step-circle').textContent = currentStep > 4 ? '✓' : '📱';
+            } else {
+                step4El.classList.add('locked');
+                step4El.querySelector('.step-circle').textContent = '🔒';
+            }
 
-            // Update progress bar (3 total steps: 1, 2, 2.5, 3 = progress through 3 stages)
+            // Update progress bar (4 total steps)
             let progressPercent = 0;
             if (currentStep === 1) progressPercent = 0;
             else if (currentStep === 2) progressPercent = 33;
-            else if (currentStep === 2.5) progressPercent = 66;
-            else if (currentStep >= 3) progressPercent = 100;
+            else if (currentStep === 3) progressPercent = 66;
+            else if (currentStep >= 4) progressPercent = 100;
             progressBar.style.width = progressPercent + '%';
 
             // Show "Start Over" button if past step 1
@@ -1618,22 +1614,22 @@
         function updateSectionStates() {
             const step1Section = document.getElementById('step1Section');
             const step2Section = document.getElementById('step2Section');
-            const step2_5Section = document.getElementById('step2_5Section');
             const step3Section = document.getElementById('step3Section');
+            const step4Section = document.getElementById('step4Section');
 
             // Reset all sections
-            [step1Section, step2Section, step2_5Section, step3Section].forEach(el => {
+            [step1Section, step2Section, step3Section, step4Section].forEach(el => {
                 el.classList.remove('active', 'completed', 'locked');
             });
 
-            // Step 1
+            // Step 1 - TXN (Optional)
             if (currentStep === 1) {
                 step1Section.classList.add('active');
             } else if (currentStep > 1) {
                 step1Section.classList.add('completed');
             }
 
-            // Step 2
+            // Step 2 - Photo (Required)
             if (currentStep === 2) {
                 step2Section.classList.add('active');
             } else if (currentStep > 2) {
@@ -1642,22 +1638,22 @@
                 step2Section.classList.add('locked');
             }
 
-            // Step 2.5
-            if (currentStep === 2.5) {
-                step2_5Section.classList.add('active');
-            } else if (currentStep > 2.5) {
-                step2_5Section.classList.add('completed');
-            } else {
-                step2_5Section.classList.add('locked');
-            }
-
-            // Step 3
+            // Step 3 - Buyer Info
             if (currentStep === 3) {
                 step3Section.classList.add('active');
             } else if (currentStep > 3) {
                 step3Section.classList.add('completed');
             } else {
                 step3Section.classList.add('locked');
+            }
+
+            // Step 4 - Scan
+            if (currentStep === 4) {
+                step4Section.classList.add('active');
+            } else if (currentStep > 4) {
+                step4Section.classList.add('completed');
+            } else {
+                step4Section.classList.add('locked');
             }
         }
 
@@ -2024,100 +2020,29 @@
             }
         }
         
-        // Transaction Verification Functions
-        document.getElementById('txnVerificationForm').addEventListener('submit', async (e) => {
+        // Transaction Entry Functions (Step 1 - OPTIONAL)
+        document.getElementById('txnEntryForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const txnId = document.getElementById('txnIdInput').value.trim();
-            const resultDiv = document.getElementById('txnVerificationResult');
             const t = translations[currentLanguage];
-            const verifyBtn = document.getElementById('verifyPaymentBtn');
-            const btnText = document.getElementById('verifyBtnText');
-            const btnLoading = document.getElementById('verifyBtnLoading');
             
-            // Show loading state
-            btnText.style.display = 'none';
-            btnLoading.style.display = 'inline';
-            verifyBtn.disabled = true;
-            
-            resultDiv.style.display = 'block';
-            resultDiv.innerHTML = '⏳ ' + t.verifyingPayment;
-            
-            try {
-                const response = await fetch('/api/payments/verify-txn', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ txn_id: txnId })
-                });
-                
-                const data = await response.json();
-                
-                if (!response.ok) {
-                    // FRAUD ALERT HANDLING
-                    if (data.fraud_alert) {
-                        resultDiv.innerHTML = `
-                            <div class="alert alert-danger">
-                                <h4>⚠️ ${t.fraudAlert}</h4>
-                                <p><strong>${data.message}</strong></p>
-                                ${data.details ? `
-                                    <p>${t.previouslyAssignedTo} <strong>${data.details.customer}</strong></p>
-                                    <p>${t.tickets}: ${data.details.assigned_tickets.join(', ')}</p>
-                                    <p>${t.by}: ${data.details.assigned_by}</p>
-                                ` : ''}
-                                <p><em>${t.fraudAlertDesc}</em></p>
-                            </div>
-                        `;
-                    } else {
-                        resultDiv.innerHTML = `<div class="alert alert-warning">❌ ${data.message}</div>`;
-                    }
-                    
-                    // Reset button state
-                    btnText.style.display = 'inline';
-                    btnLoading.style.display = 'none';
-                    verifyBtn.disabled = false;
-                    return;
-                }
-                
-                // SUCCESS - Store verified payment
-                currentVerifiedPayment = data.payment;
-                
-                resultDiv.innerHTML = `
-                    <div class="alert alert-success">
-                        <h4>✅ ${t.paymentVerified}</h4>
-                        <p><strong>${t.customer}:</strong> ${data.payment.buyer_name}</p>
-                        <p><strong>${t.phone}:</strong> ${data.payment.buyer_phone}</p>
-                        <p><strong>${t.amount}:</strong> $${data.payment.amount}</p>
-                        <p><strong>${t.ticketsAllowed}:</strong> ${data.payment.tickets_allowed}</p>
-                        <p><strong>${t.alreadyAssigned}:</strong> ${data.payment.tickets_assigned}</p>
-                        <p><strong>${t.remainingToScan}:</strong> <span id="ticketsRemaining">${data.payment.tickets_remaining}</span></p>
-                        <button onclick="resetVerification()" class="btn btn-secondary">${t.verifyDifferentPayment}</button>
-                    </div>
-                `;
-                
-                // Check if payment already has department (from buyer's purchase)
-                if (data.payment.customer_department) {
-                    // Department already set - skip department form, go to step 2.5 (photo)
-                    selectedDepartment = data.payment.customer_department;
-                    console.log('[TXN-VERIFY] Department already set from payment:', selectedDepartment);
-                    advanceToStep(2.5); // Go to photo capture
-                } else {
-                    // No department - advance to step 2 for department selection
-                    console.log('[TXN-VERIFY] No department in payment, showing department form');
-                    advanceToStep(2);
-                }
-                
-            } catch (error) {
-                resultDiv.innerHTML = `<div class="alert alert-danger">❌ ${t.errorPrefix} ${error.message}</div>`;
-                
-                // Reset button state
-                btnText.style.display = 'inline';
-                btnLoading.style.display = 'none';
-                verifyBtn.disabled = false;
+            // Store TXN if provided (optional - no validation)
+            if (txnId) {
+                // Just store it globally for later use when scanning ticket
+                window.enteredTxnNumber = txnId;
+                console.log('[TXN-ENTRY] TXN Number stored:', txnId);
+            } else {
+                window.enteredTxnNumber = null;
+                console.log('[TXN-ENTRY] No TXN provided, continuing without TXN');
             }
+            
+            // Always advance to Step 2 (photo capture) regardless of TXN
+            advanceToStep(2);
         });
         
         
-        // Buyer info form submission
+        // Buyer info form submission (Step 3)
         document.getElementById('buyerInfoForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
@@ -2148,19 +2073,19 @@
             console.log('[BUYER-INFO] Department selected:', selectedDepartment);
             
             // Show success message
-            const step2Section = document.getElementById('step2Section');
+            const step3Section = document.getElementById('step3Section');
             const successMsg = document.createElement('div');
             successMsg.className = 'alert alert-success';
             successMsg.style.marginTop = '10px';
             successMsg.innerHTML = `✅ ${t.departmentConfirmed}: <strong>${selectedDepartment}</strong>`;
-            step2Section.appendChild(successMsg);
+            step3Section.appendChild(successMsg);
             
             // Disable form after submission
             document.getElementById('buyerInfoForm').style.display = 'none';
             
-            // Advance to step 2.5 (photo capture)
+            // Advance to step 4 (scan ticket)
             setTimeout(() => {
-                advanceToStep(2.5);
+                advanceToStep(4);
             }, 1000);
         });
         
@@ -2169,25 +2094,17 @@
             confirmedBuyerPhone = null;
             selectedDepartment = null;
             capturedTicketPhoto = null;
+            window.enteredTxnNumber = null; // Clear TXN number
             document.getElementById('txnIdInput').value = '';
-            document.getElementById('txnVerificationResult').style.display = 'none';
-            
-            // Reset button state
-            const btnText = document.getElementById('verifyBtnText');
-            const btnLoading = document.getElementById('verifyBtnLoading');
-            const verifyBtn = document.getElementById('verifyPaymentBtn');
-            btnText.style.display = 'inline';
-            btnLoading.style.display = 'none';
-            verifyBtn.disabled = false;
             
             // Reset department and phone section
-            const step2Section = document.getElementById('step2Section');
+            const step3Section = document.getElementById('step3Section');
             document.getElementById('buyerPhone').value = '';
             document.getElementById('buyerDepartmentInput').value = '';
             document.getElementById('departmentError').style.display = 'none';
             document.getElementById('buyerInfoForm').style.display = 'block';
             // Remove any success messages
-            const successMsgs = step2Section.querySelectorAll('.alert-success');
+            const successMsgs = step3Section.querySelectorAll('.alert-success');
             successMsgs.forEach(msg => msg.remove());
             
             // Reset photo section
@@ -2423,6 +2340,12 @@
                     formData.append('buyer_department', selectedDepartment);
                 }
                 
+                // Add TXN number if entered in Step 1 (optional)
+                if (window.enteredTxnNumber) {
+                    formData.append('txn_number', window.enteredTxnNumber);
+                    console.log('[TXN] Sending TXN number with ticket:', window.enteredTxnNumber);
+                }
+                
                 // Add ticket photo if captured
                 if (capturedTicketPhoto) {
                     // Filename matches blob format (JPEG) from canvas.toBlob
@@ -2574,6 +2497,12 @@
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
                     formData.append('buyer_department', selectedDepartment);
+                }
+                
+                // Add TXN number if entered in Step 1 (optional)
+                if (window.enteredTxnNumber) {
+                    formData.append('txn_number', window.enteredTxnNumber);
+                    console.log('[TXN] Sending TXN number with manual entry:', window.enteredTxnNumber);
                 }
                 
                 // Add ticket photo if captured
