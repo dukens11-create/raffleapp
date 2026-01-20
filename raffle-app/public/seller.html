@@ -827,15 +827,15 @@
                     <div class="step-circle">💳</div>
                     <div class="step-label" data-translate="step1Title">Step 1: Transaction ID (Optional)</div>
                 </div>
-                <div class="step-item locked" id="step2" data-step="2">
+                <div class="step-item" id="step2" data-step="2">
                     <div class="step-circle">📸</div>
                     <div class="step-label" data-translate="step2Title">Step 2: Take Ticket Photo</div>
                 </div>
-                <div class="step-item locked" id="step3" data-step="3">
+                <div class="step-item" id="step3" data-step="3">
                     <div class="step-circle">👤</div>
                     <div class="step-label" data-translate="step3Title">Step 3: Buyer Info</div>
                 </div>
-                <div class="step-item locked" id="step4" data-step="4">
+                <div class="step-item" id="step4" data-step="4">
                     <div class="step-circle">📱</div>
                     <div class="step-label" data-translate="step4Title">Step 4: Scan Ticket</div>
                 </div>
@@ -881,12 +881,6 @@
 
         <!-- Transaction ID Entry Section (Step 1 - OPTIONAL) -->
         <div class="workflow-section active" id="step1Section">
-            <div class="lock-overlay">
-                <div class="lock-message">
-                    <div class="lock-icon">🔒</div>
-                    <p>This step is locked</p>
-                </div>
-            </div>
             <div class="section-header-enhanced">
                 <h2>💳 <span data-translate="step1Title">Step 1: Transaction ID (Optional)</span></h2>
             </div>
@@ -918,13 +912,7 @@
         </div>
 
         <!-- Ticket Photo Section (Step 2 - REQUIRED) -->
-        <div class="workflow-section locked" id="step2Section">
-            <div class="lock-overlay">
-                <div class="lock-message">
-                    <div class="lock-icon">🔒</div>
-                    <p data-translate="completeStep1">Complete Step 1 first</p>
-                </div>
-            </div>
+        <div class="workflow-section" id="step2Section">
             <div class="section-header-enhanced">
                 <h2>📸 <span data-translate="step2Title">Step 2: Take Ticket Photo</span> <span style="color: #ef4444;">*</span></h2>
             </div>
@@ -974,13 +962,7 @@
         </div>
 
         <!-- Buyer Information Section (Step 3) -->
-        <div class="workflow-section locked" id="step3Section">
-            <div class="lock-overlay">
-                <div class="lock-message">
-                    <div class="lock-icon">🔒</div>
-                    <p data-translate="completeStep2">Complete Step 2 first</p>
-                </div>
-            </div>
+        <div class="workflow-section" id="step3Section">
             <div class="section-header-enhanced">
                 <h2>👤 <span data-translate="step3Title">Step 3: Buyer Information</span></h2>
             </div>
@@ -1039,13 +1021,7 @@
         </div>
 
         <!-- Barcode Scanner Section (Step 4) -->
-        <div class="workflow-section locked" id="step4Section">
-            <div class="lock-overlay">
-                <div class="lock-message">
-                    <div class="lock-icon">🔒</div>
-                    <p data-translate="completeStep3">Complete Step 3 first</p>
-                </div>
-            </div>
+        <div class="workflow-section" id="step4Section">
             <div class="section-header-enhanced">
                 <h2>📱 <span data-translate="step4Title">Step 4: Scan Ticket</span></h2>
             </div>
@@ -1608,30 +1584,24 @@
             }
             
             if (currentStep >= 2) {
-                step2El.classList.remove('locked');
                 step2El.classList.add(currentStep === 2 ? 'active' : 'completed');
                 step2El.querySelector('.step-circle').textContent = currentStep > 2 ? '✓' : '📸';
             } else {
-                step2El.classList.add('locked');
-                step2El.querySelector('.step-circle').textContent = '🔒';
+                step2El.querySelector('.step-circle').textContent = '📸';
             }
             
             if (currentStep >= 3) {
-                step3El.classList.remove('locked');
                 step3El.classList.add(currentStep === 3 ? 'active' : 'completed');
                 step3El.querySelector('.step-circle').textContent = currentStep > 3 ? '✓' : '👤';
             } else {
-                step3El.classList.add('locked');
-                step3El.querySelector('.step-circle').textContent = '🔒';
+                step3El.querySelector('.step-circle').textContent = '👤';
             }
             
             if (currentStep >= 4) {
-                step4El.classList.remove('locked');
                 step4El.classList.add(currentStep === 4 ? 'active' : 'completed');
                 step4El.querySelector('.step-circle').textContent = currentStep > 4 ? '✓' : '📱';
             } else {
-                step4El.classList.add('locked');
-                step4El.querySelector('.step-circle').textContent = '🔒';
+                step4El.querySelector('.step-circle').textContent = '📱';
             }
 
             // Update progress bar (4 total steps)
@@ -1672,8 +1642,6 @@
                 step2Section.classList.add('active');
             } else if (currentStep > 2) {
                 step2Section.classList.add('completed');
-            } else {
-                step2Section.classList.add('locked');
             }
 
             // Step 3 - Buyer Info
@@ -1681,8 +1649,6 @@
                 step3Section.classList.add('active');
             } else if (currentStep > 3) {
                 step3Section.classList.add('completed');
-            } else {
-                step3Section.classList.add('locked');
             }
 
             // Step 4 - Scan
@@ -1690,8 +1656,6 @@
                 step4Section.classList.add('active');
             } else if (currentStep > 4) {
                 step4Section.classList.add('completed');
-            } else {
-                step4Section.classList.add('locked');
             }
         }
 
