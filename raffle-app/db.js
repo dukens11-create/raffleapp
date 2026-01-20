@@ -71,9 +71,9 @@ function query(sql, params = []) {
         }
       });
     } else {
-      // SQLite
-      // Use db.all for SELECT and PRAGMA statements
-      if (sql.trim().toUpperCase().startsWith('SELECT') || sql.trim().toUpperCase().startsWith('PRAGMA')) {
+      // SQLite - Use db.all for SELECT and PRAGMA statements
+      const sqlUpper = sql.trim().toUpperCase();
+      if (sqlUpper.startsWith('SELECT') || sqlUpper.startsWith('PRAGMA')) {
         db.all(sql, params, (err, rows) => {
           if (err) reject(err);
           else resolve(rows);

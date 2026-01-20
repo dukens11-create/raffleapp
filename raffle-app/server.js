@@ -65,6 +65,9 @@ const ticketGenerationMutex = new Mutex();
 // Maximum number of tickets to return per category for online purchase
 const MAX_TICKETS_PER_CATEGORY = 100000;
 
+// Maximum number of records to return for admin ticket queries
+const MAX_ADMIN_TICKET_QUERY_LIMIT = 1000;
+
 // Haiti Departments - Valid department values (alphabetically ordered)
 const HAITI_DEPARTMENTS = [
   'Artibonite',
@@ -2343,7 +2346,7 @@ app.get('/api/admin/tickets-with-photos', requireAuth, requireAdmin, async (req,
       params.push(`%${search_txn}%`);
     }
     
-    query += ` ORDER BY sold_at DESC LIMIT 1000`;
+    query += ` ORDER BY sold_at DESC LIMIT ${MAX_ADMIN_TICKET_QUERY_LIMIT}`;
     
     const tickets = await db.all(query, params);
     
@@ -2952,7 +2955,11 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
         payment_reference || null, 
         departmentToUse, 
         relativePhotoPath,
-        txn_number || null, // Store TXN number if provided (optional, no validation)
+        // TXN Number: Store as-is without validation (intentional design decision)
+        // Business rationale: TXN is optional and used only for post-sale admin verification
+        // No real-time validation to avoid delays and external API dependencies
+        // Admins manually verify TXN numbers against payment provider records
+        txn_number || null,
         ticket.id
       ]
     );
@@ -3415,7 +3422,7 @@ app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req,
       params.push(`%${normalizedPhone}%`);
     }
     
-    query += ' ORDER BY sold_at DESC LIMIT 1000';
+    query += ` ORDER BY sold_at DESC LIMIT ${MAX_ADMIN_TICKET_QUERY_LIMIT}`;
     
     const registrations = await db.all(query, params);
     
