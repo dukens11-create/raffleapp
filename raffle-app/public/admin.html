@@ -778,6 +778,73 @@
         font-weight: bold;
         cursor: pointer;
     }
+
+    /* Search Bar Styles */
+    .search-input {
+      width: 100%;
+      padding: 12px 16px;
+      padding-left: 40px; /* Space for search icon */
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23667eea" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>') no-repeat 12px center;
+      transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      outline: none;
+    }
+
+    .autocomplete-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 2px solid #e2e8f0;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 1000;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .autocomplete-item {
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .autocomplete-item:hover {
+      background: rgba(102, 126, 234, 0.05);
+    }
+
+    .search-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .clear-search-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      display: none;
+      transition: color 0.2s;
+    }
+
+    .clear-search-btn:hover {
+      color: #1e293b;
+    }
   </style>
 </head>
 <body>
@@ -975,9 +1042,16 @@
         </div>
         <div>
           <label style="color: white; font-size: 13px; display: block; margin-bottom: 5px;">Design</label>
-          <select id="xyz-portrait-design" style="width: 100%; padding: 10px; border-radius: 6px; border: none;">
-            <option value="">Default</option>
-          </select>
+          <div class="search-wrapper">
+            <input type="text" 
+                   id="xyz-portrait-design" 
+                   class="search-input" 
+                   placeholder="Search design templates..." 
+                   autocomplete="off"
+                   data-selected-value="">
+            <button class="clear-search-btn" id="clear-design-search">✕</button>
+            <div id="design-results" class="autocomplete-results" style="display: none;"></div>
+          </div>
         </div>
       </div>
       
@@ -1207,48 +1281,18 @@
     
     <!-- Search/Filter Controls -->
     <div id="sellersSearchControls" style="margin-bottom: 20px; padding: 20px; background: rgba(102, 126, 234, 0.05); border-radius: 8px; border: 1px solid rgba(102, 126, 234, 0.1);">
-      <!-- Search Input -->
+      <!-- Unified Search Bar -->
       <div style="margin-bottom: 15px;">
-        <input 
-          type="text" 
-          id="sellersSearchInput" 
-          placeholder="Search sellers by name..." 
-          style="width: 100%; max-width: 400px; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 15px; transition: border-color 0.2s;"
-        />
-      </div>
-      
-      <!-- A-Z Filter Buttons -->
-      <div style="margin-bottom: 15px;">
-        <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-          <button id="sellersFilterAll" class="seller-filter-btn" data-letter="all" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">
-            All
-          </button>
-          <button class="seller-filter-btn" data-letter="A" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">A</button>
-          <button class="seller-filter-btn" data-letter="B" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">B</button>
-          <button class="seller-filter-btn" data-letter="C" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">C</button>
-          <button class="seller-filter-btn" data-letter="D" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">D</button>
-          <button class="seller-filter-btn" data-letter="E" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">E</button>
-          <button class="seller-filter-btn" data-letter="F" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">F</button>
-          <button class="seller-filter-btn" data-letter="G" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">G</button>
-          <button class="seller-filter-btn" data-letter="H" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">H</button>
-          <button class="seller-filter-btn" data-letter="I" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">I</button>
-          <button class="seller-filter-btn" data-letter="J" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">J</button>
-          <button class="seller-filter-btn" data-letter="K" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">K</button>
-          <button class="seller-filter-btn" data-letter="L" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">L</button>
-          <button class="seller-filter-btn" data-letter="M" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">M</button>
-          <button class="seller-filter-btn" data-letter="N" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">N</button>
-          <button class="seller-filter-btn" data-letter="O" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">O</button>
-          <button class="seller-filter-btn" data-letter="P" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">P</button>
-          <button class="seller-filter-btn" data-letter="Q" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">Q</button>
-          <button class="seller-filter-btn" data-letter="R" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">R</button>
-          <button class="seller-filter-btn" data-letter="S" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">S</button>
-          <button class="seller-filter-btn" data-letter="T" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">T</button>
-          <button class="seller-filter-btn" data-letter="U" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">U</button>
-          <button class="seller-filter-btn" data-letter="V" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">V</button>
-          <button class="seller-filter-btn" data-letter="W" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">W</button>
-          <button class="seller-filter-btn" data-letter="X" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">X</button>
-          <button class="seller-filter-btn" data-letter="Y" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">Y</button>
-          <button class="seller-filter-btn" data-letter="Z" style="background: white; color: #667eea; padding: 8px 12px; border: 1.5px solid #667eea; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s;">Z</button>
+        <div class="search-wrapper">
+          <input 
+            type="text" 
+            id="sellersSearchInput" 
+            class="search-input"
+            placeholder="🔍 Search sellers by name or filter by letter..." 
+            autocomplete="off"
+            style="max-width: 100%;"
+          />
+          <button class="clear-search-btn" id="clear-seller-search">✕</button>
         </div>
       </div>
       
@@ -3052,7 +3096,7 @@
       updateSellersResultCount();
     }
 
-    // Filter sellers table based on search and letter filter
+    // Filter sellers table based on search
     function filterSellers() {
       const searchInput = document.getElementById('sellersSearchInput');
       const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
@@ -3061,6 +3105,12 @@
       
       let visibleCount = 0;
       let totalCount = 0;
+      
+      // Show/hide clear button
+      const clearBtn = document.getElementById('clear-seller-search');
+      if (clearBtn) {
+        clearBtn.style.display = searchTerm ? 'block' : 'none';
+      }
       
       for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -3071,18 +3121,11 @@
         totalCount++;
         const sellerName = nameCell.textContent.toLowerCase();
         
-        // Get active letter filter
-        const activeLetterBtn = document.querySelector('.seller-filter-btn[data-active="true"]');
-        const activeLetter = activeLetterBtn ? activeLetterBtn.dataset.letter : 'all';
-        
-        // Check if row matches search term
+        // Check if row matches search term (supports both full name search and single letter)
         const matchesSearch = searchTerm === '' || sellerName.includes(searchTerm);
         
-        // Check if row matches letter filter
-        const matchesLetter = activeLetter === 'all' || sellerName.startsWith(activeLetter.toLowerCase());
-        
-        // Show row if it matches both filters
-        if (matchesSearch && matchesLetter) {
+        // Show row if it matches search
+        if (matchesSearch) {
           row.style.display = '';
           visibleCount++;
         } else {
@@ -3217,36 +3260,16 @@
       sellersSearchInput.addEventListener('input', filterSellers);
     }
 
-    // Letter filter buttons event listeners
-    const filterButtons = document.querySelectorAll('.seller-filter-btn');
-    filterButtons.forEach(btn => {
-      btn.addEventListener('click', function() {
-        // Remove active state from all buttons
-        filterButtons.forEach(b => {
-          b.removeAttribute('data-active');
-          if (b.dataset.letter === 'all') {
-            b.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            b.style.color = 'white';
-          } else {
-            b.style.background = 'white';
-            b.style.color = '#667eea';
-          }
-        });
-        
-        // Set active state on clicked button
-        this.setAttribute('data-active', 'true');
-        this.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        this.style.color = 'white';
-        
-        // Apply filter
-        filterSellers();
+    // Clear seller search button
+    const clearSellerSearchBtn = document.getElementById('clear-seller-search');
+    if (clearSellerSearchBtn) {
+      clearSellerSearchBtn.addEventListener('click', () => {
+        const searchInput = document.getElementById('sellersSearchInput');
+        if (searchInput) {
+          searchInput.value = '';
+          filterSellers();
+        }
       });
-    });
-
-    // Set "All" button as active by default
-    const allButton = document.getElementById('sellersFilterAll');
-    if (allButton) {
-      allButton.setAttribute('data-active', 'true');
     }
 
     // Event delegation for edit and delete buttons
@@ -3611,11 +3634,106 @@
       }
     });
     
+    // Design Search Autocomplete Functionality
+    (function initDesignSearch() {
+      const designInput = document.getElementById('xyz-portrait-design');
+      const designResults = document.getElementById('design-results');
+      const clearDesignBtn = document.getElementById('clear-design-search');
+      let allDesigns = [];
+      
+      // Load available designs from backend (simulated for now with default option)
+      async function loadDesigns() {
+        try {
+          // For now, we'll just have a default option
+          // In a real implementation, you would fetch from: /api/admin/templates or similar
+          allDesigns = [
+            { id: '', name: 'Default' }
+          ];
+        } catch (error) {
+          console.error('Error loading designs:', error);
+          allDesigns = [{ id: '', name: 'Default' }];
+        }
+      }
+      
+      // Filter and display design results
+      function filterDesigns() {
+        const searchTerm = designInput.value.toLowerCase().trim();
+        
+        // Show/hide clear button
+        if (clearDesignBtn) {
+          clearDesignBtn.style.display = searchTerm ? 'block' : 'none';
+        }
+        
+        if (!searchTerm) {
+          designResults.style.display = 'none';
+          return;
+        }
+        
+        const filtered = allDesigns.filter(design => 
+          design.name.toLowerCase().includes(searchTerm)
+        );
+        
+        if (filtered.length === 0) {
+          designResults.innerHTML = '<div class="autocomplete-item" style="color: #64748b; cursor: default;">No designs found</div>';
+          designResults.style.display = 'block';
+        } else {
+          designResults.innerHTML = filtered.map(design => 
+            `<div class="autocomplete-item" data-id="${design.id}" data-name="${design.name}">${design.name}</div>`
+          ).join('');
+          designResults.style.display = 'block';
+        }
+      }
+      
+      // Handle design selection
+      function selectDesign(id, name) {
+        designInput.value = name;
+        designInput.dataset.selectedValue = id;
+        designResults.style.display = 'none';
+      }
+      
+      // Event listeners
+      if (designInput) {
+        designInput.addEventListener('input', filterDesigns);
+        designInput.addEventListener('focus', () => {
+          if (designInput.value) filterDesigns();
+        });
+        
+        // Click outside to close
+        document.addEventListener('click', (e) => {
+          if (!designInput.contains(e.target) && !designResults.contains(e.target)) {
+            designResults.style.display = 'none';
+          }
+        });
+      }
+      
+      if (designResults) {
+        designResults.addEventListener('click', (e) => {
+          const item = e.target.closest('.autocomplete-item');
+          if (item && item.dataset.id !== undefined) {
+            selectDesign(item.dataset.id, item.dataset.name);
+          }
+        });
+      }
+      
+      if (clearDesignBtn) {
+        clearDesignBtn.addEventListener('click', () => {
+          designInput.value = '';
+          designInput.dataset.selectedValue = '';
+          filterDesigns();
+          designInput.focus();
+        });
+      }
+      
+      // Initialize
+      loadDesigns();
+    })();
+    
     // XYZ Portrait PDF Generation Function
     async function generateXYZPortraitPDF() {
       const start = document.getElementById('xyz-portrait-start').value;
       const end = document.getElementById('xyz-portrait-end').value;
-      const designId = document.getElementById('xyz-portrait-design').value;
+      const designInput = document.getElementById('xyz-portrait-design');
+      const designId = designInput.dataset.selectedValue || designInput.value || '';
       const button = document.getElementById('gen-xyz-portrait-btn');
       const status = document.getElementById('xyz-portrait-status');
       
