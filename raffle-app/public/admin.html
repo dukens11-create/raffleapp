@@ -3700,7 +3700,8 @@
         
         // Click outside to close
         document.addEventListener('click', (e) => {
-          if (!designInput.contains(e.target) && !designResults.contains(e.target)) {
+          const searchWrapper = designInput.closest('.search-wrapper');
+          if (searchWrapper && !searchWrapper.contains(e.target)) {
             designResults.style.display = 'none';
           }
         });
