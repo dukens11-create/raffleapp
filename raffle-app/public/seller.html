@@ -1845,24 +1845,50 @@
         // Check authentication
         async function checkAuth() {
             try {
-                const response = await fetch('/api/session-check');
+                const response = await fetch('/api/session-check', {
+                    credentials: 'include', // Ensure cookies are sent
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    console.error('Session check failed:', response.status, response.statusText);
+                    if (response.status === 401) {
+                        console.log('Unauthorized - redirecting to login');
+                        window.location.href = '/?error=session_expired';
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                
+                console.log('Session check result:', {
+                    hasSession: data.hasSession,
+                    hasUser: data.hasUser,
+                    role: data.user?.role,
+                    sessionID: data.sessionID
+                });
                 
                 // Check if user is logged in and user object exists
                 if (!data.hasUser || !data.user) {
-                    window.location.href = '/';
+                    console.log('No user session - redirecting to login');
+                    window.location.href = '/?error=no_session';
                     return;
                 }
                 
                 // CHECK ROLE: If admin, redirect to admin page
                 if (data.user.role === 'admin') {
+                    console.log('Admin user detected - redirecting to admin page');
                     window.location.href = '/admin';
                     return;
                 }
                 
                 // CHECK ROLE: If not a seller, redirect to login
                 if (data.user.role !== 'seller') {
-                    window.location.href = '/';
+                    console.log('User is not a seller - redirecting to login');
+                    window.location.href = '/?error=invalid_role';
                     return;
                 }
                 
@@ -1873,9 +1899,18 @@
                 
                 // Apply translations after loading user
                 applyTranslations();
+                
+                console.log('✅ Seller authenticated successfully:', currentSeller.name);
+                
             } catch (error) {
-                console.error('Auth check error:', error);
-                window.location.href = '/';
+                console.error('❌ Auth check error:', error);
+                // Don't redirect immediately on network errors - could be transient
+                if (error instanceof TypeError) {
+                    console.log('Network error - retrying in 2 seconds...');
+                    setTimeout(checkAuth, 2000);
+                } else {
+                    window.location.href = '/?error=auth_failed';
+                }
             }
         }
 

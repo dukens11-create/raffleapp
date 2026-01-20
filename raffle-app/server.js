@@ -706,8 +706,10 @@ app.use(session({
     secure: process.env.NODE_ENV === 'production', // Only use secure cookies in production
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     sameSite: 'lax', // Changed from 'strict' for mobile compatibility
+    path: '/', // Ensure cookie is sent with all requests
   },
   rolling: true, // Reset expiry on activity
+  proxy: process.env.NODE_ENV === 'production', // Trust proxy in production
 }));
 
 // Session timeout middleware
@@ -716,10 +718,19 @@ const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 app.use((req, res, next) => {
   if (req.session.user) {
     const now = Date.now();
-    const lastActivity = req.session.lastActivity || now;
     
-    if (now - lastActivity > SESSION_TIMEOUT) {
-      console.log(`Session expired for user: ${req.session.user.phone}`);
+    // Initialize lastActivity if not set (shouldn't happen, but safety check)
+    if (!req.session.lastActivity) {
+      console.warn(`⚠️  Session missing lastActivity for user: ${req.session.user.phone}, initializing now`);
+      req.session.lastActivity = now;
+    }
+    
+    const lastActivity = req.session.lastActivity;
+    const timeSinceLastActivity = now - lastActivity;
+    
+    // Check timeout
+    if (timeSinceLastActivity > SESSION_TIMEOUT) {
+      console.log(`❌ Session expired for user: ${req.session.user.phone} (inactive for ${Math.round(timeSinceLastActivity / 1000)}s)`);
       req.session.destroy((err) => {
         if (err) console.error('Error destroying session:', err);
       });
@@ -729,9 +740,17 @@ app.use((req, res, next) => {
       });
     }
     
+    // Update lastActivity and save session
     req.session.lastActivity = now;
+    req.session.save((err) => {
+      if (err) {
+        console.error('❌ Error saving session activity update:', err);
+      }
+      next();
+    });
+  } else {
+    next();
   }
-  next();
 });
 
 // Content Security Policy middleware for enhanced security
@@ -1043,18 +1062,29 @@ app.get('/api/database-status', async (req, res) => {
 
 // Session debug endpoint - check if session is working
 app.get('/api/session-check', (req, res) => {
-  res.json({
+  const response = {
     hasSession: !!req.session,
     hasUser: !!req.session?.user,
     user: req.session?.user ? {
       id: req.session.user.id,
       name: req.session.user.name,
-      role: req.session.user.role
+      role: req.session.user.role,
+      phone: req.session.user.phone
     } : null,
     sessionID: req.sessionID,
-    cookies: req.headers.cookie || 'no cookies',
+    lastActivity: req.session?.lastActivity ? new Date(req.session.lastActivity).toISOString() : null,
+    timeSinceActivity: req.session?.lastActivity ? Date.now() - req.session.lastActivity : null,
+    sessionTimeout: SESSION_TIMEOUT,
     timestamp: new Date().toISOString()
+  };
+  
+  console.log('Session check:', {
+    user: response.user?.phone || 'none',
+    hasSession: response.hasSession,
+    timeSinceActivity: response.timeSinceActivity ? `${Math.round(response.timeSinceActivity / 1000)}s` : 'n/a'
   });
+  
+  res.json(response);
 });
 
 // ===== NOW APPLY RATE LIMITING =====
