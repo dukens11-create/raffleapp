@@ -256,6 +256,41 @@
     tr:hover {
       background: rgba(102, 126, 234, 0.05);
     }
+    /* Ticket Photo Modal Styles */
+    .ticket-photo-modal {
+      display: none;
+      position: fixed;
+      z-index: 2000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0, 0, 0, 0.8);
+      animation: fadeIn 0.3s ease;
+    }
+    .ticket-photo-modal-content {
+      background-color: #ffffff;
+      margin: 3% auto;
+      padding: 30px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 1000px;
+      position: relative;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+    .ticket-photo-modal-close {
+      color: #64748b;
+      float: right;
+      font-size: 32px;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 20px;
+      transition: color 0.2s;
+    }
+    .ticket-photo-modal-close:hover {
+      color: #1e293b;
+    }
     /* Scanner Modal Styles */
     .scanner-modal {
       display: none;
@@ -897,12 +932,46 @@
             <th data-translate="dateSold">Date Sold</th>
             <th data-translate="category">Category</th>
             <th data-translate="price">Price</th>
+            <th data-translate="ticketPhoto">Ticket Photo</th>
           </tr>
         </thead>
         <tbody id="buyerRegistrationsBody">
-          <tr><td colspan="10" style="text-align: center; padding: 20px;">Loading...</td></tr>
+          <tr><td colspan="11" style="text-align: center; padding: 20px;">Loading...</td></tr>
         </tbody>
       </table>
+    </div>
+    
+    <!-- Ticket Photo Modal -->
+    <div id="ticketPhotoModal" class="ticket-photo-modal">
+      <div class="ticket-photo-modal-content">
+        <span class="ticket-photo-modal-close" onclick="document.getElementById('ticketPhotoModal').style.display='none'">&times;</span>
+        <h2 style="color: #1e293b; margin-top: 0;">Ticket Photo</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+          <div>
+            <h3 style="color: #475569; font-size: 16px; margin-bottom: 12px;">Ticket Details</h3>
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0;">
+              <p style="margin: 8px 0;"><strong>Ticket Number:</strong> <span id="photoModalTicketNumber"></span></p>
+              <p style="margin: 8px 0;"><strong>Buyer:</strong> <span id="photoModalBuyerName"></span></p>
+              <p style="margin: 8px 0;"><strong>Buyer Phone:</strong> <span id="photoModalBuyerPhone"></span></p>
+              <p style="margin: 8px 0;"><strong>Seller:</strong> <span id="photoModalSellerName"></span></p>
+              <p style="margin: 8px 0;"><strong>Seller Phone:</strong> <span id="photoModalSellerPhone"></span></p>
+              <p style="margin: 8px 0;"><strong>Date Sold:</strong> <span id="photoModalDateSold"></span></p>
+              <p style="margin: 8px 0;"><strong>Payment Ref:</strong> <span id="photoModalPaymentRef"></span></p>
+            </div>
+          </div>
+          <div>
+            <h3 style="color: #475569; font-size: 16px; margin-bottom: 12px;">Photo</h3>
+            <div id="photoModalImageContainer" style="text-align: center;">
+              <img id="photoModalImage" style="max-width: 100%; max-height: 500px; border-radius: 8px; cursor: zoom-in; border: 1px solid #e2e8f0;" alt="Ticket Photo">
+            </div>
+            <div style="text-align: center; margin-top: 12px;">
+              <button id="downloadPhotoBtn" onclick="downloadTicketPhoto()" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                📥 Download Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     
     <!-- Scanner Modal -->
@@ -2077,21 +2146,32 @@
           } catch (error) {
             console.error('Error:', error);
             const tbody = document.getElementById('buyerRegistrationsBody');
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; color: #ef4444;">Failed to load buyer registrations</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: #ef4444;">Failed to load buyer registrations</td></tr>';
           }
         }
 
+        // Ticket Photo Modal Functions
+        let currentPhotoUrl = '';
+        let buyerRegistrations = []; // Store registrations for photo modal access
+        
         function displayBuyerRegistrations(registrations) {
+          buyerRegistrations = registrations; // Store for later access
           const tbody = document.getElementById('buyerRegistrationsBody');
           tbody.innerHTML = '';
           
           if (registrations.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">No registrations found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center;">No registrations found</td></tr>';
             return;
           }
           
-          registrations.forEach(reg => {
+          registrations.forEach((reg, index) => {
             const row = tbody.insertRow();
+            
+            // Photo column
+            const photoCell = reg.ticket_photo_path 
+              ? `<button onclick='openTicketPhotoModal(${index})' style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">📷 View</button>`
+              : `<span style="color: #94a3b8; font-style: italic;">No Photo</span>`;
+            
             row.innerHTML = `
               <td>${reg.ticket_number}</td>
               <td><strong>${reg.buyer_phone || 'N/A'}</strong></td>
@@ -2103,6 +2183,7 @@
               <td>${new Date(reg.sold_at).toLocaleString()}</td>
               <td>${reg.category}</td>
               <td>$${reg.price}</td>
+              <td>${photoCell}</td>
             `;
           });
         }
@@ -2119,6 +2200,61 @@
             displayBuyerRegistrations(data.registrations);
           } catch (error) {
             console.error('Search error:', error);
+          }
+        }
+        
+        function openTicketPhotoModal(index) {
+          const registration = buyerRegistrations[index];
+          if (!registration) return;
+          const modal = document.getElementById('ticketPhotoModal');
+          
+          // Populate ticket details
+          document.getElementById('photoModalTicketNumber').textContent = registration.ticket_number;
+          document.getElementById('photoModalBuyerName').textContent = registration.buyer_name || 'N/A';
+          document.getElementById('photoModalBuyerPhone').textContent = registration.buyer_phone || 'N/A';
+          document.getElementById('photoModalSellerName').textContent = registration.seller_name;
+          document.getElementById('photoModalSellerPhone').textContent = registration.seller_phone;
+          document.getElementById('photoModalDateSold').textContent = new Date(registration.sold_at).toLocaleString();
+          document.getElementById('photoModalPaymentRef').textContent = registration.payment_reference || 'N/A';
+          
+          // Load photo
+          const photoImg = document.getElementById('photoModalImage');
+          const photoContainer = document.getElementById('photoModalImageContainer');
+          currentPhotoUrl = `/api/admin/ticket-photos/${registration.ticket_number}`;
+          
+          photoImg.style.display = 'none';
+          photoContainer.innerHTML = '<p style="color: #64748b;">Loading photo...</p>';
+          
+          photoImg.src = currentPhotoUrl;
+          photoImg.onload = function() {
+            photoContainer.innerHTML = '';
+            photoContainer.appendChild(photoImg);
+            photoImg.style.display = 'block';
+          };
+          photoImg.onerror = function() {
+            photoContainer.innerHTML = '<p style="color: #ef4444;">Failed to load photo</p>';
+          };
+          
+          modal.style.display = 'block';
+        }
+        
+        function downloadTicketPhoto() {
+          if (currentPhotoUrl) {
+            const ticketNumber = document.getElementById('photoModalTicketNumber').textContent;
+            const link = document.createElement('a');
+            link.href = currentPhotoUrl;
+            link.download = `ticket-${ticketNumber}-photo.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+          const modal = document.getElementById('ticketPhotoModal');
+          if (event.target === modal) {
+            modal.style.display = 'none';
           }
         }
         
