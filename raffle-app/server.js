@@ -2694,20 +2694,31 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
     const compressedPhotoPath = path.join(__dirname, 'uploads', 'ticket-photos', `compressed-${req.file.filename}`);
     
     try {
+      // Convert to JPEG for consistent format and optimal compression
+      // JPEG provides best compression ratio for photos while maintaining quality
       await sharp(req.file.path)
         .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 85 })
         .toFile(compressedPhotoPath);
       
-      // Delete original uncompressed file
-      fs.unlinkSync(req.file.path);
+      // Delete original uncompressed file using async operation
+      await fs.promises.unlink(req.file.path);
       
       const compressedSize = fs.statSync(compressedPhotoPath).size;
       console.log(`[SCAN] Photo compressed: ${(compressedSize / 1024).toFixed(2)} KB`);
     } catch (compressionError) {
       console.error('[SCAN] Photo compression error:', compressionError);
-      // If compression fails, use original file
-      fs.renameSync(req.file.path, compressedPhotoPath);
+      // If compression fails, use original file (async operation)
+      try {
+        await fs.promises.rename(req.file.path, compressedPhotoPath);
+      } catch (renameError) {
+        console.error('[SCAN] Error moving original file:', renameError);
+        // If even rename fails, clean up and throw error
+        if (fs.existsSync(req.file.path)) {
+          await fs.promises.unlink(req.file.path);
+        }
+        throw new Error('Failed to process ticket photo');
+      }
     }
     
     // Store relative path for database
