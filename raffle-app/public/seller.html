@@ -453,8 +453,9 @@
         }
 
         .workflow-section.locked {
-            opacity: 0.5;
+            opacity: 0.85;
             pointer-events: none;
+            border-color: #e5e7eb;
         }
 
         .workflow-section.locked::after {
@@ -464,7 +465,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.4);
             border-radius: 10px;
             display: flex;
             align-items: center;
@@ -500,12 +501,13 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.75);
             border-radius: 10px;
             display: none;
             align-items: center;
             justify-content: center;
             z-index: 10;
+            backdrop-filter: blur(2px);
         }
 
         .workflow-section.locked .lock-overlay {
@@ -515,18 +517,22 @@
         .lock-message {
             text-align: center;
             padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            border: 2px solid #e5e7eb;
         }
 
         .lock-message .lock-icon {
             font-size: 48px;
-            color: #d1d5db;
+            color: #9ca3af;
             margin-bottom: 10px;
         }
 
         .lock-message p {
-            color: #6b7280;
+            color: #374151;
             font-weight: 600;
-            font-size: 16px;
+            font-size: 15px;
             margin: 0;
         }
 
@@ -559,6 +565,92 @@
         .help-text strong {
             display: block;
             margin-bottom: 5px;
+        }
+
+        /* Ticket Photo Capture Styles */
+        .photo-capture-section {
+            background: #f0fdf4;
+            border: 2px solid #10b981;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .photo-capture-section h4 {
+            color: #065f46;
+            margin: 0 0 12px 0;
+            font-size: 16px;
+        }
+
+        .camera-preview {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto 15px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        #ticketCameraVideo {
+            width: 100%;
+            display: block;
+        }
+
+        #ticketPhotoPreview {
+            width: 100%;
+            border-radius: 8px;
+            border: 2px solid #10b981;
+            display: none;
+            margin-top: 10px;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-camera {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-camera:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-camera:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .photo-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+
+        .photo-status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .photo-status.error {
+            background: #fee2e2;
+            color: #991b1b;
         }
 
         @media (max-width: 768px) {
@@ -890,6 +982,37 @@
             </div>
             <p class="section-description">Enter customer's MonCash Transaction ID first (optional until MonCash is configured)</p>
             
+            <!-- Ticket Photo Capture Section -->
+            <div class="photo-capture-section">
+                <h4>📸 Capture Ticket Photo (Scratch Game Verification)</h4>
+                <p style="font-size: 13px; color: #047857; margin: 0 0 15px 0;">
+                    Take a clear photo of the front of the ticket showing the scratch game area before adding the transaction.
+                </p>
+                
+                <div class="camera-preview" id="ticketCameraPreview" style="display: none;">
+                    <video id="ticketCameraVideo" autoplay playsinline></video>
+                </div>
+                
+                <img id="ticketPhotoPreview" alt="Ticket Photo Preview" />
+                
+                <div class="camera-controls">
+                    <button type="button" class="btn-camera" id="openTicketCameraBtn" onclick="openTicketCamera()">
+                        📷 Open Camera
+                    </button>
+                    <button type="button" class="btn-camera" id="captureTicketPhotoBtn" onclick="captureTicketPhoto()" style="display: none;">
+                        📸 Capture Photo
+                    </button>
+                    <button type="button" class="btn-camera" id="retakeTicketPhotoBtn" onclick="retakeTicketPhoto()" style="display: none;">
+                        🔄 Retake Photo
+                    </button>
+                    <button type="button" class="btn-camera" id="uploadTicketPhotoBtn" onclick="uploadTicketPhoto()" style="display: none;">
+                        ✅ Confirm & Upload
+                    </button>
+                </div>
+                
+                <div id="ticketPhotoStatus" class="photo-status" style="display: none;"></div>
+            </div>
+            
             <div class="help-text">
                 <strong>💡 Why payment verification?</strong>
                 Payment verification confirms the customer has paid and prevents fraud. Once verified, you can assign the correct number of tickets to the buyer.
@@ -938,6 +1061,24 @@
             </div>
             
             <form id="buyerInfoForm" style="margin-top: 20px;">
+                <div class="form-group">
+                    <label for="buyerPhone">
+                        <span data-translate="buyerPhoneLabel">Buyer Phone Number</span> *
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="buyerPhone" 
+                        placeholder="509-1234-5678"
+                        pattern="(\+?509|509)[-\s]?[0-9]{4}[-\s]?[0-9]{4}"
+                        maxlength="20"
+                        required
+                        style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; font-size: 14px;"
+                    >
+                    <small style="color: #6b7280; display: block; margin-top: 5px;">
+                        <span data-translate="phoneFormatHelp">Format: 509-1234-5678 or 5091234567 or +509 1234 5678</span>
+                    </small>
+                </div>
+                
                 <div class="form-group">
                     <label for="buyerDepartmentInput" id="departmentLabel">Department / Depatman / Département</label>
                     <input 
@@ -1109,6 +1250,7 @@
         let currentVerifiedPayment = null;
         let currentSeller = null;
         let selectedDepartment = null; // Store selected department
+        let confirmedBuyerPhone = null; // Store buyer phone after confirmation
         let currentStep = 1; // Track current workflow step
 
         // Haiti Departments list (must match server.js order)
@@ -1124,6 +1266,25 @@
             'Nord-Ouest',
             'Sud-Est'
         ];
+
+        // Phone number utility functions
+        const HAITI_PHONE_REGEX = /^509\d{8}$/;
+        
+        function normalizePhoneNumber(phone) {
+            // Remove spaces, dashes, parentheses, plus
+            return phone.replace(/[\s\-\(\)\+]/g, '');
+        }
+        
+        function validateHaitiPhone(phone) {
+            const normalized = normalizePhoneNumber(phone);
+            return HAITI_PHONE_REGEX.test(normalized);
+        }
+        
+        function formatPhoneDisplay(phone) {
+            const normalized = normalizePhoneNumber(phone);
+            // Format as 509-XXXX-XXXX
+            return normalized.replace(/^(509)(\d{4})(\d{4})$/, '$1-$2-$3');
+        }
 
         // Translation data
         const translations = {
@@ -1146,6 +1307,10 @@
                 step2Description: "Collect buyer details before scanning ticket",
                 step2Help: "Buyer phone numbers and department info help track sales, prevent duplicate purchases, and enable us to contact winners. This information is kept secure and confidential.",
                 step2HelpTitle: "💡 Why collect buyer information?",
+                buyerPhoneLabel: "Buyer Phone Number",
+                phoneFormatHelp: "Format: 509-1234-5678 or 5091234567 or +509 1234 5678",
+                invalidPhone509: "Invalid phone number. Must be Haiti number with 509 area code.",
+                phoneConfirmed: "Phone number confirmed!",
                 step3Header: "📱 Step 3: Scan Ticket",
                 step3Description: "Final step - Scan ticket to assign to buyer",
                 step3Help: "Scanning is the final step that officially assigns the ticket to the buyer. This ensures payment is verified and buyer info is collected before the ticket is given out.",
@@ -1244,6 +1409,10 @@
                 step2Description: "Kolekte detay achtè a anvan eskane tikè",
                 step2Help: "Nimewo telefòn achtè yo ak enfòmasyon depatman ede swiv vant, anpeche acha double, epi pèmèt nou kontakte ganyan yo. Enfòmasyon sa yo kenbe an sekirite epi konfidansyèl.",
                 step2HelpTitle: "💡 Poukisa kolekte enfòmasyon achtè?",
+                buyerPhoneLabel: "Nimewo Telefòn Achtè",
+                phoneFormatHelp: "Fòma: 509-1234-5678 oswa 5091234567 oswa +509 1234 5678",
+                invalidPhone509: "Nimewo telefòn envalid. Dwe nimewo Ayiti ak kòd zòn 509.",
+                phoneConfirmed: "Nimewo telefòn konfime!",
                 step3Header: "📱 Etap 3: Eskane Tikè",
                 step3Description: "Dènye etap - Eskane tikè pou asiyen bay achtè",
                 step3Help: "Eskanè se dènye etap ki ofisyèlman asiyen tikè a bay achtè a. Sa asire peman verifye epi enfòmasyon achtè kolekte anvan bay tikè a.",
@@ -1342,6 +1511,10 @@
                 step2Description: "Collecter les détails de l'acheteur avant de scanner le billet",
                 step2Help: "Les numéros de téléphone et les informations sur le département aident à suivre les ventes, à prévenir les achats en double et à nous permettre de contacter les gagnants. Ces informations sont conservées en toute sécurité et confidentialité.",
                 step2HelpTitle: "💡 Pourquoi collecter les informations de l'acheteur?",
+                buyerPhoneLabel: "Numéro de Téléphone de l'Acheteur",
+                phoneFormatHelp: "Format: 509-1234-5678 ou 5091234567 ou +509 1234 5678",
+                invalidPhone509: "Numéro de téléphone invalide. Doit être un numéro haïtien avec indicatif régional 509.",
+                phoneConfirmed: "Numéro de téléphone confirmé!",
                 step3Header: "📱 Étape 3: Scanner le Billet",
                 step3Description: "Dernière étape - Scanner le billet pour l'attribuer à l'acheteur",
                 step3Help: "La numérisation est la dernière étape qui attribue officiellement le billet à l'acheteur. Cela garantit que le paiement est vérifié et que les informations sur l'acheteur sont collectées avant de remettre le billet.",
@@ -1947,9 +2120,24 @@
         document.getElementById('buyerInfoForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
+            const phoneInput = document.getElementById('buyerPhone').value.trim();
             const departmentInput = document.getElementById('buyerDepartmentInput').value.trim();
             const errorDiv = document.getElementById('departmentError');
             const t = translations[currentLanguage];
+            
+            // Validate phone number first
+            if (!phoneInput) {
+                errorDiv.textContent = t.buyerPhoneLabel + ' is required';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // Validate phone using utility function
+            if (!validateHaitiPhone(phoneInput)) {
+                errorDiv.textContent = t.invalidPhone509 || 'Invalid phone number. Must be Haiti number with 509 area code.';
+                errorDiv.style.display = 'block';
+                return;
+            }
             
             // Validate department
             if (!departmentInput || !HAITI_DEPARTMENTS.includes(departmentInput)) {
@@ -1958,17 +2146,27 @@
                 return;
             }
             
-            // Success - store department and advance to step 3
+            // Success - store phone and department
+            const normalizedPhone = normalizePhoneNumber(phoneInput);
+            confirmedBuyerPhone = normalizedPhone;
             selectedDepartment = departmentInput;
             errorDiv.style.display = 'none';
-            console.log('[BUYER-INFO] Department selected:', selectedDepartment);
+            
+            // Format phone for display
+            const displayPhone = formatPhoneDisplay(phoneInput);
+            
+            console.log('[BUYER-INFO] Phone:', displayPhone, 'Department:', selectedDepartment);
             
             // Show success message
             const step2Section = document.getElementById('step2Section');
             const successMsg = document.createElement('div');
             successMsg.className = 'alert alert-success';
             successMsg.style.marginTop = '10px';
-            successMsg.innerHTML = `✅ ${t.departmentConfirmed}: <strong>${selectedDepartment}</strong>`;
+            successMsg.innerHTML = `
+                ✅ ${t.phoneConfirmed || 'Buyer info confirmed'}<br>
+                <strong>${t.buyerPhoneLabel}:</strong> ${displayPhone}<br>
+                <strong>${t.departmentLabel}:</strong> ${selectedDepartment}
+            `;
             step2Section.appendChild(successMsg);
             
             // Disable form after submission
@@ -1983,6 +2181,7 @@
         function resetVerification() {
             currentVerifiedPayment = null;
             selectedDepartment = null;
+            confirmedBuyerPhone = null;
             document.getElementById('txnIdInput').value = '';
             document.getElementById('txnVerificationResult').style.display = 'none';
             
@@ -1994,8 +2193,9 @@
             btnLoading.style.display = 'none';
             verifyBtn.disabled = false;
             
-            // Reset department section
+            // Reset buyer info section
             const step2Section = document.getElementById('step2Section');
+            document.getElementById('buyerPhone').value = '';
             document.getElementById('buyerDepartmentInput').value = '';
             document.getElementById('departmentError').style.display = 'none';
             document.getElementById('buyerInfoForm').style.display = 'block';
@@ -2126,6 +2326,11 @@
                     requestBody.buyer_department = selectedDepartment;
                 }
                 
+                // Add buyer phone if confirmed
+                if (confirmedBuyerPhone) {
+                    requestBody.buyer_phone = confirmedBuyerPhone;
+                }
+                
                 const response = await fetch('/api/tickets/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2228,6 +2433,152 @@
             }
         });
 
+        // Ticket Photo Capture Functions
+        let ticketCameraStream = null;
+        let ticketPhotoBlob = null;
+        let currentTicketNumber = null;
+
+        async function openTicketCamera() {
+            try {
+                const video = document.getElementById('ticketCameraVideo');
+                const preview = document.getElementById('ticketCameraPreview');
+                const openBtn = document.getElementById('openTicketCameraBtn');
+                const captureBtn = document.getElementById('captureTicketPhotoBtn');
+                
+                // Request camera access
+                ticketCameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }, // Use back camera
+                    audio: false
+                });
+                
+                video.srcObject = ticketCameraStream;
+                preview.style.display = 'block';
+                openBtn.style.display = 'none';
+                captureBtn.style.display = 'inline-block';
+                
+                // Hide any previous status
+                document.getElementById('ticketPhotoStatus').style.display = 'none';
+            } catch (error) {
+                console.error('Camera access error:', error);
+                const t = translations[currentLanguage];
+                alert(t.cameraError || 'Unable to access camera. Please check permissions.');
+            }
+        }
+
+        function captureTicketPhoto() {
+            const video = document.getElementById('ticketCameraVideo');
+            const canvas = document.createElement('canvas');
+            const preview = document.getElementById('ticketPhotoPreview');
+            const captureBtn = document.getElementById('captureTicketPhotoBtn');
+            const retakeBtn = document.getElementById('retakeTicketPhotoBtn');
+            const uploadBtn = document.getElementById('uploadTicketPhotoBtn');
+            
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw video frame to canvas
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            // Convert to blob
+            canvas.toBlob((blob) => {
+                ticketPhotoBlob = blob;
+                
+                // Show preview
+                preview.src = canvas.toDataURL('image/jpeg');
+                preview.style.display = 'block';
+                
+                // Stop camera
+                if (ticketCameraStream) {
+                    ticketCameraStream.getTracks().forEach(track => track.stop());
+                    ticketCameraStream = null;
+                }
+                
+                // Hide camera preview
+                document.getElementById('ticketCameraPreview').style.display = 'none';
+                
+                // Update buttons
+                captureBtn.style.display = 'none';
+                retakeBtn.style.display = 'inline-block';
+                uploadBtn.style.display = 'inline-block';
+            }, 'image/jpeg', 0.9);
+        }
+
+        function retakeTicketPhoto() {
+            const preview = document.getElementById('ticketPhotoPreview');
+            const openBtn = document.getElementById('openTicketCameraBtn');
+            const retakeBtn = document.getElementById('retakeTicketPhotoBtn');
+            const uploadBtn = document.getElementById('uploadTicketPhotoBtn');
+            
+            // Clear photo
+            ticketPhotoBlob = null;
+            preview.style.display = 'none';
+            preview.src = '';
+            
+            // Reset buttons
+            openBtn.style.display = 'inline-block';
+            retakeBtn.style.display = 'none';
+            uploadBtn.style.display = 'none';
+            
+            // Clear status
+            document.getElementById('ticketPhotoStatus').style.display = 'none';
+        }
+
+        async function uploadTicketPhoto() {
+            if (!ticketPhotoBlob) {
+                alert('No photo to upload');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('ticketPhotoStatus');
+            const uploadBtn = document.getElementById('uploadTicketPhotoBtn');
+            
+            // Get ticket number from transaction form (or generate a placeholder)
+            const txnId = document.getElementById('txnIdInput').value.trim();
+            currentTicketNumber = txnId ? `TXN-${txnId}` : `TEMP-${Date.now()}`;
+            
+            try {
+                uploadBtn.disabled = true;
+                statusDiv.textContent = '⏳ Uploading photo...';
+                statusDiv.className = 'photo-status';
+                statusDiv.style.display = 'block';
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('photo', ticketPhotoBlob, 'ticket-photo.jpg');
+                formData.append('ticket_number', currentTicketNumber);
+                if (txnId) {
+                    formData.append('transaction_id', txnId);
+                }
+                
+                const response = await fetch('/api/seller/ticket-photo/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || 'Upload failed');
+                }
+                
+                statusDiv.textContent = '✅ Photo uploaded successfully!';
+                statusDiv.className = 'photo-status success';
+                
+                // Disable retake/upload buttons after successful upload
+                document.getElementById('retakeTicketPhotoBtn').disabled = true;
+                uploadBtn.disabled = true;
+                
+                console.log('Ticket photo uploaded:', data);
+            } catch (error) {
+                console.error('Upload error:', error);
+                statusDiv.textContent = '❌ Upload failed: ' + error.message;
+                statusDiv.className = 'photo-status error';
+                uploadBtn.disabled = false;
+            }
+        }
+
         // Manual Ticket Entry
         document.getElementById('manualTicketForm').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -2266,6 +2617,11 @@
                 // Add department if selected (only for payments without department)
                 if (selectedDepartment) {
                     requestBody.buyer_department = selectedDepartment;
+                }
+                
+                // Add buyer phone if confirmed
+                if (confirmedBuyerPhone) {
+                    requestBody.buyer_phone = confirmedBuyerPhone;
                 }
                 
                 const response = await fetch('/api/tickets/scan', {

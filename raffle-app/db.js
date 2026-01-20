@@ -328,6 +328,56 @@ async function initializeSchema() {
       )
     `);
     
+    // Draw photos table - for draw event verification
+    await run(`
+      CREATE TABLE IF NOT EXISTS draw_photos (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        draw_id INTEGER ${USE_POSTGRES ? 'REFERENCES draws(id) ON DELETE CASCADE' : ''},
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        photo_path TEXT NOT NULL,
+        uploaded_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        verified_by TEXT,
+        verified_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        verification_status TEXT DEFAULT 'pending',
+        admin_notes TEXT
+      )
+    `);
+    
+    // Create indexes for draw_photos table
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_draw_photos_draw_id ON draw_photos(draw_id)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_draw_photos_status ON draw_photos(verification_status)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_draw_photos_seller_phone ON draw_photos(seller_phone)`);
+      console.log('✅ Created indexes on draw_photos table');
+    } catch (error) {
+      console.warn('⚠️  Could not create draw_photos indexes:', error.message);
+    }
+    
+    // Ticket photos table - for ticket scratch game verification before sale
+    await run(`
+      CREATE TABLE IF NOT EXISTS ticket_photos (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        ticket_number TEXT NOT NULL,
+        seller_phone TEXT NOT NULL,
+        seller_name TEXT NOT NULL,
+        photo_path TEXT NOT NULL,
+        transaction_id TEXT,
+        uploaded_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        admin_notes TEXT
+      )
+    `);
+    
+    // Create indexes for ticket_photos table
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_ticket_photos_ticket_number ON ticket_photos(ticket_number)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_ticket_photos_seller_phone ON ticket_photos(seller_phone)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_ticket_photos_transaction_id ON ticket_photos(transaction_id)`);
+      console.log('✅ Created indexes on ticket_photos table');
+    } catch (error) {
+      console.warn('⚠️  Could not create ticket_photos indexes:', error.message);
+    }
+    
     // Seller requests table
     await run(`
       CREATE TABLE IF NOT EXISTS seller_requests (

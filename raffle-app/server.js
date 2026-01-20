@@ -1342,6 +1342,58 @@ const sellerIdUpload = multer({
   }
 });
 
+// Configure multer for draw photo uploads
+const drawPhotoStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'uploads', 'draw-photos');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'draw-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const drawPhotoUpload = multer({
+  storage: drawPhotoStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: function (req, file, cb) {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
+// Configure multer for ticket photo uploads
+const ticketPhotoStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, 'uploads', 'ticket-photos');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'ticket-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const ticketPhotoUpload = multer({
+  storage: ticketPhotoStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: function (req, file, cb) {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Only image files are allowed'), false);
+    }
+    cb(null, true);
+  }
+});
+
 // Submit registration request with validation
 const validateSellerRegistration = [
   body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
@@ -1946,6 +1998,429 @@ app.get('/api/available-tickets', requireAuth, requireAdmin, async (req, res) =>
   }
 });
 
+// ============================================================================
+// DRAW PHOTO UPLOAD & VERIFICATION ENDPOINTS
+// ============================================================================
+
+// POST /api/seller/draw-photo/upload - Seller uploads draw photo
+app.post('/api/seller/draw-photo/upload', requireAuth, drawPhotoUpload.single('photo'), async (req, res) => {
+  try {
+    // Verify user is a seller
+    if (req.session.user.role !== 'seller' && req.session.user.role !== 'admin') {
+      // Clean up uploaded file
+      if (req.file) {
+        try {
+          await fs.promises.unlink(req.file.path);
+        } catch (err) {
+          console.error('Error deleting file:', err);
+        }
+      }
+      return res.status(403).json({ 
+        error: 'Only sellers can upload draw photos',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Photo file is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { draw_id } = req.body;
+    
+    if (!draw_id) {
+      // Clean up uploaded file
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+      return res.status(400).json({ 
+        error: 'Draw ID is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Verify draw exists
+    const draw = await db.get("SELECT * FROM draws WHERE id = ?", [draw_id]);
+    if (!draw) {
+      // Clean up uploaded file
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+      return res.status(404).json({ 
+        error: 'Draw not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Insert draw photo record
+    const result = await db.run(
+      `INSERT INTO draw_photos (draw_id, seller_phone, seller_name, photo_path, verification_status) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [draw_id, req.session.user.phone, req.session.user.name, req.file.path, 'pending']
+    );
+    
+    console.log(`Draw photo uploaded: Draw #${draw_id} by ${req.session.user.name} (${req.session.user.phone})`);
+    
+    res.json({
+      success: true,
+      photo_id: result.lastID,
+      message: 'Photo uploaded successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Draw photo upload error:', error);
+    // Clean up uploaded file on error
+    if (req.file) {
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+    }
+    res.status(500).json({ 
+      error: 'An error occurred during upload',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/admin/draw-photos - Admin retrieves draw photos
+app.get('/api/admin/draw-photos', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { status = 'pending' } = req.query;
+    
+    let query = `
+      SELECT 
+        dp.*,
+        d.draw_number,
+        d.prize_name,
+        d.winner_name,
+        d.drawn_at
+      FROM draw_photos dp
+      LEFT JOIN draws d ON dp.draw_id = d.id
+    `;
+    
+    const params = [];
+    if (status !== 'all') {
+      query += ` WHERE dp.verification_status = ?`;
+      params.push(status);
+    }
+    
+    query += ` ORDER BY dp.uploaded_at DESC`;
+    
+    const photos = await db.all(query, params);
+    
+    res.json({
+      success: true,
+      photos,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get draw photos error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred retrieving photos',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/admin/draw-photo/:id/verify - Admin verifies/rejects photo
+app.post('/api/admin/draw-photo/:id/verify', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { verification_status, admin_notes } = req.body;
+    
+    if (!verification_status || !['verified', 'rejected'].includes(verification_status)) {
+      return res.status(400).json({ 
+        error: 'Invalid verification status. Must be "verified" or "rejected"',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check if photo exists
+    const photo = await db.get("SELECT * FROM draw_photos WHERE id = ?", [id]);
+    if (!photo) {
+      return res.status(404).json({ 
+        error: 'Photo not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Update verification status
+    await db.run(
+      `UPDATE draw_photos 
+       SET verification_status = ?, 
+           verified_by = ?, 
+           verified_at = ${db.getCurrentTimestamp()},
+           admin_notes = ?
+       WHERE id = ?`,
+      [verification_status, req.session.user.name, admin_notes || null, id]
+    );
+    
+    console.log(`Draw photo ${verification_status}: Photo #${id} by ${req.session.user.name}`);
+    
+    res.json({
+      success: true,
+      message: `Photo ${verification_status} successfully`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Verify draw photo error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during verification',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// DELETE /api/admin/draw-photo/:id - Admin deletes photo
+app.delete('/api/admin/draw-photo/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get photo record to find file path
+    const photo = await db.get("SELECT * FROM draw_photos WHERE id = ?", [id]);
+    if (!photo) {
+      return res.status(404).json({ 
+        error: 'Photo not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Delete database record first
+    await db.run("DELETE FROM draw_photos WHERE id = ?", [id]);
+    
+    // Delete file from filesystem (after DB to ensure consistency)
+    if (photo.photo_path && fs.existsSync(photo.photo_path)) {
+      try {
+        await fs.promises.unlink(photo.photo_path);
+        console.log(`Photo file deleted: ${photo.photo_path}`);
+      } catch (err) {
+        console.error('Error deleting photo file:', err);
+        // Continue - DB record is already deleted
+      }
+    }
+    
+    console.log(`Draw photo deleted: Photo #${id} by ${req.session.user.name}`);
+    
+    res.json({
+      success: true,
+      message: 'Photo deleted successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Delete draw photo error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during deletion',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// POST /api/seller/ticket-photo/upload - Seller uploads ticket photo before sale
+app.post('/api/seller/ticket-photo/upload', requireAuth, ticketPhotoUpload.single('photo'), async (req, res) => {
+  try {
+    // Verify user is a seller
+    if (req.session.user.role !== 'seller' && req.session.user.role !== 'admin') {
+      // Clean up uploaded file
+      if (req.file) {
+        try {
+          await fs.promises.unlink(req.file.path);
+        } catch (err) {
+          console.error('Error deleting file:', err);
+        }
+      }
+      return res.status(403).json({ 
+        error: 'Only sellers can upload ticket photos',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({
+        error: 'Photo file is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    const { ticket_number, transaction_id } = req.body;
+    
+    if (!ticket_number) {
+      // Clean up uploaded file
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+      return res.status(400).json({ 
+        error: 'Ticket number is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Insert ticket photo record
+    const result = await db.run(
+      `INSERT INTO ticket_photos (ticket_number, seller_phone, seller_name, photo_path, transaction_id) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [ticket_number, req.session.user.phone, req.session.user.name, req.file.path, transaction_id || null]
+    );
+    
+    console.log(`Ticket photo uploaded: Ticket #${ticket_number} by ${req.session.user.name} (${req.session.user.phone})`);
+    
+    res.json({
+      success: true,
+      photo_id: result.lastID,
+      message: 'Photo uploaded successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Ticket photo upload error:', error);
+    // Clean up uploaded file on error
+    if (req.file) {
+      try {
+        await fs.promises.unlink(req.file.path);
+      } catch (err) {
+        console.error('Error deleting file:', err);
+      }
+    }
+    res.status(500).json({ 
+      error: 'An error occurred during upload',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/admin/ticket-photos - Admin retrieves ticket photos
+app.get('/api/admin/ticket-photos', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { ticket_number } = req.query;
+    
+    let query = `
+      SELECT 
+        id, ticket_number, seller_phone, seller_name, 
+        photo_path, transaction_id, uploaded_at, admin_notes
+      FROM ticket_photos
+    `;
+    
+    let params = [];
+    if (ticket_number) {
+      query += ' WHERE ticket_number = ?';
+      params.push(ticket_number);
+    }
+    
+    query += ' ORDER BY uploaded_at DESC';
+    
+    const photos = await db.all(query, params);
+    
+    res.json({
+      success: true,
+      photos,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get ticket photos error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred retrieving photos',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// DELETE /api/admin/ticket-photo/:id - Admin deletes ticket photo
+app.delete('/api/admin/ticket-photo/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get photo record to find file path
+    const photo = await db.get("SELECT * FROM ticket_photos WHERE id = ?", [id]);
+    if (!photo) {
+      return res.status(404).json({ 
+        error: 'Photo not found',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Delete database record first
+    await db.run("DELETE FROM ticket_photos WHERE id = ?", [id]);
+    
+    // Delete file from filesystem (after DB to ensure consistency)
+    if (photo.photo_path && fs.existsSync(photo.photo_path)) {
+      try {
+        await fs.promises.unlink(photo.photo_path);
+        console.log(`Ticket photo file deleted: ${photo.photo_path}`);
+      } catch (err) {
+        console.error('Error deleting ticket photo file:', err);
+        // Continue - DB record is already deleted
+      }
+    }
+    
+    console.log(`Ticket photo deleted: Photo #${id} by ${req.session.user.name}`);
+    
+    res.json({
+      success: true,
+      message: 'Photo deleted successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Delete ticket photo error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred during deletion',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Serve uploaded ticket photos (with authentication)
+app.get('/uploads/ticket-photos/:filename', requireAuth, (req, res) => {
+  const filename = path.basename(req.params.filename); // Prevent path traversal
+  const uploadsDir = path.join(__dirname, 'uploads', 'ticket-photos');
+  const filepath = path.resolve(uploadsDir, filename);
+  
+  // Validate that resolved path is within uploads directory
+  if (!filepath.startsWith(uploadsDir)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  if (fs.existsSync(filepath)) {
+    res.sendFile(filepath);
+  } else {
+    res.status(404).json({ error: 'Photo not found' });
+  }
+});
+
+// GET /api/seller/recent-draws - Get recent draws for photo upload
+app.get('/api/seller/recent-draws', requireAuth, async (req, res) => {
+  try {
+    // Get draws from the last 30 days
+    const draws = await db.all(
+      `SELECT id, draw_number, prize_name, winner_name, drawn_at 
+       FROM draws 
+       ORDER BY drawn_at DESC 
+       LIMIT 50`
+    );
+    
+    res.json({
+      success: true,
+      draws,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get recent draws error:', error);
+    res.status(500).json({ 
+      error: 'An error occurred retrieving draws',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // API: Get seller statistics
 app.get('/api/seller-stats', requireAuth, requireAdmin, async (req, res) => {
   try {
@@ -2271,7 +2746,7 @@ app.post('/api/payments/verify-txn', requireAuth, async (req, res) => {
 // API: Scan ticket barcode (seller only)
 app.post('/api/tickets/scan', requireAuth, async (req, res) => {
   try {
-    const { barcode, payment_reference, buyer_department } = req.body;
+    const { barcode, payment_reference, buyer_department, buyer_phone } = req.body;
     
     console.log(`[SCAN] Seller ${req.session.user.name} scanning barcode: ${barcode}`);
     
@@ -2377,7 +2852,7 @@ app.post('/api/tickets/scan', requireAuth, async (req, res) => {
         req.session.user.name, 
         req.session.user.phone, 
         payment?.buyer_name || null,
-        payment?.buyer_phone || null,
+        buyer_phone || payment?.buyer_phone || null, // Use provided phone or payment phone
         payment_reference || null, 
         departmentToUse, 
         ticket.id
@@ -2795,6 +3270,53 @@ app.get('/api/admin/tickets/count', requireAuth, requireAdmin, async (req, res) 
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/admin/buyer-registrations - View all buyer registrations
+app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { phone } = req.query;
+    
+    let query = `
+      SELECT 
+        ticket_number,
+        buyer_name,
+        buyer_phone,
+        seller_name,
+        seller_phone,
+        payment_reference,
+        customer_department,
+        category,
+        price,
+        sold_at,
+        status
+      FROM tickets
+      WHERE status = 'SOLD'
+    `;
+    
+    const params = [];
+    
+    // Filter by phone if provided
+    if (phone) {
+      const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+      query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'+\', \'\'), \'(\', \'\') LIKE ?';
+      params.push(`%${normalizedPhone}%`);
+    }
+    
+    query += ' ORDER BY sold_at DESC LIMIT 1000';
+    
+    const registrations = await db.all(query, params);
+    
+    res.json({
+      success: true,
+      registrations: registrations,
+      total: registrations.length
+    });
+    
+  } catch (error) {
+    console.error('Error fetching buyer registrations:', error);
+    res.status(500).json({ error: 'Failed to fetch registrations' });
   }
 });
 
@@ -3907,6 +4429,9 @@ app.use('/uploads/designs', requireAuth, requireAdmin, express.static(path.join(
 
 // Serve uploaded seller ID pictures (admin only)
 app.use('/uploads/seller-ids', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'seller-ids')));
+
+// Serve uploaded draw photos (admin only)
+app.use('/uploads/draw-photos', requireAuth, requireAdmin, express.static(path.join(__dirname, 'uploads', 'draw-photos')));
 
 // ============================================================================
 // CUSTOM TICKET DESIGNS ENDPOINTS (Category-specific)
