@@ -3501,47 +3501,6 @@ app.get('/api/admin/buyer-registrations', requireAuth, requireAdmin, async (req,
   }
 });
 
-// GET /api/admin/ticket-photos/:ticketNumber - Get ticket photo by ticket number
-app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const { ticketNumber } = req.params;
-    
-    if (!ticketNumber) {
-      return res.status(400).json({ error: 'Ticket number is required' });
-    }
-    
-    // Get ticket photo path from database
-    const ticket = await db.get(
-      'SELECT ticket_photo_path, ticket_number FROM tickets WHERE ticket_number = ?',
-      [ticketNumber]
-    );
-    
-    if (!ticket) {
-      return res.status(404).json({ error: 'Ticket not found' });
-    }
-    
-    if (!ticket.ticket_photo_path) {
-      return res.status(404).json({ error: 'No photo available for this ticket' });
-    }
-    
-    // Construct absolute path
-    const photoPath = path.join(__dirname, ticket.ticket_photo_path);
-    
-    // Check if file exists
-    if (!fs.existsSync(photoPath)) {
-      console.error(`Ticket photo not found on disk: ${photoPath}`);
-      return res.status(404).json({ error: 'Photo file not found on server' });
-    }
-    
-    // Serve the image file
-    res.sendFile(photoPath);
-    
-  } catch (error) {
-    console.error('Error fetching ticket photo:', error);
-    res.status(500).json({ error: 'Failed to fetch ticket photo' });
-  }
-});
-
 // GET /api/admin/tickets/export - Export tickets to Excel
 app.get('/api/admin/tickets/export', requireAuth, requireAdmin, async (req, res) => {
   try {
