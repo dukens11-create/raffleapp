@@ -1,7 +1,8 @@
 {
   "main": "raffle-app/server.js",
   "scripts": {
-    "start": "node raffle-app/server.js"
+    "start": "node raffle-app/server.js",
+    "check-photo-setup": "node check-photo-setup.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

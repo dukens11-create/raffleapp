@@ -2241,7 +2241,21 @@
             photoImg.style.display = 'block';
           };
           photoImg.onerror = function() {
-            photoContainer.innerHTML = '<p style="color: #ef4444;">Failed to load photo</p>';
+            console.error('[PHOTO] Failed to load photo for ticket:', registration.ticket_number);
+            console.error('[PHOTO] Photo URL:', currentPhotoUrl);
+            
+            photoContainer.innerHTML = `
+              <div style="color: #ef4444; padding: 20px; text-align: center;">
+                <p style="font-size: 18px; margin-bottom: 10px;">❌ Failed to load photo</p>
+                <p style="font-size: 14px; color: #64748b;">Ticket: ${registration.ticket_number}</p>
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 10px;">
+                  Possible causes:<br>
+                  • Photo not captured during sale<br>
+                  • File deleted from server<br>
+                  • Database path incorrect
+                </p>
+              </div>
+            `;
           };
           
           modal.style.display = 'block';
