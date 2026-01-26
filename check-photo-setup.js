@@ -5,7 +5,8 @@ const path = require('path');
 console.log('=== Ticket Photo Setup Diagnostic ===\n');
 
 // Check database
-const db = new sqlite3.Database('./raffle-app/raffle.db', (err) => {
+const dbPath = path.join(__dirname, 'raffle-app', 'raffle.db');
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('❌ Database connection error:', err.message);
     return;
