@@ -2390,6 +2390,15 @@
                     return;
                 }
 
+                // Before sending the photo
+                if (capturedTicketPhoto) {
+                    console.log('[PHOTO] Sending photo with ticket scan:');
+                    console.log('  - Photo size:', capturedTicketPhoto.size, 'bytes');
+                    console.log('  - Photo type:', capturedTicketPhoto.type);
+                } else {
+                    console.log('[PHOTO] WARNING: No photo captured but trying to scan ticket');
+                }
+
                 console.log('[PHOTO] Photo validation:', {
                     hasPhoto: !!capturedTicketPhoto,
                     photoSize: capturedTicketPhoto?.size,
@@ -2400,7 +2409,7 @@
                 if (capturedTicketPhoto) {
                     // Filename matches blob format (JPEG) from canvas.toBlob
                     formData.append('ticketPhoto', capturedTicketPhoto, 'ticket_photo.jpg');
-                    console.log('[PHOTO] Sending photo with ticket scan:', capturedTicketPhoto.size, 'bytes');
+                    console.log('[PHOTO] Appended photo to form data');
                 }
                 
                 const response = await fetch('/api/tickets/scan', {
@@ -2427,6 +2436,12 @@
                         resultDiv.style.color = 'red';
                     }
                     return;
+                }
+                
+                // Log response
+                console.log('[PHOTO] Ticket scan response:', data);
+                if (data.photo_uploaded) {
+                    console.log('  ✅ Photo confirmed uploaded by server');
                 }
                 
                 // Show success message - adjust based on whether payment was verified

@@ -2214,6 +2214,11 @@
         function openTicketPhotoModal(index) {
           const registration = buyerRegistrations[index];
           if (!registration) return;
+          
+          console.log('[PHOTO] Opening photo modal for ticket:', registration.ticket_number);
+          console.log('  - Has photo path:', !!registration.ticket_photo_path);
+          console.log('  - Photo path:', registration.ticket_photo_path);
+          
           const modal = document.getElementById('ticketPhotoModal');
           
           // Populate ticket details
@@ -2231,6 +2236,8 @@
           const photoContainer = document.getElementById('photoModalImageContainer');
           currentPhotoUrl = `/api/admin/ticket-photos/${registration.ticket_number}`;
           
+          console.log('  - Requesting photo from:', currentPhotoUrl);
+          
           photoImg.style.display = 'none';
           photoContainer.innerHTML = '<p style="color: #64748b;">Loading photo...</p>';
           
@@ -2241,8 +2248,9 @@
             photoImg.style.display = 'block';
           };
           photoImg.onerror = function() {
-            console.error('[PHOTO] Failed to load photo for ticket:', registration.ticket_number);
-            console.error('[PHOTO] Photo URL:', currentPhotoUrl);
+            console.error('[PHOTO] Failed to load photo');
+            console.error('  - URL tried:', currentPhotoUrl);
+            console.error('  - Ticket number:', registration.ticket_number);
             
             photoContainer.innerHTML = `
               <div style="color: #ef4444; padding: 20px; text-align: center;">
