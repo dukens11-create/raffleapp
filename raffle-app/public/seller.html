@@ -2383,6 +2383,19 @@
                     console.log('[TXN] Sending TXN number with ticket:', window.enteredTxnNumber);
                 }
                 
+                // Validate photo before sending
+                if (!capturedTicketPhoto) {
+                    console.error('[PHOTO] ERROR: No photo captured but trying to scan ticket');
+                    alert(t.photoRequired || 'Please capture a ticket photo first');
+                    return;
+                }
+
+                console.log('[PHOTO] Photo validation:', {
+                    hasPhoto: !!capturedTicketPhoto,
+                    photoSize: capturedTicketPhoto?.size,
+                    photoType: capturedTicketPhoto?.type
+                });
+                
                 // Add ticket photo if captured
                 if (capturedTicketPhoto) {
                     // Filename matches blob format (JPEG) from canvas.toBlob
@@ -2423,6 +2436,13 @@
                     resultDiv.innerHTML = `✅ ${t.ticketNumber} ${data.ticket} ${t.ticketSoldSuccess}`;
                 }
                 resultDiv.style.color = 'green';
+                
+                // Confirm photo was uploaded
+                if (data.photo_uploaded) {
+                    console.log('[PHOTO] ✓ Photo successfully uploaded to server');
+                } else {
+                    console.warn('[PHOTO] ⚠ Ticket saved but photo may not have uploaded');
+                }
                 
                 // Update remaining count in verification section
                 const remainingSpan = document.getElementById('ticketsRemaining');

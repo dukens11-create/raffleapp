@@ -1432,6 +1432,15 @@ const ticketPhotoUpload = multer({
   }
 });
 
+// Ensure ticket photo upload directory exists
+const ticketPhotoDir = path.join(__dirname, 'uploads', 'ticket-photos');
+if (!fs.existsSync(ticketPhotoDir)) {
+  fs.mkdirSync(ticketPhotoDir, { recursive: true });
+  console.log('[PHOTO] Created ticket photo directory:', ticketPhotoDir);
+} else {
+  console.log('[PHOTO] Ticket photo directory exists:', ticketPhotoDir);
+}
+
 // Submit registration request with validation
 const validateSellerRegistration = [
   body('fullName').trim().isLength({ min: 2, max: 100 }).escape().withMessage('Full name must be between 2 and 100 characters'),
@@ -2271,13 +2280,18 @@ app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, asy
   try {
     const { ticketNumber } = req.params;
     
+    console.log('[PHOTO] Photo request for ticket:', ticketNumber);
+    
     // Get ticket with photo path
     const ticket = await db.get(
       "SELECT ticket_photo_path FROM tickets WHERE ticket_number = ?",
       [ticketNumber]
     );
     
+    console.log('[PHOTO] Database path:', ticket?.ticket_photo_path);
+    
     if (!ticket) {
+      console.log('[PHOTO] ERROR: Ticket not found:', ticketNumber);
       return res.status(404).json({ 
         error: 'Ticket not found',
         timestamp: new Date().toISOString()
@@ -2285,6 +2299,7 @@ app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, asy
     }
     
     if (!ticket.ticket_photo_path) {
+      console.log('[PHOTO] ERROR: No photo path in database for ticket:', ticketNumber);
       return res.status(404).json({ 
         error: 'No photo available for this ticket',
         timestamp: new Date().toISOString()
@@ -2294,8 +2309,12 @@ app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, asy
     // Construct full file path
     const photoPath = path.join(__dirname, ticket.ticket_photo_path);
     
+    console.log('[PHOTO] Full file path:', photoPath);
+    console.log('[PHOTO] File exists:', fs.existsSync(photoPath));
+    
     // Check if file exists
     if (!fs.existsSync(photoPath)) {
+      console.log('[PHOTO] ERROR: Photo file not found on server:', photoPath);
       return res.status(404).json({ 
         error: 'Photo file not found on server',
         timestamp: new Date().toISOString()
@@ -2303,6 +2322,7 @@ app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, asy
     }
     
     // Serve the image file
+    console.log('[PHOTO] ✓ Serving photo for ticket:', ticketNumber);
     res.sendFile(photoPath);
   } catch (error) {
     console.error('Get ticket photo error:', error);
@@ -2824,12 +2844,21 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
     // REQUIRE ticket photo
     if (!req.file) {
       console.log('[SCAN] Error: No ticket photo provided');
+      console.log('[PHOTO] WARNING: No photo file received for ticket', barcode);
       return res.status(400).json({ 
         error: 'PHOTO_REQUIRED',
         message: 'Ticket photo is required. Please take a photo of the physical ticket before registering.'
       });
     }
     
+    // Enhanced logging for photo upload
+    console.log('[PHOTO] Photo received:', {
+      originalName: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype,
+      path: req.file.path,
+      ticketNumber: barcode
+    });
     console.log(`[SCAN] Ticket photo received: ${req.file.filename} (${(req.file.size / 1024).toFixed(2)} KB)`);
     
     // TEMPORARY: Make payment_reference optional until MonCash API is configured
@@ -3017,9 +3046,11 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
         success: true, 
         message: 'Ticket assigned successfully',
         ticket: ticket.ticket_number,
+        photo_uploaded: !!relativePhotoPath, // Indicate if photo was saved
         tickets_assigned: newCount,
         tickets_remaining: remaining,
-        all_tickets_assigned: remaining === 0
+        all_tickets_assigned: remaining === 0,
+        timestamp: new Date().toISOString()
       });
     } else {
       // No payment reference - just confirm ticket sold
@@ -3028,7 +3059,9 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
       res.json({ 
         success: true, 
         message: 'Ticket assigned successfully',
-        ticket: ticket.ticket_number
+        ticket: ticket.ticket_number,
+        photo_uploaded: !!relativePhotoPath, // Indicate if photo was saved
+        timestamp: new Date().toISOString()
       });
     }
   } catch (error) {
