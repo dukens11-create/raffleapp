@@ -2280,15 +2280,15 @@ app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, asy
   try {
     const { ticketNumber } = req.params;
     
-    console.log('[PHOTO] Photo request for ticket:', ticketNumber);
+    console.log('📷 [PHOTO] Admin requesting photo for ticket:', ticketNumber);
     
     // Get ticket with photo path
     const ticket = await db.get(
-      "SELECT ticket_photo_path FROM tickets WHERE ticket_number = ?",
+      "SELECT ticket_photo_path, ticket_number FROM tickets WHERE ticket_number = ?",
       [ticketNumber]
     );
     
-    console.log('[PHOTO] Database path:', ticket?.ticket_photo_path);
+    console.log('   - Photo path in database:', ticket?.ticket_photo_path);
     
     if (!ticket) {
       console.log('[PHOTO] ERROR: Ticket not found:', ticketNumber);
@@ -2308,13 +2308,12 @@ app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, asy
     
     // Construct full file path
     const photoPath = path.join(__dirname, ticket.ticket_photo_path);
-    
-    console.log('[PHOTO] Full file path:', photoPath);
-    console.log('[PHOTO] File exists:', fs.existsSync(photoPath));
+    console.log('   - Full file path:', photoPath);
+    console.log('   - File exists:', fs.existsSync(photoPath));
     
     // Check if file exists
     if (!fs.existsSync(photoPath)) {
-      console.log('[PHOTO] ERROR: Photo file not found on server:', photoPath);
+      console.log('   ❌ Photo file NOT FOUND on disk');
       return res.status(404).json({ 
         error: 'Photo file not found on server',
         timestamp: new Date().toISOString()
@@ -2322,7 +2321,7 @@ app.get('/api/admin/ticket-photos/:ticketNumber', requireAuth, requireAdmin, asy
     }
     
     // Serve the image file
-    console.log('[PHOTO] ✓ Serving photo for ticket:', ticketNumber);
+    console.log('   ✅ Serving photo successfully');
     res.sendFile(photoPath);
   } catch (error) {
     console.error('Get ticket photo error:', error);
@@ -2843,8 +2842,7 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
     
     // REQUIRE ticket photo
     if (!req.file) {
-      console.log('[SCAN] Error: No ticket photo provided');
-      console.log('[PHOTO] WARNING: No photo file received for ticket', barcode);
+      console.log('⚠️  [PHOTO] No photo received for ticket:', barcode);
       return res.status(400).json({ 
         error: 'PHOTO_REQUIRED',
         message: 'Ticket photo is required. Please take a photo of the physical ticket before registering.'
@@ -2852,14 +2850,11 @@ app.post('/api/tickets/scan', requireAuth, ticketPhotoUpload.single('ticketPhoto
     }
     
     // Enhanced logging for photo upload
-    console.log('[PHOTO] Photo received:', {
-      originalName: req.file.originalname,
-      size: req.file.size,
-      mimetype: req.file.mimetype,
-      path: req.file.path,
-      ticketNumber: barcode
-    });
-    console.log(`[SCAN] Ticket photo received: ${req.file.filename} (${(req.file.size / 1024).toFixed(2)} KB)`);
+    console.log('✅ [PHOTO] Photo received from seller:');
+    console.log('   - Ticket number:', barcode);
+    console.log('   - File size:', req.file.size, 'bytes');
+    console.log('   - File path:', req.file.path);
+    console.log('   - Original name:', req.file.originalname);
     
     // TEMPORARY: Make payment_reference optional until MonCash API is configured
     // This allows sellers to assign tickets without payment verification
@@ -7786,6 +7781,21 @@ app.listen(PORT, () => {
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Access the application at http://localhost:${PORT}`);
   console.log(`Health check available at http://localhost:${PORT}/health`);
+  
+  // Check ticket photo upload directory
+  const uploadDir = path.join(__dirname, 'uploads', 'ticket-photos');
+  console.log('\n📁 Checking ticket photo directory...');
+  console.log('   Directory path:', uploadDir);
+
+  if (fs.existsSync(uploadDir)) {
+    console.log('   ✅ Directory exists');
+    const files = fs.readdirSync(uploadDir);
+    console.log('   📊 Files in directory:', files.length);
+  } else {
+    console.log('   ⚠️  Directory does NOT exist - creating it now...');
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log('   ✅ Directory created');
+  }
 });
 
 // Graceful shutdown
