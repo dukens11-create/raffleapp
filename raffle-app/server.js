@@ -4075,7 +4075,7 @@ app.post('/api/admin/tickets/mark-printed', requireAuth, requireAdmin, async (re
 
 // Track generation progress globally
 let generationProgress = {
-  total: 1500000,
+  total: 1225000,  // 100K ABC + 375K EFG + 375K JKL + 375K XYZ
   completed: 0,
   abc: 0,
   efg: 0,
@@ -4085,7 +4085,7 @@ let generationProgress = {
   error: null
 };
 
-// POST /api/admin/tickets/generate-all - Generate all 1.5M tickets with barcodes and QR codes
+// POST /api/admin/tickets/generate-all - Generate all tickets with barcodes
 app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (req, res) => {
   console.log('📥 POST /api/admin/tickets/generate-all received');
   
@@ -4119,7 +4119,7 @@ app.post('/api/admin/tickets/generate-all', requireAuth, requireAdmin, async (re
     res.json({ 
       success: true,
       message: 'Generation started. Use /api/admin/tickets/generation-progress to monitor progress.', 
-      total: 1500000,
+      total: 1225000,  // 100K ABC + 375K EFG + 375K JKL + 375K XYZ
       timestamp: new Date().toISOString()
     });
     
@@ -4321,7 +4321,7 @@ async function generateAllTicketsBackground() {
     // Step 4: Define and create categories
     console.log('📝 Step 4: Setting up ticket categories...');
     const categories = [
-      { code: 'ABC', price: 1000, count: 375000 },
+      { code: 'ABC', price: 1000, count: 100000 },  // 100,000 Gold tickets
       { code: 'EFG', price: 50, count: 375000 },
       { code: 'JKL', price: 20, count: 375000 },
       { code: 'XYZ', price: 10, count: 375000 }
