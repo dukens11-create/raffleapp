@@ -289,6 +289,48 @@
       font-size: 12px;
       margin-top: 4px;
     }
+    
+    /* Ticket Info Display */
+    .ticket-info {
+      padding: 12px 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .ticket-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .ticket-info-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .ticket-info-label {
+      color: #6c757d;
+      font-weight: 600;
+    }
+    
+    .ticket-info-value {
+      color: #212529;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    
+    .barcode-display {
+      text-align: center;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+      letter-spacing: 2px;
+      font-size: 16px;
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -304,6 +346,16 @@
   </div>
 
   <script>
+    // Category mapping: Ticket Type -> Database Category
+    const CATEGORY_MAP = {
+      'gold': 'ABC',
+      'silver': 'EFG',
+      'bronze': 'JKL',
+      'heritage': 'XYZ',
+      'star': 'EFG',
+      'bonus': 'XYZ'
+    };
+    
     // Ticket configurations
     const ticketTypes = [
       {
@@ -312,6 +364,7 @@
         className: 'ticket-gold',
         prizeRange: '50 HTG - 250,000 HTG',
         coverText: 'GRATE TOUTE',
+        category: 'ABC',
         prizes: [
           { emoji: '🎉', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 1 },
           { emoji: '💎', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
@@ -328,6 +381,7 @@
         className: 'ticket-silver',
         prizeRange: '25 HTG - 100,000 HTG',
         coverText: 'GRATE',
+        category: 'EFG',
         prizes: [
           { emoji: '💰', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 2 },
           { emoji: '🎯', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 5 },
@@ -343,6 +397,7 @@
         className: 'ticket-bronze',
         prizeRange: '10 HTG - 50,000 HTG',
         coverText: 'GRATE',
+        category: 'JKL',
         prizes: [
           { emoji: '🎊', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 2 },
           { emoji: '🏆', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 10 },
@@ -359,6 +414,7 @@
         prizeRange: '20 HTG - 75,000 HTG',
         coverText: 'KENBE SÈNBOL AYITI',
         subText: 'JWE AK RESPÈ E FAIR-PLAY',
+        category: 'XYZ',
         prizes: [
           { emoji: '🇭🇹', text: 'OU GENYEN\n75,000 GOUD', value: 75000, weight: 2 },
           { emoji: '🌴', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 8 },
@@ -374,6 +430,7 @@
         className: 'ticket-star',
         prizeRange: '15 HTG - 60,000 HTG',
         coverText: 'GRATE ⭐',
+        category: 'EFG',
         prizes: [
           { emoji: '🌟', text: 'OU GENYEN\n60,000 GOUD', value: 60000, weight: 2 },
           { emoji: '✨', text: 'OU GENYEN\n20,000 GOUD', value: 20000, weight: 8 },
@@ -389,6 +446,7 @@
         className: 'ticket-bonus',
         prizeRange: '5 HTG - 500,000 HTG',
         coverText: 'GRATE POU SIPRIZ',
+        category: 'XYZ',
         prizes: [
           { emoji: '🎰', text: 'MEGA PRIZE!\n500,000 GOUD', value: 500000, weight: 1 },
           { emoji: '🎉', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
@@ -412,16 +470,73 @@
         this.prize = null;
         this.brushSize = 18;
         this.autoRevealThreshold = 55;
+        this.ticketData = null;  // Store fetched ticket data
         
         this.init();
       }
       
-      init() {
+      async init() {
         this.createTicketCard();
+        await this.fetchTicketData();  // Fetch real ticket data
         this.selectRandomPrize();
         this.setupCanvas();
         this.drawCoverLayer();
         this.attachEventListeners();
+      }
+      
+      async fetchTicketData() {
+        try {
+          const response = await fetch(`/api/scratch-tickets/available?category=${this.config.category}&limit=1`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.tickets && data.tickets.length > 0) {
+              this.ticketData = data.tickets[0];
+              this.updateTicketInfo();
+            } else {
+              console.warn(`No available tickets for category ${this.config.category}`);
+              this.ticketData = {
+                ticket_number: `${this.config.category}-DEMO`,
+                barcode: '00000000',
+                category: this.config.category
+              };
+              this.updateTicketInfo();
+            }
+          } else {
+            console.error('Failed to fetch ticket data:', response.statusText);
+            this.ticketData = {
+              ticket_number: `${this.config.category}-DEMO`,
+              barcode: '00000000',
+              category: this.config.category
+            };
+            this.updateTicketInfo();
+          }
+        } catch (error) {
+          console.error('Error fetching ticket:', error);
+          this.ticketData = {
+            ticket_number: `${this.config.category}-DEMO`,
+            barcode: '00000000',
+            category: this.config.category
+          };
+          this.updateTicketInfo();
+        }
+      }
+      
+      updateTicketInfo() {
+        if (!this.ticketData) return;
+        
+        const ticketInfoEl = document.getElementById(`ticket-info-${this.config.id}`);
+        if (ticketInfoEl) {
+          ticketInfoEl.innerHTML = `
+            <div class="ticket-info-row">
+              <span class="ticket-info-label">Ticket #:</span>
+              <span class="ticket-info-value">${this.ticketData.ticket_number}</span>
+            </div>
+            <div class="ticket-info-row">
+              <span class="ticket-info-label">Barcode:</span>
+              <span class="barcode-display">${this.ticketData.barcode}</span>
+            </div>
+          `;
+        }
       }
       
       createTicketCard() {
@@ -434,6 +549,11 @@
             <h2>${this.config.name}</h2>
             <div class="prize-range">${this.config.prizeRange}</div>
             ${this.config.subText ? `<div class="heritage-badge">${this.config.subText}</div>` : ''}
+          </div>
+          <div class="ticket-info" id="ticket-info-${this.config.id}">
+            <div class="ticket-info-row">
+              <span class="ticket-info-label">Loading...</span>
+            </div>
           </div>
           <div class="scratch-area">
             <div class="scratch-container" id="scratch-${this.config.id}">
@@ -617,9 +737,10 @@
         this.isDrawing = false;
       }
       
-      reset() {
+      async reset() {
         this.scratchedPercentage = 0;
         this.isDrawing = false;
+        await this.fetchTicketData();  // Fetch new ticket
         this.selectRandomPrize();
         this.setupCanvas();
         this.drawCoverLayer();

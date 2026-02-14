@@ -4363,13 +4363,21 @@ async function generateAllTicketsBackground() {
       
       // Generate tickets with progress callback
       console.log(`🎫 Starting ticket generation for ${category.code}...`);
+      
+      // Set starting number based on category
+      // ABC (Gold) tickets start from 20000
+      const startNum = category.code === 'ABC' ? 20000 : 1;
+      const endNum = category.code === 'ABC' ? 20000 + category.count - 1 : category.count;
+      
+      console.log(`   Range: ${startNum} to ${endNum}`);
+      
       try {
         await ticketService.generateTickets({
           raffle_id: raffle.id,
           category_id: categoryRecord.id,
           category: category.code,
-          startNum: 1,
-          endNum: category.count,
+          startNum: startNum,
+          endNum: endNum,
           price: category.price,
           progressCallback: (progress) => {
             // Update global progress
@@ -4382,7 +4390,7 @@ async function generateAllTicketsBackground() {
             
             // Log every 10,000 tickets
             if (progress.created % 10000 === 0) {
-              console.log(`   ${category.code}: ${progress.created.toLocaleString()} / ${category.count.toLocaleString()} (${progress.percent}%)`);
+              console.log(`   ${category.code}: ${progress.created.toLocaleString()} / ${endNum - startNum + 1} (${progress.percent}%)`);
             }
           }
         });
@@ -7777,6 +7785,66 @@ app.use((err, req, res, next) => {
   } else {
     // For regular requests, serve custom 500 page
     res.status(err.status || 500).sendFile(path.join(__dirname, 'public', '500.html'));
+  }
+});
+
+// ============================================================================
+// SCRATCH TICKETS API ENDPOINTS
+// ============================================================================
+
+/**
+ * GET /api/scratch-tickets/available - Get available tickets for scratch ticket game
+ * Returns a random available ticket from the specified category
+ * 
+ * Query params:
+ * - category: ABC | EFG | JKL | XYZ (required)
+ * - limit: number of tickets to return (default: 1, max: 10)
+ */
+app.get('/api/scratch-tickets/available', async (req, res) => {
+  try {
+    const { category, limit = 1 } = req.query;
+    
+    // Validate category
+    if (!category || !['ABC', 'EFG', 'JKL', 'XYZ'].includes(category)) {
+      return res.status(400).json({ 
+        error: 'Invalid category. Must be ABC, EFG, JKL, or XYZ' 
+      });
+    }
+    
+    // Validate limit
+    const ticketLimit = Math.min(Math.max(parseInt(limit) || 1, 1), 10);
+    
+    // Get random available tickets from this category
+    const tickets = await db.all(`
+      SELECT 
+        id,
+        ticket_number,
+        barcode,
+        category,
+        price,
+        status
+      FROM tickets 
+      WHERE category = ? 
+        AND status = 'AVAILABLE'
+        AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      ORDER BY RANDOM()
+      LIMIT ?
+    `, [category, ticketLimit]);
+    
+    if (!tickets || tickets.length === 0) {
+      return res.status(404).json({ 
+        error: `No available ${category} tickets found` 
+      });
+    }
+    
+    res.json({
+      success: true,
+      tickets: tickets,
+      count: tickets.length
+    });
+  } catch (error) {
+    console.error('Error fetching scratch tickets:', error);
+    res.status(500).json({ error: 'Failed to fetch tickets' });
   }
 });
 
