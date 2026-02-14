@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Scratch Tickets - Grate Genyen</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      padding: 20px;
+      color: #1e293b;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    /* Header */
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    
+    .header p {
+      color: #64748b;
+      font-size: 16px;
+    }
+    
+    /* Ticket Gallery */
+    .ticket-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 32px;
+      margin-bottom: 32px;
+    }
+    
+    /* Ticket Card */
+    .ticket-card {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .ticket-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+    }
+    
+    .ticket-header {
+      padding: 20px;
+      color: white;
+      text-align: center;
+    }
+    
+    .ticket-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .ticket-header .prize-range {
+      font-size: 14px;
+      opacity: 0.95;
+      font-weight: 600;
+    }
+    
+    /* Ticket Type Styles */
+    .ticket-gold .ticket-header {
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    }
+    
+    .ticket-silver .ticket-header {
+      background: linear-gradient(135deg, #C0C0C0 0%, #A9A9A9 100%);
+    }
+    
+    .ticket-bronze .ticket-header {
+      background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+    }
+    
+    .ticket-heritage .ticket-header {
+      background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
+    }
+    
+    .ticket-star .ticket-header {
+      background: linear-gradient(135deg, #0000CD 0%, #4169E1 50%, #9370DB 100%);
+    }
+    
+    .ticket-bonus .ticket-header {
+      background: linear-gradient(135deg, #FF1493 0%, #FF6347 25%, #FFD700 50%, #00CED1 75%, #9370DB 100%);
+    }
+    
+    /* Scratch Area */
+    .scratch-area {
+      position: relative;
+      padding: 20px;
+    }
+    
+    .scratch-container {
+      position: relative;
+      width: 100%;
+      max-width: 360px;
+      margin: 0 auto;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .prize-content {
+      width: 100%;
+      height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    /* Prize Content Backgrounds */
+    .ticket-gold .prize-content {
+      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+      color: #000;
+    }
+    
+    .ticket-silver .prize-content {
+      background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 100%);
+      color: #1e293b;
+    }
+    
+    .ticket-bronze .prize-content {
+      background: linear-gradient(135deg, #E6A855 0%, #CD7F32 100%);
+      color: #1e293b;
+    }
+    
+    .ticket-heritage .prize-content {
+      background: linear-gradient(135deg, #F5DEB3 0%, #DAA520 100%);
+      color: #1e293b;
+    }
+    
+    .ticket-star .prize-content {
+      background: linear-gradient(135deg, #4169E1 0%, #9370DB 100%);
+      color: white;
+    }
+    
+    .ticket-bonus .prize-content {
+      background: linear-gradient(135deg, #FF69B4 0%, #FFD700 50%, #00CED1 100%);
+      color: #1e293b;
+    }
+    
+    .prize-emoji {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    
+    .prize-text {
+      font-size: 28px;
+      font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      line-height: 1.3;
+    }
+    
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+      touch-action: none;
+    }
+    
+    /* Controls */
+    .controls {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .progress-text {
+      text-align: center;
+      font-size: 14px;
+      color: #64748b;
+      font-weight: 600;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 12px;
+    }
+    
+    .btn {
+      flex: 1;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .btn-reset {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-reset:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-reveal {
+      background: #10b981;
+      color: white;
+    }
+    
+    .btn-reveal:hover {
+      background: #059669;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .ticket-gallery {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      
+      .header h1 {
+        font-size: 24px;
+      }
+      
+      .header {
+        padding: 20px;
+      }
+      
+      body {
+        padding: 12px;
+      }
+    }
+    
+    /* Heritage Ticket Special Elements */
+    .heritage-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+    
+    /* Ticket Info Display */
+    .ticket-info {
+      padding: 12px 20px;
+      background: #f8f9fa;
+      border-top: 1px solid #e9ecef;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .ticket-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .ticket-info-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .ticket-info-label {
+      color: #6c757d;
+      font-weight: 600;
+    }
+    
+    .ticket-info-value {
+      color: #212529;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    
+    .barcode-display {
+      text-align: center;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+      letter-spacing: 2px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🎫 Grate Genyen - Scratch Tickets</h1>
+      <p>Chwazi yon tikè epi grate pou wè si ou genyen! (Choose a ticket and scratch to see if you win!)</p>
+    </div>
+    
+    <!-- Ticket Gallery -->
+    <div class="ticket-gallery" id="ticketGallery"></div>
+  </div>
+
+  <script>
+    // Category mapping: Ticket Type -> Database Category
+    const CATEGORY_MAP = {
+      'gold': 'ABC',
+      'silver': 'EFG',
+      'bronze': 'JKL',
+      'heritage': 'XYZ',
+      'star': 'EFG',
+      'bonus': 'XYZ'
+    };
+    
+    // Ticket configurations
+    const ticketTypes = [
+      {
+        id: 'gold',
+        name: 'GRATE GENYEN Gold',
+        className: 'ticket-gold',
+        prizeRange: '1000 HTG - Prix: 1000 GOUD',
+        coverText: 'GRATE TOUTE',
+        category: 'ABC',
+        prizes: [
+          { emoji: '🎉', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 1 },
+          { emoji: '💎', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
+          { emoji: '🔥', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 8 },
+          { emoji: '💰', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 20 },
+          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 40 },
+          { emoji: '⭐', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 150 }
+        ]
+      },
+      {
+        id: 'silver',
+        name: 'Silver Standard',
+        className: 'ticket-silver',
+        prizeRange: '25 HTG - 100,000 HTG',
+        coverText: 'GRATE',
+        category: 'EFG',
+        prizes: [
+          { emoji: '💰', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 2 },
+          { emoji: '🎯', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 5 },
+          { emoji: '🌟', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 15 },
+          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 30 },
+          { emoji: '✨', text: 'OU GENYEN\n25 GOUD', value: 25, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 170 }
+        ]
+      },
+      {
+        id: 'bronze',
+        name: 'Bronze Basic',
+        className: 'ticket-bronze',
+        prizeRange: '10 HTG - 50,000 HTG',
+        coverText: 'GRATE',
+        category: 'JKL',
+        prizes: [
+          { emoji: '🎊', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 2 },
+          { emoji: '🏆', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 10 },
+          { emoji: '🎖️', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 20 },
+          { emoji: '🎁', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 40 },
+          { emoji: '🌟', text: 'OU GENYEN\n10 GOUD', value: 10, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 150 }
+        ]
+      },
+      {
+        id: 'heritage',
+        name: 'Haiti Heritage',
+        className: 'ticket-heritage',
+        prizeRange: '20 HTG - 75,000 HTG',
+        coverText: 'KENBE SÈNBOL AYITI',
+        subText: 'JWE AK RESPÈ E FAIR-PLAY',
+        category: 'XYZ',
+        prizes: [
+          { emoji: '🇭🇹', text: 'OU GENYEN\n75,000 GOUD', value: 75000, weight: 2 },
+          { emoji: '🌴', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 8 },
+          { emoji: '⛓️', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 15 },
+          { emoji: '⭐', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 30 },
+          { emoji: '🎯', text: 'OU GENYEN\n20 GOUD', value: 20, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 165 }
+        ]
+      },
+      {
+        id: 'star',
+        name: 'Lucky Star',
+        className: 'ticket-star',
+        prizeRange: '15 HTG - 60,000 HTG',
+        coverText: 'GRATE ⭐',
+        category: 'EFG',
+        prizes: [
+          { emoji: '🌟', text: 'OU GENYEN\n60,000 GOUD', value: 60000, weight: 2 },
+          { emoji: '✨', text: 'OU GENYEN\n20,000 GOUD', value: 20000, weight: 8 },
+          { emoji: '💫', text: 'OU GENYEN\n8,000 GOUD', value: 8000, weight: 15 },
+          { emoji: '⭐', text: 'OU GENYEN\n2,000 GOUD', value: 2000, weight: 35 },
+          { emoji: '🎯', text: 'OU GENYEN\n15 GOUD', value: 15, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 160 }
+        ]
+      },
+      {
+        id: 'bonus',
+        name: 'Bonus Surprise',
+        className: 'ticket-bonus',
+        prizeRange: '5 HTG - 500,000 HTG',
+        coverText: 'GRATE POU SIPRIZ',
+        category: 'XYZ',
+        prizes: [
+          { emoji: '🎰', text: 'MEGA PRIZE!\n500,000 GOUD', value: 500000, weight: 1 },
+          { emoji: '🎉', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
+          { emoji: '🔥', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 10 },
+          { emoji: '💰', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 25 },
+          { emoji: '🎁', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 50 },
+          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 211 }
+        ]
+      }
+    ];
+
+    class ScratchTicket {
+      constructor(config, containerId) {
+        this.config = config;
+        this.containerId = containerId;
+        this.canvas = null;
+        this.ctx = null;
+        this.isDrawing = false;
+        this.scratchedPercentage = 0;
+        this.prize = null;
+        this.brushSize = 18;
+        this.autoRevealThreshold = 55;
+        this.ticketData = null;  // Store fetched ticket data
+        
+        this.init();
+      }
+      
+      async init() {
+        this.createTicketCard();
+        await this.fetchTicketData();  // Fetch real ticket data
+        this.selectRandomPrize();
+        this.setupCanvas();
+        this.drawCoverLayer();
+        this.attachEventListeners();
+      }
+      
+      async fetchTicketData() {
+        try {
+          const response = await fetch(`/api/scratch-tickets/available?category=${this.config.category}&limit=1`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.tickets && data.tickets.length > 0) {
+              this.ticketData = data.tickets[0];
+              this.updateTicketInfo();
+            } else {
+              console.warn(`No available tickets for category ${this.config.category}`);
+              this.ticketData = {
+                ticket_number: `${this.config.category}-DEMO`,
+                barcode: '00000000',
+                category: this.config.category
+              };
+              this.updateTicketInfo();
+            }
+          } else {
+            console.error('Failed to fetch ticket data:', response.statusText);
+            this.ticketData = {
+              ticket_number: `${this.config.category}-DEMO`,
+              barcode: '00000000',
+              category: this.config.category
+            };
+            this.updateTicketInfo();
+          }
+        } catch (error) {
+          console.error('Error fetching ticket:', error);
+          this.ticketData = {
+            ticket_number: `${this.config.category}-DEMO`,
+            barcode: '00000000',
+            category: this.config.category
+          };
+          this.updateTicketInfo();
+        }
+      }
+      
+      updateTicketInfo() {
+        if (!this.ticketData) return;
+        
+        const ticketInfoEl = document.getElementById(`ticket-info-${this.config.id}`);
+        if (ticketInfoEl) {
+          ticketInfoEl.innerHTML = `
+            <div class="ticket-info-row">
+              <span class="ticket-info-label">Ticket #:</span>
+              <span class="ticket-info-value">${this.ticketData.ticket_number}</span>
+            </div>
+            <div class="ticket-info-row">
+              <span class="ticket-info-label">Barcode:</span>
+              <span class="barcode-display">${this.ticketData.barcode}</span>
+            </div>
+          `;
+        }
+      }
+      
+      createTicketCard() {
+        const gallery = document.getElementById(this.containerId);
+        
+        const card = document.createElement('div');
+        card.className = `ticket-card ${this.config.className}`;
+        card.innerHTML = `
+          <div class="ticket-header">
+            <h2>${this.config.name}</h2>
+            <div class="prize-range">${this.config.prizeRange}</div>
+            ${this.config.subText ? `<div class="heritage-badge">${this.config.subText}</div>` : ''}
+          </div>
+          <div class="ticket-info" id="ticket-info-${this.config.id}">
+            <div class="ticket-info-row">
+              <span class="ticket-info-label">Loading...</span>
+            </div>
+          </div>
+          <div class="scratch-area">
+            <div class="scratch-container" id="scratch-${this.config.id}">
+              <div class="prize-content" id="prize-${this.config.id}">
+                <div class="prize-emoji"></div>
+                <div class="prize-text"></div>
+              </div>
+              <canvas id="canvas-${this.config.id}"></canvas>
+            </div>
+          </div>
+          <div class="controls">
+            <div class="progress-text" id="progress-${this.config.id}">Scratched: 0%</div>
+            <div class="button-group">
+              <button class="btn btn-reset" id="reset-${this.config.id}">🔄 Reset</button>
+              <button class="btn btn-reveal" id="reveal-${this.config.id}">👁️ Reveal All</button>
+            </div>
+          </div>
+        `;
+        
+        gallery.appendChild(card);
+        
+        this.canvas = document.getElementById(`canvas-${this.config.id}`);
+        this.prizeElement = document.getElementById(`prize-${this.config.id}`);
+        this.progressElement = document.getElementById(`progress-${this.config.id}`);
+      }
+      
+      selectRandomPrize() {
+        const totalWeight = this.config.prizes.reduce((sum, p) => sum + p.weight, 0);
+        let random = Math.random() * totalWeight;
+        
+        for (const prize of this.config.prizes) {
+          random -= prize.weight;
+          if (random <= 0) {
+            this.prize = prize;
+            break;
+          }
+        }
+        
+        // Update prize display
+        const emojiEl = this.prizeElement.querySelector('.prize-emoji');
+        const textEl = this.prizeElement.querySelector('.prize-text');
+        emojiEl.textContent = this.prize.emoji;
+        textEl.textContent = this.prize.text;
+      }
+      
+      setupCanvas() {
+        const container = this.canvas.parentElement;
+        const rect = container.getBoundingClientRect();
+        
+        this.canvas.width = rect.width;
+        this.canvas.height = 200;
+        
+        this.ctx = this.canvas.getContext('2d');
+      }
+      
+      drawCoverLayer() {
+        const ctx = this.ctx;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        
+        // Base gray color
+        ctx.fillStyle = '#bfbfbf';
+        ctx.fillRect(0, 0, width, height);
+        
+        // Add subtle texture pattern
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        for (let i = 0; i < width; i += 8) {
+          for (let j = 0; j < height; j += 8) {
+            if (Math.random() > 0.5) {
+              ctx.fillRect(i, j, 3, 3);
+            }
+          }
+        }
+        
+        // Cover text
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.font = 'bold 32px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        const lines = this.config.coverText.split('\n');
+        const lineHeight = 40;
+        const startY = (height / 2) - ((lines.length - 1) * lineHeight / 2);
+        
+        lines.forEach((line, index) => {
+          ctx.fillText(line, width / 2, startY + (index * lineHeight));
+        });
+        
+        // Instruction text
+        ctx.font = 'bold 16px Arial';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillText('↓ Grate isit la ↓', width / 2, height - 30);
+      }
+      
+      attachEventListeners() {
+        // Mouse events
+        this.canvas.addEventListener('mousedown', (e) => this.startScratching(e));
+        this.canvas.addEventListener('mousemove', (e) => this.scratch(e));
+        this.canvas.addEventListener('mouseup', () => this.stopScratching());
+        this.canvas.addEventListener('mouseleave', () => this.stopScratching());
+        
+        // Touch events
+        this.canvas.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          this.startScratching(e.touches[0]);
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          this.scratch(e.touches[0]);
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          this.stopScratching();
+        }, { passive: false });
+        
+        // Button events
+        document.getElementById(`reset-${this.config.id}`).addEventListener('click', () => {
+          this.reset();
+        });
+        
+        document.getElementById(`reveal-${this.config.id}`).addEventListener('click', () => {
+          this.revealAll();
+        });
+      }
+      
+      startScratching(e) {
+        this.isDrawing = true;
+        this.scratch(e);
+      }
+      
+      scratch(e) {
+        if (!this.isDrawing) return;
+        
+        const rect = this.canvas.getBoundingClientRect();
+        const x = (e.clientX || e.pageX) - rect.left;
+        const y = (e.clientY || e.pageY) - rect.top;
+        
+        // Scale coordinates for canvas resolution
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        
+        this.ctx.globalCompositeOperation = 'destination-out';
+        this.ctx.beginPath();
+        this.ctx.arc(x * scaleX, y * scaleY, this.brushSize, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Calculate scratched percentage
+        this.calculateScratchedPercentage();
+      }
+      
+      stopScratching() {
+        this.isDrawing = false;
+      }
+      
+      calculateScratchedPercentage() {
+        const imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        const pixels = imageData.data;
+        let transparent = 0;
+        
+        for (let i = 3; i < pixels.length; i += 4) {
+          if (pixels[i] < 128) {
+            transparent++;
+          }
+        }
+        
+        this.scratchedPercentage = Math.round((transparent / (pixels.length / 4)) * 100);
+        this.progressElement.textContent = `Scratched: ${this.scratchedPercentage}%`;
+        
+        // Auto-reveal if threshold reached
+        if (this.scratchedPercentage >= this.autoRevealThreshold) {
+          this.revealAll();
+        }
+      }
+      
+      revealAll() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.scratchedPercentage = 100;
+        this.progressElement.textContent = `Revealed: 100%`;
+        this.isDrawing = false;
+      }
+      
+      async reset() {
+        this.scratchedPercentage = 0;
+        this.isDrawing = false;
+        await this.fetchTicketData();  // Fetch new ticket
+        this.selectRandomPrize();
+        this.setupCanvas();
+        this.drawCoverLayer();
+        this.progressElement.textContent = `Scratched: 0%`;
+      }
+    }
+    
+    // Initialize all tickets
+    function initializeTickets() {
+      ticketTypes.forEach(config => {
+        new ScratchTicket(config, 'ticketGallery');
+      });
+    }
+    
+    // Start when page loads
+    window.addEventListener('load', initializeTickets);
+  </script>
+</body>
+</html>
