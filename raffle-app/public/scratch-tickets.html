@@ -119,6 +119,11 @@
       background: linear-gradient(135deg, #FF1493 0%, #FF6347 25%, #FFD700 50%, #00CED1 75%, #9370DB 100%);
     }
     
+    .ticket-diamond .ticket-header {
+      background: linear-gradient(135deg, #B9F2FF 0%, #E0F7FF 50%, #B9F2FF 100%);
+      color: #1e293b;
+    }
+    
     /* Scratch Area */
     .scratch-area {
       position: relative;
@@ -176,6 +181,11 @@
     
     .ticket-bonus .prize-content {
       background: linear-gradient(135deg, #FF69B4 0%, #FFD700 50%, #00CED1 100%);
+      color: #1e293b;
+    }
+    
+    .ticket-diamond .prize-content {
+      background: linear-gradient(135deg, #E0F7FF 0%, #B9F2FF 50%, #FFFFFF 100%);
       color: #1e293b;
     }
     
@@ -331,6 +341,88 @@
       font-size: 16px;
       font-weight: 700;
     }
+    
+    /* Silver EFG Specific Design */
+    .ticket-silver .ticket-header {
+      background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 50%, #A9A9A9 100%);
+      position: relative;
+      overflow: visible;
+    }
+    
+    .silver-confetti {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+    
+    .confetti-dot {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      opacity: 0.8;
+    }
+    
+    .silver-badge {
+      display: inline-block;
+      background: #ff0000;
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .silver-banner {
+      background: #ff0000;
+      color: white;
+      text-align: center;
+      padding: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+    }
+    
+    .silver-label {
+      text-align: center;
+      padding: 8px;
+      font-weight: 700;
+      color: #A9A9A9;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    /* Diamond Sparkle Effect */
+    .diamond-sparkles {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: white;
+      border-radius: 50%;
+      animation: sparkle-animation 2s infinite;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+    
+    @keyframes sparkle-animation {
+      0%, 100% { opacity: 0; transform: scale(0.5); }
+      50% { opacity: 1; transform: scale(1.5); }
+    }
   </style>
 </head>
 <body>
@@ -365,6 +457,7 @@
         prizeRange: '1000 HTG - Prix: 1000 GOUD',
         coverText: 'GRATE TOUTE',
         category: 'ABC',
+        ticketPrice: '1000 GOURDES',
         prizes: [
           { emoji: '🎉', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 1 },
           { emoji: '💎', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
@@ -377,18 +470,24 @@
       },
       {
         id: 'silver',
-        name: 'Silver Standard',
+        name: 'GRATE GENYEN SILVER',
         className: 'ticket-silver',
-        prizeRange: '25 HTG - 100,000 HTG',
-        coverText: 'GRATE',
+        prizeRange: '50 HTG - 150,000 HTG',
+        coverText: 'GRATE TOUT',
         category: 'EFG',
+        ticketPrice: '500 GOURDES',
+        maxPrize: 'GRATE & GENYEN JISKA 150,000 GOURDES!',
+        seriesPrefix: 'EFG',
+        seriesStart: 20000,
+        special: 'silver-efg',
         prizes: [
-          { emoji: '💰', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 2 },
-          { emoji: '🎯', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 5 },
-          { emoji: '🌟', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 15 },
-          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 30 },
-          { emoji: '✨', text: 'OU GENYEN\n25 GOUD', value: 25, weight: 80 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 170 }
+          { emoji: '🎉', text: 'OU GENYEN\n150,000 GOUD', value: 150000, weight: 1 },
+          { emoji: '💰', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 5 },
+          { emoji: '🔥', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 15 },
+          { emoji: '🎯', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 30 },
+          { emoji: '🌟', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 50 },
+          { emoji: '✨', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 120 }
         ]
       },
       {
@@ -398,6 +497,7 @@
         prizeRange: '10 HTG - 50,000 HTG',
         coverText: 'GRATE',
         category: 'JKL',
+        ticketPrice: '250 GOURDES',
         prizes: [
           { emoji: '🎊', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 2 },
           { emoji: '🏆', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 10 },
@@ -415,6 +515,7 @@
         coverText: 'KENBE SÈNBOL AYITI',
         subText: 'JWE AK RESPÈ E FAIR-PLAY',
         category: 'XYZ',
+        ticketPrice: '300 GOURDES',
         prizes: [
           { emoji: '🇭🇹', text: 'OU GENYEN\n75,000 GOUD', value: 75000, weight: 2 },
           { emoji: '🌴', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 8 },
@@ -431,6 +532,7 @@
         prizeRange: '15 HTG - 60,000 HTG',
         coverText: 'GRATE ⭐',
         category: 'EFG',
+        ticketPrice: '200 GOURDES',
         prizes: [
           { emoji: '🌟', text: 'OU GENYEN\n60,000 GOUD', value: 60000, weight: 2 },
           { emoji: '✨', text: 'OU GENYEN\n20,000 GOUD', value: 20000, weight: 8 },
@@ -447,6 +549,7 @@
         prizeRange: '5 HTG - 500,000 HTG',
         coverText: 'GRATE POU SIPRIZ',
         category: 'XYZ',
+        ticketPrice: '150 GOURDES',
         prizes: [
           { emoji: '🎰', text: 'MEGA PRIZE!\n500,000 GOUD', value: 500000, weight: 1 },
           { emoji: '🎉', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
@@ -455,6 +558,25 @@
           { emoji: '🎁', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 50 },
           { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100 },
           { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 211 }
+        ]
+      },
+      {
+        id: 'diamond',
+        name: 'Diamond Elite',
+        className: 'ticket-diamond',
+        prizeRange: '100 HTG - 1,000,000 HTG',
+        coverText: 'GRATE ELIT',
+        category: 'ABC',
+        ticketPrice: '2000 GOURDES',
+        special: 'diamond',
+        prizes: [
+          { emoji: '💎', text: 'MEGA WIN!\n1,000,000 GOUD', value: 1000000, weight: 1 },
+          { emoji: '🏆', text: 'OU GENYEN\n500,000 GOUD', value: 500000, weight: 2 },
+          { emoji: '🎉', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 5 },
+          { emoji: '💰', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 10 },
+          { emoji: '🔥', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 25 },
+          { emoji: '⭐', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 177 }
         ]
       }
     ];
@@ -471,6 +593,7 @@
         this.brushSize = 18;
         this.autoRevealThreshold = 55;
         this.ticketData = null;  // Store fetched ticket data
+        this.ticketCounter = config.seriesStart || 0;  // For EFG series
         
         this.init();
       }
@@ -485,19 +608,34 @@
       }
       
       async fetchTicketData() {
+        // For Silver EFG tickets, generate special ticket number
+        if (this.config.seriesPrefix === 'EFG') {
+          this.ticketCounter = this.config.seriesStart + Math.floor(Math.random() * 10000);
+          this.ticketData = {
+            ticket_number: `${this.config.seriesPrefix}${this.ticketCounter}`,
+            barcode: String(this.ticketCounter).padStart(8, '0'),
+            category: this.config.category,
+            price: this.config.ticketPrice
+          };
+          this.updateTicketInfo();
+          return;
+        }
+        
         try {
           const response = await fetch(`/api/scratch-tickets/available?category=${this.config.category}&limit=1`);
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.tickets && data.tickets.length > 0) {
               this.ticketData = data.tickets[0];
+              this.ticketData.price = this.config.ticketPrice;
               this.updateTicketInfo();
             } else {
               console.warn(`No available tickets for category ${this.config.category}`);
               this.ticketData = {
                 ticket_number: `${this.config.category}-DEMO`,
                 barcode: '00000000',
-                category: this.config.category
+                category: this.config.category,
+                price: this.config.ticketPrice
               };
               this.updateTicketInfo();
             }
@@ -506,7 +644,8 @@
             this.ticketData = {
               ticket_number: `${this.config.category}-DEMO`,
               barcode: '00000000',
-              category: this.config.category
+              category: this.config.category,
+              price: this.config.ticketPrice
             };
             this.updateTicketInfo();
           }
@@ -515,7 +654,8 @@
           this.ticketData = {
             ticket_number: `${this.config.category}-DEMO`,
             barcode: '00000000',
-            category: this.config.category
+            category: this.config.category,
+            price: this.config.ticketPrice
           };
           this.updateTicketInfo();
         }
@@ -532,6 +672,10 @@
               <span class="ticket-info-value">${this.ticketData.ticket_number}</span>
             </div>
             <div class="ticket-info-row">
+              <span class="ticket-info-label">Price:</span>
+              <span class="ticket-info-value">${this.ticketData.price || this.config.ticketPrice}</span>
+            </div>
+            <div class="ticket-info-row">
               <span class="ticket-info-label">Barcode:</span>
               <span class="barcode-display">${this.ticketData.barcode}</span>
             </div>
@@ -544,17 +688,40 @@
         
         const card = document.createElement('div');
         card.className = `ticket-card ${this.config.className}`;
+        
+        // Special header for Silver EFG ticket
+        let headerContent = `
+          <h2>${this.config.name}</h2>
+          <div class="prize-range">${this.config.prizeRange}</div>
+          ${this.config.subText ? `<div class="heritage-badge">${this.config.subText}</div>` : ''}
+        `;
+        
+        if (this.config.special === 'silver-efg') {
+          headerContent = `
+            <div class="silver-confetti" id="confetti-${this.config.id}"></div>
+            <div class="silver-badge">GRATE TOUT</div>
+            <h2 style="text-shadow: 2px 2px 4px rgba(0,0,0,0.3);">${this.config.name}</h2>
+            <div class="silver-badge">${this.config.ticketPrice}</div>
+          `;
+        }
+        
+        // Special elements for Diamond ticket
+        let specialElements = '';
+        if (this.config.special === 'diamond') {
+          specialElements = `<div class="diamond-sparkles" id="sparkles-${this.config.id}"></div>`;
+        }
+        
         card.innerHTML = `
           <div class="ticket-header">
-            <h2>${this.config.name}</h2>
-            <div class="prize-range">${this.config.prizeRange}</div>
-            ${this.config.subText ? `<div class="heritage-badge">${this.config.subText}</div>` : ''}
+            ${headerContent}
+            ${specialElements}
           </div>
           <div class="ticket-info" id="ticket-info-${this.config.id}">
             <div class="ticket-info-row">
               <span class="ticket-info-label">Loading...</span>
             </div>
           </div>
+          ${this.config.special === 'silver-efg' ? '<div class="silver-label">SILVER</div>' : ''}
           <div class="scratch-area">
             <div class="scratch-container" id="scratch-${this.config.id}">
               <div class="prize-content" id="prize-${this.config.id}">
@@ -564,6 +731,7 @@
               <canvas id="canvas-${this.config.id}"></canvas>
             </div>
           </div>
+          ${this.config.maxPrize ? `<div class="silver-banner">${this.config.maxPrize}</div>` : ''}
           <div class="controls">
             <div class="progress-text" id="progress-${this.config.id}">Scratched: 0%</div>
             <div class="button-group">
@@ -578,6 +746,49 @@
         this.canvas = document.getElementById(`canvas-${this.config.id}`);
         this.prizeElement = document.getElementById(`prize-${this.config.id}`);
         this.progressElement = document.getElementById(`progress-${this.config.id}`);
+        
+        // Add confetti for silver ticket
+        if (this.config.special === 'silver-efg') {
+          this.addConfetti();
+        }
+        
+        // Add sparkles for diamond ticket
+        if (this.config.special === 'diamond') {
+          this.addDiamondSparkles();
+        }
+      }
+      
+      addConfetti() {
+        const confettiContainer = document.getElementById(`confetti-${this.config.id}`);
+        if (!confettiContainer) return;
+        
+        const colors = ['#ff0000', '#0000ff', '#ffff00', '#00ff00', '#ff1493'];
+        const numConfetti = 30;
+        
+        for (let i = 0; i < numConfetti; i++) {
+          const dot = document.createElement('div');
+          dot.className = 'confetti-dot';
+          dot.style.left = `${Math.random() * 100}%`;
+          dot.style.top = `${Math.random() * 100}%`;
+          dot.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+          confettiContainer.appendChild(dot);
+        }
+      }
+      
+      addDiamondSparkles() {
+        const sparklesContainer = document.getElementById(`sparkles-${this.config.id}`);
+        if (!sparklesContainer) return;
+        
+        const numSparkles = 20;
+        
+        for (let i = 0; i < numSparkles; i++) {
+          const sparkle = document.createElement('div');
+          sparkle.className = 'sparkle';
+          sparkle.style.left = `${Math.random() * 100}%`;
+          sparkle.style.top = `${Math.random() * 100}%`;
+          sparkle.style.animationDelay = `${Math.random() * 2}s`;
+          sparklesContainer.appendChild(sparkle);
+        }
       }
       
       selectRandomPrize() {
@@ -596,7 +807,13 @@
         const emojiEl = this.prizeElement.querySelector('.prize-emoji');
         const textEl = this.prizeElement.querySelector('.prize-text');
         emojiEl.textContent = this.prize.emoji;
-        textEl.textContent = this.prize.text;
+        
+        // For EFG series tickets, add ticket number to display
+        let prizeText = this.prize.text;
+        if (this.config.seriesPrefix === 'EFG' && this.ticketData) {
+          prizeText += `\nTicket #${this.ticketData.ticket_number}`;
+        }
+        textEl.textContent = prizeText;
       }
       
       setupCanvas() {
@@ -740,7 +957,21 @@
       async reset() {
         this.scratchedPercentage = 0;
         this.isDrawing = false;
-        await this.fetchTicketData();  // Fetch new ticket
+        
+        // For EFG series, increment ticket counter
+        if (this.config.seriesPrefix === 'EFG') {
+          this.ticketCounter++;
+          this.ticketData = {
+            ticket_number: `${this.config.seriesPrefix}${this.ticketCounter}`,
+            barcode: String(this.ticketCounter).padStart(8, '0'),
+            category: this.config.category,
+            price: this.config.ticketPrice
+          };
+          this.updateTicketInfo();
+        } else {
+          await this.fetchTicketData();  // Fetch new ticket
+        }
+        
         this.selectRandomPrize();
         this.setupCanvas();
         this.drawCoverLayer();
