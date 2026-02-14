@@ -39,57 +39,209 @@
       background-attachment: fixed;
       color: #1e293b;
       display: flex;
+      flex-direction: row;
+    }
+    
+    /* Sidebar Navigation */
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 260px;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(10px);
+      box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+      overflow-y: auto;
+      overflow-x: hidden;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+    }
+    
+    .sidebar-header {
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .sidebar-header img {
+      height: 36px;
+      width: auto;
+    }
+    
+    .sidebar-header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+      text-shadow: none;
+    }
+    
+    .sidebar-menu {
+      padding: 10px 0;
+    }
+    
+    .menu-category {
+      margin: 8px 0;
+    }
+    
+    .menu-category-title {
+      padding: 12px 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+    
+    .menu-category-title:hover {
+      background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .menu-category-icon {
+      font-size: 14px;
+      transition: transform 0.2s;
+    }
+    
+    .menu-category.collapsed .menu-category-icon {
+      transform: rotate(-90deg);
+    }
+    
+    .menu-items {
+      max-height: 1000px;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .menu-category.collapsed .menu-items {
+      max-height: 0;
+    }
+    
+    .menu-item {
+      padding: 10px 20px 10px 36px;
+      cursor: pointer;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    
+    .menu-item:hover {
+      background: rgba(102, 126, 234, 0.08);
+      color: #667eea;
+      padding-left: 40px;
+    }
+    
+    .menu-item.active {
+      background: rgba(102, 126, 234, 0.12);
+      color: #667eea;
+      font-weight: 600;
+      border-left: 3px solid #667eea;
+    }
+    
+    .menu-item-icon {
+      font-size: 16px;
+      width: 20px;
+      text-align: center;
+    }
+    
+    /* Main Content Area */
+    .main-content {
+      flex: 1;
+      margin-left: 260px;
+      display: flex;
       flex-direction: column;
       align-items: center;
+      width: calc(100% - 260px);
+    }
+    
+    /* Mobile Menu Toggle */
+    .menu-toggle {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1001;
+      background: rgba(255, 255, 255, 0.95);
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      font-size: 24px;
+    }
+    
+    .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
     }
     header {
-      width: 100vw;
+      width: 100%;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
       color: #1e293b;
       display: flex;
       align-items: center;
-      padding: 24px 32px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      margin-bottom: 32px;
-      justify-content: center;
+      padding: 16px 24px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+      justify-content: space-between;
       border-radius: 0;
     }
     header img {
-      height: 48px;
-      margin-right: 16px;
+      height: 36px;
+      margin-right: 12px;
     }
     header h1 {
-      font-size: 32px;
+      font-size: 24px;
       font-weight: 700;
       margin: 0;
       color: #1e293b;
       text-shadow: none;
     }
     footer {
-      width: 100vw;
+      width: 100%;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
       color: #64748b;
       text-align: center;
-      padding: 24px 0;
-      font-size: 14px;
-      margin-top: 32px;
-      box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+      padding: 16px 0;
+      font-size: 13px;
+      margin-top: 24px;
+      box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
       border-top: 1px solid rgba(226, 232, 240, 0.5);
     }
     h2, h3 {
       color: #1e293b;
       font-weight: 600;
-      margin-top: 1.2em;
-      margin-bottom: 0.5em;
+      margin-top: 0.8em;
+      margin-bottom: 0.4em;
       text-shadow: none;
     }
     h2 {
-      font-size: 24px;
+      font-size: 20px;
     }
     h3 {
-      font-size: 20px;
+      font-size: 18px;
     }
     a, button, input, select, textarea {
       outline: none;
@@ -157,23 +309,47 @@
       transform: translateY(-2px);
       box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
     }
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+      
+      .sidebar-overlay.active {
+        display: block;
+      }
+      
+      .menu-toggle {
+        display: block;
+      }
+      
+      .main-content {
+        margin-left: 0;
+        width: 100%;
+      }
+      
       body, .section {
         padding: 12px !important;
         margin: 0 !important;
         max-width: 100vw !important;
-        border-radius: 0 !important;
+        border-radius: 8px !important;
       }
       table, th, td {
-        font-size: 1.08em !important;
-        padding: 12px !important;
+        font-size: 13px !important;
+        padding: 8px !important;
       }
       h1, h2 {
-        font-size: 1.32em !important;
+        font-size: 18px !important;
+      }
+      h3 {
+        font-size: 16px !important;
       }
       button, input, select {
-        font-size: 1.12em !important;
-        padding: 14px !important;
+        font-size: 14px !important;
+        padding: 10px !important;
         min-width: 44px;
         min-height: 44px;
       }
@@ -181,16 +357,16 @@
         max-width: 98vw !important;
       }
       .section {
-        box-shadow: none !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
         border-width: 1px !important;
       }
       .msg-success, .msg-error {
-        font-size: 1em !important;
+        font-size: 14px !important;
         padding: 10px 12px !important;
       }
       footer, header {
-        padding: 10px 0 !important;
-        font-size: 0.95em !important;
+        padding: 10px 16px !important;
+        font-size: 12px !important;
       }
       img[alt="Logo"], header img {
         max-width: 80px !important;
@@ -214,41 +390,49 @@
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
     .section {
-      margin: 24px auto;
-      max-width: 800px;
+      margin: 16px auto;
+      max-width: 1000px;
+      width: 100%;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
-      border-radius: 16px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      padding: 20px 24px;
       border: 1px solid rgba(255, 255, 255, 0.3);
       transition: box-shadow 0.2s;
+      display: none;
+    }
+    .section.active {
+      display: block;
     }
     .section:hover {
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
     }
     table {
       border-collapse: collapse;
       width: 100%;
-      margin-top: 1em;
+      margin-top: 0.8em;
       background: #ffffff;
       color: #1e293b;
       box-shadow: none;
       border-radius: 8px;
       overflow: hidden;
       border: 1px solid #e2e8f0;
+      font-size: 14px;
     }
     th, td {
       border: 1px solid #e2e8f0;
-      padding: 12px;
+      padding: 10px 12px;
       text-align: left;
-      font-size: 16px;
+      font-size: 14px;
     }
     th {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       font-weight: 600;
       border-bottom: 2px solid #5a67d8;
+      font-size: 13px;
+      padding: 8px 12px;
     }
     tr:nth-child(even) {
       background: #f8fafc;
@@ -599,7 +783,7 @@
         position: fixed;
         top: 20px;
         right: 20px;
-        z-index: 1000;
+        z-index: 1001;
         display: flex;
         gap: 8px;
         background: rgba(255, 255, 255, 0.95);
@@ -612,12 +796,12 @@
         background: transparent;
         border: none;
         cursor: pointer;
-        font-size: 24px;
+        font-size: 20px;
         padding: 4px 8px;
         border-radius: 4px;
         transition: all 0.2s ease;
         width: auto;
-        min-height: 40px;
+        min-height: 36px;
     }
     
     .lang-btn:hover {
@@ -634,15 +818,29 @@
     .logout-btn {
         position: fixed;
         top: 20px;
-        left: 20px;
+        left: 280px;
         background: #ef4444;
         color: #fff;
-        padding: 10px 18px;
+        padding: 8px 16px;
         border-radius: 6px;
         text-decoration: none;
         font-weight: 600;
-        z-index: 1000;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        z-index: 1001;
+        font-size: 14px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .logout-btn:hover {
+        background: #dc2626;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+    }
+    
+    @media (max-width: 768px) {
+      .logout-btn {
+        left: 70px;
+      }
     }
 
     /* Draw Photos Styles */
@@ -883,6 +1081,146 @@
   </style>
 </head>
 <body>
+    <!-- Mobile Menu Toggle -->
+    <button class="menu-toggle" onclick="toggleMobileSidebar()" aria-label="Toggle Menu">☰</button>
+    
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+    
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <img src="logo.png" alt="Logo">
+        <h1 data-translate="adminDashboard">Admin Dashboard</h1>
+      </div>
+      
+      <div class="sidebar-menu">
+        <!-- Dashboard -->
+        <div class="menu-category">
+          <div class="menu-category-title">
+            <span>📊 Dashboard</span>
+            <span class="menu-category-icon">▼</span>
+          </div>
+          <div class="menu-items">
+            <div class="menu-item active" onclick="showSection('dashboard', this)" data-translate-menu="dashboard">
+              <span class="menu-item-icon">📈</span>
+              <span>Overview</span>
+            </div>
+            <div class="menu-item" onclick="showSection('audit-logs', this)" data-translate-menu="auditLogs">
+              <span class="menu-item-icon">📝</span>
+              <span>Audit Logs</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Ticket Management -->
+        <div class="menu-category">
+          <div class="menu-category-title">
+            <span>🎫 Tickets</span>
+            <span class="menu-category-icon">▼</span>
+          </div>
+          <div class="menu-items">
+            <div class="menu-item" onclick="showSection('ticket-inventory', this)" data-translate-menu="ticketInventory">
+              <span class="menu-item-icon">📦</span>
+              <span>Inventory</span>
+            </div>
+            <div class="menu-item" onclick="showSection('create-ticket', this)" data-translate-menu="createTicket">
+              <span class="menu-item-icon">➕</span>
+              <span>Create Ticket</span>
+            </div>
+            <div class="menu-item" onclick="showSection('all-tickets', this)" data-translate-menu="allTickets">
+              <span class="menu-item-icon">📋</span>
+              <span>All Tickets</span>
+            </div>
+            <div class="menu-item" onclick="showSection('online-tickets', this)">
+              <span class="menu-item-icon">🌐</span>
+              <span>Online Sales</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- User Management -->
+        <div class="menu-category">
+          <div class="menu-category-title">
+            <span>👥 Users</span>
+            <span class="menu-category-icon">▼</span>
+          </div>
+          <div class="menu-items">
+            <div class="menu-item" onclick="showSection('buyer-registrations', this)" data-translate-menu="buyerRegistrations">
+              <span class="menu-item-icon">📋</span>
+              <span>Buyers</span>
+            </div>
+            <div class="menu-item" onclick="showSection('users', this)">
+              <span class="menu-item-icon">👤</span>
+              <span>All Users</span>
+            </div>
+            <div class="menu-item" onclick="showSection('sellers', this)">
+              <span class="menu-item-icon">🏪</span>
+              <span>Sellers</span>
+            </div>
+            <div class="menu-item" onclick="showSection('seller-requests', this)">
+              <span class="menu-item-icon">📝</span>
+              <span>Registration Requests</span>
+            </div>
+            <div class="menu-item" onclick="showSection('seller-concerns', this)">
+              <span class="menu-item-icon">⚠️</span>
+              <span>Seller Concerns</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Sales & Reports -->
+        <div class="menu-category">
+          <div class="menu-category-title">
+            <span>💰 Sales</span>
+            <span class="menu-category-icon">▼</span>
+          </div>
+          <div class="menu-items">
+            <div class="menu-item" onclick="showSection('sales-report', this)" data-translate-menu="salesReport">
+              <span class="menu-item-icon">📊</span>
+              <span>Sales Report</span>
+            </div>
+            <div class="menu-item" onclick="showSection('leaderboard', this)">
+              <span class="menu-item-icon">🏆</span>
+              <span>Leaderboard</span>
+            </div>
+            <div class="menu-item" onclick="showSection('seller-performance', this)">
+              <span class="menu-item-icon">📈</span>
+              <span>Performance</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- System Settings -->
+        <div class="menu-category">
+          <div class="menu-category-title">
+            <span>⚙️ Settings</span>
+            <span class="menu-category-icon">▼</span>
+          </div>
+          <div class="menu-items">
+            <div class="menu-item" onclick="showSection('branding', this)">
+              <span class="menu-item-icon">🎨</span>
+              <span>Branding</span>
+            </div>
+            <div class="menu-item" onclick="showSection('online-purchase', this)">
+              <span class="menu-item-icon">🛒</span>
+              <span>Online Purchase</span>
+            </div>
+            <div class="menu-item" onclick="showSection('backups', this)">
+              <span class="menu-item-icon">💾</span>
+              <span>Backups</span>
+            </div>
+            <div class="menu-item" onclick="showSection('draw-photos', this)">
+              <span class="menu-item-icon">📸</span>
+              <span>Draw Photos</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- Main Content Area -->
+    <div class="main-content">
     <a href="/logout" class="logout-btn" data-translate="logout" aria-label="Logout">Logout</a>
     
     <!-- Language Selector -->
@@ -892,7 +1230,7 @@
         <button class="lang-btn" data-lang="fr" title="Français" aria-label="Switch to French">🇫🇷</button>
     </div>
     
-    <div class="section">
+    <div class="section active" id="dashboard">
       <h2 data-translate="salesTrends">Sales Trends (Last 30 Days)</h2>
       <canvas id="salesChart" height="120"></canvas>
       <h2 data-translate="ticketsByCategory">Tickets by Category</h2>
@@ -900,7 +1238,7 @@
     </div>
     
     <!-- Buyer Registrations Section (NEW) -->
-    <div class="section" id="buyerRegistrationsSection">
+    <div class="section" id="buyer-registrations">
       <h2>📋 <span data-translate="buyerRegistrations">Buyer Registrations</span></h2>
       <p data-translate="buyerRegistrationsDesc">View all buyers registered by sellers with phone numbers</p>
       
@@ -986,7 +1324,7 @@
       </div>
     </div>
     
-    <div class="section">
+    <div class="section" id="audit-logs">
     <h1 style="color:#1e293b;text-shadow:none;font-size:24px;font-weight:600;" data-translate="auditLogs">Audit Logs</h1>
     <table id="audit-table" style="background:#ffffff;color:#1e293b;">
       <thead>
@@ -996,9 +1334,7 @@
     </table>
   </div>
     <div id="notify"></div>
-  <img src="logo.png" alt="Logo" style="display:block;margin:32px auto 8px auto;max-width:160px;">
-  <h1 data-translate="adminDashboard">Admin Dashboard</h1>
-  <div class="section">
+  <div class="section" id="ticket-inventory">
     <h2 data-translate="ticketInventory">Ticket Inventory</h2>
     <table id="inventory-table">
       <thead>
@@ -1007,7 +1343,7 @@
       <tbody></tbody>
     </table>
   </div>
-  <div class="section">
+  <div class="section" id="create-ticket">
     <h2 data-translate="createTicket">Create Ticket</h2>
     
     <!-- Print Tickets Section -->
@@ -1195,7 +1531,7 @@
     </div>
     
     <!-- Online Ticket Management Section -->
-    <div class="section" style="margin-top: 32px;">
+    <div class="section" id="online-tickets" style="margin-top: 32px;">
       <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🌐 Online Ticket Sales Management</h3>
       <p style="color: white; opacity: 0.9; margin-bottom: 20px;">
         Manage which tickets are available for online purchase through the buyers portal.
@@ -1287,6 +1623,7 @@
       </div>
     </div>
     
+  <div class="section" id="all-tickets">
     <h2 data-translate="allTickets">All Tickets</h2>
     
     <!-- Download Tickets Button -->
@@ -1322,7 +1659,7 @@
     </table>
     <button id="bulk-delete-tickets-btn" style="margin-top:10px;background:#ef4444;color:#fff;" data-translate="deleteSelectedTickets">Delete Selected Tickets</button>
   </div>
-  <div class="section">
+  <div class="section" id="sales-report">
     <h2 data-translate="salesReport">Sales Report</h2>
     <table id="sales-table">
       <thead>
@@ -1331,7 +1668,7 @@
       <tbody></tbody>
     </table>
   </div>
-  <div class="section">
+  <div class="section" id="users">
     <h2>Users</h2>
     <table id="users-table">
       <thead>
@@ -1343,7 +1680,7 @@
   </div>
   
   <!-- Manage Sellers Section -->
-  <div class="section">
+  <div class="section" id="sellers">
     <h2>👥 Manage Sellers</h2>
     
     <button id="refreshSellersBtn" style="margin-bottom: 15px; background: #10b981;">
@@ -1413,12 +1750,12 @@
     </div>
   </div>
   
-  <div class="section">
+  <div class="section" id="backups">
     <h2>Database Backups</h2>
     <button id="refresh-backups-btn">Refresh List</button>
     <ul id="backup-list"></ul>
   </div>
-  <div class="section">
+  <div class="section" id="leaderboard">
     <h2>Seller Leaderboard</h2>
     <table id="leaderboard-table">
       <thead><tr><th>Seller</th><th>Tickets Sold</th></tr></thead>
@@ -1427,7 +1764,7 @@
   </div>
   
   <!-- Seller Registration Requests Section -->
-  <div class="section">
+  <div class="section" id="seller-requests">
     <h2>📝 Seller Registration Requests</h2>
     
     <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
@@ -1483,7 +1820,7 @@
   </div>
   
   <!-- Seller Concerns Section -->
-  <div class="section">
+  <div class="section" id="seller-concerns">
     <h2>⚠️ Seller Concerns</h2>
     
     <div class="request-filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
@@ -1529,7 +1866,7 @@
     </div>
   </div>
   
-  <div class="section">
+  <div class="section" id="seller-performance">
     <h2>Seller Performance</h2>
     <form id="performance-form">
       <input id="perf-seller" placeholder="Seller Name" required />
@@ -1537,7 +1874,7 @@
     </form>
     <div id="performance-result"></div>
   </div>
-  <div class="section">
+  <div class="section" id="branding">
     <h2>Custom Branding & Theme</h2>
     <form id="branding-form">
       <label>Logo URL:</label>
@@ -1549,7 +1886,7 @@
       <button type="submit">Apply Branding</button>
     </form>
   </div>
-  <div class="section">
+  <div class="section" id="online-purchase">
     <h2>Online Ticket Purchase</h2>
     <form id="online-buy-form">
       <input id="online-number" placeholder="Ticket Number" required />
@@ -1566,7 +1903,7 @@
     </form>
   </div>
 
-  <div class="section">
+  <div class="section" id="draw-photos">
     <h2>📸 Draw Event Photos Verification</h2>
     <p>Review and verify draw event photos uploaded by sellers</p>
     
@@ -4352,6 +4689,114 @@
       });
     }
   </script>
+  
+  <!-- Navigation JavaScript -->
+  <script>
+    // Toggle mobile sidebar
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.querySelector('.sidebar-overlay');
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('active');
+    }
+    
+    // Show section and update menu
+    function showSection(sectionId, menuItem) {
+      // Hide all sections
+      document.querySelectorAll('.section').forEach(section => {
+        section.classList.remove('active');
+      });
+      
+      // Show the selected section
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.classList.add('active');
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      
+      // Update menu active state
+      document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('active');
+      });
+      if (menuItem) {
+        menuItem.classList.add('active');
+      }
+      
+      // Close mobile sidebar after selection
+      if (window.innerWidth <= 768) {
+        toggleMobileSidebar();
+      }
+      
+      // Load data for the section if needed
+      loadSectionData(sectionId);
+    }
+    
+    // Load data for specific sections
+    function loadSectionData(sectionId) {
+      switch(sectionId) {
+        case 'dashboard':
+          if (typeof loadSalesData === 'function') loadSalesData();
+          if (typeof loadCategoryData === 'function') loadCategoryData();
+          break;
+        case 'ticket-inventory':
+          if (typeof loadInventory === 'function') loadInventory();
+          break;
+        case 'all-tickets':
+          if (typeof loadTickets === 'function') loadTickets();
+          break;
+        case 'sales-report':
+          if (typeof loadSalesReport === 'function') loadSalesReport();
+          break;
+        case 'users':
+          if (typeof loadUsers === 'function') loadUsers();
+          break;
+        case 'sellers':
+          if (typeof loadSellers === 'function') loadSellers();
+          break;
+        case 'seller-requests':
+          if (typeof loadSellerRequests === 'function') loadSellerRequests();
+          break;
+        case 'seller-concerns':
+          if (typeof loadSellerConcerns === 'function') loadSellerConcerns();
+          break;
+        case 'leaderboard':
+          if (typeof loadLeaderboard === 'function') loadLeaderboard();
+          break;
+        case 'backups':
+          if (typeof refreshBackups === 'function') refreshBackups();
+          break;
+        case 'buyer-registrations':
+          if (typeof loadBuyerRegistrations === 'function') loadBuyerRegistrations();
+          break;
+        case 'audit-logs':
+          if (typeof loadAuditLogs === 'function') loadAuditLogs();
+          break;
+        case 'online-tickets':
+          if (typeof refreshOnlineStats === 'function') refreshOnlineStats();
+          break;
+        case 'draw-photos':
+          if (typeof loadDrawPhotos === 'function') loadDrawPhotos();
+          break;
+      }
+    }
+    
+    // Toggle menu category collapse
+    document.addEventListener('DOMContentLoaded', function() {
+      // Add click handlers to category titles
+      document.querySelectorAll('.menu-category-title').forEach(title => {
+        title.addEventListener('click', function() {
+          const category = this.parentElement;
+          category.classList.toggle('collapsed');
+        });
+      });
+      
+      // Load dashboard on page load
+      if (typeof loadSalesData === 'function') loadSalesData();
+      if (typeof loadCategoryData === 'function') loadCategoryData();
+    });
+  </script>
+  
+  </div> <!-- End main-content -->
   
   <footer>
     &copy; 2025 Grate Genyen &mdash; All rights reserved.
