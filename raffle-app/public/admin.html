@@ -335,7 +335,7 @@
         padding: 12px !important;
         margin: 0 !important;
         max-width: 100vw !important;
-        border-radius: 8px !important;
+        border-radius: 12px !important;
       }
       table, th, td {
         font-size: 13px !important;
@@ -431,8 +431,6 @@
       color: white;
       font-weight: 600;
       border-bottom: 2px solid #5a67d8;
-      font-size: 13px;
-      padding: 8px 12px;
     }
     tr:nth-child(even) {
       background: #f8fafc;
@@ -1531,7 +1529,7 @@
     </div>
     
     <!-- Online Ticket Management Section -->
-    <div class="section" id="online-tickets" style="margin-top: 32px;">
+    <div class="section" id="online-tickets">
       <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🌐 Online Ticket Sales Management</h3>
       <p style="color: white; opacity: 0.9; margin-bottom: 20px;">
         Manage which tickets are available for online purchase through the buyers portal.
@@ -4711,7 +4709,13 @@
       const section = document.getElementById(sectionId);
       if (section) {
         section.classList.add('active');
-        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Respect user's motion preferences
+        const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (prefersReducedMotion) {
+          section.scrollIntoView({ block: 'start' });
+        } else {
+          section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
       
       // Update menu active state
@@ -4723,7 +4727,8 @@
       }
       
       // Close mobile sidebar after selection
-      if (window.innerWidth <= 768) {
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      if (isMobile) {
         toggleMobileSidebar();
       }
       
