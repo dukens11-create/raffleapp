@@ -4186,7 +4186,7 @@ app.post('/api/admin/tickets/generate-test', requireAuth, requireAdmin, async (r
     
     // Step 2: Use all valid categories for testing (250 tickets per category = 1,000 total)
     const testCategories = [
-      { code: 'ABC', price: 100 },
+      { code: 'ABC', price: 1000 },
       { code: 'EFG', price: 50 },
       { code: 'JKL', price: 20 },
       { code: 'XYZ', price: 10 }
@@ -4321,7 +4321,7 @@ async function generateAllTicketsBackground() {
     // Step 4: Define and create categories
     console.log('📝 Step 4: Setting up ticket categories...');
     const categories = [
-      { code: 'ABC', price: 100, count: 375000 },
+      { code: 'ABC', price: 1000, count: 375000 },
       { code: 'EFG', price: 50, count: 375000 },
       { code: 'JKL', price: 20, count: 375000 },
       { code: 'XYZ', price: 10, count: 375000 }
