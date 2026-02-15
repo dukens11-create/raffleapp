@@ -1,0 +1,54 @@
+# Node modules
+node_modules
+
+# Database files
+*.db
+*.db-*
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+server.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Test files
+test_streaming.js
+generate_test_tickets.js
+
+# Uploads and exports (should be in separate storage)
+uploads/
+ticket_exports/
+
+# Mobile build artifacts
+www/
+android/
+ios/
+.capacitor/
+capacitor.config.ts
+
+# Documentation (not needed for runtime)
+*.md
+!README.md
+
+# Migration scripts (already run)
+migrations/
+
+# Development tools
+nodemon.json
+.editorconfig

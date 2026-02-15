@@ -7,3 +7,9 @@ services:
     startCommand: node server.js
     plan: free
     autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
