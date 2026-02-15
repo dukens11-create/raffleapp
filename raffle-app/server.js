@@ -3226,6 +3226,9 @@ app.get('/tickets', requireAuth, async (req, res) => {
 
 app.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
+    // Check if pagination is requested
+    const paginationRequested = req.query.page || req.query.limit;
+    
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 100;
     const offset = (page - 1) * limit;
@@ -3236,11 +3239,11 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     );
     
     // Backward compatibility: if no pagination params provided, return array format
-    if (!req.query.page && !req.query.limit) {
+    if (!paginationRequested) {
       return res.json(rows);
     }
     
-    // New paginated format
+    // New paginated format - only fetch count when needed
     const countResult = await db.get("SELECT COUNT(*) as total FROM users");
     
     res.json({
@@ -7238,6 +7241,16 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     const countResult = await db.get(countQuery, params);
     const total = countResult.total;
     
+    // Check export limit BEFORE loading data to prevent memory issues
+    const MAX_EXPORT_LIMIT = 100000; // 100K tickets max per export
+    if (isExport && isExport !== 'false' && total > MAX_EXPORT_LIMIT) {
+      return res.status(400).json({ 
+        error: `Export limit exceeded. Maximum ${MAX_EXPORT_LIMIT} tickets per export. Please use filters to reduce the dataset.`,
+        totalTickets: total,
+        maxExportLimit: MAX_EXPORT_LIMIT
+      });
+    }
+    
     // Get tickets
     let ticketsQuery = `
       SELECT 
@@ -7263,14 +7276,6 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     }
     
     const tickets = await db.all(ticketsQuery, params);
-    
-    // Add safety limit for exports
-    const MAX_EXPORT_LIMIT = 100000; // 100K tickets max per export
-    if (isExport && isExport !== 'false' && tickets.length > MAX_EXPORT_LIMIT) {
-      return res.status(400).json({ 
-        error: `Export limit exceeded. Maximum ${MAX_EXPORT_LIMIT} tickets per export. Please use filters to reduce the dataset.` 
-      });
-    }
     
     // Get stats
     const statsQuery = `
