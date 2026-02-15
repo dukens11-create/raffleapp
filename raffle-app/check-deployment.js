@@ -18,6 +18,9 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 
+// Configuration constants
+const REQUEST_TIMEOUT_MS = 10000; // 10 seconds timeout for HTTP requests
+
 // Color codes for terminal output
 const colors = {
   reset: '\x1b[0m',
@@ -310,7 +313,7 @@ function makeRequest(url) {
     });
 
     // Set timeout after creating the request (preferred method)
-    req.setTimeout(10000, () => {
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
       req.destroy();
       reject(new Error('Request timeout'));
     });

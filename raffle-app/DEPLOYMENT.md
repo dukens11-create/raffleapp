@@ -461,7 +461,7 @@ curl http://localhost:3000/health
    Value: cname.vercel-dns.com
    ```
    
-   **Important:** For root domain (@) configuration, check Vercel's current documentation at https://vercel.com/docs/concepts/projects/domains for the latest DNS settings, as IP addresses may change.
+   **Important:** For root domain (@) configuration, check Vercel's current documentation for the latest DNS settings. Visit https://vercel.com/docs and search for "custom domains" as documentation URLs may change.
    
    Alternatively, configure the domain directly in Vercel Dashboard:
    - Project Settings → Domains → Add Domain

@@ -8022,15 +8022,18 @@ server.on('error', (error) => {
   process.exit(1);
 });
 
+// Graceful shutdown configuration
+const SHUTDOWN_TIMEOUT_MS = 10000; // 10 seconds
+
 // Graceful shutdown handler
 function gracefulShutdown(signal) {
   console.log(`\n⚠️  Received ${signal}, shutting down gracefully...`);
   
-  // Force exit after 10 seconds if graceful shutdown fails
+  // Force exit after timeout if graceful shutdown fails
   const forceExitTimeout = setTimeout(() => {
     console.error('⚠️  Forceful shutdown after timeout');
     process.exit(1);
-  }, 10000);
+  }, SHUTDOWN_TIMEOUT_MS);
   
   server.close(() => {
     console.log('🔌 Server closed');
