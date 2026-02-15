@@ -13,3 +13,6 @@ captures/
 output.json
 *.ap_
 *.aab
+
+# Android signing configuration (contains sensitive credentials)
+key.properties
