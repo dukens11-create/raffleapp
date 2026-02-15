@@ -285,6 +285,18 @@
       100% { transform: translate(-50%, -50%) rotate(360deg); }
     }
     
+    .ticket-basic .ticket-header {
+      background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    }
+    
+    .ticket-premium .ticket-header {
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    }
+    
+    .ticket-diamond .ticket-header {
+      background: linear-gradient(135deg, #E91E63 0%, #C2185B 50%, #880E4F 100%);
+    }
+    
     /* Scratch Area */
     .scratch-area {
       position: relative;
@@ -453,6 +465,21 @@
     .ticket-bonus .prize-content {
       background: linear-gradient(135deg, #FF69B4 0%, #FFD700 50%, #00CED1 100%);
       color: #1e293b;
+    }
+    
+    .ticket-basic .prize-content {
+      background: linear-gradient(135deg, #A5D6A7 0%, #66BB6A 100%);
+      color: #1e293b;
+    }
+    
+    .ticket-premium .prize-content {
+      background: linear-gradient(135deg, #90CAF9 0%, #42A5F5 100%);
+      color: #1e293b;
+    }
+    
+    .ticket-diamond .prize-content {
+      background: linear-gradient(135deg, #F48FB1 0%, #EC407A 50%, #AD1457 100%);
+      color: white;
     }
     
     .prize-emoji {
@@ -629,7 +656,10 @@
       'bronze': 'JKL',
       'heritage': 'XYZ',
       'star': 'EFG',
-      'bonus': 'XYZ'
+      'bonus': 'XYZ',
+      'basic': 'XYZ',
+      'premium': 'EFG',
+      'diamond': 'XYZ'
     };
     
     // Ticket configurations
@@ -761,6 +791,61 @@
           { emoji: '✨', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 150 },
           { emoji: '🎲', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 200 },
           { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 501 }
+        ]
+      },
+      {
+        id: 'basic',
+        name: 'GRATE GENYEN Basic',
+        className: 'ticket-basic',
+        prizeRange: '5 HTG - 5,000 HTG',
+        subText: '🎯 Basic Edition',
+        coverText: 'GRATE ANSANM',
+        category: 'XYZ',
+        prizes: [
+          { emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 1 },
+          { emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 3 },
+          { emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 10 },
+          { emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 25 },
+          { emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 60 },
+          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 201 }
+        ]
+      },
+      {
+        id: 'premium',
+        name: 'GRATE GENYEN Premium',
+        className: 'ticket-premium',
+        prizeRange: '50 HTG - 15,000 HTG',
+        subText: '⭐ Premium Edition',
+        coverText: 'GRATE PREMIUM',
+        category: 'EFG',
+        prizes: [
+          { emoji: '🎰', text: 'MEGA PRIZE!\n15,000 GOUD', value: 15000, weight: 2 },
+          { emoji: '💎', text: 'OU GENYEN\n7,500 GOUD', value: 7500, weight: 5 },
+          { emoji: '🔥', text: 'OU GENYEN\n3,000 GOUD', value: 3000, weight: 15 },
+          { emoji: '💰', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 35 },
+          { emoji: '🎁', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 70 },
+          { emoji: '✨', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 120 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 153 }
+        ]
+      },
+      {
+        id: 'diamond',
+        name: 'GRATE GENYEN Diamond',
+        className: 'ticket-diamond',
+        prizeRange: '5 HTG - 200,000 HTG',
+        subText: '💎 Diamond Edition',
+        coverText: 'GRATE DYAMAN',
+        category: 'XYZ',
+        prizes: [
+          { emoji: '💎', text: 'MEGA DYAMAN!\n200,000 GOUD', value: 200000, weight: 1 },
+          { emoji: '🎰', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 2 },
+          { emoji: '🔥', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 5 },
+          { emoji: '⭐', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 15 },
+          { emoji: '💰', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 30 },
+          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 70 },
+          { emoji: '✨', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 120 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 157 }
         ]
       }
     ];
