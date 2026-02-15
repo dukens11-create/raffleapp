@@ -21,8 +21,11 @@ flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
 flutter_app/.packages
 flutter_app/build/
+<<<<<<< HEAD
 flutter_app/android/
 flutter_app/ios/
+=======
+>>>>>>> b046ac16e5b04fc667b3d66b3e5f79546c7c04c6
 flutter_app/linux/
 flutter_app/macos/
 flutter_app/web/
