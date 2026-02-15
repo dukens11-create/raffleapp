@@ -1,3 +1,36 @@
+# Codemagic CI/CD Configuration for Grate Genyen Raffle App
+# 
+# This configuration defines automated build workflows for both Android and iOS platforms.
+# 
+# ============================================================================
+# SETUP INSTRUCTIONS
+# ============================================================================
+# 
+# 1. ENVIRONMENT VARIABLES (Configure in Codemagic UI under Settings > Environment variables)
+#    
+#    For Android signing:
+#    - CM_KEYSTORE: Base64-encoded keystore file
+#    - CM_KEYSTORE_PASSWORD: Keystore password
+#    - CM_KEY_PASSWORD: Key password
+#    - CM_KEY_ALIAS: Key alias name
+#    - CM_KEYSTORE_PATH: Path where keystore will be saved (e.g., /tmp/keystore.jks)
+#    
+#    For iOS signing:
+#    - CM_CERTIFICATE: Base64-encoded .p12 certificate
+#    - CM_CERTIFICATE_PASSWORD: Certificate password
+#    - CM_PROVISIONING_PROFILE: Base64-encoded provisioning profile
+#    
+#    For notifications:
+#    - NOTIFICATION_EMAIL: Email address for build notifications
+#    
+# 2. DOCUMENTATION
+#    - Codemagic YAML: https://docs.codemagic.io/yaml/yaml-getting-started/
+#    - Flutter builds: https://docs.codemagic.io/yaml-quick-start/building-a-flutter-app/
+#    - Android signing: https://docs.codemagic.io/yaml-code-signing/signing-android/
+#    - iOS signing: https://docs.codemagic.io/yaml-code-signing/signing-ios/
+#    
+# ============================================================================
+
 workflows:
   android-workflow:
     name: Android Build
