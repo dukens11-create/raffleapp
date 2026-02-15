@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace 'com.yourcompany.qr_code_scanner'
+    namespace 'com.grategenyen.qr_code_scanner'
     compileSdkVersion 34
 
     compileOptions {
