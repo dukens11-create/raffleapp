@@ -56,18 +56,21 @@ android {
     if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
         
-        // Validate that all required properties are present
+        // Validate that all required properties are present and not empty/whitespace
         def requiredProps = ['keyAlias', 'keyPassword', 'storeFile', 'storePassword']
-        hasValidKeystore = requiredProps.every { keystoreProperties[it] != null && !keystoreProperties[it].toString().isEmpty() }
+        hasValidKeystore = requiredProps.every { 
+            def value = keystoreProperties[it]
+            value != null && !value.toString().trim().isEmpty()
+        }
         
         if (!hasValidKeystore) {
             println "WARNING: key.properties exists but is missing required properties."
             println "Required properties: keyAlias, keyPassword, storeFile, storePassword"
             println "Using debug signing instead. See key.properties.example for configuration details."
         } else {
-            def storeFilePath = keystoreProperties['storeFile']
-            def storeFileObj = file(storeFilePath)
-            if (!storeFileObj.exists()) {
+            def storeFilePath = keystoreProperties['storeFile'].toString().trim()
+            def keystoreFile = file(storeFilePath)
+            if (!keystoreFile.exists()) {
                 println "WARNING: Keystore file does not exist at: ${storeFilePath}"
                 println "Using debug signing instead. Please ensure storeFile path is correct."
                 hasValidKeystore = false
