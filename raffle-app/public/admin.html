@@ -4540,7 +4540,12 @@
       const limit = parseInt(document.getElementById('tickets-per-category').value);
       
       if (!limit || limit < 100) {
-        return alert('Please enter at least 100 tickets per category');
+        document.getElementById('mark-tickets-result').innerHTML = `
+          <div style="padding: 12px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; color: #92400e;">
+            ⚠️ Please enter at least 100 tickets per category
+          </div>
+        `;
+        return;
       }
       
       if (!confirm(`Mark ${limit.toLocaleString()} tickets per category (${(limit * 4).toLocaleString()} total) as available online?`)) {

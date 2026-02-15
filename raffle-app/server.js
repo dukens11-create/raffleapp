@@ -506,17 +506,21 @@ async function ensureOnlineTicketsAvailable() {
         `, [category, LIMIT_PER_CATEGORY]);
         
         if (tickets && tickets.length > 0) {
-          const ids = tickets.map(t => t.id);
-          const placeholders = ids.map(() => '?').join(',');
+          // Ensure all IDs are valid integers for extra safety
+          const ids = tickets.map(t => t.id).filter(id => Number.isInteger(id) && id > 0);
           
-          await db.run(`
-            UPDATE tickets 
-            SET available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
-            WHERE id IN (${placeholders})
-          `, ids);
-          
-          console.log(`✅ ${category}: Marked ${tickets.length} tickets as available online`);
-          totalMarked += tickets.length;
+          if (ids.length > 0) {
+            const placeholders = ids.map(() => '?').join(',');
+            
+            await db.run(`
+              UPDATE tickets 
+              SET available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+              WHERE id IN (${placeholders})
+            `, ids);
+            
+            console.log(`✅ ${category}: Marked ${ids.length} tickets as available online`);
+            totalMarked += ids.length;
+          }
         } else {
           console.log(`⚠️  ${category}: No available tickets found`);
         }
@@ -8032,16 +8036,20 @@ app.post('/api/admin/online-tickets/mark', requireAuth, requireAdmin, async (req
       `, [category, limit]);
       
       if (tickets && tickets.length > 0) {
-        const ids = tickets.map(t => t.id);
-        const placeholders = ids.map(() => '?').join(',');
+        // Ensure all IDs are valid integers for extra safety
+        const ids = tickets.map(t => t.id).filter(id => Number.isInteger(id) && id > 0);
         
-        await db.run(`
-          UPDATE tickets 
-          SET available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
-          WHERE id IN (${placeholders})
-        `, ids);
-        
-        totalMarked += tickets.length;
+        if (ids.length > 0) {
+          const placeholders = ids.map(() => '?').join(',');
+          
+          await db.run(`
+            UPDATE tickets 
+            SET available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+            WHERE id IN (${placeholders})
+          `, ids);
+          
+          totalMarked += ids.length;
+        }
       }
     }
     
