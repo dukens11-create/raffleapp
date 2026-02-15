@@ -38,7 +38,10 @@ dependencies:
   mobile_scanner: ^3.5.5
   
   # Payment Integration
-  flutter_stripe: ^10.1.0
+  flutter_stripe: ^12.2.0
+  stripe_android: ^12.2.0
+  stripe_ios: ^12.2.0
+  stripe_platform_interface: ^12.2.0
   
   # UI Helpers
   intl: ^0.18.1
