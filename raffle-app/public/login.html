@@ -328,6 +328,53 @@
             box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
         }
     </style>
+    
+    <!-- Capacitor Core (for mobile apps) -->
+    <script type="module">
+        // Check if running in Capacitor (mobile app)
+        if (window.Capacitor) {
+            const { Capacitor } = await import('@capacitor/core');
+            
+            // Import plugins if available
+            try {
+                const { SplashScreen } = await import('@capacitor/splash-screen');
+                const { StatusBar, Style } = await import('@capacitor/status-bar');
+                const { App } = await import('@capacitor/app');
+                const { Network } = await import('@capacitor/network');
+                
+                // Hide splash screen after load
+                window.addEventListener('load', async () => {
+                    await SplashScreen.hide();
+                    
+                    // Set status bar style for iOS
+                    if (Capacitor.getPlatform() === 'ios') {
+                        await StatusBar.setStyle({ style: Style.Light });
+                    }
+                });
+                
+                // Handle back button on Android
+                App.addListener('backButton', ({ canGoBack }) => {
+                    if (!canGoBack) {
+                        App.exitApp();
+                    } else {
+                        window.history.back();
+                    }
+                });
+                
+                // Monitor network status
+                Network.addListener('networkStatusChange', status => {
+                    if (!status.connected) {
+                        console.log('No internet connection detected');
+                    }
+                });
+            } catch (error) {
+                console.log('Capacitor plugins not available:', error);
+            }
+        }
+    </script>
+    
+    <!-- Mobile viewport optimization -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 </head>
 <body>
     <!-- Language Selector -->

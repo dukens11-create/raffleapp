@@ -1,0 +1,39 @@
+{
+  "appId": "com.grategenyen.raffle",
+  "appName": "Grate Genyen",
+  "webDir": "www",
+  "server": {
+    "url": "https://your-production-domain.com",
+    "cleartext": true,
+    "androidScheme": "https"
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": "release-key.keystore",
+      "keystoreAlias": "raffle-key"
+    }
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "scheme": "Grate Genyen"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#667eea",
+      "showSpinner": true,
+      "spinnerColor": "#ffffff"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "Camera": {
+      "ios": {
+        "NSCameraUsageDescription": "This app uses the camera to scan barcodes and tickets."
+      },
+      "android": {
+        "permissions": ["CAMERA"]
+      }
+    }
+  }
+}
