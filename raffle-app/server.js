@@ -3235,7 +3235,7 @@ app.get('/tickets', requireAuth, async (req, res) => {
 app.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Check if pagination is requested (explicit check for undefined to handle page=0 or limit=0)
-    // When pagination is requested, both page and limit are used together
+    // Pagination is activated when either page OR limit is provided
     const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
     
     // Backward compatibility: if no pagination params provided, return all users in array format
@@ -3253,13 +3253,13 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     }
     
     // Paginated mode: validate and process pagination parameters
-    // Use nullish coalescing to only default on null/undefined, not on 0
-    let page = req.query.page !== undefined ? parseInt(req.query.page, 10) : 1;
-    let limit = req.query.limit !== undefined ? parseInt(req.query.limit, 10) : 100;
+    // Parse and validate parameters, handling edge cases
+    const rawPage = req.query.page !== undefined ? parseInt(req.query.page, 10) : 1;
+    const rawLimit = req.query.limit !== undefined ? parseInt(req.query.limit, 10) : 100;
     
-    // Handle NaN from invalid parseInt
-    if (isNaN(page)) page = 1;
-    if (isNaN(limit)) limit = 100;
+    // Handle NaN from invalid parseInt - use defaults
+    const page = isNaN(rawPage) ? 1 : rawPage;
+    const limit = isNaN(rawLimit) ? 100 : rawLimit;
     
     // Validate pagination parameters to prevent DoS
     if (page < 1 || page > MAX_PAGE_NUMBER) {
@@ -7290,9 +7290,9 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     const total = countResult.total;
     
     // Check export limit BEFORE loading data to prevent memory issues
-    // isExport is expected to be 'true' or 'false' string from query parameter
-    const isExporting = isExport === 'true';
-    if (isExporting && total > MAX_EXPORT_LIMIT) {
+    // Note: isExport is a query parameter string ('true' or 'false')
+    const shouldExport = isExport === 'true';
+    if (shouldExport && total > MAX_EXPORT_LIMIT) {
       return res.status(400).json({ 
         error: `Export limit exceeded. Maximum ${MAX_EXPORT_LIMIT} tickets per export. Please use filters to reduce the dataset.`,
         totalTickets: total,
@@ -7319,7 +7319,7 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     `;
     
     // Add pagination unless exporting
-    if (!isExporting) {
+    if (!shouldExport) {
       ticketsQuery += ` LIMIT ? OFFSET ?`;
       params.push(parseInt(limit, 10), offset);
     }
