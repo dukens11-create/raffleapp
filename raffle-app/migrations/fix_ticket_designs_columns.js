@@ -24,13 +24,13 @@ async function migrate() {
     const newColumns = [
       { name: 'name', type: 'VARCHAR(100)', default: null },
       { name: 'description', type: 'TEXT', default: null },
-      { name: 'width', type: 'INTEGER', default: '396' },
-      { name: 'height', type: 'INTEGER', default: '153' },
-      { name: 'rotation', type: 'INTEGER', default: '0' },
-      { name: 'scale_width', type: 'INTEGER', default: '100' },
-      { name: 'scale_height', type: 'INTEGER', default: '100' },
-      { name: 'offset_x', type: 'INTEGER', default: '0' },
-      { name: 'offset_y', type: 'INTEGER', default: '0' },
+      { name: 'width', type: 'INTEGER', default: 396 },
+      { name: 'height', type: 'INTEGER', default: 153 },
+      { name: 'rotation', type: 'INTEGER', default: 0 },
+      { name: 'scale_width', type: 'INTEGER', default: 100 },
+      { name: 'scale_height', type: 'INTEGER', default: 100 },
+      { name: 'offset_x', type: 'INTEGER', default: 0 },
+      { name: 'offset_y', type: 'INTEGER', default: 0 },
       { name: 'is_active', type: db.USE_POSTGRES ? 'BOOLEAN' : 'INTEGER', default: db.USE_POSTGRES ? 'TRUE' : '1' }
     ];
     

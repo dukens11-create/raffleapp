@@ -77,8 +77,13 @@ Created `/raffle-app/migrations/add_test_seller.js` to ensure there's at least o
 
 **Test seller credentials:**
 - Phone: 5551234567
-- Password: seller123
+- Password: seller123 (hardcoded for testing only)
 - Role: seller
+
+**Security Note:** The test seller script uses a hardcoded password for convenience in testing environments. In production, you should either:
+- Not run this script (use real sellers)
+- Modify the script to use an environment variable for the password
+- Delete the test seller after initial testing
 
 **To add test seller:**
 ```bash
@@ -165,8 +170,10 @@ PRAGMA table_info(ticket_designs);
 ## Files Changed
 
 1. `/raffle-app/db.js` - Fixed NULL default handling (1 function modified)
-2. `/raffle-app/migrations/fix_ticket_designs_columns.js` - New migration script (154 lines)
-3. `/raffle-app/migrations/add_test_seller.js` - New test data script (88 lines)
+2. `/raffle-app/migrations/fix_ticket_designs_columns.js` - New migration script (136 lines)
+3. `/raffle-app/migrations/add_test_seller.js` - New test data script (92 lines)
+
+**Note on SQL Generation:** The migration scripts directly interpolate default values into SQL statements. While the current values are safe (hardcoded integers and booleans), this pattern could be a concern if values were ever sourced from user input. In this case, all default values are hardcoded constants defined in the script itself, making it safe for this use case.
 
 ## No Breaking Changes
 - All changes are backwards compatible
