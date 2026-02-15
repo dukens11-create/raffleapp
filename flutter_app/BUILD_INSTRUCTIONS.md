@@ -8,6 +8,22 @@
 
 ## Local Build Commands
 
+### Setup Dependencies
+
+Before building, install dependencies and apply necessary patches:
+
+```bash
+# Install Flutter dependencies
+flutter pub get
+
+# Apply patch for qr_code_scanner package (fixes Android Gradle Plugin 8.0+ compatibility)
+./scripts/patch_qr_code_scanner.sh
+```
+
+**Note**: The `qr_code_scanner` package (v1.0.1) requires a patch to add the Android `namespace` declaration. This patch is automatically applied in CI/CD builds. For local builds, run the patch script after `flutter pub get`.
+
+**⚠️ Recommendation**: Consider updating to a newer version of `qr_code_scanner` or switching to `mobile_scanner` (already in dependencies) when possible. See `scripts/README.md` for details.
+
 ### Android
 
 ```bash
@@ -66,3 +82,7 @@ Set these in Codemagic dashboard:
 
 1. Accept licenses: `flutter doctor --android-licenses`
 2. Check SDK: `flutter doctor -v`
+3. If you get namespace errors for `qr_code_scanner`, ensure you've run the patch script:
+   ```bash
+   ./scripts/patch_qr_code_scanner.sh
+   ```
