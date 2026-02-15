@@ -54,6 +54,11 @@ workflows:
         script: |
           cd flutter_app
           flutter packages pub get
+      - name: Patch qr_code_scanner dependency
+        script: |
+          cd flutter_app
+          chmod +x scripts/patch_qr_code_scanner.sh
+          ./scripts/patch_qr_code_scanner.sh
       - name: Build APK
         script: |
           cd flutter_app
@@ -99,6 +104,11 @@ workflows:
         script: |
           cd flutter_app
           flutter packages pub get
+      - name: Patch qr_code_scanner dependency
+        script: |
+          cd flutter_app
+          chmod +x scripts/patch_qr_code_scanner.sh
+          ./scripts/patch_qr_code_scanner.sh
       - name: Install CocoaPods dependencies
         script: |
           cd flutter_app/ios
@@ -141,6 +151,11 @@ workflows:
         script: |
           cd flutter_app
           flutter packages pub get
+      - name: Patch qr_code_scanner dependency
+        script: |
+          cd flutter_app
+          chmod +x scripts/patch_qr_code_scanner.sh
+          ./scripts/patch_qr_code_scanner.sh
       
       # Android builds
       - name: Build Android APK
