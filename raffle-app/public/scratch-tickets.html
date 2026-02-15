@@ -281,7 +281,7 @@
     }
     
     /* Ticket Badge Special Elements */
-    .heritage-badge {
+    .ticket-badge {
       display: inline-block;
       background: rgba(255, 255, 255, 0.2);
       padding: 4px 12px;
@@ -552,7 +552,7 @@
           <div class="ticket-header">
             <h2>${this.config.name}</h2>
             <div class="prize-range">${this.config.prizeRange}</div>
-            ${this.config.subText ? `<div class="heritage-badge">${this.config.subText}</div>` : ''}
+            ${this.config.subText ? `<div class="ticket-badge">${this.config.subText}</div>` : ''}
           </div>
           <div class="ticket-info" id="ticket-info-${this.config.id}">
             <div class="ticket-info-row">
