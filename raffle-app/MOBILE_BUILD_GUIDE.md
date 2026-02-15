@@ -1,5 +1,9 @@
 # Mobile App Build Guide
 
+This guide shows how to build native Android and iOS apps from this web application using **Capacitor**.
+
+> **Note:** This app uses **Capacitor**, not Flutter or React Native. Capacitor wraps the existing web application (HTML/CSS/JavaScript) into native mobile apps without requiring a rewrite in another framework.
+
 ## Prerequisites
 
 ### For Android:

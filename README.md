@@ -13,7 +13,40 @@ A web-based raffle ticket management system for organizing and managing raffle d
 
 ## 📱 Mobile Apps (Android & iOS)
 
-This web application can be transformed into native mobile apps for Android and iOS using Capacitor!
+This project now offers **two mobile app options**:
+
+### Option 1: Flutter Native App (NEW) ⭐
+
+A native Flutter mobile application with full feature parity and native performance.
+
+**Features:**
+- ✅ True native app performance
+- ✅ Beautiful Material Design UI
+- ✅ Full offline support
+- ✅ Native camera integration for QR/barcode scanning
+- ✅ Push notifications
+- ✅ Admin, Seller, and Buyer interfaces
+
+**Quick Start:**
+```bash
+cd flutter_app
+flutter pub get
+flutter run
+```
+
+See [flutter_app/FLUTTER_BUILD_GUIDE.md](flutter_app/FLUTTER_BUILD_GUIDE.md) for complete instructions.
+
+### Option 2: Capacitor Web Wrapper
+
+The web application can also be wrapped into mobile apps using **Capacitor** (not Flutter or React Native).
+
+**Why Capacitor?**
+
+Capacitor is a cross-platform app runtime that wraps your existing web application into native mobile apps. This means:
+- ✅ No need to rewrite your app in Flutter or React Native  
+- ✅ Your existing HTML/CSS/JavaScript code works on mobile
+- ✅ Native features (camera, notifications) available through plugins
+- ✅ Fast development - changes to web code automatically work on mobile
 
 ### Quick Start for Mobile
 
