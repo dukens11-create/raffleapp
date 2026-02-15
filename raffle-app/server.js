@@ -3233,8 +3233,8 @@ app.get('/tickets', requireAuth, async (req, res) => {
 
 app.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
-    // Check if pagination is requested
-    const paginationRequested = req.query.page || req.query.limit;
+    // Check if pagination is requested (explicit check for undefined to handle page=0 or limit=0)
+    const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
     
     let page = parseInt(req.query.page) || 1;
     let limit = parseInt(req.query.limit) || 100;
@@ -3254,6 +3254,14 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     
     const offset = (page - 1) * limit;
     
+    // Prevent integer overflow in offset calculation
+    const MAX_SAFE_OFFSET = 1000000; // 1 million
+    if (offset > MAX_SAFE_OFFSET) {
+      return res.status(400).json({ 
+        error: `Offset too large. Please reduce page number or limit.` 
+      });
+    }
+    
     // Note: Using LIMIT/OFFSET for simplicity. For very large datasets,
     // consider keyset pagination (WHERE name > ? ORDER BY name LIMIT ?) for better performance
     const rows = await db.all(
@@ -3267,6 +3275,8 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     }
     
     // New paginated format - only fetch count when needed
+    // Note: For better performance with large tables, consider caching this value
+    // and invalidating on user creation/deletion
     const countResult = await db.get("SELECT COUNT(*) as total FROM users");
     
     res.json({
@@ -7265,7 +7275,9 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     const total = countResult.total;
     
     // Check export limit BEFORE loading data to prevent memory issues
-    if (isExport && isExport !== 'false' && total > MAX_EXPORT_LIMIT) {
+    // isExport is expected to be 'true' or 'false' string from query parameter
+    const isExporting = isExport === 'true';
+    if (isExporting && total > MAX_EXPORT_LIMIT) {
       return res.status(400).json({ 
         error: `Export limit exceeded. Maximum ${MAX_EXPORT_LIMIT} tickets per export. Please use filters to reduce the dataset.`,
         totalTickets: total,
@@ -7291,8 +7303,8 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
       ORDER BY t.ticket_number
     `;
     
-    // Add pagination unless export
-    if (!isExport || isExport === 'false') {
+    // Add pagination unless exporting
+    if (!isExporting) {
       ticketsQuery += ` LIMIT ? OFFSET ?`;
       params.push(parseInt(limit), offset);
     }
