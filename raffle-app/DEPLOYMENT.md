@@ -459,11 +459,13 @@ curl http://localhost:3000/health
    Type: CNAME
    Name: www
    Value: cname.vercel-dns.com
-   
-   Type: A (for root domain)
-   Name: @
-   Value: 76.76.21.21
    ```
+   
+   **Important:** For root domain (@) configuration, check Vercel's current documentation at https://vercel.com/docs/custom-domains for the latest DNS settings, as IP addresses may change.
+   
+   Alternatively, configure the domain directly in Vercel Dashboard:
+   - Project Settings → Domains → Add Domain
+   - Follow the on-screen DNS configuration instructions
 
 3. **Verify Domain:**
    ```bash

@@ -125,7 +125,7 @@ function checkEnvironmentVariables() {
       printCheck('warn', `NODE_ENV=${process.env.NODE_ENV} (should be 'production' for deployment)`);
     }
   } else {
-    printCheck('warn', 'NODE_ENV not set (will default to production)');
+    printCheck('warn', 'NODE_ENV not set (server defaults to production in startup validation)');
   }
 
   // Port
@@ -301,7 +301,7 @@ function makeRequest(url) {
     const parsedUrl = new URL(url);
     const client = parsedUrl.protocol === 'https:' ? https : http;
 
-    const req = client.get(url, { timeout: 10000 }, (res) => {
+    const req = client.get(url, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -309,11 +309,13 @@ function makeRequest(url) {
       });
     });
 
-    req.on('error', reject);
-    req.on('timeout', () => {
+    // Set timeout after creating the request (preferred method)
+    req.setTimeout(10000, () => {
       req.destroy();
       reject(new Error('Request timeout'));
     });
+
+    req.on('error', reject);
   });
 }
 

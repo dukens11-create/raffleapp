@@ -8022,9 +8022,9 @@ server.on('error', (error) => {
   process.exit(1);
 });
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('\n⚠️  Received SIGINT (Ctrl+C), shutting down gracefully...');
+// Graceful shutdown handler
+function gracefulShutdown(signal) {
+  console.log(`\n⚠️  Received ${signal}, shutting down gracefully...`);
   server.close(() => {
     console.log('🔌 Server closed');
     db.close((err) => {
@@ -8044,30 +8044,11 @@ process.on('SIGINT', () => {
     console.error('⚠️  Forceful shutdown after timeout');
     process.exit(1);
   }, 10000);
-});
+}
 
-process.on('SIGTERM', () => {
-  console.log('\n⚠️  Received SIGTERM, shutting down gracefully...');
-  server.close(() => {
-    console.log('🔌 Server closed');
-    db.close((err) => {
-      if (err) {
-        console.error('❌ Error closing database:', err);
-        process.exit(1);
-      } else {
-        console.log('💾 Database connection closed');
-        console.log('✅ Shutdown complete');
-        process.exit(0);
-      }
-    });
-  });
-  
-  // Force exit after 10 seconds if graceful shutdown fails
-  setTimeout(() => {
-    console.error('⚠️  Forceful shutdown after timeout');
-    process.exit(1);
-  }, 10000);
-});
+// Handle shutdown signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT (Ctrl+C)'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
