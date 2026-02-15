@@ -11,6 +11,52 @@ A web-based raffle ticket management system for organizing and managing raffle d
 - 📱 Mobile-responsive design
 - 🔐 Secure authentication
 
+## 📱 Mobile Apps (Android & iOS)
+
+This web application can be transformed into native mobile apps for Android and iOS using Capacitor!
+
+### Quick Start for Mobile
+
+```bash
+cd raffle-app
+
+# Install dependencies (includes Capacitor)
+npm install
+
+# Prepare web files for mobile
+npm run build
+
+# Initialize Capacitor (first time only)
+npm run cap:init
+
+# Add platforms
+npm run cap:add:android    # For Android
+npm run cap:add:ios        # For iOS (macOS only)
+
+# Sync files
+npm run cap:sync
+
+# Open in native IDE
+npm run cap:open:android   # Opens Android Studio
+npm run cap:open:ios       # Opens Xcode
+```
+
+### What You Get
+
+- ✅ **Android APK/AAB** - Ready for Google Play Store
+- ✅ **iOS IPA** - Ready for Apple App Store  
+- ✅ **Native Features** - Camera, push notifications, offline support
+- ✅ **60fps Performance** - Smooth animations
+- ✅ **Easy Updates** - Sync web changes to mobile
+
+### Full Documentation
+
+See [MOBILE_BUILD_GUIDE.md](raffle-app/MOBILE_BUILD_GUIDE.md) for complete instructions on:
+- Android and iOS build steps
+- App store submission guidelines
+- Testing and troubleshooting
+- Required tools and prerequisites
+
 ## Default Admin Credentials
 
 When the application starts for the first time, a default admin account is automatically created:
