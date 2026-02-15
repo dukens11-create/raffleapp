@@ -74,6 +74,7 @@ const MAX_EXPORT_LIMIT = 100000;
 // Pagination limits for API endpoints
 const MAX_PAGE_LIMIT = 1000; // Maximum items per page
 const MAX_PAGE_NUMBER = 10000; // Maximum page number to prevent offset issues
+const MAX_SAFE_OFFSET = 1000000; // Maximum offset to prevent integer overflow (1 million)
 
 // Haiti Departments - Valid department values (alphabetically ordered)
 const HAITI_DEPARTMENTS = [
@@ -3234,10 +3235,16 @@ app.get('/tickets', requireAuth, async (req, res) => {
 app.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Check if pagination is requested (explicit check for undefined to handle page=0 or limit=0)
+    // When pagination is requested, both page and limit are used together
     const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
     
-    let page = parseInt(req.query.page) || 1;
-    let limit = parseInt(req.query.limit) || 100;
+    // Use nullish coalescing to only default on null/undefined, not on 0
+    let page = req.query.page !== undefined ? parseInt(req.query.page) : 1;
+    let limit = req.query.limit !== undefined ? parseInt(req.query.limit) : 100;
+    
+    // Handle NaN from invalid parseInt
+    if (isNaN(page)) page = 1;
+    if (isNaN(limit)) limit = 100;
     
     // Validate pagination parameters to prevent DoS
     if (page < 1 || page > MAX_PAGE_NUMBER) {
@@ -3255,12 +3262,27 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     const offset = (page - 1) * limit;
     
     // Prevent integer overflow in offset calculation
-    const MAX_SAFE_OFFSET = 1000000; // 1 million
     if (offset > MAX_SAFE_OFFSET) {
       return res.status(400).json({ 
         error: `Offset too large. Please reduce page number or limit.` 
       });
     }
+    
+    // Backward compatibility: if no pagination params provided, return array format
+    if (!paginationRequested) {
+      // Note: Using LIMIT/OFFSET for simplicity. For very large datasets,
+      // consider keyset pagination (WHERE name > ? ORDER BY name LIMIT ?) for better performance
+      const rows = await db.all(
+        "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
+        [limit, offset]
+      );
+      return res.json(rows);
+    }
+    
+    // New paginated format - fetch count and data
+    // Note: For better performance, these queries could run concurrently with Promise.all()
+    // if the database connection pool supports it
+    const countResult = await db.get("SELECT COUNT(*) as total FROM users");
     
     // Note: Using LIMIT/OFFSET for simplicity. For very large datasets,
     // consider keyset pagination (WHERE name > ? ORDER BY name LIMIT ?) for better performance
@@ -3268,16 +3290,6 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
       "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
       [limit, offset]
     );
-    
-    // Backward compatibility: if no pagination params provided, return array format
-    if (!paginationRequested) {
-      return res.json(rows);
-    }
-    
-    // New paginated format - only fetch count when needed
-    // Note: For better performance with large tables, consider caching this value
-    // and invalidating on user creation/deletion
-    const countResult = await db.get("SELECT COUNT(*) as total FROM users");
     
     res.json({
       users: rows,
