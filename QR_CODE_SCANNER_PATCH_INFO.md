@@ -56,7 +56,7 @@ The vendored plugin includes:
 - Modified AndroidManifest.xml without the deprecated `package` attribute
 - Original pubspec.yaml, LICENSE, README, and CHANGELOG
 
-The Android build.gradle in the vendored plugin already contains proper namespace configuration.
+The Android build.gradle in the vendored plugin has been updated to include the required namespace configuration (`namespace 'net.touchcapture.qr.flutterqr'`) as required by Android Gradle Plugin 7.0+.
 
 ## ⚠️ Migration Path
 
