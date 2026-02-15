@@ -3239,15 +3239,23 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
     
     // Backward compatibility: if no pagination params provided, return all users in array format
+    // Note: This loads all users into memory. For large user tables (>10K users),
+    // consider migrating to paginated API to prevent memory issues
     if (!paginationRequested) {
       const rows = await db.all("SELECT name, phone, role FROM users ORDER BY name");
+      
+      // Log warning if returning large dataset
+      if (rows.length > 1000) {
+        console.warn(`⚠️  /users endpoint returned ${rows.length} users without pagination. Consider using pagination for better performance.`);
+      }
+      
       return res.json(rows);
     }
     
     // Paginated mode: validate and process pagination parameters
     // Use nullish coalescing to only default on null/undefined, not on 0
-    let page = req.query.page !== undefined ? parseInt(req.query.page) : 1;
-    let limit = req.query.limit !== undefined ? parseInt(req.query.limit) : 100;
+    let page = req.query.page !== undefined ? parseInt(req.query.page, 10) : 1;
+    let limit = req.query.limit !== undefined ? parseInt(req.query.limit, 10) : 100;
     
     // Handle NaN from invalid parseInt
     if (isNaN(page)) page = 1;
