@@ -14,7 +14,7 @@ class TicketConstants {
       price: 50,
       prizeRange: '5,000 GOURDES!',
       coverText: 'GRATE TOUTE',
-      category: 'XYZ',
+      category: 'BAS',
       prizes: [
         Prize(emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 3),
@@ -44,7 +44,7 @@ class TicketConstants {
       price: 100,
       prizeRange: '15,000 GOURDES!',
       coverText: 'GRATE TOUTE',
-      category: 'EFG',
+      category: 'PRM',
       prizes: [
         Prize(emoji: '🎰', text: 'MEGA PRIZE!\n15,000 GOUD', value: 15000, weight: 2),
         Prize(emoji: '💎', text: 'OU GENYEN\n7,500 GOUD', value: 7500, weight: 5),
@@ -74,7 +74,7 @@ class TicketConstants {
       price: 250,
       prizeRange: '50,000 GOURDES!',
       coverText: 'GRATE TOUTE',
-      category: 'JKL',
+      category: 'BRZ',
       prizes: [
         Prize(emoji: '🎉', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 3),
@@ -104,7 +104,7 @@ class TicketConstants {
       price: 500,
       prizeRange: '150,000 GOURDES!',
       coverText: 'GRATE TOUTE',
-      category: 'EFG',
+      category: 'SLV',
       prizes: [
         Prize(emoji: '🏆', text: 'MEGA AJAN!\n150,000 GOUD', value: 150000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n75,000 GOUD', value: 75000, weight: 3),
@@ -134,7 +134,7 @@ class TicketConstants {
       price: 1000,
       prizeRange: '250,000 GOURDES!',
       coverText: 'GRATE TOUTE',
-      category: 'ABC',
+      category: 'GLD',
       prizes: [
         Prize(emoji: '🎉', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3),
@@ -164,7 +164,7 @@ class TicketConstants {
       price: 5000,
       prizeRange: '1,000,000 GOURDES!',
       coverText: 'GRATE TOUTE',
-      category: 'XYZ',
+      category: 'DIA',
       prizes: [
         Prize(emoji: '💎', text: 'MEGA DYAMAN!\n1,000,000 GOUD', value: 1000000, weight: 1),
         Prize(emoji: '🎰', text: 'SUPER PRIZE!\n500,000 GOUD', value: 500000, weight: 2),
