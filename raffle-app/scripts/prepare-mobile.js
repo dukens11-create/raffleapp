@@ -63,7 +63,7 @@ if (!fs.existsSync(indexPath)) {
     <title>Grate Genyen</title>
     <script type="module" src="capacitor.js"></script>
     <script>
-        window.location.href = '/login.html';
+        window.location.href = 'login.html';
     </script>
 </head>
 <body>

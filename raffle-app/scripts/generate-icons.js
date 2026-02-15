@@ -35,25 +35,30 @@ if (!fs.existsSync(androidRes)) {
 
 console.log('🎨 Generating app icons...');
 
-// Generate Android icons
-let successCount = 0;
-androidSizes.forEach(({ folder, size }) => {
+// Generate Android icons using Promise.all for proper async handling
+const iconPromises = androidSizes.map(({ folder, size }) => {
   const dir = path.join(androidRes, folder);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   
-  sharp(sourceIcon)
+  return sharp(sourceIcon)
     .resize(size, size)
-    .toFile(path.join(dir, 'ic_launcher.png'), (err) => {
-      if (err) {
-        console.error(`❌ Error generating ${folder}:`, err.message);
-      } else {
-        console.log(`✅ Generated ${folder}/ic_launcher.png`);
-        successCount++;
-        
-        if (successCount === androidSizes.length) {
-          console.log('🎉 Icon generation complete!');
-          console.log('For iOS, use Xcode to add icons to Assets.xcassets');
-        }
-      }
+    .toFile(path.join(dir, 'ic_launcher.png'))
+    .then(() => {
+      console.log(`✅ Generated ${folder}/ic_launcher.png`);
+      return folder;
+    })
+    .catch((err) => {
+      console.error(`❌ Error generating ${folder}:`, err.message);
+      throw err;
     });
 });
+
+Promise.all(iconPromises)
+  .then(() => {
+    console.log('🎉 Icon generation complete!');
+    console.log('For iOS, use Xcode to add icons to Assets.xcassets');
+  })
+  .catch((err) => {
+    console.error('❌ Icon generation failed:', err.message);
+    process.exit(1);
+  });

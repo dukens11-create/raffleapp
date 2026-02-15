@@ -2,16 +2,8 @@
   "appId": "com.grategenyen.raffle",
   "appName": "Grate Genyen",
   "webDir": "www",
-  "server": {
-    "url": "https://your-production-domain.com",
-    "cleartext": true,
-    "androidScheme": "https"
-  },
   "android": {
-    "buildOptions": {
-      "keystorePath": "release-key.keystore",
-      "keystoreAlias": "raffle-key"
-    }
+    "buildOptions": {}
   },
   "ios": {
     "contentInset": "automatic",

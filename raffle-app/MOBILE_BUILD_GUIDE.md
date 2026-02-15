@@ -44,6 +44,8 @@ npm run build
 
 ### 4. Add Platforms
 
+**Note:** The `npm run android:build` and `npm run ios:build` scripts are only usable after you've added the respective platforms.
+
 ```bash
 # Add Android
 npm run cap:add:android
