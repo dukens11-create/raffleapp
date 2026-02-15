@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- Flutter SDK 3.0+
-- For Android: Android Studio with SDK 21+
+- Flutter SDK 3.10+ (recommended: latest stable version)
+- For Android: Android Studio with SDK 21+ (API 21 minimum, API 34 target)
 - For iOS: macOS with Xcode 14+
 
 ## Local Build Commands

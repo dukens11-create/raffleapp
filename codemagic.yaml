@@ -130,4 +130,4 @@ workflows:
     publishing:
       email:
         recipients:
-          - dukens11-create@users.noreply.github.com
+          - $NOTIFICATION_EMAIL

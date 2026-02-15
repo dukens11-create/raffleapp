@@ -4,6 +4,7 @@
 <dict>
 	<key>method</key>
 	<string>app-store</string>
+	<!-- Replace YOUR_TEAM_ID with your Apple Developer Team ID from https://developer.apple.com/account -->
 	<key>teamID</key>
 	<string>YOUR_TEAM_ID</string>
 	<key>uploadBitcode</key>
