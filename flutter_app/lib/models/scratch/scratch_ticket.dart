@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'prize.dart';
 import 'ticket_theme.dart';
 
@@ -63,10 +64,11 @@ class ScratchTicket {
     };
   }
 
-  // Select a prize based on weighted probability
+  // Select a prize based on weighted probability using secure random
   Prize selectPrize() {
     final totalWeight = prizes.fold<int>(0, (sum, prize) => sum + prize.weight);
-    final random = (DateTime.now().millisecondsSinceEpoch % totalWeight);
+    // Use secure random for fair and unpredictable prize selection
+    final random = Random.secure().nextInt(totalWeight);
     
     int currentWeight = 0;
     for (final prize in prizes) {

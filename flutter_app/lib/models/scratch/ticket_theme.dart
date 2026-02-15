@@ -25,10 +25,18 @@ class TicketTheme {
     return Color(int.parse(colorStr.replaceFirst('#', '0xff')));
   }
 
+  static String _colorToHex(Color color) {
+    // Convert color to hex string with proper formatting
+    final hex = color.value.toRadixString(16).padLeft(8, '0');
+    // All ticket theme colors are opaque (alpha = FF), so we return RGB only
+    // Format: AARRGGBB -> RRGGBB (skip first 2 characters which are alpha)
+    return '#${hex.substring(2)}';
+  }
+
   Map<String, dynamic> toJson() {
     return {
-      'gradientColors': gradientColors.map((c) => '#${c.value.toRadixString(16).substring(2)}').toList(),
-      'textColor': '#${textColor.value.toRadixString(16).substring(2)}',
+      'gradientColors': gradientColors.map((c) => _colorToHex(c)).toList(),
+      'textColor': _colorToHex(textColor),
       'animation': animation,
     };
   }

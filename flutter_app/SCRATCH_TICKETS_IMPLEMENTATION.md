@@ -137,11 +137,12 @@ The scratch card uses the `scratcher` package with:
 
 ### Prize Selection Algorithm
 
-Prizes are selected using weighted probability:
+Prizes are selected using weighted probability with secure random number generation:
 ```dart
 Prize selectPrize() {
   final totalWeight = prizes.fold<int>(0, (sum, prize) => sum + prize.weight);
-  final random = (DateTime.now().millisecondsSinceEpoch % totalWeight);
+  // Use secure random for fair and unpredictable prize selection
+  final random = Random.secure().nextInt(totalWeight);
   
   int currentWeight = 0;
   for (final prize in prizes) {
