@@ -14,10 +14,12 @@ const ticketService = require('./ticketService');
 
 // Category display names mapping
 const CATEGORY_NAMES = {
-  'ABC': { full: 'ABC - Regular', short: 'ABC ($50)' },
-  'EFG': { full: 'EFG - Silver', short: 'EFG ($100)' },
-  'JKL': { full: 'JKL - Gold', short: 'JKL ($250)' },
-  'XYZ': { full: 'XYZ - Platinum', short: 'XYZ ($500)' }
+  'BAS': { full: 'BAS - Basic (50 HTG)', short: 'BAS (50 HTG)' },
+  'PRM': { full: 'PRM - Premium (100 HTG)', short: 'PRM (100 HTG)' },
+  'BRZ': { full: 'BRZ - Bronze (250 HTG)', short: 'BRZ (250 HTG)' },
+  'SLV': { full: 'SLV - Silver (500 HTG)', short: 'SLV (500 HTG)' },
+  'GLD': { full: 'GLD - Gold (1,000 HTG)', short: 'GLD (1,000 HTG)' },
+  'DIA': { full: 'DIA - Diamond (5,000 HTG)', short: 'DIA (5,000 HTG)' }
 };
 
 // Barcode generation constants for BWIP-JS
@@ -460,7 +462,7 @@ async function drawTicketFrontWithTearoff(doc, ticket, template, x, y, customDes
   
   // Category badge
   const categoryColors = {
-    'ABC': '#FF6B6B', 'EFG': '#4ECDC4', 'JKL': '#45B7D1', 'XYZ': '#F7DC6F'
+    'BAS': '#10b981', 'PRM': '#7c3aed', 'BRZ': '#ea580c', 'SLV': '#94a3b8', 'GLD': '#fbbf24', 'DIA': '#22d3ee'
   };
   const categoryColor = categoryColors[ticket.category] || '#95a5a6';
   doc.rect(x + 12, y + 48, 70, 20).fillAndStroke(categoryColor, '#2c3e50');
@@ -1346,10 +1348,12 @@ async function drawGridTicket(doc, ticket, x, y, width, height, barcodeImage) {
   
   // Category badge (small, colored)
   const categoryColors = {
-    'ABC': '#FF6B6B',
-    'EFG': '#4ECDC4',
-    'JKL': '#45B7D1',
-    'XYZ': '#F7DC6F'
+    'BAS': '#10b981',
+    'PRM': '#7c3aed',
+    'BRZ': '#ea580c',
+    'SLV': '#94a3b8',
+    'GLD': '#fbbf24',
+    'DIA': '#22d3ee'
   };
   
   const badgeY = y + padding + 20;

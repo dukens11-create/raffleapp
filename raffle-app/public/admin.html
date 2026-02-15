@@ -2452,7 +2452,7 @@
         async function loadInventory() {
           const res = await fetch('/tickets');
           const data = await res.json();
-          const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+          const categories = ['BAS', 'PRM', 'BRZ', 'SLV', 'GLD', 'DIA'];
           const summary = {};
           categories.forEach(cat => summary[cat] = { total: 0, sold: 0, available: 0 });
           data.forEach(ticket => {
@@ -4338,7 +4338,7 @@
       showActionResult('Processing... This may take a moment.', 'info');
       
       try {
-        const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+        const categories = ['BAS', 'PRM', 'BRZ', 'SLV', 'GLD', 'DIA'];
         let totalUpdated = 0;
         
         for (const category of categories) {
