@@ -643,16 +643,19 @@ async function initializeSchema() {
     for (const col of newColumns) {
       try {
         if (USE_POSTGRES) {
+          // Handle NULL defaults properly for PostgreSQL
+          const defaultClause = col.default === null ? '' : `DEFAULT ${col.default}`;
           await run(`
             ALTER TABLE ticket_designs 
-            ADD COLUMN IF NOT EXISTS ${col.name} ${col.type} DEFAULT ${col.default}
+            ADD COLUMN IF NOT EXISTS ${col.name} ${col.type} ${defaultClause}
           `);
         } else {
           // SQLite doesn't support IF NOT EXISTS for columns, so check first
           const columns = await all(`PRAGMA table_info(ticket_designs)`);
           const hasColumn = columns.some(c => c.name === col.name);
           if (!hasColumn) {
-            await run(`ALTER TABLE ticket_designs ADD COLUMN ${col.name} ${col.type} DEFAULT ${col.default}`);
+            const defaultClause = col.default === null ? '' : `DEFAULT ${col.default}`;
+            await run(`ALTER TABLE ticket_designs ADD COLUMN ${col.name} ${col.type} ${defaultClause}`);
           }
         }
       } catch (error) {
