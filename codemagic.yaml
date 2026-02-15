@@ -1,0 +1,198 @@
+# Codemagic CI/CD Configuration for Grate Genyen Raffle App
+# 
+# This configuration defines automated build workflows for both Android and iOS platforms.
+# 
+# ============================================================================
+# SETUP INSTRUCTIONS
+# ============================================================================
+# 
+# 1. ENVIRONMENT VARIABLES (Configure in Codemagic UI under Settings > Environment variables)
+#    
+#    Required for production builds:
+#    - API_BASE_URL: Backend API endpoint (e.g., https://api.grategenyen.com)
+#    
+#    For Android signing (future):
+#    - KEYSTORE_FILE: Base64 encoded keystore file
+#    - KEYSTORE_PASSWORD: Keystore password
+#    - KEY_ALIAS: Key alias name
+#    - KEY_PASSWORD: Key password
+#    
+#    For iOS signing (future):
+#    - APP_STORE_CONNECT_KEY_IDENTIFIER: App Store Connect API key ID
+#    - APP_STORE_CONNECT_ISSUER_ID: App Store Connect issuer ID
+#    - APP_STORE_CONNECT_PRIVATE_KEY: App Store Connect private key
+#    - CERTIFICATE_PRIVATE_KEY: iOS certificate private key
+#    
+# 2. CREDENTIAL GROUPS (Configure in Codemagic UI under Teams > Credential groups)
+#    - app_credentials: For Android signing credentials
+#    - ios_credentials: For iOS signing credentials
+#    
+# 3. CODE SIGNING (Future configuration)
+#    Android: https://docs.codemagic.io/yaml-code-signing/signing-android/
+#    iOS: https://docs.codemagic.io/yaml-code-signing/signing-ios/
+#    
+# 4. DOCUMENTATION
+#    - Codemagic YAML: https://docs.codemagic.io/yaml/yaml-getting-started/
+#    - Flutter builds: https://docs.codemagic.io/yaml-quick-start/building-a-flutter-app/
+#    
+# ============================================================================
+
+workflows:
+  # ============================================================================
+  # ANDROID WORKFLOW
+  # ============================================================================
+  android-workflow:
+    name: Flutter Android Build
+    instance_type: linux_x2
+    max_build_duration: 60
+    
+    environment:
+      flutter: stable
+      groups:
+        # Add credential group for future signing
+        - app_credentials
+      vars:
+        PACKAGE_NAME: "com.grategenyen.raffleapp"
+    
+    # Trigger configuration
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+      cancel_previous_builds: true
+    
+    # Build caching for faster builds
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/.gradle/caches
+        - $FLUTTER_ROOT/.pub-cache
+    
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd flutter_app
+          flutter pub get
+      
+      - name: Run Flutter analyzer
+        script: |
+          cd flutter_app
+          flutter analyze
+      
+      - name: Run tests
+        script: |
+          cd flutter_app
+          flutter test
+      
+      - name: Build APK
+        script: |
+          cd flutter_app
+          flutter build apk --release
+      
+      - name: Build App Bundle
+        script: |
+          cd flutter_app
+          flutter build appbundle --release
+    
+    artifacts:
+      - flutter_app/build/**/outputs/**/*.apk
+      - flutter_app/build/**/outputs/**/*.aab
+      - flutter_app/build/**/outputs/**/mapping.txt
+    
+    publishing:
+      email:
+        recipients:
+          - dukens11create@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ============================================================================
+  # iOS WORKFLOW
+  # ============================================================================
+  ios-workflow:
+    name: Flutter iOS Build
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        # Add credential group for future signing
+        - ios_credentials
+      vars:
+        BUNDLE_ID: "com.grategenyen.raffleapp"
+    
+    # Trigger configuration
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+      cancel_previous_builds: true
+    
+    # Build caching for faster builds
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+        - $FLUTTER_ROOT/.pub-cache
+        - flutter_app/ios/Pods
+    
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd flutter_app
+          flutter pub get
+      
+      - name: Initialize iOS platform
+        script: |
+          cd flutter_app
+          # Check if ios folder exists, if not create it
+          if [ ! -d "ios" ]; then
+            echo "iOS folder not found. Initializing iOS platform..."
+            flutter create --platforms=ios .
+          else
+            echo "iOS folder already exists. Skipping initialization."
+          fi
+      
+      - name: Install CocoaPods dependencies
+        script: |
+          cd flutter_app/ios
+          pod install
+      
+      - name: Run Flutter analyzer
+        script: |
+          cd flutter_app
+          flutter analyze
+      
+      - name: Run tests
+        script: |
+          cd flutter_app
+          flutter test
+      
+      - name: Build iOS (no codesign)
+        script: |
+          cd flutter_app
+          flutter build ios --release --no-codesign
+    
+    artifacts:
+      - flutter_app/build/ios/iphoneos/*.app
+      - flutter_app/build/ios/archive/*.xcarchive
+    
+    publishing:
+      email:
+        recipients:
+          - dukens11create@gmail.com
+        notify:
+          success: true
+          failure: true
