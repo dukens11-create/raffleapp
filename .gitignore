@@ -21,8 +21,6 @@ flutter_app/.flutter-plugins
 flutter_app/.flutter-plugins-dependencies
 flutter_app/.packages
 flutter_app/build/
-flutter_app/android/
-flutter_app/ios/
 flutter_app/linux/
 flutter_app/macos/
 flutter_app/web/
