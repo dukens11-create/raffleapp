@@ -5,6 +5,9 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+# Keep all Stripe Android SDK classes
+-keep class com.stripe.android.** { *; }
+-dontwarn com.stripe.android.**
+
 # Stripe push provisioning classes
 -keep class com.stripe.android.pushProvisioning.** { *; }
--keep class com.reactnativestripesdk.pushprovisioning.** { *; }
