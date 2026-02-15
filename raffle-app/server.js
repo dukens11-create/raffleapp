@@ -68,6 +68,13 @@ const MAX_TICKETS_PER_CATEGORY = 100000;
 // Maximum number of records to return for admin ticket queries
 const MAX_ADMIN_TICKET_QUERY_LIMIT = 1000;
 
+// Maximum number of tickets that can be exported at once
+const MAX_EXPORT_LIMIT = 100000;
+
+// Pagination limits for API endpoints
+const MAX_PAGE_LIMIT = 1000; // Maximum items per page
+const MAX_PAGE_NUMBER = 10000; // Maximum page number to prevent offset issues
+
 // Haiti Departments - Valid department values (alphabetically ordered)
 const HAITI_DEPARTMENTS = [
   'Artibonite',
@@ -3229,10 +3236,26 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     // Check if pagination is requested
     const paginationRequested = req.query.page || req.query.limit;
     
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 100;
+    let page = parseInt(req.query.page) || 1;
+    let limit = parseInt(req.query.limit) || 100;
+    
+    // Validate pagination parameters to prevent DoS
+    if (page < 1 || page > MAX_PAGE_NUMBER) {
+      return res.status(400).json({ 
+        error: `Invalid page number. Must be between 1 and ${MAX_PAGE_NUMBER}` 
+      });
+    }
+    
+    if (limit < 1 || limit > MAX_PAGE_LIMIT) {
+      return res.status(400).json({ 
+        error: `Invalid limit. Must be between 1 and ${MAX_PAGE_LIMIT}` 
+      });
+    }
+    
     const offset = (page - 1) * limit;
     
+    // Note: Using LIMIT/OFFSET for simplicity. For very large datasets,
+    // consider keyset pagination (WHERE name > ? ORDER BY name LIMIT ?) for better performance
     const rows = await db.all(
       "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
       [limit, offset]
@@ -7242,7 +7265,6 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     const total = countResult.total;
     
     // Check export limit BEFORE loading data to prevent memory issues
-    const MAX_EXPORT_LIMIT = 100000; // 100K tickets max per export
     if (isExport && isExport !== 'false' && total > MAX_EXPORT_LIMIT) {
       return res.status(400).json({ 
         error: `Export limit exceeded. Maximum ${MAX_EXPORT_LIMIT} tickets per export. Please use filters to reduce the dataset.`,
