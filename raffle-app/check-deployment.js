@@ -314,7 +314,7 @@ function makeRequest(url) {
 
     // Set timeout after creating the request (preferred method)
     req.setTimeout(REQUEST_TIMEOUT_MS, () => {
-      req.destroy();
+      req.destroy(new Error('Request timeout')); // Destroy with error for proper cleanup
       reject(new Error('Request timeout'));
     });
 
