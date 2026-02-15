@@ -1,8 +1,9 @@
 class ApiConfig {
   // Backend API configuration
+  // NOTE: For production, always use HTTPS
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000',
+    defaultValue: 'http://localhost:3000', // Change to HTTPS for production
   );
   
   static const String apiVersion = '/api';

@@ -18,6 +18,11 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    final createdAtStr = json['created_at'] ?? json['createdAt'];
+    if (createdAtStr == null) {
+      throw ArgumentError('created_at or createdAt field is required');
+    }
+    
     return User(
       id: json['id'] as int,
       phone: json['phone'] as String,
@@ -25,7 +30,7 @@ class User {
       name: json['name'] as String?,
       email: json['email'] as String?,
       department: json['department'] as String?,
-      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
+      createdAt: DateTime.parse(createdAtStr),
     );
   }
 

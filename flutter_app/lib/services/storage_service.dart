@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:async';
 
 class StorageService {
   static final StorageService _instance = StorageService._internal();
@@ -8,9 +9,26 @@ class StorageService {
 
   final _secureStorage = const FlutterSecureStorage();
   SharedPreferences? _prefs;
+  Completer<SharedPreferences>? _prefsCompleter;
 
-  Future<void> init() async {
-    _prefs ??= await SharedPreferences.getInstance();
+  Future<SharedPreferences> _getPrefs() async {
+    if (_prefs != null) return _prefs!;
+    
+    // Ensure only one initialization happens at a time
+    if (_prefsCompleter != null) {
+      return _prefsCompleter!.future;
+    }
+    
+    _prefsCompleter = Completer<SharedPreferences>();
+    try {
+      _prefs = await SharedPreferences.getInstance();
+      _prefsCompleter!.complete(_prefs!);
+      return _prefs!;
+    } catch (e) {
+      _prefsCompleter!.completeError(e);
+      _prefsCompleter = null;
+      rethrow;
+    }
   }
 
   // Secure token storage
@@ -28,39 +46,39 @@ class StorageService {
 
   // User data
   Future<void> saveUserId(int userId) async {
-    await init();
-    await _prefs?.setInt('user_id', userId);
+    final prefs = await _getPrefs();
+    await prefs.setInt('user_id', userId);
   }
 
   Future<int?> getUserId() async {
-    await init();
-    return _prefs?.getInt('user_id');
+    final prefs = await _getPrefs();
+    return prefs.getInt('user_id');
   }
 
   Future<void> saveUserRole(String role) async {
-    await init();
-    await _prefs?.setString('user_role', role);
+    final prefs = await _getPrefs();
+    await prefs.setString('user_role', role);
   }
 
   Future<String?> getUserRole() async {
-    await init();
-    return _prefs?.getString('user_role');
+    final prefs = await _getPrefs();
+    return prefs.getString('user_role');
   }
 
   Future<void> saveUserPhone(String phone) async {
-    await init();
-    await _prefs?.setString('user_phone', phone);
+    final prefs = await _getPrefs();
+    await prefs.setString('user_phone', phone);
   }
 
   Future<String?> getUserPhone() async {
-    await init();
-    return _prefs?.getString('user_phone');
+    final prefs = await _getPrefs();
+    return prefs.getString('user_phone');
   }
 
   // Clear all data
   Future<void> clearAll() async {
-    await init();
-    await _prefs?.clear();
+    final prefs = await _getPrefs();
+    await prefs.clear();
     await _secureStorage.deleteAll();
   }
 }

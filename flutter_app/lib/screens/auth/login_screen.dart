@@ -171,29 +171,30 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   const SizedBox(height: 24),
                   
-                  // Default Credentials Info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Default Admin Credentials:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                  // Default Credentials Info (Debug mode only)
+                  if (const bool.fromEnvironment('dart.vm.product') == false)
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Default Admin Credentials (Debug Only):',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 4),
-                        Text('Phone: 1234567890', style: TextStyle(fontSize: 12)),
-                        Text('Password: admin123', style: TextStyle(fontSize: 12)),
-                      ],
+                          SizedBox(height: 4),
+                          Text('Phone: 1234567890', style: TextStyle(fontSize: 12)),
+                          Text('Password: admin123', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

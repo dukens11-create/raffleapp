@@ -24,6 +24,11 @@ class Draw {
   });
 
   factory Draw.fromJson(Map<String, dynamic> json) {
+    final drawDateStr = json['draw_date'] ?? json['drawDate'];
+    if (drawDateStr == null) {
+      throw ArgumentError('draw_date or drawDate field is required');
+    }
+    
     return Draw(
       id: json['id'] as int,
       category: json['category'] as String,
@@ -32,7 +37,7 @@ class Draw {
       winnerPhone: json['winner_phone'] as String?,
       sellerId: json['seller_id'] as int?,
       sellerName: json['seller_name'] as String?,
-      drawDate: DateTime.parse(json['draw_date'] ?? json['drawDate']),
+      drawDate: DateTime.parse(drawDateStr),
       photoPath: json['photo_path'] as String?,
       verified: json['verified'] == 1 || json['verified'] == true,
     );

@@ -32,6 +32,11 @@ class Ticket {
   });
 
   factory Ticket.fromJson(Map<String, dynamic> json) {
+    final createdAtStr = json['created_at'] ?? json['createdAt'];
+    if (createdAtStr == null) {
+      throw ArgumentError('created_at or createdAt field is required');
+    }
+    
     return Ticket(
       id: json['id'] as int,
       ticketNumber: json['ticket_number'] ?? json['ticketNumber'],
@@ -45,7 +50,7 @@ class Ticket {
       buyerName: json['buyer_name'] as String?,
       department: json['department'] as String?,
       availableOnline: json['available_online'] == 1 || json['available_online'] == true,
-      createdAt: DateTime.parse(json['created_at'] ?? json['createdAt']),
+      createdAt: DateTime.parse(createdAtStr),
       soldAt: json['sold_at'] != null ? DateTime.parse(json['sold_at']) : null,
     );
   }
