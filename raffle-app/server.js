@@ -458,12 +458,92 @@ async function ensureActiveRaffle() {
   }
 }
 
+/**
+ * Ensure tickets are marked as available online
+ * Run once on first startup if no online tickets exist
+ */
+async function ensureOnlineTicketsAvailable() {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('🎫 CHECKING ONLINE TICKET AVAILABILITY');
+  console.log('═══════════════════════════════════════');
+  
+  try {
+    // Check if we have any tickets marked as available online
+    const onlineCount = await db.get(`
+      SELECT COUNT(*) as count 
+      FROM tickets 
+      WHERE available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+        AND status = 'AVAILABLE'
+    `);
+    
+    if (onlineCount && onlineCount.count > 0) {
+      console.log(`✅ Found ${onlineCount.count} tickets available online`);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return;
+    }
+    
+    console.log('⚠️  No tickets marked as available online');
+    console.log('📦 Auto-marking tickets for online availability...');
+    console.log('');
+    
+    // Mark 50,000 tickets per category as available online
+    const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+    const LIMIT_PER_CATEGORY = 50000;
+    let totalMarked = 0;
+    
+    for (const category of categories) {
+      try {
+        // Get the IDs of the most recent available tickets
+        const tickets = await db.all(`
+          SELECT id 
+          FROM tickets 
+          WHERE category = ? 
+            AND status = 'AVAILABLE'
+          ORDER BY created_at DESC 
+          LIMIT ?
+        `, [category, LIMIT_PER_CATEGORY]);
+        
+        if (tickets && tickets.length > 0) {
+          const ids = tickets.map(t => t.id);
+          const placeholders = ids.map(() => '?').join(',');
+          
+          await db.run(`
+            UPDATE tickets 
+            SET available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+            WHERE id IN (${placeholders})
+          `, ids);
+          
+          console.log(`✅ ${category}: Marked ${tickets.length} tickets as available online`);
+          totalMarked += tickets.length;
+        } else {
+          console.log(`⚠️  ${category}: No available tickets found`);
+        }
+      } catch (error) {
+        console.error(`❌ Error marking ${category} tickets:`, error.message);
+      }
+    }
+    
+    console.log('');
+    console.log(`✅ Total tickets marked as available online: ${totalMarked.toLocaleString()}`);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+  } catch (error) {
+    console.error('❌ Error checking online ticket availability:', error);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  }
+}
+
 // Initialize database schema, run migrations, validate setup, and check admin user
 db.initializeSchema()
   .then(() => runMigrations())
   .then(() => validateDatabaseSetup())
   .then(() => ensureAdminUser())
   .then(() => ensureActiveRaffle())
+  .then(() => ensureOnlineTicketsAvailable())
   .catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);

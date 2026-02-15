@@ -1,8 +1,16 @@
 /**
- * Script: Mark Last 100,000 Tickets Per Category as Available Online
+ * Mark Tickets as Available Online
  * 
- * USAGE:
- *   node scripts/markTicketsAvailable.js [options]
+ * This script marks tickets as available for the online scratch ticket game.
+ * By default, it marks 100,000 tickets per category (ABC, EFG, JKL, XYZ).
+ * 
+ * Usage:
+ *   node scripts/markTicketsAvailable.js                    # Mark 100K per category
+ *   node scripts/markTicketsAvailable.js --limit=50000      # Mark 50K per category
+ *   node scripts/markTicketsAvailable.js --dry-run          # Test run, no changes
+ *   node scripts/markTicketsAvailable.js --reset            # Mark all as NOT available
+ * 
+ * The script selects the most recent tickets (by created_at DESC) to mark as available.
  * 
  * DESCRIPTION:
  *   This script makes tickets available for purchase in the buyer portal by:
@@ -16,24 +24,6 @@
  *   Database connection is configured via environment variables:
  *   - DATABASE_URL: PostgreSQL connection string (if using PostgreSQL)
  *   - If DATABASE_URL is not set, SQLite will be used (raffle.db)
- * 
- * OPTIONS:
- *   --dry-run    Show what would be updated without making changes
- *   --reset      Mark all tickets as NOT available online (reverses the operation)
- *   --limit=N    Override the default 100,000 ticket limit per category
- * 
- * EXAMPLES:
- *   # Preview changes without applying them
- *   node scripts/markTicketsAvailable.js --dry-run
- * 
- *   # Apply changes to make 100,000 tickets per category available online
- *   node scripts/markTicketsAvailable.js
- * 
- *   # Make only 50,000 tickets per category available online
- *   node scripts/markTicketsAvailable.js --limit=50000
- * 
- *   # Reset all tickets to not available online
- *   node scripts/markTicketsAvailable.js --reset
  * 
  * NOTES:
  *   - The script processes tickets in batches for memory efficiency
