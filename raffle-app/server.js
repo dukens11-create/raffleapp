@@ -230,6 +230,10 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
+// Memory monitoring configuration
+const MEMORY_MONITOR_INTERVAL_MS = 300000; // 5 minutes
+const MEMORY_GC_THRESHOLD = 0.8; // 80% heap usage
+
 // Memory monitoring and garbage collection
 if (process.env.NODE_ENV === 'production') {
   setInterval(() => {
@@ -241,12 +245,12 @@ if (process.env.NODE_ENV === 'production') {
       external: `${Math.round(used.external / 1024 / 1024)}MB`
     });
     
-    // Trigger GC if heap usage > 80%
-    if (global.gc && (used.heapUsed / used.heapTotal) > 0.8) {
+    // Trigger GC if heap usage exceeds threshold
+    if (global.gc && (used.heapUsed / used.heapTotal) > MEMORY_GC_THRESHOLD) {
       console.log('⚠️  High memory usage detected, triggering GC');
       global.gc();
     }
-  }, 300000); // Every 5 minutes
+  }, MEMORY_MONITOR_INTERVAL_MS);
 }
 
 // Global error handlers for uncaught errors
@@ -3231,6 +3235,12 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
       [limit, offset]
     );
     
+    // Backward compatibility: if no pagination params provided, return array format
+    if (!req.query.page && !req.query.limit) {
+      return res.json(rows);
+    }
+    
+    // New paginated format
     const countResult = await db.get("SELECT COUNT(*) as total FROM users");
     
     res.json({
