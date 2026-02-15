@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node --max-old-space-size=1024 server.js",
+    "start": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
     "dev": "nodemon server.js",
     "migrate:barcodes": "node migrations/migrate_to_8digit_barcodes.js",
     "mark-available": "node scripts/markTicketsAvailable.js",

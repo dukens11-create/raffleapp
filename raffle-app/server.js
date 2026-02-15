@@ -230,6 +230,25 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
+// Memory monitoring and garbage collection
+if (process.env.NODE_ENV === 'production') {
+  setInterval(() => {
+    const used = process.memoryUsage();
+    console.log('Memory usage:', {
+      rss: `${Math.round(used.rss / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(used.heapTotal / 1024 / 1024)}MB`,
+      heapUsed: `${Math.round(used.heapUsed / 1024 / 1024)}MB`,
+      external: `${Math.round(used.external / 1024 / 1024)}MB`
+    });
+    
+    // Trigger GC if heap usage > 80%
+    if (global.gc && (used.heapUsed / used.heapTotal) > 0.8) {
+      console.log('⚠️  High memory usage detected, triggering GC');
+      global.gc();
+    }
+  }, 300000); // Every 5 minutes
+}
+
 // Global error handlers for uncaught errors
 process.on('uncaughtException', (error) => {
   console.error('UNCAUGHT EXCEPTION:', error);
@@ -938,9 +957,20 @@ app.get('/api/login-status/:phone', async (req, res) => {
 // Health check endpoint - Public
 // Health check endpoint with database validation
 app.get('/health', async (req, res) => {
+  const memUsage = process.memoryUsage();
+  const memoryMB = {
+    rss: Math.round(memUsage.rss / 1024 / 1024),
+    heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+    heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+    external: Math.round(memUsage.external / 1024 / 1024),
+    heapPercentUsed: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100)
+  };
+  
   const health = {
     status: 'ok',
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: memoryMB,
     database: {
       type: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite',
       connected: false,
@@ -3192,8 +3222,23 @@ app.get('/tickets', requireAuth, async (req, res) => {
 
 app.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const rows = await db.all("SELECT name, phone, role FROM users ORDER BY name");
-    res.json(rows);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const offset = (page - 1) * limit;
+    
+    const rows = await db.all(
+      "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
+      [limit, offset]
+    );
+    
+    const countResult = await db.get("SELECT COUNT(*) as total FROM users");
+    
+    res.json({
+      users: rows,
+      total: countResult.total,
+      page,
+      limit
+    });
   } catch (err) {
     return res.status(500).json({ error: 'Database error' });
   }
@@ -7208,6 +7253,14 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     }
     
     const tickets = await db.all(ticketsQuery, params);
+    
+    // Add safety limit for exports
+    const MAX_EXPORT_LIMIT = 100000; // 100K tickets max per export
+    if (isExport && isExport !== 'false' && tickets.length > MAX_EXPORT_LIMIT) {
+      return res.status(400).json({ 
+        error: `Export limit exceeded. Maximum ${MAX_EXPORT_LIMIT} tickets per export. Please use filters to reduce the dataset.` 
+      });
+    }
     
     // Get stats
     const statsQuery = `

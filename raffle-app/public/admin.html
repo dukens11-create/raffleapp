@@ -2236,6 +2236,7 @@
                             // Camera Scanner - Admin
                             let adminScanner = null;
                             let isAdminScannerRunning = false;
+                            let scannerAbortController = null;
                             
                             function onAdminScanSuccess(decodedText) {
                               document.getElementById('scanResult').innerHTML = `✅ Scanned: <strong>${decodedText}</strong>`;
@@ -2353,6 +2354,12 @@
                             }
                             
                             function stopAdminScanner() {
+                              // Abort any pending operations
+                              if (scannerAbortController) {
+                                scannerAbortController.abort();
+                                scannerAbortController = null;
+                              }
+                              
                               if (adminScanner) {
                                 try {
                                   if (isAdminScannerRunning) {
@@ -2383,6 +2390,9 @@
                                 }
                               }
                             }
+                            
+                            // Clear on page unload
+                            window.addEventListener('beforeunload', stopAdminScanner);
                             
                             // Event listeners
                             document.getElementById('scanTicketBtn')?.addEventListener('click', () => {
