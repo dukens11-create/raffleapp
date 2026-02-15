@@ -7,3 +7,11 @@ raffle-app/ticket_exports/
 raffle-app/test_streaming.js
 raffle-app/generate_test_tickets.js
 raffle-app/server.log
+
+# Mobile build artifacts
+raffle-app/www/
+raffle-app/android/
+raffle-app/ios/
+raffle-app/.capacitor/
+raffle-app/capacitor.config.ts
+
