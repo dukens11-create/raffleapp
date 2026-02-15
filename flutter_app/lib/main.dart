@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:raffle_app/providers/auth_provider.dart';
+import 'package:raffle_app/providers/ticket_provider.dart';
 import 'package:raffle_app/screens/auth/login_screen.dart';
 import 'package:raffle_app/screens/admin/admin_dashboard.dart';
 import 'package:raffle_app/screens/seller/seller_dashboard.dart';
 import 'package:raffle_app/screens/buyer/buyer_portal.dart';
+import 'package:raffle_app/screens/scratch/ticket_gallery_screen.dart';
 import 'package:raffle_app/config/app_theme.dart';
 
 void main() {
@@ -19,6 +21,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => TicketProvider()),
       ],
       child: MaterialApp(
         title: 'Grate Genyen',
@@ -31,7 +34,9 @@ class MyApp extends StatelessWidget {
           '/admin': (context) => const AdminDashboard(),
           '/seller': (context) => const SellerDashboard(),
           '/buyer': (context) => const BuyerPortal(),
+          '/scratch': (context) => const TicketGalleryScreen(),
         },
+        debugShowCheckedModeBanner: false,
       ),
     );
   }
