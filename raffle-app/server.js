@@ -3238,6 +3238,13 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
     // When pagination is requested, both page and limit are used together
     const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
     
+    // Backward compatibility: if no pagination params provided, return all users in array format
+    if (!paginationRequested) {
+      const rows = await db.all("SELECT name, phone, role FROM users ORDER BY name");
+      return res.json(rows);
+    }
+    
+    // Paginated mode: validate and process pagination parameters
     // Use nullish coalescing to only default on null/undefined, not on 0
     let page = req.query.page !== undefined ? parseInt(req.query.page) : 1;
     let limit = req.query.limit !== undefined ? parseInt(req.query.limit) : 100;
@@ -3268,28 +3275,16 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
       });
     }
     
-    // Backward compatibility: if no pagination params provided, return array format
-    if (!paginationRequested) {
-      // Note: Using LIMIT/OFFSET for simplicity. For very large datasets,
-      // consider keyset pagination (WHERE name > ? ORDER BY name LIMIT ?) for better performance
-      const rows = await db.all(
-        "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
-        [limit, offset]
-      );
-      return res.json(rows);
-    }
-    
-    // New paginated format - fetch count and data
-    // Note: For better performance, these queries could run concurrently with Promise.all()
-    // if the database connection pool supports it
-    const countResult = await db.get("SELECT COUNT(*) as total FROM users");
-    
+    // New paginated format - fetch count and data concurrently for better performance
     // Note: Using LIMIT/OFFSET for simplicity. For very large datasets,
     // consider keyset pagination (WHERE name > ? ORDER BY name LIMIT ?) for better performance
-    const rows = await db.all(
-      "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
-      [limit, offset]
-    );
+    const [countResult, rows] = await Promise.all([
+      db.get("SELECT COUNT(*) as total FROM users"),
+      db.all(
+        "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
+        [limit, offset]
+      )
+    ]);
     
     res.json({
       users: rows,
