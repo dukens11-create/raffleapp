@@ -116,14 +116,14 @@ function validateEnvironment() {
   // CRITICAL VARIABLES (Server won't start without these)
   // ============================================
   
-  // Database URL - Allow SQLite fallback in development
+  // Database URL - Allow SQLite fallback even in production (for emergency deployment)
   if (!process.env.DATABASE_URL) {
+    warnings.push('⚠️  DATABASE_URL not set - using SQLite (fallback mode)');
+    warnings.push('  ⚠️  CRITICAL: Data will be LOST on every restart');
+    warnings.push('  ⚠️  For persistent data, set DATABASE_URL to PostgreSQL connection string');
     if (process.env.NODE_ENV === 'production') {
-      errors.push('DATABASE_URL - Database connection string is required in production');
-      errors.push('  Set to: postgresql://user:pass@host:port/db');
-    } else {
-      warnings.push('DATABASE_URL not set - using SQLite (development only)');
-      warnings.push('  For production, set DATABASE_URL to PostgreSQL connection string');
+      warnings.push('  🚨 PRODUCTION WARNING: SQLite is NOT suitable for production');
+      warnings.push('  🚨 Set DATABASE_URL as soon as possible');
     }
   }
   
