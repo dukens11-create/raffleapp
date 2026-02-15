@@ -1,0 +1,74 @@
+# Android App Signing Configuration
+# 
+# This file contains the signing configuration for Android release builds.
+# Copy this file to 'key.properties' (without .example) and fill in your actual values.
+# 
+# IMPORTANT: 
+# - Never commit the actual key.properties file with real credentials
+# - key.properties is already in .gitignore to prevent accidental commits
+# 
+# =============================================================================
+# HOW TO GENERATE A KEYSTORE FOR PRODUCTION SIGNING
+# =============================================================================
+# 
+# 1. Generate a new keystore using keytool (included with JDK):
+# 
+#    keytool -genkey -v -keystore ~/upload-keystore.jks \
+#      -keyalg RSA -keysize 2048 -validity 10000 \
+#      -alias upload
+# 
+#    This will prompt you for:
+#    - Keystore password (you'll use this as storePassword below)
+#    - Key password (you'll use this as keyPassword below)
+#    - Your name, organization, and location details
+# 
+# 2. Move the keystore to a secure location:
+# 
+#    mv ~/upload-keystore.jks ~/keystores/upload-keystore.jks
+# 
+# 3. Copy this file to key.properties:
+# 
+#    cp key.properties.example key.properties
+# 
+# 4. Edit key.properties and fill in the values below with your actual credentials
+# 
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# The password used to protect the keystore file
+storePassword=YOUR_STORE_PASSWORD_HERE
+
+# The password used to protect the private key
+keyPassword=YOUR_KEY_PASSWORD_HERE
+
+# The alias name of the key in the keystore
+keyAlias=upload
+
+# The absolute or relative path to the keystore file
+# Examples:
+#   Absolute path: /Users/yourname/keystores/upload-keystore.jks
+#   Relative path: ../../keystores/upload-keystore.jks
+#   Home directory: ~/keystores/upload-keystore.jks
+storeFile=/path/to/your/upload-keystore.jks
+
+# =============================================================================
+# NOTES
+# =============================================================================
+# 
+# - For development builds, you can use debug signing (automatic)
+# - For production/release builds intended for distribution, you MUST:
+#   1. Create a real keystore as shown above
+#   2. Fill in this configuration file
+#   3. Keep your keystore and passwords secure
+# 
+# - If you lose your keystore, you cannot update your app on Google Play Store
+#   - Back up your keystore in a secure location
+#   - Consider using a password manager for the passwords
+# 
+# - For Google Play Store upload, use the "upload" key as shown in the example
+# - Google Play App Signing will handle the final signing key
+# 
+# For more information, see:
+# - Android signing documentation: https://developer.android.com/studio/publish/app-signing
+# - Flutter deployment guide: https://docs.flutter.dev/deployment/android

@@ -145,20 +145,66 @@ The App Bundle will be located at: `build/app/outputs/bundle/release/app-release
 
 #### Sign the App
 
-1. Create a keystore (first time only):
-```bash
-keytool -genkey -v -keystore ~/upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
-```
+**Important:** For production release builds intended for Google Play Store, you must configure proper signing.
 
-2. Create `android/key.properties`:
-```properties
-storePassword=<your_store_password>
-keyPassword=<your_key_password>
-keyAlias=upload
-storeFile=<path_to_keystore>
-```
+**For Development/Testing:**
+- Release builds without `key.properties` automatically use debug signing
+- Debug-signed apps work for testing but cannot be published to Play Store
 
-3. Update `android/app/build.gradle` to use the keystore (already configured in Flutter projects)
+**For Production (Play Store):**
+
+1. **Create a keystore** (first time only):
+   ```bash
+   keytool -genkey -v -keystore ~/upload-keystore.jks \
+     -keyalg RSA -keysize 2048 -validity 10000 \
+     -alias upload
+   ```
+   
+   You'll be prompted for:
+   - Keystore password
+   - Key password  
+   - Your name, organization, and location
+
+2. **Configure signing credentials:**
+   ```bash
+   cd android
+   cp key.properties.example key.properties
+   ```
+   
+   Edit `key.properties` with your actual values:
+   ```properties
+   storePassword=<your_store_password>
+   keyPassword=<your_key_password>
+   keyAlias=upload
+   storeFile=/path/to/your/upload-keystore.jks
+   ```
+   
+   **Note:** `key.properties` is in `.gitignore` and will not be committed.
+
+3. **Build signed release:**
+   ```bash
+   cd ..
+   flutter build apk --release
+   # or
+   flutter build appbundle --release
+   ```
+
+4. **Verify signing:**
+   ```bash
+   # For APK
+   jarsigner -verify -verbose -certs build/app/outputs/flutter-apk/app-release.apk
+   
+   # For App Bundle
+   jarsigner -verify -verbose -certs build/app/outputs/bundle/release/app-release.aab
+   ```
+
+**Security Notes:**
+- Never commit your keystore or `key.properties` to version control
+- Back up your keystore securely - you cannot update your app without it
+- Use different keystores for development testing and production releases
+- Consider using Google Play App Signing for additional security
+
+For detailed instructions, see `android/key.properties.example`.
 
 ### iOS
 
