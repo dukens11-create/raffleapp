@@ -48,22 +48,45 @@ android {
         versionName flutterVersionName
     }
 
+    // Check if key.properties exists and is valid
+    def keystorePropertiesFile = rootProject.file('key.properties')
+    def hasValidKeystore = false
+    def keystoreProperties = new Properties()
+    
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+        
+        // Validate that all required properties are present
+        def requiredProps = ['keyAlias', 'keyPassword', 'storeFile', 'storePassword']
+        hasValidKeystore = requiredProps.every { keystoreProperties[it] != null && !keystoreProperties[it].toString().isEmpty() }
+        
+        if (!hasValidKeystore) {
+            println "WARNING: key.properties exists but is missing required properties."
+            println "Required properties: keyAlias, keyPassword, storeFile, storePassword"
+            println "Using debug signing instead. See key.properties.example for configuration details."
+        } else {
+            def storeFilePath = keystoreProperties['storeFile']
+            def storeFileObj = file(storeFilePath)
+            if (!storeFileObj.exists()) {
+                println "WARNING: Keystore file does not exist at: ${storeFilePath}"
+                println "Using debug signing instead. Please ensure storeFile path is correct."
+                hasValidKeystore = false
+            }
+        }
+    }
+
     signingConfigs {
         release {
             // Load signing config from key.properties file
             // See key.properties.example for instructions on generating a keystore
-            def keystorePropertiesFile = rootProject.file('key.properties')
-            if (keystorePropertiesFile.exists()) {
-                def keystoreProperties = new Properties()
-                keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
-                
+            if (hasValidKeystore) {
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
-                storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storeFile file(keystoreProperties['storeFile'])
                 storePassword keystoreProperties['storePassword']
             }
-            // If key.properties doesn't exist, the signingConfig will remain unconfigured
-            // and we'll fall back to debug signing (see buildTypes.release below)
+            // If key.properties doesn't exist or is invalid, 
+            // we'll fall back to debug signing (see buildTypes.release below)
         }
     }
 
@@ -72,14 +95,16 @@ android {
             // Use release signing if available, otherwise fall back to debug signing
             // For production builds, you MUST configure key.properties with a real keystore
             // For development/testing, debug signing is automatically used as fallback
-            def keystorePropertiesFile = rootProject.file('key.properties')
-            if (keystorePropertiesFile.exists()) {
+            if (hasValidKeystore) {
                 signingConfig signingConfigs.release
             } else {
                 // Development mode: use debug signing for convenience
                 // WARNING: Apps signed with debug key cannot be published to Play Store
                 signingConfig signingConfigs.debug
-                println "WARNING: Using debug signing for release build. Configure key.properties for production."
+                if (!keystorePropertiesFile.exists()) {
+                    println "INFO: No key.properties found. Using debug signing for release build."
+                    println "For production builds, configure key.properties. See key.properties.example for details."
+                }
             }
             
             minifyEnabled true
