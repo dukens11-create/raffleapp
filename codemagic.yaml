@@ -20,8 +20,9 @@
 #    - CM_CERTIFICATE_PASSWORD: Certificate password
 #    - CM_PROVISIONING_PROFILE: Base64-encoded provisioning profile
 #    
-#    For notifications:
+#    For notifications (OPTIONAL):
 #    - NOTIFICATION_EMAIL: Email address for build notifications
+#      (Uncomment the 'publishing' sections in workflows to enable)
 #    
 # 2. DOCUMENTATION
 #    - Codemagic YAML: https://docs.codemagic.io/yaml/yaml-getting-started/
@@ -64,10 +65,13 @@ workflows:
     artifacts:
       - flutter_app/build/app/outputs/flutter-apk/*.apk
       - flutter_app/build/app/outputs/bundle/release/*.aab
-    publishing:
-      email:
-        recipients:
-          - $NOTIFICATION_EMAIL
+    # Uncomment the below 'publishing' section and set NOTIFICATION_EMAIL
+    # environment variable in Codemagic UI (Settings > Environment variables)
+    # to enable build notifications
+    # publishing:
+    #   email:
+    #     recipients:
+    #       - $NOTIFICATION_EMAIL
 
   ios-workflow:
     name: iOS Build
@@ -117,10 +121,13 @@ workflows:
             -exportOptionsPlist ios/ExportOptions.plist
     artifacts:
       - flutter_app/build/ios/ipa/*.ipa
-    publishing:
-      email:
-        recipients:
-          - $NOTIFICATION_EMAIL
+    # Uncomment the below 'publishing' section and set NOTIFICATION_EMAIL
+    # environment variable in Codemagic UI (Settings > Environment variables)
+    # to enable build notifications
+    # publishing:
+    #   email:
+    #     recipients:
+    #       - $NOTIFICATION_EMAIL
 
   android-ios-workflow:
     name: Build Android & iOS
@@ -159,8 +166,10 @@ workflows:
       - flutter_app/build/app/outputs/flutter-apk/*.apk
       - flutter_app/build/app/outputs/bundle/release/*.aab
       - flutter_app/build/ios/iphoneos/*.app
-    
-    publishing:
-      email:
-        recipients:
-          - $NOTIFICATION_EMAIL
+    # Uncomment the below 'publishing' section and set NOTIFICATION_EMAIL
+    # environment variable in Codemagic UI (Settings > Environment variables)
+    # to enable build notifications
+    # publishing:
+    #   email:
+    #     recipients:
+    #       - $NOTIFICATION_EMAIL
