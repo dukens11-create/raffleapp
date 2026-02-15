@@ -283,14 +283,52 @@ This creates admin account:
 
 **CRITICAL:** Login immediately and change these credentials!
 
-### 2. Health Check
+### 2. Health Check & Deployment Validation
 
-Verify deployment:
+#### Run Deployment Validation Script
+
+Before and after deployment, run the validation script to check configuration:
+
 ```bash
-curl https://your-domain.com/health
+# Local validation (before deployment)
+cd raffle-app
+npm run check-deployment
+
+# Validate deployed application
+npm run check-deployment -- --url=https://your-domain.com
 ```
 
-Should return:
+The script checks:
+- ✓ All required environment variables
+- ✓ Database connectivity
+- ✓ File permissions
+- ✓ API endpoints accessibility
+
+#### Manual Health Check
+
+Verify deployment endpoints:
+```bash
+# Simple health check
+curl https://your-domain.com/api/health
+
+# Detailed health check
+curl https://your-domain.com/health
+
+# Database status
+curl https://your-domain.com/api/database-status
+```
+
+Expected response from `/api/health`:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "uptime": 123.456,
+  "environment": "production"
+}
+```
+
+Expected response from `/health`:
 ```json
 {
   "status": "ok",
