@@ -630,29 +630,32 @@ async function initializeSchema() {
     const newColumns = [
       { name: 'name', type: 'VARCHAR(100)', default: null },
       { name: 'description', type: 'TEXT', default: null },
-      { name: 'width', type: 'INTEGER', default: '396' },
-      { name: 'height', type: 'INTEGER', default: '153' },
-      { name: 'rotation', type: 'INTEGER', default: '0' },
-      { name: 'scale_width', type: 'INTEGER', default: '100' },
-      { name: 'scale_height', type: 'INTEGER', default: '100' },
-      { name: 'offset_x', type: 'INTEGER', default: '0' },
-      { name: 'offset_y', type: 'INTEGER', default: '0' },
+      { name: 'width', type: 'INTEGER', default: 396 },
+      { name: 'height', type: 'INTEGER', default: 153 },
+      { name: 'rotation', type: 'INTEGER', default: 0 },
+      { name: 'scale_width', type: 'INTEGER', default: 100 },
+      { name: 'scale_height', type: 'INTEGER', default: 100 },
+      { name: 'offset_x', type: 'INTEGER', default: 0 },
+      { name: 'offset_y', type: 'INTEGER', default: 0 },
       { name: 'is_active', type: USE_POSTGRES ? 'BOOLEAN' : 'INTEGER', default: USE_POSTGRES ? 'TRUE' : '1' }
     ];
     
     for (const col of newColumns) {
       try {
         if (USE_POSTGRES) {
+          // Handle NULL defaults properly for PostgreSQL
+          const defaultClause = col.default === null ? '' : `DEFAULT ${col.default}`;
           await run(`
             ALTER TABLE ticket_designs 
-            ADD COLUMN IF NOT EXISTS ${col.name} ${col.type} DEFAULT ${col.default}
+            ADD COLUMN IF NOT EXISTS ${col.name} ${col.type} ${defaultClause}
           `);
         } else {
           // SQLite doesn't support IF NOT EXISTS for columns, so check first
           const columns = await all(`PRAGMA table_info(ticket_designs)`);
           const hasColumn = columns.some(c => c.name === col.name);
           if (!hasColumn) {
-            await run(`ALTER TABLE ticket_designs ADD COLUMN ${col.name} ${col.type} DEFAULT ${col.default}`);
+            const defaultClause = col.default === null ? '' : `DEFAULT ${col.default}`;
+            await run(`ALTER TABLE ticket_designs ADD COLUMN ${col.name} ${col.type} ${defaultClause}`);
           }
         }
       } catch (error) {
