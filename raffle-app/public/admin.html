@@ -1134,6 +1134,10 @@
               <span class="menu-item-icon">🌐</span>
               <span>Online Sales</span>
             </div>
+            <div class="menu-item" onclick="showSection('scratch-tickets-management', this)">
+              <span class="menu-item-icon">🎰</span>
+              <span>Scratch Tickets</span>
+            </div>
           </div>
         </div>
         
@@ -1618,6 +1622,77 @@
         </div>
         
         <div id="online-action-result" style="margin-top: 16px; padding: 12px; border-radius: 6px; display: none;"></div>
+      </div>
+    </div>
+    
+    <!-- Scratch Tickets Management -->
+    <div class="section" id="scratch-tickets-management">
+      <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">🎰 Scratch Tickets Management</h3>
+      <p style="color: white; opacity: 0.9; margin-bottom: 20px;">
+        Manage which tickets are available for the online scratch ticket game
+      </p>
+      
+      <!-- Current Online Availability -->
+      <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 16px 0;">Current Online Availability</h4>
+        <div id="scratch-online-stats" style="margin: 20px 0;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+            <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">ABC (Gold)</div>
+              <div style="font-size: 32px; font-weight: 700; color: #f59e0b;" id="scratch-online-abc">-</div>
+            </div>
+            <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">EFG (Silver)</div>
+              <div style="font-size: 32px; font-weight: 700; color: #94a3b8;" id="scratch-online-efg">-</div>
+            </div>
+            <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">JKL (Bronze)</div>
+              <div style="font-size: 32px; font-weight: 700; color: #cd7f32;" id="scratch-online-jkl">-</div>
+            </div>
+            <div style="border: 2px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center;">
+              <div style="color: #64748b; font-size: 14px; margin-bottom: 8px;">XYZ (Heritage)</div>
+              <div style="font-size: 32px; font-weight: 700; color: #8b4513;" id="scratch-online-xyz">-</div>
+            </div>
+          </div>
+        </div>
+        
+        <button id="refresh-scratch-stats" style="background: #667eea; color: white; padding: 8px 16px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+          🔄 Refresh Stats
+        </button>
+      </div>
+      
+      <!-- Mark Tickets as Available Online -->
+      <div style="background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+        <h4 style="margin: 0 0 16px 0;">Mark Tickets as Available Online</h4>
+        <p style="color: #64748b; margin-bottom: 16px;">
+          Select how many tickets per category to make available for the scratch ticket game.
+        </p>
+        
+        <div style="margin-bottom: 16px;">
+          <label for="tickets-per-category" style="display: block; margin-bottom: 8px; font-weight: 600;">Tickets per Category</label>
+          <input type="number" id="tickets-per-category" value="50000" min="100" max="500000" step="1000" style="width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 6px; font-size: 16px;">
+          <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            This will mark the most recent available tickets in each category (ABC, EFG, JKL, XYZ)
+          </p>
+        </div>
+        
+        <button id="mark-tickets-online" style="background: #10b981; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">
+          ✅ Mark Tickets as Available Online
+        </button>
+        
+        <div id="mark-tickets-result" style="margin-top: 16px;"></div>
+      </div>
+      
+      <!-- Reset Online Availability -->
+      <div style="background: white; border-radius: 12px; padding: 20px;">
+        <h4 style="margin: 0 0 16px 0;">Reset Online Availability</h4>
+        <p style="color: #dc2626; margin-bottom: 16px;">
+          ⚠️ This will mark ALL tickets as NOT available online. Use with caution!
+        </p>
+        
+        <button id="reset-tickets-online" style="background: #ef4444; color: white; padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">
+          🔴 Reset All Online Tickets
+        </button>
       </div>
     </div>
     
@@ -4440,6 +4515,111 @@
       }
     }
     
+    // ============================================================================
+    // SCRATCH TICKETS MANAGEMENT FUNCTIONS
+    // ============================================================================
+    
+    // Load scratch ticket online stats
+    async function refreshScratchOnlineStats() {
+      try {
+        const response = await fetch('/api/admin/online-tickets/stats');
+        const data = await response.json();
+        
+        document.getElementById('scratch-online-abc').textContent = (data.ABC || 0).toLocaleString();
+        document.getElementById('scratch-online-efg').textContent = (data.EFG || 0).toLocaleString();
+        document.getElementById('scratch-online-jkl').textContent = (data.JKL || 0).toLocaleString();
+        document.getElementById('scratch-online-xyz').textContent = (data.XYZ || 0).toLocaleString();
+      } catch (error) {
+        console.error('Error loading scratch online stats:', error);
+        showNotify('Failed to load online ticket stats', 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)');
+      }
+    }
+    
+    // Mark tickets as available online
+    document.getElementById('mark-tickets-online')?.addEventListener('click', async function() {
+      const limit = parseInt(document.getElementById('tickets-per-category').value);
+      
+      if (!limit || limit < 100) {
+        return alert('Please enter at least 100 tickets per category');
+      }
+      
+      if (!confirm(`Mark ${limit.toLocaleString()} tickets per category (${(limit * 4).toLocaleString()} total) as available online?`)) {
+        return;
+      }
+      
+      this.disabled = true;
+      this.textContent = '⏳ Marking tickets...';
+      
+      try {
+        const response = await fetch('/api/admin/online-tickets/mark', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ limit })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          document.getElementById('mark-tickets-result').innerHTML = `
+            <div style="padding: 12px; background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; color: #166534;">
+              ✅ Success! Marked ${data.totalMarked.toLocaleString()} tickets as available online
+            </div>
+          `;
+          refreshScratchOnlineStats();
+        } else {
+          throw new Error(data.error || 'Failed to mark tickets');
+        }
+      } catch (error) {
+        document.getElementById('mark-tickets-result').innerHTML = `
+          <div style="padding: 12px; background: #fee2e2; border: 1px solid #fecaca; border-radius: 8px; color: #991b1b;">
+            ❌ Error: ${error.message}
+          </div>
+        `;
+      } finally {
+        this.disabled = false;
+        this.textContent = '✅ Mark Tickets as Available Online';
+      }
+    });
+    
+    // Reset online tickets
+    document.getElementById('reset-tickets-online')?.addEventListener('click', async function() {
+      if (!confirm('⚠️ Are you sure? This will mark ALL tickets as NOT available online!')) {
+        return;
+      }
+      
+      if (!confirm('⚠️ FINAL WARNING: This cannot be undone easily. Continue?')) {
+        return;
+      }
+      
+      this.disabled = true;
+      this.textContent = '⏳ Resetting...';
+      
+      try {
+        const response = await fetch('/api/admin/online-tickets/reset', {
+          method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          showNotify(`✅ Reset complete: ${data.totalReset.toLocaleString()} tickets`, 'linear-gradient(135deg, #10b981 0%, #059669 100%)');
+          refreshScratchOnlineStats();
+        } else {
+          throw new Error(data.error || 'Failed to reset');
+        }
+      } catch (error) {
+        showNotify('❌ Error: ' + error.message, 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)');
+      } finally {
+        this.disabled = false;
+        this.textContent = '🔴 Reset All Online Tickets';
+      }
+    });
+    
+    // Refresh button
+    document.getElementById('refresh-scratch-stats')?.addEventListener('click', refreshScratchOnlineStats);
+    
+    // ============================================================================
+    
     // Load online stats when page loads
     window.addEventListener('load', () => {
       // Check if we're on the admin page and the online stats element exists
@@ -4781,6 +4961,9 @@
           break;
         case 'online-tickets':
           if (typeof refreshOnlineStats === 'function') refreshOnlineStats();
+          break;
+        case 'scratch-tickets-management':
+          if (typeof refreshScratchOnlineStats === 'function') refreshScratchOnlineStats();
           break;
         case 'draw-photos':
           if (typeof loadDrawPhotos === 'function') loadDrawPhotos();
