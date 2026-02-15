@@ -1,0 +1,133 @@
+workflows:
+  android-workflow:
+    name: Android Build
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up key properties
+        script: |
+          echo $CM_KEYSTORE | base64 --decode > $CM_KEYSTORE_PATH
+          cat >> "$CM_BUILD_DIR/flutter_app/android/key.properties" <<EOF
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=$CM_KEYSTORE_PATH
+          EOF
+      - name: Get Flutter packages
+        script: |
+          cd flutter_app
+          flutter packages pub get
+      - name: Build APK
+        script: |
+          cd flutter_app
+          flutter build apk --release
+      - name: Build AAB
+        script: |
+          cd flutter_app
+          flutter build appbundle --release
+    artifacts:
+      - flutter_app/build/app/outputs/flutter-apk/*.apk
+      - flutter_app/build/app/outputs/bundle/release/*.aab
+    publishing:
+      email:
+        recipients:
+          - $NOTIFICATION_EMAIL
+
+  ios-workflow:
+    name: iOS Build
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up provisioning profiles
+        script: |
+          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_HOME"
+          echo $CM_PROVISIONING_PROFILE | base64 --decode > "$PROFILES_HOME/profile.mobileprovision"
+      - name: Set up signing certificate
+        script: |
+          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
+          security create-keychain -p "" build.keychain
+          security import /tmp/certificate.p12 -t agg -k ~/Library/Keychains/build.keychain -P $CM_CERTIFICATE_PASSWORD -A
+          security list-keychains -s ~/Library/Keychains/build.keychain
+          security default-keychain -s ~/Library/Keychains/build.keychain
+          security unlock-keychain -p "" ~/Library/Keychains/build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" ~/Library/Keychains/build.keychain
+      - name: Get Flutter packages
+        script: |
+          cd flutter_app
+          flutter packages pub get
+      - name: Install CocoaPods dependencies
+        script: |
+          cd flutter_app/ios
+          pod install
+      - name: Build iOS
+        script: |
+          cd flutter_app
+          flutter build ios --release --no-codesign
+      - name: Build IPA
+        script: |
+          cd flutter_app
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/ios/Runner.xcarchive \
+            archive
+          xcodebuild -exportArchive \
+            -archivePath build/ios/Runner.xcarchive \
+            -exportPath build/ios/ipa \
+            -exportOptionsPlist ios/ExportOptions.plist
+    artifacts:
+      - flutter_app/build/ios/ipa/*.ipa
+    publishing:
+      email:
+        recipients:
+          - $NOTIFICATION_EMAIL
+
+  android-ios-workflow:
+    name: Build Android & iOS
+    max_build_duration: 90
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          cd flutter_app
+          flutter packages pub get
+      
+      # Android builds
+      - name: Build Android APK
+        script: |
+          cd flutter_app
+          flutter build apk --release
+      - name: Build Android AAB
+        script: |
+          cd flutter_app
+          flutter build appbundle --release
+      
+      # iOS builds
+      - name: Install CocoaPods
+        script: |
+          cd flutter_app/ios
+          pod install
+      - name: Build iOS
+        script: |
+          cd flutter_app
+          flutter build ios --release --no-codesign
+    
+    artifacts:
+      - flutter_app/build/app/outputs/flutter-apk/*.apk
+      - flutter_app/build/app/outputs/bundle/release/*.aab
+      - flutter_app/build/ios/iphoneos/*.app
+    
+    publishing:
+      email:
+        recipients:
+          - $NOTIFICATION_EMAIL

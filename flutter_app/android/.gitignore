@@ -1,0 +1,15 @@
+Gradle/
+.gradle
+local.properties
+**/build/
+!**/src/**/build/
+captures/
+.navigation/
+*.iml
+.idea/
+*.hprof
+.cxx/
+*.apk
+output.json
+*.ap_
+*.aab
