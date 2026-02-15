@@ -805,15 +805,17 @@ async function initializeSchema() {
       await run(
         `INSERT INTO raffles (name, status, description, total_tickets) 
          VALUES (?, ?, ?, ?)`,
-        ['Default Raffle 2024', 'active', 'Official raffle with 4 ticket categories', 1500000]
+        ['Default Raffle 2024', 'active', 'Official raffle with 6 ticket categories', 2000000]
       );
       
-      // Create 4 ticket categories
+      // Create 6 ticket categories with correct names and prices (in HTG)
       const categories = [
-        { code: 'ABC', name: 'Bronze', price: 50.00, total: 500000, color: '#CD7F32' },
-        { code: 'EFG', name: 'Silver', price: 100.00, total: 500000, color: '#C0C0C0' },
-        { code: 'JKL', name: 'Gold', price: 250.00, total: 250000, color: '#FFD700' },
-        { code: 'XYZ', name: 'Platinum', price: 500.00, total: 250000, color: '#E5E4E2' }
+        { code: 'BAS', name: 'Basic', price: 50, total: 400000, color: '#10b981' },
+        { code: 'PRM', name: 'Premium', price: 100, total: 400000, color: '#7c3aed' },
+        { code: 'BRZ', name: 'Bronze', price: 250, total: 350000, color: '#ea580c' },
+        { code: 'SLV', name: 'Silver', price: 500, total: 300000, color: '#94a3b8' },
+        { code: 'GLD', name: 'Gold', price: 1000, total: 300000, color: '#fbbf24' },
+        { code: 'DIA', name: 'Diamond', price: 5000, total: 250000, color: '#22d3ee' }
       ];
       
       for (const cat of categories) {
@@ -825,13 +827,15 @@ async function initializeSchema() {
         );
       }
       
-      console.log('✅ Default raffle created with 4 categories:');
-      console.log('   - ABC (Bronze): $50.00 - 500,000 tickets');
-      console.log('   - EFG (Silver): $100.00 - 500,000 tickets');
-      console.log('   - JKL (Gold): $250.00 - 250,000 tickets');
-      console.log('   - XYZ (Platinum): $500.00 - 250,000 tickets');
-      console.log('   - Total capacity: 1,500,000 tickets');
-      console.log('   - Potential revenue: $262,500,000');
+      console.log('✅ Default raffle created with 6 categories:');
+      console.log('   - BAS (Basic): 50 HTG - 400,000 tickets');
+      console.log('   - PRM (Premium): 100 HTG - 400,000 tickets');
+      console.log('   - BRZ (Bronze): 250 HTG - 350,000 tickets');
+      console.log('   - SLV (Silver): 500 HTG - 300,000 tickets');
+      console.log('   - GLD (Gold): 1,000 HTG - 300,000 tickets');
+      console.log('   - DIA (Diamond): 5,000 HTG - 250,000 tickets');
+      console.log('   - Total capacity: 2,000,000 tickets');
+      console.log('   - Potential revenue: 1,597,500,000 HTG');
     }
     
   } catch (error) {

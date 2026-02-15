@@ -18,10 +18,12 @@
  * Category mapping to 1-digit prefix for 8-digit barcodes
  */
 const CATEGORY_MAP = {
-  'ABC': '1',
-  'EFG': '2',
-  'JKL': '3',
-  'XYZ': '4'
+  'BAS': '1',
+  'PRM': '2',
+  'BRZ': '3',
+  'SLV': '4',
+  'GLD': '5',
+  'DIA': '6'
 };
 
 // No check digit calculation needed for 8-digit barcodes
@@ -29,15 +31,15 @@ const CATEGORY_MAP = {
 /**
  * Generate 8-digit barcode for a ticket
  * 
- * @param {string} category - Category code (ABC, EFG, JKL, XYZ)
+ * @param {string} category - Category code (BAS, PRM, BRZ, SLV, GLD, DIA)
  * @param {number} ticketNumber - Ticket sequence number (1-9999999)
  * @returns {string} - 8-digit barcode
  * 
  * @example
- * generateBarcode('ABC', 1)         // Returns: "10000001"
- * generateBarcode('ABC', 500000)    // Returns: "10500000"
- * generateBarcode('EFG', 1)         // Returns: "20000001"
- * generateBarcode('XYZ', 999999)    // Returns: "40999999"
+ * generateBarcode('BAS', 1)         // Returns: "10000001"
+ * generateBarcode('BAS', 500000)    // Returns: "10500000"
+ * generateBarcode('PRM', 1)         // Returns: "20000001"
+ * generateBarcode('DIA', 999999)    // Returns: "60999999"
  */
 function generateBarcode(category, ticketNumber) {
   if (!category || typeof category !== 'string') {
@@ -102,10 +104,12 @@ function parseBarcode(barcode) {
 
   // Reverse lookup category
   const categoryReverse = {
-    '1': 'ABC',
-    '2': 'EFG',
-    '3': 'JKL',
-    '4': 'XYZ'
+    '1': 'BAS',
+    '2': 'PRM',
+    '3': 'BRZ',
+    '4': 'SLV',
+    '5': 'GLD',
+    '6': 'DIA'
   };
 
   const category = categoryReverse[categoryDigit];
