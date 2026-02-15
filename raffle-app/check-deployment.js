@@ -112,9 +112,9 @@ function checkEnvironmentVariables() {
   // Session Secret
   if (process.env.SESSION_SECRET) {
     if (process.env.SESSION_SECRET.length >= 32) {
-      printCheck('pass', `SESSION_SECRET configured (${process.env.SESSION_SECRET.length} chars)`);
+      printCheck('pass', 'SESSION_SECRET configured (sufficient length)');
     } else {
-      printCheck('warn', `SESSION_SECRET is too short (${process.env.SESSION_SECRET.length} chars, should be >= 32)`);
+      printCheck('warn', `SESSION_SECRET is too short (should be >= 32 chars)`);
     }
   } else {
     printCheck('fail', 'SESSION_SECRET not set - Will be auto-generated (sessions lost on restart)');

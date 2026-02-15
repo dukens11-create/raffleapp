@@ -455,17 +455,21 @@ curl http://localhost:3000/health
    
    For Vercel, add these DNS records at your domain registrar:
    
+   **For www subdomain:**
    ```
    Type: CNAME
    Name: www
    Value: cname.vercel-dns.com
    ```
    
-   **Important:** For root domain (@) configuration, check Vercel's current documentation for the latest DNS settings. Visit https://vercel.com/docs and search for "custom domains" as documentation URLs may change.
+   **For root domain (@):**
    
-   Alternatively, configure the domain directly in Vercel Dashboard:
+   The recommended approach is to use Vercel's nameservers or configure through the Vercel Dashboard, as they handle the root domain configuration automatically. If you need to use your own DNS provider, Vercel will provide the specific A/AAAA records when you add the domain in the dashboard.
+   
+   **Best Practice:** Configure the domain directly in Vercel Dashboard:
    - Project Settings → Domains → Add Domain
-   - Follow the on-screen DNS configuration instructions
+   - Vercel will show you the exact DNS records needed for your setup
+   - This ensures you always have the current, correct configuration
 
 3. **Verify Domain:**
    ```bash
