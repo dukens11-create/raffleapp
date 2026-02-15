@@ -1,7 +1,7 @@
 {
   "main": "raffle-app/server.js",
   "scripts": {
-    "start": "node raffle-app/server.js",
+    "start": "node --max-old-space-size=4096 raffle-app/server.js",
     "check-photo-setup": "node check-photo-setup.js"
   },
   "dependencies": {

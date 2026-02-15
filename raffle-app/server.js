@@ -68,6 +68,14 @@ const MAX_TICKETS_PER_CATEGORY = 100000;
 // Maximum number of records to return for admin ticket queries
 const MAX_ADMIN_TICKET_QUERY_LIMIT = 1000;
 
+// Maximum number of tickets that can be exported at once
+const MAX_EXPORT_LIMIT = 100000;
+
+// Pagination limits for API endpoints
+const MAX_PAGE_LIMIT = 1000; // Maximum items per page
+const MAX_PAGE_NUMBER = 10000; // Maximum page number to prevent offset issues
+const MAX_SAFE_OFFSET = 1000000; // Maximum offset to prevent integer overflow (1 million)
+
 // Haiti Departments - Valid department values (alphabetically ordered)
 const HAITI_DEPARTMENTS = [
   'Artibonite',
@@ -229,6 +237,29 @@ app.set('trust proxy', 1);
 
 const PORT = process.env.PORT || 3000;
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
+
+// Memory monitoring configuration
+const MEMORY_MONITOR_INTERVAL_MS = 300000; // 5 minutes
+const MEMORY_GC_THRESHOLD = 0.8; // 80% heap usage
+
+// Memory monitoring and garbage collection
+if (process.env.NODE_ENV === 'production') {
+  setInterval(() => {
+    const used = process.memoryUsage();
+    console.log('Memory usage:', {
+      rss: `${Math.round(used.rss / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(used.heapTotal / 1024 / 1024)}MB`,
+      heapUsed: `${Math.round(used.heapUsed / 1024 / 1024)}MB`,
+      external: `${Math.round(used.external / 1024 / 1024)}MB`
+    });
+    
+    // Trigger GC if heap usage exceeds threshold
+    if (global.gc && (used.heapUsed / used.heapTotal) > MEMORY_GC_THRESHOLD) {
+      console.log('⚠️  High memory usage detected, triggering GC');
+      global.gc();
+    }
+  }, MEMORY_MONITOR_INTERVAL_MS);
+}
 
 // Global error handlers for uncaught errors
 process.on('uncaughtException', (error) => {
@@ -938,9 +969,20 @@ app.get('/api/login-status/:phone', async (req, res) => {
 // Health check endpoint - Public
 // Health check endpoint with database validation
 app.get('/health', async (req, res) => {
+  const memUsage = process.memoryUsage();
+  const memoryMB = {
+    rss: Math.round(memUsage.rss / 1024 / 1024),
+    heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
+    heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
+    external: Math.round(memUsage.external / 1024 / 1024),
+    heapPercentUsed: Math.round((memUsage.heapUsed / memUsage.heapTotal) * 100)
+  };
+  
   const health = {
     status: 'ok',
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: memoryMB,
     database: {
       type: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite',
       connected: false,
@@ -3192,8 +3234,72 @@ app.get('/tickets', requireAuth, async (req, res) => {
 
 app.get('/users', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const rows = await db.all("SELECT name, phone, role FROM users ORDER BY name");
-    res.json(rows);
+    // Check if pagination is requested (explicit check for undefined to handle page=0 or limit=0)
+    // Pagination is activated when either page OR limit is provided
+    const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
+    
+    // Backward compatibility: if no pagination params provided, return all users in array format
+    // Note: This loads all users into memory. For large user tables (>10K users),
+    // consider migrating to paginated API to prevent memory issues
+    if (!paginationRequested) {
+      const rows = await db.all("SELECT name, phone, role FROM users ORDER BY name");
+      
+      // Log warning if returning large dataset
+      if (rows.length > 1000) {
+        console.warn(`⚠️  /users endpoint returned ${rows.length} users without pagination. Consider using pagination for better performance.`);
+      }
+      
+      return res.json(rows);
+    }
+    
+    // Paginated mode: validate and process pagination parameters
+    // Parse and validate parameters, handling edge cases
+    const rawPage = req.query.page !== undefined ? parseInt(req.query.page, 10) : 1;
+    const rawLimit = req.query.limit !== undefined ? parseInt(req.query.limit, 10) : 100;
+    
+    // Handle NaN from invalid parseInt - use defaults
+    const page = isNaN(rawPage) ? 1 : rawPage;
+    const limit = isNaN(rawLimit) ? 100 : rawLimit;
+    
+    // Validate pagination parameters to prevent DoS
+    if (page < 1 || page > MAX_PAGE_NUMBER) {
+      return res.status(400).json({ 
+        error: `Invalid page number. Must be between 1 and ${MAX_PAGE_NUMBER}` 
+      });
+    }
+    
+    if (limit < 1 || limit > MAX_PAGE_LIMIT) {
+      return res.status(400).json({ 
+        error: `Invalid limit. Must be between 1 and ${MAX_PAGE_LIMIT}` 
+      });
+    }
+    
+    const offset = (page - 1) * limit;
+    
+    // Prevent integer overflow in offset calculation
+    if (offset > MAX_SAFE_OFFSET) {
+      return res.status(400).json({ 
+        error: `Offset too large. Please reduce page number or limit.` 
+      });
+    }
+    
+    // New paginated format - fetch count and data concurrently for better performance
+    // Note: Using LIMIT/OFFSET for simplicity. For very large datasets,
+    // consider keyset pagination (WHERE name > ? ORDER BY name LIMIT ?) for better performance
+    const [countResult, rows] = await Promise.all([
+      db.get("SELECT COUNT(*) as total FROM users"),
+      db.all(
+        "SELECT name, phone, role FROM users ORDER BY name LIMIT ? OFFSET ?", 
+        [limit, offset]
+      )
+    ]);
+    
+    res.json({
+      users: rows,
+      total: countResult.total,
+      page,
+      limit
+    });
   } catch (err) {
     return res.status(500).json({ error: 'Database error' });
   }
@@ -7183,6 +7289,17 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     const countResult = await db.get(countQuery, params);
     const total = countResult.total;
     
+    // Check export limit BEFORE loading data to prevent memory issues
+    // Note: isExport is a query parameter string ('true' or 'false')
+    const shouldExport = isExport === 'true';
+    if (shouldExport && total > MAX_EXPORT_LIMIT) {
+      return res.status(400).json({ 
+        error: `Export limit exceeded. Maximum ${MAX_EXPORT_LIMIT} tickets per export. Please use filters to reduce the dataset.`,
+        totalTickets: total,
+        maxExportLimit: MAX_EXPORT_LIMIT
+      });
+    }
+    
     // Get tickets
     let ticketsQuery = `
       SELECT 
@@ -7201,10 +7318,10 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
       ORDER BY t.ticket_number
     `;
     
-    // Add pagination unless export
-    if (!isExport || isExport === 'false') {
+    // Add pagination unless exporting
+    if (!shouldExport) {
       ticketsQuery += ` LIMIT ? OFFSET ?`;
-      params.push(parseInt(limit), offset);
+      params.push(parseInt(limit, 10), offset);
     }
     
     const tickets = await db.all(ticketsQuery, params);

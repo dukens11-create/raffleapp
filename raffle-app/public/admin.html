@@ -2384,6 +2384,9 @@
                               }
                             }
                             
+                            // Clear on page unload to prevent memory leaks
+                            window.addEventListener('beforeunload', stopAdminScanner);
+                            
                             // Event listeners
                             document.getElementById('scanTicketBtn')?.addEventListener('click', () => {
                               document.getElementById('scannerModal').style.display = 'block';
