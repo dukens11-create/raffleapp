@@ -7321,7 +7321,7 @@ app.get('/api/admin/tickets/verify-list', requireAuth, requireAdmin, async (req,
     // Add pagination unless exporting
     if (!isExporting) {
       ticketsQuery += ` LIMIT ? OFFSET ?`;
-      params.push(parseInt(limit), offset);
+      params.push(parseInt(limit, 10), offset);
     }
     
     const tickets = await db.all(ticketsQuery, params);
