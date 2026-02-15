@@ -8025,9 +8025,17 @@ server.on('error', (error) => {
 // Graceful shutdown handler
 function gracefulShutdown(signal) {
   console.log(`\n⚠️  Received ${signal}, shutting down gracefully...`);
+  
+  // Force exit after 10 seconds if graceful shutdown fails
+  const forceExitTimeout = setTimeout(() => {
+    console.error('⚠️  Forceful shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+  
   server.close(() => {
     console.log('🔌 Server closed');
     db.close((err) => {
+      clearTimeout(forceExitTimeout); // Clear timeout on successful shutdown
       if (err) {
         console.error('❌ Error closing database:', err);
         process.exit(1);
@@ -8038,12 +8046,6 @@ function gracefulShutdown(signal) {
       }
     });
   });
-  
-  // Force exit after 10 seconds if graceful shutdown fails
-  setTimeout(() => {
-    console.error('⚠️  Forceful shutdown after timeout');
-    process.exit(1);
-  }, 10000);
 }
 
 // Handle shutdown signals

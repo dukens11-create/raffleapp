@@ -125,7 +125,7 @@ function checkEnvironmentVariables() {
       printCheck('warn', `NODE_ENV=${process.env.NODE_ENV} (should be 'production' for deployment)`);
     }
   } else {
-    printCheck('warn', 'NODE_ENV not set (server defaults to production in startup validation)');
+    printCheck('warn', 'NODE_ENV not set (defaults to production per server.js validation logic)');
   }
 
   // Port
