@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
+    "start": "node server.js",
+    "start:prod": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
     "dev": "nodemon server.js",
     "check-deployment": "node check-deployment.js",
     "migrate:barcodes": "node migrations/migrate_to_8digit_barcodes.js",
