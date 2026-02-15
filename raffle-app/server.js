@@ -1024,6 +1024,16 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// API health check endpoint (alias for /health for API consistency)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Detailed database diagnostic endpoint
 app.get('/api/database-status', async (req, res) => {
   const status = {
@@ -7965,22 +7975,107 @@ app.get('/api/scratch-tickets/available', async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Access the application at http://localhost:${PORT}`);
-  console.log(`Health check available at http://localhost:${PORT}/health`);
+// Start server with enhanced logging
+const server = app.listen(PORT, () => {
+  console.log('\n' + '='.repeat(60));
+  console.log('🚀 SERVER STARTED SUCCESSFULLY');
+  console.log('='.repeat(60));
+  console.log(`📍 Port: ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`💾 Database: ${process.env.DATABASE_URL ? 'PostgreSQL (persistent)' : 'SQLite (temporary)'}`);
+  console.log(`🔒 Session Secret: ${process.env.SESSION_SECRET ? 'Configured' : 'Auto-generated (will reset on restart)'}`);
+  console.log(`\n📡 Endpoints:`);
+  console.log(`   - Health Check: http://localhost:${PORT}/health`);
+  console.log(`   - API Health: http://localhost:${PORT}/api/health`);
+  console.log(`   - Database Status: http://localhost:${PORT}/api/database-status`);
+  console.log(`   - Application: http://localhost:${PORT}`);
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+    console.log(`   - Public URL: ${process.env.APP_URL}`);
+  }
+  console.log('='.repeat(60) + '\n');
 });
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) {
-      console.error('Error closing database:', err);
-    } else {
-      console.log('Database connection closed');
-    }
-    process.exit(0);
+// Handle server startup errors
+server.on('error', (error) => {
+  console.error('\n' + '='.repeat(60));
+  console.error('❌ SERVER STARTUP ERROR');
+  console.error('='.repeat(60));
+  
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+    console.error('💡 Solutions:');
+    console.error('   1. Stop the other process using this port');
+    console.error(`   2. Set a different PORT environment variable`);
+    console.error(`   3. Kill the process: lsof -ti:${PORT} | xargs kill -9`);
+  } else if (error.code === 'EACCES') {
+    console.error(`❌ Permission denied to bind to port ${PORT}`);
+    console.error('💡 Solutions:');
+    console.error('   1. Use a port number > 1024');
+    console.error('   2. Run with appropriate permissions');
+  } else {
+    console.error(`❌ Error: ${error.message}`);
+    console.error('💡 Stack trace:');
+    console.error(error.stack);
+  }
+  
+  console.error('='.repeat(60) + '\n');
+  process.exit(1);
+});
+
+// Graceful shutdown configuration
+const SHUTDOWN_TIMEOUT_MS = 10000; // 10 seconds
+
+// Graceful shutdown handler
+function gracefulShutdown(signal) {
+  console.log(`\n⚠️  Received ${signal}, shutting down gracefully...`);
+  
+  // Force exit after timeout if graceful shutdown fails
+  const forceExitTimeout = setTimeout(() => {
+    console.error('⚠️  Forceful shutdown after timeout');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  
+  server.close(() => {
+    console.log('🔌 Server closed');
+    db.close((err) => {
+      clearTimeout(forceExitTimeout); // Clear timeout on successful shutdown
+      if (err) {
+        console.error('❌ Error closing database:', err);
+        process.exit(1);
+      } else {
+        console.log('💾 Database connection closed');
+        console.log('✅ Shutdown complete');
+        process.exit(0);
+      }
+    });
   });
+}
+
+// Handle shutdown signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT (Ctrl+C)'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('\n' + '='.repeat(60));
+  console.error('❌ UNCAUGHT EXCEPTION');
+  console.error('='.repeat(60));
+  console.error('Error:', error.message);
+  console.error('Stack:', error.stack);
+  console.error('='.repeat(60) + '\n');
+  
+  // Give time for logs to flush
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n' + '='.repeat(60));
+  console.error('❌ UNHANDLED PROMISE REJECTION');
+  console.error('='.repeat(60));
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+  console.error('='.repeat(60) + '\n');
 });
