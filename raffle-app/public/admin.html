@@ -3436,12 +3436,20 @@
         currentStatusFilter = filter;
         
         const tbody = document.getElementById('requestsTableBody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         
         const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);
         
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 8;
+          cell.style.textAlign = 'center';
+          cell.style.color = '#64748b';
+          cell.style.padding = '20px';
+          cell.textContent = 'No requests found';
+          row.appendChild(cell);
+          tbody.appendChild(row);
           return;
         }
         
@@ -3628,12 +3636,20 @@
         const concerns = await handleFetchResponse(response, 'load seller concerns');
         
         const tbody = document.getElementById('concernsTableBody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         
         const filtered = filter === 'all' ? concerns : concerns.filter(c => c.status === filter);
         
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No concerns found</td></tr>';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 7;
+          cell.style.textAlign = 'center';
+          cell.style.color = '#64748b';
+          cell.style.padding = '20px';
+          cell.textContent = 'No concerns found';
+          row.appendChild(cell);
+          tbody.appendChild(row);
           return;
         }
         
