@@ -3,11 +3,23 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "start": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
+    "start": "node server.js",
+    "start:prod": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
     "dev": "nodemon server.js",
+    "check-deployment": "node check-deployment.js",
     "migrate:barcodes": "node migrations/migrate_to_8digit_barcodes.js",
     "mark-available": "node scripts/markTicketsAvailable.js",
-    "mark-available:dry-run": "node scripts/markTicketsAvailable.js --dry-run"
+    "mark-available:dry-run": "node scripts/markTicketsAvailable.js --dry-run",
+    "build": "node scripts/prepare-mobile.js",
+    "cap:init": "npx cap init",
+    "cap:add:android": "npx cap add android",
+    "cap:add:ios": "npx cap add ios",
+    "cap:sync": "npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "android:build": "cd android && ./gradlew assembleRelease",
+    "android:bundle": "cd android && ./gradlew bundleRelease",
+    "ios:build": "cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release archive"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -40,10 +52,20 @@
     "stripe": "^20.1.0",
     "twilio": "^5.4.0",
     "winston": "^3.19.0",
-    "xlsx": "^0.18.5",
+    "exceljs": "^4.4.0",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+    "@capacitor/cli": "^5.5.1",
+    "@capacitor/core": "^5.5.1",
+    "@capacitor/android": "^5.5.1",
+    "@capacitor/ios": "^5.5.1",
+    "@capacitor/camera": "^5.0.7",
+    "@capacitor/push-notifications": "^5.1.0",
+    "@capacitor/splash-screen": "^5.0.6",
+    "@capacitor/status-bar": "^5.0.6",
+    "@capacitor/app": "^5.0.6",
+    "@capacitor/network": "^5.0.6"
   }
 }

@@ -560,6 +560,20 @@
       font-size: 16px;
       font-weight: 700;
     }
+
+    /* Jwe Ankò text under scratch area */
+    .jwe-anko-text {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #10b981;
+      text-transform: uppercase;
+    }
+
+    .jwe-anko-text.hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -577,12 +591,12 @@
   <script>
     // Category mapping: Ticket Type -> Database Category
     const CATEGORY_MAP = {
-      'basic': 'XYZ',
-      'premium': 'EFG',
-      'bronze': 'JKL',
-      'silver': 'EFG',
-      'gold': 'ABC',
-      'diamond': 'XYZ'
+      'basic': 'BAS',
+      'premium': 'PRM',
+      'bronze': 'BRZ',
+      'silver': 'SLV',
+      'gold': 'GLD',
+      'diamond': 'DIA'
     };
     
     // Ticket configurations
@@ -596,15 +610,32 @@
         price: 50,
         prizeRange: '5,000 GOURDES!',
         coverText: 'GRATE TOUTE',
-        category: 'XYZ',
+        category: 'BAS',
         prizes: [
-          { emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 1 },
-          { emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 3 },
-          { emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 10 },
-          { emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 25 },
-          { emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 60 },
-          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 201 }
+          { emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 39 },
+          { emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 117 },
+          { emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 391 },
+          { emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 978 },
+          { emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 2348 },
+          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 3914 },
+          { emoji: '🏆', text: 'OU GENYEN\n500 HTG', value: 500, weight: 39 },
+          // New HTG cash prizes (0.5% each)
+          { emoji: '💵', text: 'OU GENYEN\n450 HTG', value: 450, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n400 HTG', value: 400, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n350 HTG', value: 350, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n300 HTG', value: 300, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n250 HTG', value: 250, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n200 HTG', value: 200, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n150 HTG', value: 150, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n100 HTG', value: 100, weight: 100 },
+          { emoji: '💸', text: 'OU GENYEN\n1,000 HTG', value: 1000, weight: 1 },
+          // Ticket prizes
+          { emoji: '🥉', text: 'OU GENYEN\nYON TIKÈ BRONZE', value: 250, weight: 1600 },
+          { emoji: '⭐', text: 'OU GENYEN\nYON TIKÈ PREMIUM', value: 100, weight: 1600 },
+          { emoji: '🥈', text: 'OU GENYEN\nYON TIKÈ SILVER', value: 500, weight: 200 },
+          { emoji: '🥇', text: 'OU GENYEN\nYON TIKÈ GOLD', value: 1000, weight: 100 },
+          { emoji: '💎', text: 'OU GENYEN\nYON TIKÈ DIAMOND', value: 5000, weight: 1 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 7868 }
         ]
       },
       
@@ -617,7 +648,7 @@
         price: 100,
         prizeRange: '15,000 GOURDES!',
         coverText: 'GRATE TOUTE',
-        category: 'EFG',
+        category: 'PRM',
         prizes: [
           { emoji: '🎰', text: 'MEGA PRIZE!\n15,000 GOUD', value: 15000, weight: 2 },
           { emoji: '💎', text: 'OU GENYEN\n7,500 GOUD', value: 7500, weight: 5 },
@@ -638,7 +669,7 @@
         price: 250,
         prizeRange: '50,000 GOURDES!',
         coverText: 'GRATE TOUTE',
-        category: 'JKL',
+        category: 'BRZ',
         prizes: [
           { emoji: '🎉', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 1 },
           { emoji: '💎', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 3 },
@@ -659,7 +690,7 @@
         price: 500,
         prizeRange: '150,000 GOURDES!',
         coverText: 'GRATE TOUTE',
-        category: 'EFG',
+        category: 'SLV',
         prizes: [
           { emoji: '🏆', text: 'MEGA AJAN!\n150,000 GOUD', value: 150000, weight: 1 },
           { emoji: '💎', text: 'OU GENYEN\n75,000 GOUD', value: 75000, weight: 3 },
@@ -681,7 +712,7 @@
         price: 1000,
         prizeRange: '250,000 GOURDES!',
         coverText: 'GRATE TOUTE',
-        category: 'ABC',
+        category: 'GLD',
         prizes: [
           { emoji: '🎉', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 1 },
           { emoji: '💎', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
@@ -702,7 +733,7 @@
         price: 5000,
         prizeRange: '1,000,000 GOURDES!',
         coverText: 'GRATE TOUTE',
-        category: 'XYZ',
+        category: 'DIA',
         prizes: [
           { emoji: '💎', text: 'MEGA DYAMAN!\n1,000,000 GOUD', value: 1000000, weight: 1 },
           { emoji: '🎰', text: 'SUPER PRIZE!\n500,000 GOUD', value: 500000, weight: 2 },
@@ -741,6 +772,18 @@
         this.setupCanvas();
         this.drawCoverLayer();
         this.attachEventListeners();
+        this.setJweAnkoVisibility();  // Set visibility of "Jwe Ankò" text
+      }
+      
+      setJweAnkoVisibility() {
+        // Show "Jwe Ankò" text in 80% of tickets
+        const jweAnkoElement = document.getElementById(`jwe-anko-${this.config.id}`);
+        if (jweAnkoElement) {
+          const showJweAnko = Math.random() < 0.8;  // 80% probability
+          if (!showJweAnko) {
+            jweAnkoElement.classList.add('hidden');
+          }
+        }
       }
       
       async fetchTicketData() {
@@ -827,6 +870,7 @@
               <canvas id="canvas-${this.config.id}"></canvas>
             </div>
           </div>
+          <div class="jwe-anko-text" id="jwe-anko-${this.config.id}">Jwe Ankò</div>
           <div class="prize-footer">
             <div class="prize-footer-label">GRATE & GENYEN JISKA</div>
             <div class="prize-footer-amount">${this.config.prizeRange}</div>

@@ -3,7 +3,7 @@
  * Supports Excel and CSV formats
  */
 
-const XLSX = require('xlsx');
+const ExcelJS = require('exceljs');
 const db = require('../db');
 const ticketService = require('./ticketService');
 
@@ -17,57 +17,77 @@ const BATCH_SIZE = 5000;
 /**
  * Generate Excel template for ticket import
  * 
- * @returns {Buffer} - Excel file buffer
+ * @returns {Promise<Buffer>} - Excel file buffer
  */
-function generateTemplate() {
-  const template = [
-    {
-      'Ticket Number': 'ABC-000001',
-      'Category': 'ABC',
-      'Price': 50.00,
-      'Buyer Name': '',
-      'Buyer Phone': '',
-      'Seller Name': '',
-      'Seller Phone': '',
-      'Status': 'AVAILABLE'
-    },
-    {
-      'Ticket Number': 'EFG-000001',
-      'Category': 'EFG',
-      'Price': 100.00,
-      'Buyer Name': '',
-      'Buyer Phone': '',
-      'Seller Name': '',
-      'Seller Phone': '',
-      'Status': 'AVAILABLE'
-    },
-    {
-      'Ticket Number': 'JKL-000001',
-      'Category': 'JKL',
-      'Price': 250.00,
-      'Buyer Name': '',
-      'Buyer Phone': '',
-      'Seller Name': '',
-      'Seller Phone': '',
-      'Status': 'AVAILABLE'
-    },
-    {
-      'Ticket Number': 'XYZ-000001',
-      'Category': 'XYZ',
-      'Price': 500.00,
-      'Buyer Name': '',
-      'Buyer Phone': '',
-      'Seller Name': '',
-      'Seller Phone': '',
-      'Status': 'AVAILABLE'
-    }
+async function generateTemplate() {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Tickets');
+
+  // Define columns
+  worksheet.columns = [
+    { header: 'Ticket Number', key: 'ticketNumber', width: 15 },
+    { header: 'Category', key: 'category', width: 12 },
+    { header: 'Price', key: 'price', width: 10 },
+    { header: 'Buyer Name', key: 'buyerName', width: 20 },
+    { header: 'Buyer Phone', key: 'buyerPhone', width: 15 },
+    { header: 'Seller Name', key: 'sellerName', width: 20 },
+    { header: 'Seller Phone', key: 'sellerPhone', width: 15 },
+    { header: 'Status', key: 'status', width: 12 }
   ];
 
-  const worksheet = XLSX.utils.json_to_sheet(template);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Tickets');
+  // Add sample data
+  worksheet.addRows([
+    {
+      ticketNumber: 'ABC-000001',
+      category: 'ABC',
+      price: 50.00,
+      buyerName: '',
+      buyerPhone: '',
+      sellerName: '',
+      sellerPhone: '',
+      status: 'AVAILABLE'
+    },
+    {
+      ticketNumber: 'EFG-000001',
+      category: 'EFG',
+      price: 100.00,
+      buyerName: '',
+      buyerPhone: '',
+      sellerName: '',
+      sellerPhone: '',
+      status: 'AVAILABLE'
+    },
+    {
+      ticketNumber: 'JKL-000001',
+      category: 'JKL',
+      price: 250.00,
+      buyerName: '',
+      buyerPhone: '',
+      sellerName: '',
+      sellerPhone: '',
+      status: 'AVAILABLE'
+    },
+    {
+      ticketNumber: 'XYZ-000001',
+      category: 'XYZ',
+      price: 500.00,
+      buyerName: '',
+      buyerPhone: '',
+      sellerName: '',
+      sellerPhone: '',
+      status: 'AVAILABLE'
+    }
+  ]);
 
-  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  // Style header row
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFD3D3D3' }
+  };
+
+  const buffer = await workbook.xlsx.writeBuffer();
   return buffer;
 }
 
@@ -76,14 +96,37 @@ function generateTemplate() {
  * 
  * @param {Buffer} fileBuffer - File buffer
  * @param {string} fileType - File type (xlsx, xls, csv)
- * @returns {Array<Object>} - Parsed ticket data
+ * @returns {Promise<Array<Object>>} - Parsed ticket data
  */
-function parseImportFile(fileBuffer, fileType) {
+async function parseImportFile(fileBuffer, fileType) {
   try {
-    const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(fileBuffer);
+    
+    const worksheet = workbook.worksheets[0];
+    const data = [];
+    
+    // Get header row
+    const headerRow = worksheet.getRow(1);
+    const headers = [];
+    headerRow.eachCell((cell, colNumber) => {
+      headers[colNumber] = cell.value;
+    });
+    
+    // Parse data rows
+    worksheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return; // Skip header
+      
+      const rowData = {};
+      row.eachCell((cell, colNumber) => {
+        const header = headers[colNumber];
+        if (header) {
+          rowData[header] = cell.value;
+        }
+      });
+      
+      data.push(rowData);
+    });
 
     return data;
   } catch (error) {
@@ -337,24 +380,32 @@ async function exportTickets(filters = {}) {
     
     console.log(`✅ Batch processing complete - total tickets: ${allTickets.length.toLocaleString()}`);
 
-    // Generate Excel file from collected tickets
-    const worksheet = XLSX.utils.json_to_sheet(allTickets);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Tickets');
+    // Generate Excel file from collected tickets using ExcelJS
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Tickets');
 
-    // Auto-size columns
-    const maxWidth = 30;
-    const colWidths = {};
-    ticketsToExport.forEach(row => {
-      Object.keys(row).forEach(key => {
-        const value = String(row[key] || '');
-        colWidths[key] = Math.max(colWidths[key] || 10, Math.min(value.length, maxWidth));
-      });
-    });
+    if (allTickets.length > 0) {
+      // Set columns from first ticket keys
+      const firstTicket = allTickets[0];
+      worksheet.columns = Object.keys(firstTicket).map(key => ({
+        header: key,
+        key: key,
+        width: Math.min(Math.max(key.length, 10), 30)
+      }));
 
-    worksheet['!cols'] = Object.keys(colWidths).map(key => ({ wch: colWidths[key] }));
+      // Add rows
+      worksheet.addRows(allTickets);
 
-    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+      // Style header row
+      worksheet.getRow(1).font = { bold: true };
+      worksheet.getRow(1).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFD3D3D3' }
+      };
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
     
     console.log(`📄 Excel file generated - size: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
     
@@ -374,9 +425,25 @@ async function exportTickets(filters = {}) {
 async function exportTicketsCSV(filters = {}) {
   try {
     const buffer = await exportTickets(filters);
-    const workbook = XLSX.read(buffer, { type: 'buffer' });
-    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-    const csv = XLSX.utils.sheet_to_csv(worksheet);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(buffer);
+    
+    const worksheet = workbook.worksheets[0];
+    let csv = '';
+    
+    worksheet.eachRow((row) => {
+      const values = [];
+      row.eachCell((cell) => {
+        let value = cell.value || '';
+        // Escape quotes and wrap in quotes if contains comma
+        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+          value = '"' + value.replace(/"/g, '""') + '"';
+        }
+        values.push(value);
+      });
+      csv += values.join(',') + '\n';
+    });
+    
     return csv;
   } catch (error) {
     console.error('Error exporting tickets to CSV:', error);
