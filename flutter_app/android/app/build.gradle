@@ -1,0 +1,132 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withReader('UTF-8') { reader ->
+        localProperties.load(reader)
+    }
+}
+
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
+}
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) {
+    flutterVersionName = '1.0'
+}
+
+android {
+    namespace "com.grategenyen.raffleapp"
+    compileSdkVersion 36
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+        coreLibraryDesugaringEnabled true
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+
+    defaultConfig {
+        applicationId "com.grategenyen.raffleapp"
+        minSdkVersion 21
+        targetSdkVersion 36
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    // Check if key.properties exists and is valid
+    def keystorePropertiesFile = rootProject.file('key.properties')
+    def hasValidKeystore = false
+    def keystoreProperties = new Properties()
+    
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+        
+        // Validate that all required properties are present and not empty/whitespace
+        def requiredProps = ['keyAlias', 'keyPassword', 'storeFile', 'storePassword']
+        hasValidKeystore = requiredProps.every { 
+            def value = keystoreProperties[it]
+            value != null && !value.toString().trim().isEmpty()
+        }
+        
+        if (!hasValidKeystore) {
+            println "WARNING: key.properties exists but is missing required properties."
+            println "Required properties: keyAlias, keyPassword, storeFile, storePassword"
+            println "Using debug signing instead. See key.properties.example for configuration details."
+        } else {
+            def storeFilePath = keystoreProperties['storeFile'].toString().trim()
+            def keystoreFile = file(storeFilePath)
+            if (!keystoreFile.exists()) {
+                println "WARNING: Keystore file does not exist at: ${storeFilePath}"
+                println "Using debug signing instead. Please ensure storeFile path is correct."
+                hasValidKeystore = false
+            }
+        }
+    }
+
+    signingConfigs {
+        release {
+            // Load signing config from key.properties file
+            // See key.properties.example for instructions on generating a keystore
+            if (hasValidKeystore) {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+            }
+            // If key.properties doesn't exist or is invalid, 
+            // we'll fall back to debug signing (see buildTypes.release below)
+        }
+    }
+
+    buildTypes {
+        release {
+            // Use release signing if available, otherwise fall back to debug signing
+            // For production builds, you MUST configure key.properties with a real keystore
+            // For development/testing, debug signing is automatically used as fallback
+            if (hasValidKeystore) {
+                signingConfig signingConfigs.release
+            } else {
+                // Development mode: use debug signing for convenience
+                // WARNING: Apps signed with debug key cannot be published to Play Store
+                signingConfig signingConfigs.debug
+                if (!keystorePropertiesFile.exists()) {
+                    println "INFO: No key.properties found. Using debug signing for release build."
+                    println "For production builds, configure key.properties. See key.properties.example for details."
+                }
+            }
+            
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+
+dependencies {
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}

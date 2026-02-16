@@ -1,9 +1,25 @@
 services:
   - type: web
     name: raffle-app
+<<<<<<< HEAD
     env: node
     rootDir: raffle-app
     buildCommand: npm install
     startCommand: node server.js
     plan: free
+=======
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    rootDir: raffle-app
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        sync: false
+>>>>>>> main
     autoDeploy: true
