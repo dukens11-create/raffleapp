@@ -2447,7 +2447,6 @@
                         const data = await response.json();
                         
                         if (data.success) {
-                          displayCategoryStats(data.categories);
                           displayAuditLogs(data.auditLogs);
                           displayInventory(data.categories);
                         } else {
@@ -2458,11 +2457,6 @@
                         console.error('Failed to load statistics:', error);
                         showError('Unable to load statistics. Please refresh the page.');
                       }
-                    }
-
-                    function displayCategoryStats(categories) {
-                      // For now, this is handled by the existing chart code
-                      // The data format is compatible
                     }
 
                     function displayAuditLogs(logs) {
@@ -2533,7 +2527,6 @@
         async function loadInventory() {
           await loadStatistics();
         }
-        loadInventory();
         
         // Load buyer registrations
         async function loadBuyerRegistrations() {

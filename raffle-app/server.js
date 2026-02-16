@@ -3353,7 +3353,7 @@ app.get('/api/admin/statistics', requireAuth, requireAdmin, async (req, res) => 
         sold_at as created_at,
         seller_name as user,
         'Ticket Sale' as action,
-        'Ticket #' || number || ' (' || category || ') sold to ' || COALESCE(buyer_name, 'Anonymous') as details
+        'Ticket #' || COALESCE(CAST(number AS TEXT), 'N/A') || ' (' || COALESCE(category, 'N/A') || ') sold to ' || COALESCE(buyer_name, 'Anonymous') as details
       FROM tickets
       WHERE status = 'sold' AND sold_at IS NOT NULL
       ORDER BY sold_at DESC
