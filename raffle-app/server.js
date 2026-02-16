@@ -116,14 +116,16 @@ function validateEnvironment() {
   // CRITICAL VARIABLES (Server won't start without these)
   // ============================================
   
-  // Database URL - Allow SQLite fallback in development
+  // Database URL - Allow SQLite fallback even in production (for emergency deployment)
   if (!process.env.DATABASE_URL) {
     if (process.env.NODE_ENV === 'production') {
-      errors.push('DATABASE_URL - Database connection string is required in production');
-      errors.push('  Set to: postgresql://user:pass@host:port/db');
+      warnings.push('⚠️  DATABASE_URL not set - using SQLite fallback mode');
+      warnings.push('  🚨 CRITICAL: Data will be LOST on every restart');
+      warnings.push('  🚨 SQLite is NOT suitable for production - set DATABASE_URL immediately');
     } else {
-      warnings.push('DATABASE_URL not set - using SQLite (development only)');
-      warnings.push('  For production, set DATABASE_URL to PostgreSQL connection string');
+      warnings.push('⚠️  DATABASE_URL not set - using SQLite (development mode)');
+      warnings.push('  ⚠️  Data will be lost on restart');
+      warnings.push('  💡 For persistent data, set DATABASE_URL to PostgreSQL connection string');
     }
   }
   
@@ -1022,6 +1024,16 @@ app.get('/health', async (req, res) => {
     health.database.error = error.message;
     res.status(503).json(health);
   }
+});
+
+// API health check endpoint (alias for /health for API consistency)
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Detailed database diagnostic endpoint
@@ -3308,6 +3320,61 @@ app.get('/users', requireAuth, requireAdmin, async (req, res) => {
 app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
   // Return empty array for now - audit logs table doesn't exist yet
   res.json([]);
+});
+
+// GET /api/admin/statistics - Admin dashboard statistics
+app.get('/api/admin/statistics', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Get category statistics
+    const categoryStats = await db.all(`
+      SELECT 
+        category,
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as sold,
+        SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available
+      FROM tickets
+      WHERE category IS NOT NULL
+      GROUP BY category
+      ORDER BY category
+    `);
+
+    // Get total statistics
+    const totalStatsRow = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as total_sold,
+        SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as total_available
+      FROM tickets
+    `);
+
+    // Get recent activity (audit logs simulation using ticket sales)
+    const auditLogs = await db.all(`
+      SELECT 
+        sold_at as created_at,
+        seller_name as user,
+        'Ticket Sale' as action,
+        'Ticket #' || COALESCE(CAST(number AS TEXT), 'N/A') || ' (' || COALESCE(category, 'N/A') || ') sold to ' || COALESCE(buyer_name, 'Anonymous') as details
+      FROM tickets
+      WHERE status = 'sold' AND sold_at IS NOT NULL
+      ORDER BY sold_at DESC
+      LIMIT 50
+    `);
+
+    res.json({
+      success: true,
+      categories: categoryStats,
+      totals: totalStatsRow || { total_tickets: 0, total_sold: 0, total_available: 0 },
+      auditLogs: auditLogs
+    });
+
+  } catch (error) {
+    console.error('Statistics error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load statistics',
+      message: error.message
+    });
+  }
 });
 
 app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
@@ -7965,22 +8032,107 @@ app.get('/api/scratch-tickets/available', async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Access the application at http://localhost:${PORT}`);
-  console.log(`Health check available at http://localhost:${PORT}/health`);
+// Start server with enhanced logging
+const server = app.listen(PORT, () => {
+  console.log('\n' + '='.repeat(60));
+  console.log('🚀 SERVER STARTED SUCCESSFULLY');
+  console.log('='.repeat(60));
+  console.log(`📍 Port: ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`💾 Database: ${process.env.DATABASE_URL ? 'PostgreSQL (persistent)' : 'SQLite (temporary)'}`);
+  console.log(`🔒 Session Secret: ${process.env.SESSION_SECRET ? 'Configured' : 'Auto-generated (will reset on restart)'}`);
+  console.log(`\n📡 Endpoints:`);
+  console.log(`   - Health Check: http://localhost:${PORT}/health`);
+  console.log(`   - API Health: http://localhost:${PORT}/api/health`);
+  console.log(`   - Database Status: http://localhost:${PORT}/api/database-status`);
+  console.log(`   - Application: http://localhost:${PORT}`);
+  if (process.env.APP_URL && !process.env.APP_URL.includes('localhost')) {
+    console.log(`   - Public URL: ${process.env.APP_URL}`);
+  }
+  console.log('='.repeat(60) + '\n');
 });
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) {
-      console.error('Error closing database:', err);
-    } else {
-      console.log('Database connection closed');
-    }
-    process.exit(0);
+// Handle server startup errors
+server.on('error', (error) => {
+  console.error('\n' + '='.repeat(60));
+  console.error('❌ SERVER STARTUP ERROR');
+  console.error('='.repeat(60));
+  
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+    console.error('💡 Solutions:');
+    console.error('   1. Stop the other process using this port');
+    console.error(`   2. Set a different PORT environment variable`);
+    console.error(`   3. Kill the process: lsof -ti:${PORT} | xargs kill -9`);
+  } else if (error.code === 'EACCES') {
+    console.error(`❌ Permission denied to bind to port ${PORT}`);
+    console.error('💡 Solutions:');
+    console.error('   1. Use a port number > 1024');
+    console.error('   2. Run with appropriate permissions');
+  } else {
+    console.error(`❌ Error: ${error.message}`);
+    console.error('💡 Stack trace:');
+    console.error(error.stack);
+  }
+  
+  console.error('='.repeat(60) + '\n');
+  process.exit(1);
+});
+
+// Graceful shutdown configuration
+const SHUTDOWN_TIMEOUT_MS = 10000; // 10 seconds
+
+// Graceful shutdown handler
+function gracefulShutdown(signal) {
+  console.log(`\n⚠️  Received ${signal}, shutting down gracefully...`);
+  
+  // Force exit after timeout if graceful shutdown fails
+  const forceExitTimeout = setTimeout(() => {
+    console.error('⚠️  Forceful shutdown after timeout');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS);
+  
+  server.close(() => {
+    console.log('🔌 Server closed');
+    db.close((err) => {
+      clearTimeout(forceExitTimeout); // Clear timeout on successful shutdown
+      if (err) {
+        console.error('❌ Error closing database:', err);
+        process.exit(1);
+      } else {
+        console.log('💾 Database connection closed');
+        console.log('✅ Shutdown complete');
+        process.exit(0);
+      }
+    });
   });
+}
+
+// Handle shutdown signals
+process.on('SIGINT', () => gracefulShutdown('SIGINT (Ctrl+C)'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('\n' + '='.repeat(60));
+  console.error('❌ UNCAUGHT EXCEPTION');
+  console.error('='.repeat(60));
+  console.error('Error:', error.message);
+  console.error('Stack:', error.stack);
+  console.error('='.repeat(60) + '\n');
+  
+  // Give time for logs to flush
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n' + '='.repeat(60));
+  console.error('❌ UNHANDLED PROMISE REJECTION');
+  console.error('='.repeat(60));
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+  console.error('='.repeat(60) + '\n');
 });

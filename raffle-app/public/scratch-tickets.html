@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Scratch Tickets - Grate Genyen</title>
+  <title>GRATE GENYEN - Scratch Tickets</title>
   <link rel="icon" type="image/png" href="logo.png">
   
   <style>
@@ -79,6 +79,7 @@
       padding: 20px;
       color: white;
       text-align: center;
+      position: relative;
     }
     
     .ticket-header h2 {
@@ -94,41 +95,194 @@
       font-weight: 600;
     }
     
-    /* Ticket Type Styles */
-    .ticket-gold .ticket-header {
-      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-    }
-    
-    .ticket-silver .ticket-header {
-      background: linear-gradient(135deg, #C0C0C0 0%, #A9A9A9 100%);
-    }
-    
-    .ticket-bronze .ticket-header {
-      background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
-    }
-    
-    .ticket-heritage .ticket-header {
-      background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%);
-    }
-    
+    /* Updated Color Schemes to Match Reference Images */
+
+    /* Basic Ticket - Green Sparkle Theme */
     .ticket-basic .ticket-header {
-      background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+      background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+      position: relative;
+      overflow: hidden;
     }
-    
-    .ticket-star .ticket-header {
-      background: linear-gradient(135deg, #0000CD 0%, #4169E1 50%, #9370DB 100%);
+
+    .ticket-basic .ticket-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px),
+        radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px);
+      background-size: 50px 50px, 80px 80px;
+      background-position: 0 0, 40px 40px;
+      animation: sparkle 3s linear infinite;
     }
-    
+
+    .ticket-basic .prize-content {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+    }
+
+    /* Premium Ticket - Purple Cosmic Theme */
     .ticket-premium .ticket-header {
-      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      background: linear-gradient(135deg, #7c3aed 0%, #6366f1 50%, #8b5cf6 100%);
+      position: relative;
+      overflow: hidden;
     }
-    
-    .ticket-bonus .ticket-header {
-      background: linear-gradient(135deg, #FF1493 0%, #FF6347 25%, #FFD700 50%, #00CED1 75%, #9370DB 100%);
+
+    .ticket-premium .ticket-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle, rgba(255,255,255,0.8) 2px, transparent 2px),
+        radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px);
+      background-size: 100px 100px, 60px 60px;
+      background-position: 0 0, 50px 50px;
+      animation: cosmicFloat 4s ease-in-out infinite;
     }
-    
+
+    .ticket-premium .prize-content {
+      background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
+      color: white;
+    }
+
+    /* Bronze Ticket - Bronze/Orange Gradient */
+    .ticket-bronze .ticket-header {
+      background: linear-gradient(135deg, #ea580c 0%, #dc2626 50%, #c2410c 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ticket-bronze .ticket-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle, rgba(255,215,0,0.4) 2px, transparent 2px),
+        radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px);
+      background-size: 70px 70px, 45px 45px;
+      background-position: 0 0, 35px 35px;
+      animation: sparkle 2.5s linear infinite;
+    }
+
+    .ticket-bronze .prize-content {
+      background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+      color: white;
+    }
+
+    /* Silver Ticket - Metallic Silver/Gray Holographic */
+    .ticket-silver .ticket-header {
+      background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 50%, #64748b 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ticket-silver .ticket-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle, rgba(255,255,255,0.6) 2px, transparent 2px),
+        radial-gradient(circle, rgba(96,165,250,0.3) 1px, transparent 1px),
+        radial-gradient(circle, rgba(134,239,172,0.3) 1px, transparent 1px);
+      background-size: 60px 60px, 80px 80px, 100px 100px;
+      background-position: 0 0, 40px 40px, 20px 60px;
+      animation: holographic 3s linear infinite;
+    }
+
+    .ticket-silver .prize-content {
+      background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
+      color: #1e293b;
+    }
+
+    /* Gold Ticket - Golden Sunburst */
+    .ticket-gold .ticket-header {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ticket-gold .ticket-header::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      background: 
+        repeating-conic-gradient(
+          from 0deg at 50% 50%,
+          rgba(255,255,255,0.3) 0deg,
+          transparent 2deg,
+          transparent 8deg,
+          rgba(255,255,255,0.3) 10deg
+        );
+      transform: translate(-50%, -50%);
+      animation: rotateRays 20s linear infinite;
+    }
+
+    .ticket-gold .prize-content {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #78350f;
+    }
+
+    /* Diamond Ticket - Blue Icy Diamonds */
     .ticket-diamond .ticket-header {
-      background: linear-gradient(135deg, #00CED1 0%, #20B2AA 50%, #48D1CC 100%);
+      background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #0891b2 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ticket-diamond .ticket-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: 
+        radial-gradient(circle, rgba(255,255,255,0.8) 2px, transparent 2px),
+        radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px);
+      background-size: 80px 80px, 50px 50px;
+      background-position: 0 0, 40px 40px;
+      animation: sparkle 2s linear infinite;
+    }
+
+    .ticket-diamond .prize-content {
+      background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%);
+      color: white;
+    }
+
+    /* Animations */
+    @keyframes sparkle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @keyframes cosmicFloat {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    @keyframes holographic {
+      0% { background-position: 0 0, 40px 40px, 20px 60px; }
+      100% { background-position: 60px 60px, 100px 100px, 80px 120px; }
+    }
+
+    @keyframes rotateRays {
+      0% { transform: translate(-50%, -50%) rotate(0deg); }
+      100% { transform: translate(-50%, -50%) rotate(360deg); }
     }
     
     /* Scratch Area */
@@ -160,50 +314,130 @@
       padding: 20px;
     }
     
-    /* Prize Content Backgrounds */
+    /* Price Badge Styling */
+    .ticket-price-badge {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(220, 38, 38, 0.95);
+      border: 3px solid rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      width: 90px;
+      height: 90px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 100;
+      font-weight: 800;
+    }
+
+    .ticket-price-amount {
+      font-size: 24px;
+      color: white;
+      line-height: 1;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .ticket-price-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+
+    /* "GRATE TOUTE" Corner Badge */
+    .scratch-label {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(220, 38, 38, 0.95);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      letter-spacing: 0.5px;
+    }
+
+    /* Prize Display Enhancement */
+    .prize-range {
+      font-size: 15px;
+      font-weight: 700;
+      opacity: 1;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      margin-top: 4px;
+    }
+
+    /* Ticket Type Banner */
+    .ticket-type-banner {
+      background: rgba(255, 255, 255, 0.95);
+      color: #1e293b;
+      padding: 6px 24px;
+      border-radius: 20px;
+      font-size: 16px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-top: 8px;
+      display: inline-block;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    .ticket-gold .ticket-type-banner {
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      color: #78350f;
+    }
+
+    .ticket-bronze .ticket-type-banner {
+      background: linear-gradient(135deg, #fed7aa, #fdba74);
+      color: #7c2d12;
+    }
+
+    /* Bottom Prize Display */
+    .prize-footer {
+      background: rgba(220, 38, 38, 0.95);
+      color: white;
+      padding: 12px;
+      text-align: center;
+      font-weight: 800;
+      margin-top: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .prize-footer-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.9;
+    }
+
+    .prize-footer-amount {
+      font-size: 28px;
+      margin-top: 4px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      color: #fde047;
+    }
+
+    /* Prize Content Backgrounds - Legacy support, overridden by ticket-specific styles */
     .ticket-gold .prize-content {
-      background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-      color: #000;
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+      color: #78350f;
     }
     
     .ticket-silver .prize-content {
-      background: linear-gradient(135deg, #E8E8E8 0%, #C0C0C0 100%);
+      background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%);
       color: #1e293b;
     }
     
     .ticket-bronze .prize-content {
-      background: linear-gradient(135deg, #E6A855 0%, #CD7F32 100%);
-      color: #1e293b;
-    }
-    
-    .ticket-heritage .prize-content {
-      background: linear-gradient(135deg, #F5DEB3 0%, #DAA520 100%);
-      color: #1e293b;
-    }
-    
-    .ticket-basic .prize-content {
-      background: linear-gradient(135deg, #81C784 0%, #4CAF50 100%);
-      color: #1e293b;
-    }
-    
-    .ticket-star .prize-content {
-      background: linear-gradient(135deg, #4169E1 0%, #9370DB 100%);
+      background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
       color: white;
-    }
-    
-    .ticket-premium .prize-content {
-      background: linear-gradient(135deg, #64B5F6 0%, #2196F3 100%);
-      color: white;
-    }
-    
-    .ticket-bonus .prize-content {
-      background: linear-gradient(135deg, #FF69B4 0%, #FFD700 50%, #00CED1 100%);
-      color: #1e293b;
-    }
-    
-    .ticket-diamond .prize-content {
-      background: linear-gradient(135deg, #4DD0E1 0%, #00CED1 50%, #00BCD4 100%);
-      color: #1e293b;
     }
     
     .prize-emoji {
@@ -287,6 +521,21 @@
       transform: translateY(0);
     }
     
+    /* Jwe Ankò text under scratch area */
+    .jwe-anko-text {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #64748b;
+      padding: 8px 0;
+      font-style: italic;
+      letter-spacing: 0.5px;
+    }
+    
+    .jwe-anko-text.hidden {
+      display: none;
+    }
+    
     /* Responsive */
     @media (max-width: 768px) {
       .ticket-gallery {
@@ -305,16 +554,6 @@
       body {
         padding: 12px;
       }
-    }
-    
-    /* Heritage Ticket Special Elements */
-    .heritage-badge {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.2);
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      margin-top: 4px;
     }
     
     /* Ticket Info Display */
@@ -358,50 +597,14 @@
       font-size: 16px;
       font-weight: 700;
     }
-    
-    /* Ticket Price Badge */
-    .ticket-price-badge {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 2px solid rgba(0, 0, 0, 0.1);
-      border-radius: 20px;
-      padding: 8px 16px;
-      font-size: 18px;
-      font-weight: 800;
-      color: #1e293b;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-      z-index: 10;
-    }
-    
-    .ticket-price-label {
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      color: #64748b;
-      letter-spacing: 0.5px;
-    }
-    
-    .ticket-price-amount {
-      font-size: 20px;
-      font-weight: 800;
-      color: #1e293b;
-      display: block;
-    }
-    
-    /* Make ticket header position relative for badge positioning */
-    .ticket-card {
-      position: relative;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <h1>🎫 Grate Genyen - Scratch Tickets</h1>
-      <p>Chwazi yon tikè epi grate pou wè si ou genyen! (Choose a ticket and scratch to see if you win!)</p>
+      <h1>🎰 GRATE GENYEN - Scratch & Win!</h1>
+      <p>Chwazi yon tikè epi grate pou wè si ou genyen! Choose a ticket and scratch to win!</p>
     </div>
     
     <!-- Ticket Gallery -->
@@ -411,121 +614,160 @@
   <script>
     // Category mapping: Ticket Type -> Database Category
     const CATEGORY_MAP = {
-      'gold': 'ABC',
-      'silver': 'EFG',
-      'bronze': 'JKL',
-      'heritage': 'XYZ',
-      'star': 'EFG',
-      'bonus': 'XYZ'
+      'basic': 'BAS',
+      'premium': 'PRM',
+      'bronze': 'BRZ',
+      'silver': 'SLV',
+      'gold': 'GLD',
+      'diamond': 'DIA'
     };
     
     // Ticket configurations
     const ticketTypes = [
+      // Basic Ticket - Green
+      {
+        id: 'basic',
+        name: 'GRATE GENYEN',
+        typeName: 'Basic',
+        className: 'ticket-basic',
+        price: 50,
+        prizeRange: '5,000 GOURDES!',
+        coverText: 'GRATE TOUTE',
+        category: 'BAS',
+        prizes: [
+          { emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 39 },
+          { emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 117 },
+          { emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 391 },
+          { emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 978 },
+          { emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 2348 },
+          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 3914 },
+          { emoji: '🏆', text: 'OU GENYEN\n500 HTG', value: 500, weight: 39 },
+          // New HTG cash prizes (0.5% each)
+          { emoji: '💵', text: 'OU GENYEN\n450 HTG', value: 450, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n400 HTG', value: 400, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n350 HTG', value: 350, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n300 HTG', value: 300, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n250 HTG', value: 250, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n200 HTG', value: 200, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n150 HTG', value: 150, weight: 100 },
+          { emoji: '💵', text: 'OU GENYEN\n100 HTG', value: 100, weight: 100 },
+          { emoji: '💸', text: 'OU GENYEN\n1,000 HTG', value: 1000, weight: 1 },
+          // Ticket prizes
+          { emoji: '🥉', text: 'OU GENYEN\nYON TIKÈ BRONZE', value: 250, weight: 1600 },
+          { emoji: '⭐', text: 'OU GENYEN\nYON TIKÈ PREMIUM', value: 100, weight: 1600 },
+          { emoji: '🥈', text: 'OU GENYEN\nYON TIKÈ SILVER', value: 500, weight: 200 },
+          { emoji: '🥇', text: 'OU GENYEN\nYON TIKÈ GOLD', value: 1000, weight: 100 },
+          { emoji: '💎', text: 'OU GENYEN\nYON TIKÈ DIAMOND', value: 5000, weight: 1 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 7868 }
+        ]
+      },
+      
+      // Premium Ticket - Purple
+      {
+        id: 'premium',
+        name: 'GRATE GENYEN',
+        typeName: 'Premium',
+        className: 'ticket-premium',
+        price: 100,
+        prizeRange: '15,000 GOURDES!',
+        coverText: 'GRATE TOUTE',
+        category: 'PRM',
+        prizes: [
+          { emoji: '🎰', text: 'MEGA PRIZE!\n15,000 GOUD', value: 15000, weight: 2 },
+          { emoji: '💎', text: 'OU GENYEN\n7,500 GOUD', value: 7500, weight: 5 },
+          { emoji: '🔥', text: 'OU GENYEN\n3,000 GOUD', value: 3000, weight: 15 },
+          { emoji: '💰', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 35 },
+          { emoji: '🎁', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 70 },
+          { emoji: '✨', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 120 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 153 }
+        ]
+      },
+      
+      // Bronze Ticket
+      {
+        id: 'bronze',
+        name: 'GRATE GENYEN',
+        typeName: 'Bronze',
+        className: 'ticket-bronze',
+        price: 250,
+        prizeRange: '50,000 GOURDES!',
+        coverText: 'GRATE TOUTE',
+        category: 'BRZ',
+        prizes: [
+          { emoji: '🎉', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 1 },
+          { emoji: '💎', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 3 },
+          { emoji: '🔥', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 10 },
+          { emoji: '💰', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 25 },
+          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 60 },
+          { emoji: '✨', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 100 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 201 }
+        ]
+      },
+      
+      // Silver Ticket
+      {
+        id: 'silver',
+        name: 'GRATE GENYEN',
+        typeName: 'Silver',
+        className: 'ticket-silver',
+        price: 500,
+        prizeRange: '150,000 GOURDES!',
+        coverText: 'GRATE TOUTE',
+        category: 'SLV',
+        prizes: [
+          { emoji: '🏆', text: 'MEGA AJAN!\n150,000 GOUD', value: 150000, weight: 1 },
+          { emoji: '💎', text: 'OU GENYEN\n75,000 GOUD', value: 75000, weight: 3 },
+          { emoji: '🔥', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 10 },
+          { emoji: '⭐', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 25 },
+          { emoji: '💰', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 50 },
+          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 90 },
+          { emoji: '✨', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 140 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 81 }
+        ]
+      },
+      
+      // Gold Ticket
       {
         id: 'gold',
-        name: 'GRATE GENYEN Gold',
+        name: 'GRATE GENYEN',
+        typeName: 'Gold',
         className: 'ticket-gold',
         price: 1000,
-        prizeRange: '1000 HTG - 250,000 HTG',
+        prizeRange: '250,000 GOURDES!',
         coverText: 'GRATE TOUTE',
-        category: 'ABC',
+        category: 'GLD',
         prizes: [
           { emoji: '🎉', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 1 },
           { emoji: '💎', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
           { emoji: '🔥', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 8 },
           { emoji: '💰', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 20 },
           { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 40 },
-          { emoji: '⭐', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 80 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 150 }
+          { emoji: '✨', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 80 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 248 }
         ]
       },
+      
+      // Diamond Ticket
       {
-        id: 'silver',
-        name: 'GRATE GENYEN Silver',
-        className: 'ticket-silver',
-        price: 500,
-        prizeRange: '50 HTG - 150,000 HTG',
-        coverText: 'GRATE AJAN',
-        category: 'EFG',
-        prizes: [
-          { emoji: '💰', text: 'OU GENYEN\n150,000 GOUD', value: 150000, weight: 2 },
-          { emoji: '🎯', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 5 },
-          { emoji: '🌟', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 15 },
-          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 30 },
-          { emoji: '✨', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 80 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 170 }
-        ]
-      },
-      {
-        id: 'bronze',
-        name: 'GRATE GENYEN Bronze',
-        className: 'ticket-bronze',
-        price: 250,
-        prizeRange: '20 HTG - 50,000 HTG',
-        coverText: 'GRATE BWONZ',
-        category: 'JKL',
-        prizes: [
-          { emoji: '🎊', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 2 },
-          { emoji: '🏆', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 10 },
-          { emoji: '🎖️', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 20 },
-          { emoji: '🎁', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 40 },
-          { emoji: '🌟', text: 'OU GENYEN\n10 GOUD', value: 10, weight: 80 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 150 }
-        ]
-      },
-      {
-        id: 'heritage',
-        name: 'GRATE GENYEN Basic',
-        className: 'ticket-basic',
-        price: 50,
-        prizeRange: '5 HTG - 5,000 HTG',
-        coverText: 'GRATE ANSANM',
-        subText: '🎯 Basic Edition',
-        category: 'XYZ',
-        prizes: [
-          { emoji: '🇭🇹', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 2 },
-          { emoji: '🌴', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 8 },
-          { emoji: '⛓️', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 15 },
-          { emoji: '⭐', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 30 },
-          { emoji: '🎯', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 80 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 165 }
-        ]
-      },
-      {
-        id: 'star',
-        name: 'GRATE GENYEN Premium',
-        className: 'ticket-premium',
-        price: 100,
-        prizeRange: '50 HTG - 15,000 HTG',
-        coverText: 'GRATE PREMIUM',
-        subText: '⭐ Premium Edition',
-        category: 'EFG',
-        prizes: [
-          { emoji: '🌟', text: 'OU GENYEN\n15,000 GOUD', value: 15000, weight: 2 },
-          { emoji: '✨', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 8 },
-          { emoji: '💫', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 15 },
-          { emoji: '⭐', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 35 },
-          { emoji: '🎯', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 80 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 160 }
-        ]
-      },
-      {
-        id: 'bonus',
-        name: 'GRATE GENYEN Diamond',
+        id: 'diamond',
+        name: 'GRATE GENYEN',
+        typeName: 'Diamond',
         className: 'ticket-diamond',
         price: 5000,
-        prizeRange: '5 HTG - 1,000,000 HTG',
-        coverText: 'GRATE DYAMAN',
-        subText: '💎 Diamond Edition - MEGA JACKPOT',
-        category: 'XYZ',
+        prizeRange: '1,000,000 GOURDES!',
+        coverText: 'GRATE TOUTE',
+        category: 'DIA',
         prizes: [
-          { emoji: '🎰', text: 'MEGA PRIZE!\n1,000,000 GOUD', value: 1000000, weight: 1 },
-          { emoji: '🎉', text: 'OU GENYEN\n500,000 GOUD', value: 500000, weight: 3 },
-          { emoji: '🔥', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 10 },
-          { emoji: '💰', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 25 },
-          { emoji: '🎁', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 50 },
-          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 211 }
+          { emoji: '💎', text: 'MEGA DYAMAN!\n1,000,000 GOUD', value: 1000000, weight: 1 },
+          { emoji: '🎰', text: 'SUPER PRIZE!\n500,000 GOUD', value: 500000, weight: 2 },
+          { emoji: '🔥', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 3 },
+          { emoji: '⭐', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 8 },
+          { emoji: '💰', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 15 },
+          { emoji: '🎁', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 40 },
+          { emoji: '💵', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 80 },
+          { emoji: '✨', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 150 },
+          { emoji: '🎲', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 200 },
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 501 }
         ]
       }
     ];
@@ -553,6 +795,18 @@
         this.setupCanvas();
         this.drawCoverLayer();
         this.attachEventListeners();
+        this.setJweAnkoVisibility();  // Set visibility of "Jwe Ankò" text
+      }
+      
+      setJweAnkoVisibility() {
+        // Show "Jwe Ankò" text in 80% of tickets
+        const jweAnkoElement = document.getElementById(`jwe-anko-${this.config.id}`);
+        if (jweAnkoElement) {
+          const showJweAnko = Math.random() < 0.8;  // 80% probability
+          if (!showJweAnko) {
+            jweAnkoElement.classList.add('hidden');
+          }
+        }
       }
       
       async fetchTicketData() {
@@ -616,14 +870,14 @@
         const card = document.createElement('div');
         card.className = `ticket-card ${this.config.className}`;
         card.innerHTML = `
+          <div class="scratch-label">${this.config.coverText}</div>
           <div class="ticket-price-badge">
-            <div class="ticket-price-label">Price</div>
-            <div class="ticket-price-amount">${this.config.price.toLocaleString('en-US')} HTG</div>
+            <div class="ticket-price-label">GOURDES</div>
+            <div class="ticket-price-amount">${this.config.price}</div>
           </div>
           <div class="ticket-header">
-            <h2>${this.config.name}</h2>
-            <div class="prize-range">Win up to ${this.config.prizeRange.split(' - ')[1]}</div>
-            ${this.config.subText ? `<div class="heritage-badge">${this.config.subText}</div>` : ''}
+            <h2 style="position: relative; z-index: 10;">${this.config.name}</h2>
+            <div class="ticket-type-banner">${this.config.typeName}</div>
           </div>
           <div class="ticket-info" id="ticket-info-${this.config.id}">
             <div class="ticket-info-row">
@@ -639,12 +893,14 @@
               <canvas id="canvas-${this.config.id}"></canvas>
             </div>
           </div>
+          <div class="jwe-anko-text" id="jwe-anko-${this.config.id}">Jwe Ankò</div>
+          <div class="prize-footer">
+            <div class="prize-footer-label">GRATE & GENYEN JISKA</div>
+            <div class="prize-footer-amount">${this.config.prizeRange}</div>
+          </div>
           <div class="controls">
             <div class="progress-text" id="progress-${this.config.id}">Scratched: 0%</div>
-            <div class="button-group">
-              <button class="btn btn-reset" id="reset-${this.config.id}">🔄 Reset</button>
-              <button class="btn btn-reveal" id="reveal-${this.config.id}">👁️ Reveal All</button>
-            </div>
+            <button class="btn" id="reset-${this.config.id}">🔄 New Ticket</button>
           </div>
         `;
         
@@ -685,42 +941,49 @@
       }
       
       drawCoverLayer() {
-        const ctx = this.ctx;
         const width = this.canvas.width;
         const height = this.canvas.height;
         
-        // Base gray color
-        ctx.fillStyle = '#bfbfbf';
-        ctx.fillRect(0, 0, width, height);
+        // Draw base color matching ticket theme
+        this.ctx.fillStyle = this.getTicketColor();
+        this.ctx.fillRect(0, 0, width, height);
         
-        // Add subtle texture pattern
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-        for (let i = 0; i < width; i += 8) {
-          for (let j = 0; j < height; j += 8) {
-            if (Math.random() > 0.5) {
-              ctx.fillRect(i, j, 3, 3);
-            }
-          }
+        // Add texture/pattern
+        this.ctx.globalAlpha = 0.3;
+        for (let i = 0; i < 100; i++) {
+          const x = Math.random() * width;
+          const y = Math.random() * height;
+          const size = Math.random() * 3;
+          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          this.ctx.beginPath();
+          this.ctx.arc(x, y, size, 0, Math.PI * 2);
+          this.ctx.fill();
         }
+        this.ctx.globalAlpha = 1;
         
-        // Cover text
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.font = 'bold 32px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        // Draw cover text
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.font = 'bold 24px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(this.config.typeName.toUpperCase(), width / 2, height / 2);
         
-        const lines = this.config.coverText.split('\n');
-        const lineHeight = 40;
-        const startY = (height / 2) - ((lines.length - 1) * lineHeight / 2);
-        
-        lines.forEach((line, index) => {
-          ctx.fillText(line, width / 2, startY + (index * lineHeight));
-        });
-        
-        // Instruction text
-        ctx.font = 'bold 16px Arial';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.fillText('↓ Grate isit la ↓', width / 2, height - 30);
+        // Add instruction
+        this.ctx.font = 'bold 14px Arial';
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        this.ctx.fillText('↓ GRATE ISIT LA ↓', width / 2, height - 30);
+      }
+
+      getTicketColor() {
+        const colors = {
+          'ticket-basic': '#10b981',
+          'ticket-premium': '#7c3aed',
+          'ticket-bronze': '#ea580c',
+          'ticket-silver': '#94a3b8',
+          'ticket-gold': '#f59e0b',
+          'ticket-diamond': '#06b6d4'
+        };
+        return colors[this.config.className] || '#64748b';
       }
       
       attachEventListeners() {
@@ -749,10 +1012,6 @@
         // Button events
         document.getElementById(`reset-${this.config.id}`).addEventListener('click', () => {
           this.reset();
-        });
-        
-        document.getElementById(`reveal-${this.config.id}`).addEventListener('click', () => {
-          this.revealAll();
         });
       }
       

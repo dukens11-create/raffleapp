@@ -7,25 +7,29 @@ const bwipjs = require('bwip-js');
 
 /**
  * Category prefix mapping for barcode generation
- * ABC -> 1, EFG -> 2, JKL -> 3, XYZ -> 4
+ * BAS -> 1, PRM -> 2, BRZ -> 3, SLV -> 4, GLD -> 5, DIA -> 6
  */
 const CATEGORY_PREFIX_MAP = {
-  'ABC': '1',
-  'EFG': '2',
-  'JKL': '3',
-  'XYZ': '4'
+  'BAS': '1',
+  'PRM': '2',
+  'BRZ': '3',
+  'SLV': '4',
+  'GLD': '5',
+  'DIA': '6'
 };
 
 /**
  * Generate barcode number from ticket number
  * Format: Category prefix + ticket sequence number
  * Examples:
- *   ABC-000001 -> 10000001
- *   EFG-000001 -> 20000001
- *   JKL-000001 -> 30000001
- *   XYZ-000001 -> 40000001
+ *   BAS-000001 -> 10000001
+ *   PRM-000001 -> 20000001
+ *   BRZ-000001 -> 30000001
+ *   SLV-000001 -> 40000001
+ *   GLD-000001 -> 50000001
+ *   DIA-000001 -> 60000001
  * 
- * @param {string} ticketNumber - Ticket number (e.g., "ABC-000001")
+ * @param {string} ticketNumber - Ticket number (e.g., "BAS-000001")
  * @returns {string} - 8-digit barcode (e.g., "10000001")
  */
 function generateBarcodeNumber(ticketNumber) {
@@ -212,10 +216,12 @@ function getCategoryFromBarcode(barcodeNumber) {
 
   const prefix = barcodeNumber[0];
   const reverseMap = {
-    '1': 'ABC',
-    '2': 'EFG',
-    '3': 'JKL',
-    '4': 'XYZ'
+    '1': 'BAS',
+    '2': 'PRM',
+    '3': 'BRZ',
+    '4': 'SLV',
+    '5': 'GLD',
+    '6': 'DIA'
   };
 
   return reverseMap[prefix];
