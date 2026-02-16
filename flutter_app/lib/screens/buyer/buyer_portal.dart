@@ -84,10 +84,12 @@ class _BuyerPortalState extends State<BuyerPortal> {
               crossAxisSpacing: 16,
               childAspectRatio: 0.85,
               children: [
-                _buildRaffleCard('Standard', '\$10', 'Available Soon', Colors.blue),
-                _buildRaffleCard('Premium', '\$20', 'Available Soon', Colors.purple),
-                _buildRaffleCard('VIP', '\$50', 'Available Soon', Colors.orange),
-                _buildRaffleCard('Platinum', '\$100', 'Available Soon', Colors.red),
+                _buildRaffleCard('BASIC', '50 HTG', '5,000 HTG', 'XYZ (1/2)', 'Available Soon', const Color(0xFF10b981)),
+                _buildRaffleCard('PREMIUM', '100 HTG', '15,000 HTG', 'EFG', 'Available Soon', const Color(0xFF7c3aed)),
+                _buildRaffleCard('BRONZE', '250 HTG', '50,000 HTG', 'EFG (Front 1/2)', 'Available Soon', const Color(0xFFea580c)),
+                _buildRaffleCard('SILVER', '500 HTG', '150,000 HTG', 'ABC (Front 1/2)', 'Available Soon', const Color(0xFF94a3b8)),
+                _buildRaffleCard('GOLD', '1,000 HTG', '250,000 HTG', 'ABC (Back 1/2)', 'Available Soon', const Color(0xFFf59e0b)),
+                _buildRaffleCard('DIAMOND', '5,000 HTG', '1,000,000 HTG', 'EFG (Back 1/2)', 'Available Soon', const Color(0xFF06b6d4)),
               ],
             ),
             const SizedBox(height: 24),
@@ -145,7 +147,7 @@ class _BuyerPortalState extends State<BuyerPortal> {
     );
   }
 
-  Widget _buildRaffleCard(String title, String price, String status, Color color) {
+  Widget _buildRaffleCard(String title, String price, String maxPrize, String category, String status, Color color) {
     return Card(
       elevation: 4,
       child: InkWell(
@@ -178,10 +180,36 @@ class _BuyerPortalState extends State<BuyerPortal> {
                 price,
                 style: TextStyle(fontSize: 16, color: color, fontWeight: FontWeight.bold),
               ),
+              const SizedBox(height: 4),
+              Text(
+                'Max Prize:',
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+              ),
+              Text(
+                maxPrize,
+                style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 4),
               Text(
                 status,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 textAlign: TextAlign.center,
               ),
             ],
