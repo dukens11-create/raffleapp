@@ -2542,22 +2542,56 @@
         // Helper: Show loading state in a table
         function showTableLoading(tableBodyId, colspan = 10) {
           const tbody = document.getElementById(tableBodyId);
-          tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align: center; padding: 20px;"><div class="loading-spinner"></div> Loading...</td></tr>`;
+          if (!tbody) return;
+          
+          tbody.innerHTML = '';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = colspan;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          
+          const spinner = document.createElement('div');
+          spinner.className = 'loading-spinner';
+          cell.appendChild(spinner);
+          cell.appendChild(document.createTextNode(' Loading...'));
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
         }
 
         // Helper: Show error state in a table with retry button
         function showTableError(tableBodyId, errorMessage, retryFunction, colspan = 10) {
           const tbody = document.getElementById(tableBodyId);
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="${colspan}" style="text-align: center; padding: 20px; color: #ef4444;">
-                <div style="margin-bottom: 10px;">❌ ${errorMessage}</div>
-                <button onclick="${retryFunction}" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                  🔄 Retry
-                </button>
-              </td>
-            </tr>
-          `;
+          if (!tbody) return;
+          
+          tbody.innerHTML = '';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = colspan;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          cell.style.color = '#ef4444';
+          
+          const errorDiv = document.createElement('div');
+          errorDiv.style.marginBottom = '10px';
+          errorDiv.textContent = '❌ ' + errorMessage;
+          cell.appendChild(errorDiv);
+          
+          const retryBtn = document.createElement('button');
+          retryBtn.textContent = '🔄 Retry';
+          retryBtn.style.padding = '8px 16px';
+          retryBtn.style.background = '#667eea';
+          retryBtn.style.color = 'white';
+          retryBtn.style.border = 'none';
+          retryBtn.style.borderRadius = '5px';
+          retryBtn.style.cursor = 'pointer';
+          retryBtn.style.fontWeight = '600';
+          retryBtn.addEventListener('click', retryFunction);
+          cell.appendChild(retryBtn);
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
         }
 
         // Helper: Handle fetch errors uniformly
@@ -2605,7 +2639,7 @@
             console.error('Error loading buyer registrations:', error);
             
             // Show error with retry button
-            showTableError('buyerRegistrationsBody', error.message, 'loadBuyerRegistrations()', 12);
+            showTableError('buyerRegistrationsBody', error.message, loadBuyerRegistrations, 12);
           }
         }
 
@@ -2913,7 +2947,20 @@
         // Show loading state
         const tbody = document.querySelector('#users-table tbody');
         if (tbody) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;"><div class="loading-spinner"></div> Loading...</td></tr>';
+          tbody.innerHTML = '';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 4;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          
+          const spinner = document.createElement('div');
+          spinner.className = 'loading-spinner';
+          cell.appendChild(spinner);
+          cell.appendChild(document.createTextNode(' Loading...'));
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
         }
         
         const res = await fetch('/users');
@@ -2925,7 +2972,15 @@
           tbody.innerHTML = '';
           
           if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #64748b; padding: 20px;">No users found</td></tr>';
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 4;
+            cell.style.textAlign = 'center';
+            cell.style.color = '#64748b';
+            cell.style.padding = '20px';
+            cell.textContent = 'No users found';
+            row.appendChild(cell);
+            tbody.appendChild(row);
             return;
           }
           
@@ -2939,16 +2994,33 @@
         console.error('Error loading users:', error);
         const tbody = document.querySelector('#users-table tbody');
         if (tbody) {
-          tbody.innerHTML = `
-            <tr>
-              <td colspan="4" style="text-align: center; padding: 20px; color: #ef4444;">
-                <div style="margin-bottom: 10px;">❌ ${error.message}</div>
-                <button onclick="loadUsers()" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 600;">
-                  🔄 Retry
-                </button>
-              </td>
-            </tr>
-          `;
+          tbody.innerHTML = '';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 4;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          cell.style.color = '#ef4444';
+          
+          const errorDiv = document.createElement('div');
+          errorDiv.style.marginBottom = '10px';
+          errorDiv.textContent = '❌ ' + error.message;
+          cell.appendChild(errorDiv);
+          
+          const retryBtn = document.createElement('button');
+          retryBtn.textContent = '🔄 Retry';
+          retryBtn.style.padding = '8px 16px';
+          retryBtn.style.background = '#667eea';
+          retryBtn.style.color = 'white';
+          retryBtn.style.border = 'none';
+          retryBtn.style.borderRadius = '5px';
+          retryBtn.style.cursor = 'pointer';
+          retryBtn.style.fontWeight = '600';
+          retryBtn.addEventListener('click', loadUsers);
+          cell.appendChild(retryBtn);
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
         }
       }
     }
@@ -3414,7 +3486,7 @@
         showNotify('❌ Error loading requests', '#ef4444');
         
         // Show error with retry button
-        showTableError('requestsTableBody', error.message, 'loadSellerRequests()', 8);
+        showTableError('requestsTableBody', error.message, () => loadSellerRequests(currentStatusFilter), 8);
       }
     }
     
@@ -3599,8 +3671,8 @@
         console.error('Error loading seller concerns:', error);
         showNotify('❌ Error loading concerns', '#ef4444');
         
-        // Show error with retry button
-        showTableError('concernsTableBody', error.message, 'loadSellerConcerns()', 7);
+        // Show error with retry button (retry with current filter)
+        showTableError('concernsTableBody', error.message, () => loadSellerConcerns(filter), 7);
       }
     }
     
@@ -3752,7 +3824,7 @@
         showNotify('❌ Error loading sellers: ' + error.message, '#ef4444');
         
         // Show error with retry button
-        showTableError('sellersTableBody', error.message, 'loadSellers()', 5);
+        showTableError('sellersTableBody', error.message, loadSellers, 5);
       }
       
       // Update result count after loading
