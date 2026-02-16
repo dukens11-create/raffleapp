@@ -11,6 +11,88 @@ A web-based raffle ticket management system for organizing and managing raffle d
 - 📱 Mobile-responsive design
 - 🔐 Secure authentication
 
+<<<<<<< HEAD
+=======
+## 📱 Mobile Apps (Android & iOS)
+
+This project now offers **two mobile app options**:
+
+### Option 1: Flutter Native App (NEW) ⭐
+
+A native Flutter mobile application with full feature parity and native performance.
+
+**Features:**
+- ✅ True native app performance
+- ✅ Beautiful Material Design UI
+- ✅ Full offline support
+- ✅ Native camera integration for QR/barcode scanning
+- ✅ Push notifications
+- ✅ Admin, Seller, and Buyer interfaces
+
+**Quick Start:**
+```bash
+cd flutter_app
+flutter pub get
+flutter run
+```
+
+See [flutter_app/FLUTTER_BUILD_GUIDE.md](flutter_app/FLUTTER_BUILD_GUIDE.md) for complete instructions.
+
+### Option 2: Capacitor Web Wrapper
+
+The web application can also be wrapped into mobile apps using **Capacitor** (not Flutter or React Native).
+
+**Why Capacitor?**
+
+Capacitor is a cross-platform app runtime that wraps your existing web application into native mobile apps. This means:
+- ✅ No need to rewrite your app in Flutter or React Native  
+- ✅ Your existing HTML/CSS/JavaScript code works on mobile
+- ✅ Native features (camera, notifications) available through plugins
+- ✅ Fast development - changes to web code automatically work on mobile
+
+### Quick Start for Mobile
+
+```bash
+cd raffle-app
+
+# Install dependencies (includes Capacitor)
+npm install
+
+# Prepare web files for mobile
+npm run build
+
+# Initialize Capacitor (first time only)
+npm run cap:init
+
+# Add platforms
+npm run cap:add:android    # For Android
+npm run cap:add:ios        # For iOS (macOS only)
+
+# Sync files
+npm run cap:sync
+
+# Open in native IDE
+npm run cap:open:android   # Opens Android Studio
+npm run cap:open:ios       # Opens Xcode
+```
+
+### What You Get
+
+- ✅ **Android APK/AAB** - Ready for Google Play Store
+- ✅ **iOS IPA** - Ready for Apple App Store  
+- ✅ **Native Features** - Camera, push notifications, offline support
+- ✅ **60fps Performance** - Smooth animations
+- ✅ **Easy Updates** - Sync web changes to mobile
+
+### Full Documentation
+
+See [MOBILE_BUILD_GUIDE.md](raffle-app/MOBILE_BUILD_GUIDE.md) for complete instructions on:
+- Android and iOS build steps
+- App store submission guidelines
+- Testing and troubleshooting
+- Required tools and prerequisites
+
+>>>>>>> main
 ## Default Admin Credentials
 
 When the application starts for the first time, a default admin account is automatically created:

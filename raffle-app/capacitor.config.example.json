@@ -1,0 +1,46 @@
+{
+  "_comment": "This is an example Capacitor configuration. Copy to capacitor.config.json and customize.",
+  "appId": "com.grategenyen.raffle",
+  "appName": "Grate Genyen",
+  "webDir": "www",
+  "server": {
+    "_comment": "For development, use your local IP or ngrok URL. For production, use your actual domain. Remove this section to use bundled files.",
+    "url": "https://your-production-domain.com",
+    "cleartext": true,
+    "androidScheme": "https"
+  },
+  "android": {
+    "buildOptions": {
+      "_comment": "Add keystore configuration here for production builds. NEVER commit keystores to version control!",
+      "_example": {
+        "keystorePath": "/absolute/path/to/release-key.keystore",
+        "keystoreAlias": "raffle-key",
+        "keystorePassword": "use-environment-variable",
+        "keystoreAliasPassword": "use-environment-variable"
+      }
+    }
+  },
+  "ios": {
+    "contentInset": "automatic",
+    "scheme": "Grate Genyen"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#667eea",
+      "showSpinner": true,
+      "spinnerColor": "#ffffff"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "Camera": {
+      "ios": {
+        "NSCameraUsageDescription": "This app uses the camera to scan barcodes and tickets."
+      },
+      "android": {
+        "permissions": ["CAMERA"]
+      }
+    }
+  }
+}

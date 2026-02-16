@@ -168,8 +168,263 @@
             line-height: 1.6;
         }
         
+<<<<<<< HEAD
         .quick-start {
             background: #f8f9fa;
+=======
+        /* Ticket Types Section - Professional Lottery Designs */
+        .ticket-types {
+            background: #f8f9fa;
+            padding: 80px 0;
+        }
+        
+        .ticket-types h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+        
+        .ticket-types .subtitle-text {
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 50px;
+            color: var(--light-text);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .ticket-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .ticket-card {
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .ticket-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+        }
+        
+        .ticket-header-display {
+            padding: 40px 20px;
+            color: white;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .ticket-header-display::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        
+        .ticket-name {
+            position: relative;
+            z-index: 10;
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .ticket-type-label {
+            position: relative;
+            z-index: 10;
+            background: rgba(255, 255, 255, 0.95);
+            color: #1e293b;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-block;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+        
+        .ticket-body {
+            background: white;
+            padding: 25px;
+        }
+        
+        .ticket-price {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #dc2626;
+            margin-bottom: 10px;
+        }
+        
+        .ticket-prize {
+            font-size: 1.1rem;
+            color: var(--light-text);
+            margin-bottom: 15px;
+        }
+        
+        .ticket-features {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .ticket-features li {
+            padding: 8px 0;
+            color: var(--light-text);
+            font-size: 0.95rem;
+        }
+        
+        .ticket-features li::before {
+            content: '✓';
+            color: #10b981;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        /* Basic Ticket - Green Sparkle Theme */
+        .ticket-basic .ticket-header-display {
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
+        }
+        
+        .ticket-basic .ticket-header-display::before {
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px),
+                radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px);
+            background-size: 50px 50px, 80px 80px;
+            background-position: 0 0, 40px 40px;
+            animation: sparkle 3s linear infinite;
+        }
+        
+        /* Premium Ticket - Purple Cosmic Theme */
+        .ticket-premium .ticket-header-display {
+            background: linear-gradient(135deg, #7c3aed 0%, #6366f1 50%, #8b5cf6 100%);
+        }
+        
+        .ticket-premium .ticket-header-display::before {
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.8) 2px, transparent 2px),
+                radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px);
+            background-size: 100px 100px, 60px 60px;
+            background-position: 0 0, 50px 50px;
+            animation: cosmicFloat 4s ease-in-out infinite;
+        }
+        
+        /* Bronze Ticket - Bronze/Orange Gradient */
+        .ticket-bronze .ticket-header-display {
+            background: linear-gradient(135deg, #ea580c 0%, #dc2626 50%, #c2410c 100%);
+        }
+        
+        .ticket-bronze .ticket-header-display::before {
+            background-image: 
+                radial-gradient(circle, rgba(255,215,0,0.4) 2px, transparent 2px),
+                radial-gradient(circle, rgba(255,255,255,0.3) 1px, transparent 1px);
+            background-size: 70px 70px, 45px 45px;
+            background-position: 0 0, 35px 35px;
+            animation: sparkle 2.5s linear infinite;
+        }
+        
+        .ticket-bronze .ticket-type-label {
+            background: linear-gradient(135deg, #fed7aa, #fdba74);
+            color: #7c2d12;
+        }
+        
+        /* Silver Ticket - Metallic Silver/Gray Holographic */
+        .ticket-silver .ticket-header-display {
+            background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 50%, #64748b 100%);
+        }
+        
+        .ticket-silver .ticket-header-display::before {
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.6) 2px, transparent 2px),
+                radial-gradient(circle, rgba(96,165,250,0.3) 1px, transparent 1px),
+                radial-gradient(circle, rgba(134,239,172,0.3) 1px, transparent 1px);
+            background-size: 60px 60px, 80px 80px, 100px 100px;
+            background-position: 0 0, 40px 40px, 20px 60px;
+            animation: holographic 3s linear infinite;
+        }
+        
+        /* Gold Ticket - Golden Sunburst */
+        .ticket-gold .ticket-header-display {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+        }
+        
+        .ticket-gold .ticket-header-display::before {
+            background: 
+                repeating-conic-gradient(
+                    from 0deg at 50% 50%,
+                    rgba(255,255,255,0.3) 0deg,
+                    transparent 2deg,
+                    transparent 8deg,
+                    rgba(255,255,255,0.3) 10deg
+                );
+            animation: rotateRays 20s linear infinite;
+        }
+        
+        .ticket-gold .ticket-type-label {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #78350f;
+        }
+        
+        /* Diamond Ticket - Blue Icy Diamonds */
+        .ticket-diamond .ticket-header-display {
+            background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #0891b2 100%);
+        }
+        
+        .ticket-diamond .ticket-header-display::before {
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.8) 2px, transparent 2px),
+                radial-gradient(circle, rgba(255,255,255,0.5) 1px, transparent 1px);
+            background-size: 80px 80px, 50px 50px;
+            background-position: 0 0, 40px 40px;
+            animation: sparkle 2s linear infinite;
+        }
+        
+        /* Animations for Ticket Types */
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        @keyframes cosmicFloat {
+            0%, 100% { 
+                background-position: 0 0, 50px 50px;
+            }
+            50% { 
+                background-position: 20px 20px, 70px 70px;
+            }
+        }
+        
+        @keyframes holographic {
+            0% { 
+                background-position: 0 0, 40px 40px, 20px 60px;
+            }
+            100% { 
+                background-position: 60px 60px, 100px 100px, 80px 120px;
+            }
+        }
+        
+        @keyframes rotateRays {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .quick-start {
+            background: white;
+>>>>>>> main
             padding: 60px 0;
         }
         
@@ -237,9 +492,20 @@
             }
             
             .features h2,
+<<<<<<< HEAD
             .quick-start h2 {
                 font-size: 2rem;
             }
+=======
+            .ticket-types h2,
+            .quick-start h2 {
+                font-size: 2rem;
+            }
+            
+            .ticket-grid {
+                grid-template-columns: 1fr;
+            }
+>>>>>>> main
         }
     </style>
 </head>
@@ -298,6 +564,120 @@
         </div>
     </section>
     
+<<<<<<< HEAD
+=======
+    <section class="ticket-types">
+        <div class="container">
+            <h2>Professional Lottery Ticket Designs</h2>
+            <p class="subtitle-text">Choose from 6 authentic, professional lottery-style scratch tickets, each with unique visual themes, pricing tiers, and prize structures</p>
+            
+            <div class="ticket-grid">
+                <!-- Basic Ticket -->
+                <div class="ticket-card ticket-basic">
+                    <div class="ticket-header-display">
+                        <div class="ticket-name">GRATE GENYEN</div>
+                        <div class="ticket-type-label">Basic</div>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="ticket-price">50 HTG</div>
+                        <div class="ticket-prize">Win up to 5,000 GOURDES!</div>
+                        <ul class="ticket-features">
+                            <li>Green sparkle theme</li>
+                            <li>Animated gradient effects</li>
+                            <li>Interactive scratch-off gameplay</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Premium Ticket -->
+                <div class="ticket-card ticket-premium">
+                    <div class="ticket-header-display">
+                        <div class="ticket-name">GRATE GENYEN</div>
+                        <div class="ticket-type-label">Premium</div>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="ticket-price">100 HTG</div>
+                        <div class="ticket-prize">Win up to 15,000 GOURDES!</div>
+                        <ul class="ticket-features">
+                            <li>Purple cosmic theme</li>
+                            <li>Floating star animations</li>
+                            <li>Enhanced prize structure</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Bronze Ticket -->
+                <div class="ticket-card ticket-bronze">
+                    <div class="ticket-header-display">
+                        <div class="ticket-name">GRATE GENYEN</div>
+                        <div class="ticket-type-label">Bronze</div>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="ticket-price">250 HTG</div>
+                        <div class="ticket-prize">Win up to 50,000 GOURDES!</div>
+                        <ul class="ticket-features">
+                            <li>Bronze/orange gradient</li>
+                            <li>Sparkle pattern effects</li>
+                            <li>Mid-tier prize opportunities</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Silver Ticket -->
+                <div class="ticket-card ticket-silver">
+                    <div class="ticket-header-display">
+                        <div class="ticket-name">GRATE GENYEN</div>
+                        <div class="ticket-type-label">Silver</div>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="ticket-price">500 HTG</div>
+                        <div class="ticket-prize">Win up to 150,000 GOURDES!</div>
+                        <ul class="ticket-features">
+                            <li>Silver holographic effect</li>
+                            <li>Multi-color shimmer patterns</li>
+                            <li>Premium prize tiers</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Gold Ticket -->
+                <div class="ticket-card ticket-gold">
+                    <div class="ticket-header-display">
+                        <div class="ticket-name">GRATE GENYEN</div>
+                        <div class="ticket-type-label">Gold</div>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="ticket-price">1,000 HTG</div>
+                        <div class="ticket-prize">Win up to 250,000 GOURDES!</div>
+                        <ul class="ticket-features">
+                            <li>Golden sunburst rays</li>
+                            <li>Rotating ray animations</li>
+                            <li>High-value rewards</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Diamond Ticket -->
+                <div class="ticket-card ticket-diamond">
+                    <div class="ticket-header-display">
+                        <div class="ticket-name">GRATE GENYEN</div>
+                        <div class="ticket-type-label">Diamond</div>
+                    </div>
+                    <div class="ticket-body">
+                        <div class="ticket-price">5,000 HTG</div>
+                        <div class="ticket-prize">Win up to 1,000,000 GOURDES!</div>
+                        <ul class="ticket-features">
+                            <li>Blue icy diamond theme</li>
+                            <li>Crystal sparkle effects</li>
+                            <li>Maximum jackpot prizes</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+>>>>>>> main
     <section class="quick-start">
         <div class="container">
             <h2>Quick Start</h2>
