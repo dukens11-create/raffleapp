@@ -3322,6 +3322,61 @@ app.get('/audit-logs', requireAuth, requireAdmin, (req, res) => {
   res.json([]);
 });
 
+// GET /api/admin/statistics - Admin dashboard statistics
+app.get('/api/admin/statistics', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    // Get category statistics
+    const categoryStats = await db.all(`
+      SELECT 
+        category,
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as sold,
+        SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available
+      FROM tickets
+      WHERE category IS NOT NULL
+      GROUP BY category
+      ORDER BY category
+    `);
+
+    // Get total statistics
+    const totalStatsRow = await db.get(`
+      SELECT 
+        COUNT(*) as total_tickets,
+        SUM(CASE WHEN status = 'sold' THEN 1 ELSE 0 END) as total_sold,
+        SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as total_available
+      FROM tickets
+    `);
+
+    // Get recent activity (audit logs simulation using ticket sales)
+    const auditLogs = await db.all(`
+      SELECT 
+        sold_at as created_at,
+        seller_name as user,
+        'Ticket Sale' as action,
+        'Ticket #' || COALESCE(CAST(number AS TEXT), 'N/A') || ' (' || COALESCE(category, 'N/A') || ') sold to ' || COALESCE(buyer_name, 'Anonymous') as details
+      FROM tickets
+      WHERE status = 'sold' AND sold_at IS NOT NULL
+      ORDER BY sold_at DESC
+      LIMIT 50
+    `);
+
+    res.json({
+      success: true,
+      categories: categoryStats,
+      totals: totalStatsRow || { total_tickets: 0, total_sold: 0, total_available: 0 },
+      auditLogs: auditLogs
+    });
+
+  } catch (error) {
+    console.error('Statistics error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load statistics',
+      message: error.message
+    });
+  }
+});
+
 app.get('/sales-report', requireAuth, requireAdmin, async (req, res) => {
   try {
     // Add LIMIT to prevent loading all sellers
