@@ -292,9 +292,51 @@
         .install-btn:active {
             transform: translateY(0);
         }
+        /* Language Selector Styles */
+        .language-selector {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 12px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .lang-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 24px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            width: auto;
+            min-height: 40px;
+        }
+        
+        .lang-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: scale(1.1);
+        }
+        
+        .lang-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
     </style>
 </head>
 <body>
+    <!-- Language Selector -->
+    <div class="language-selector">
+        <button class="lang-btn" data-lang="en" title="English" aria-label="Switch to English">🇺🇸</button>
+        <button class="lang-btn" data-lang="ht" title="Kreyòl Ayisyen" aria-label="Switch to Haitian Creole">🇭🇹</button>
+        <button class="lang-btn" data-lang="fr" title="Français" aria-label="Switch to French">🇫🇷</button>
+    </div>
+    
     <div class="container">
         <!-- Logo -->
         <div class="logo-container">
@@ -302,12 +344,12 @@
         </div>
         
         <!-- Heading -->
-        <h1>Welcome Back</h1>
-        <p class="subtitle">Sign in to your RaffleApp account</p>
+        <h1 data-translate="welcomeBack">Welcome Back</h1>
+        <p class="subtitle" data-translate="signInSubtitle">Sign in to your RaffleApp account</p>
         
         <form id="loginForm" autocomplete="off">
             <div class="form-group">
-                <label for="phone">Phone Number</label>
+                <label for="phone" data-translate="phoneNumber">Phone Number</label>
                 <input 
                     type="tel" 
                     id="phone" 
@@ -317,32 +359,35 @@
                     autocorrect="off"
                     autocapitalize="off"
                     spellcheck="false"
+                    data-translate-placeholder="phonePlaceholder"
                     placeholder="Enter your phone number">
             </div>
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password" data-translate="password">Password</label>
                 <input 
                     type="password" 
                     id="password" 
                     name="password"
                     required 
                     autocomplete="new-password"
+                    data-translate-placeholder="passwordPlaceholder"
                     placeholder="Enter your password">
                 <button 
                     type="button" 
                     id="togglePassword" 
                     onclick="togglePasswordVisibility()"
+                    data-translate-title="showPassword"
                     title="Show password"
                     aria-label="Toggle password visibility">
                     <span class="icon" aria-hidden="true">👁️</span>
-                    <span>Show password</span>
+                    <span data-translate="showPassword">Show password</span>
                 </button>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit" data-translate="loginButton">Login</button>
             <div id="message"></div>
         </form>
         <div class="register-link">
-            <p>Don't have access? <a href="/register-seller.html">Request Seller Access</a></p>
+            <p><span data-translate="noAccess">Don't have access?</span> <a href="/register-seller.html" data-translate="requestAccess">Request Seller Access</a></p>
         </div>
 
         
@@ -677,6 +722,199 @@
             console.log('✅ App installed successfully!');
             installPromptDiv.style.display = 'none';
         });
+    </script>
+    
+    <!-- Language Translation Script -->
+    <script>
+        // Comprehensive translations for login page
+        const translations = {
+            en: {
+                welcomeBack: "Welcome Back",
+                signInSubtitle: "Sign in to your RaffleApp account",
+                phoneNumber: "Phone Number",
+                phonePlaceholder: "Enter your phone number",
+                password: "Password",
+                passwordPlaceholder: "Enter your password",
+                showPassword: "Show password",
+                hidePassword: "Hide password",
+                loginButton: "Login",
+                loggingIn: "Logging in...",
+                noAccess: "Don't have access?",
+                requestAccess: "Request Seller Access",
+                installApp: "📱 Install App",
+                installAppIOS: "📱 Install App (iOS)",
+                installAppAndroid: "📱 Install App (Android)",
+                installPrompt: "Install for quick access from your home screen",
+                // Messages
+                enterPhone: "Please enter your phone number",
+                enterPassword: "Please enter your password",
+                loginSuccess: "✅ Login successful!",
+                clickHere: "Click Here to Access Dashboard →",
+                redirecting: "Redirecting in 1.5 seconds... or tap button above",
+                tapButton: "Tap the button above if not redirected automatically"
+            },
+            ht: {
+                welcomeBack: "Byenvini Ankò",
+                signInSubtitle: "Konekte nan kont RaffleApp ou",
+                phoneNumber: "Nimewo Telefòn",
+                phonePlaceholder: "Antre nimewo telefòn ou",
+                password: "Modpas",
+                passwordPlaceholder: "Antre modpas ou",
+                showPassword: "Montre modpas",
+                hidePassword: "Kache modpas",
+                loginButton: "Konekte",
+                loggingIn: "Ap konekte...",
+                noAccess: "Ou pa gen aksè?",
+                requestAccess: "Mande Aksè Vandè",
+                installApp: "📱 Enstale App",
+                installAppIOS: "📱 Enstale App (iOS)",
+                installAppAndroid: "📱 Enstale App (Android)",
+                installPrompt: "Enstale pou aksè rapid nan ekran akèy ou",
+                // Messages
+                enterPhone: "Tanpri antre nimewo telefòn ou",
+                enterPassword: "Tanpri antre modpas ou",
+                loginSuccess: "✅ Koneksyon reyisi!",
+                clickHere: "Klike Isit la pou Jwenn Tablo Bò →",
+                redirecting: "Ap redirije nan 1.5 segonn... oswa tape bouton anlè a",
+                tapButton: "Tape bouton anlè a si ou pa redirije otomatikman"
+            },
+            fr: {
+                welcomeBack: "Bienvenue",
+                signInSubtitle: "Connectez-vous à votre compte RaffleApp",
+                phoneNumber: "Numéro de Téléphone",
+                phonePlaceholder: "Entrez votre numéro de téléphone",
+                password: "Mot de passe",
+                passwordPlaceholder: "Entrez votre mot de passe",
+                showPassword: "Afficher le mot de passe",
+                hidePassword: "Masquer le mot de passe",
+                loginButton: "Connexion",
+                loggingIn: "Connexion en cours...",
+                noAccess: "Vous n'avez pas d'accès?",
+                requestAccess: "Demander l'Accès Vendeur",
+                installApp: "📱 Installer l'Application",
+                installAppIOS: "📱 Installer l'Application (iOS)",
+                installAppAndroid: "📱 Installer l'Application (Android)",
+                installPrompt: "Installez pour un accès rapide depuis votre écran d'accueil",
+                // Messages
+                enterPhone: "Veuillez entrer votre numéro de téléphone",
+                enterPassword: "Veuillez entrer votre mot de passe",
+                loginSuccess: "✅ Connexion réussie!",
+                clickHere: "Cliquez Ici pour Accéder au Tableau de Bord →",
+                redirecting: "Redirection dans 1.5 secondes... ou appuyez sur le bouton ci-dessus",
+                tapButton: "Appuyez sur le bouton ci-dessus si vous n'êtes pas redirigé automatiquement"
+            }
+        };
+        
+        // Get current language from localStorage or default to English
+        function getCurrentLanguage() {
+            return localStorage.getItem('raffleAppLanguage') || 'en';
+        }
+        
+        // Set language
+        function setLanguage(lang) {
+            localStorage.setItem('raffleAppLanguage', lang);
+            
+            // Update all elements with data-translate attribute
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+            
+            // Update placeholders
+            document.querySelectorAll('[data-translate-placeholder]').forEach(element => {
+                const key = element.getAttribute('data-translate-placeholder');
+                if (translations[lang] && translations[lang][key]) {
+                    element.placeholder = translations[lang][key];
+                }
+            });
+            
+            // Update titles
+            document.querySelectorAll('[data-translate-title]').forEach(element => {
+                const key = element.getAttribute('data-translate-title');
+                if (translations[lang] && translations[lang][key]) {
+                    element.title = translations[lang][key];
+                }
+            });
+            
+            // Update active button
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            
+            // Update install button text if it exists
+            const installButton = document.getElementById('installButton');
+            if (installButton) {
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                const isAndroid = /Android/.test(navigator.userAgent);
+                
+                if (isIOS) {
+                    installButton.innerHTML = translations[lang].installAppIOS;
+                } else if (isAndroid) {
+                    installButton.innerHTML = translations[lang].installAppAndroid;
+                } else {
+                    installButton.innerHTML = translations[lang].installApp;
+                }
+            }
+        }
+        
+        // Initialize language on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            const currentLang = getCurrentLanguage();
+            setLanguage(currentLang);
+        });
+        
+        // Add click handlers for language buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lang = btn.getAttribute('data-lang');
+                setLanguage(lang);
+            });
+        });
+        
+        // Override the original toggle password function to use translations
+        window.togglePasswordVisibility = function() {
+            const passwordInput = document.getElementById('password');
+            const toggleButton = document.getElementById('togglePassword');
+            const currentLang = getCurrentLanguage();
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleButton.innerHTML = `<span class="icon" aria-hidden="true">🙈</span><span data-translate="hidePassword">${translations[currentLang].hidePassword}</span>`;
+                toggleButton.title = translations[currentLang].hidePassword;
+            } else {
+                passwordInput.type = 'password';
+                toggleButton.innerHTML = `<span class="icon" aria-hidden="true">👁️</span><span data-translate="showPassword">${translations[currentLang].showPassword}</span>`;
+                toggleButton.title = translations[currentLang].showPassword;
+            }
+        };
+        
+        // Update form submission messages with translations
+        const originalFormSubmit = document.getElementById('loginForm').onsubmit;
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            const currentLang = getCurrentLanguage();
+            const messageDiv = document.getElementById('message');
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            
+            // Store original button text
+            const originalButtonText = submitButton.textContent;
+            
+            // Override button text during submission
+            const originalDisabled = submitButton.disabled;
+            const checkSubmitting = setInterval(() => {
+                if (submitButton.disabled && submitButton.textContent.includes('Logging')) {
+                    submitButton.textContent = translations[currentLang].loggingIn;
+                }
+            }, 100);
+            
+            // Clean up interval after 10 seconds
+            setTimeout(() => clearInterval(checkSubmitting), 10000);
+        }, true); // Use capture phase to run before other handlers
     </script>
 </body>
 </html>
