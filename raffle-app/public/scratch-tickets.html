@@ -521,6 +521,21 @@
       transform: translateY(0);
     }
     
+    /* Jwe Ankò text under scratch area */
+    .jwe-anko-text {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: #64748b;
+      padding: 8px 0;
+      font-style: italic;
+      letter-spacing: 0.5px;
+    }
+    
+    .jwe-anko-text.hidden {
+      display: none;
+    }
+    
     /* Responsive */
     @media (max-width: 768px) {
       .ticket-gallery {
@@ -763,6 +778,18 @@
         this.setupCanvas();
         this.drawCoverLayer();
         this.attachEventListeners();
+        this.setJweAnkoVisibility();  // Set visibility of "Jwe Ankò" text
+      }
+      
+      setJweAnkoVisibility() {
+        // Show "Jwe Ankò" text in 80% of tickets
+        const jweAnkoElement = document.getElementById(`jwe-anko-${this.config.id}`);
+        if (jweAnkoElement) {
+          const showJweAnko = Math.random() < 0.8;  // 80% probability
+          if (!showJweAnko) {
+            jweAnkoElement.classList.add('hidden');
+          }
+        }
       }
       
       async fetchTicketData() {
@@ -849,6 +876,7 @@
               <canvas id="canvas-${this.config.id}"></canvas>
             </div>
           </div>
+          <div class="jwe-anko-text" id="jwe-anko-${this.config.id}">Jwe Ankò</div>
           <div class="prize-footer">
             <div class="prize-footer-label">GRATE & GENYEN JISKA</div>
             <div class="prize-footer-amount">${this.config.prizeRange}</div>
