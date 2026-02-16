@@ -3,13 +3,6 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-<<<<<<< HEAD
-    "start": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
-    "dev": "nodemon server.js",
-    "migrate:barcodes": "node migrations/migrate_to_8digit_barcodes.js",
-    "mark-available": "node scripts/markTicketsAvailable.js",
-    "mark-available:dry-run": "node scripts/markTicketsAvailable.js --dry-run"
-=======
     "start": "node server.js",
     "start:prod": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
     "dev": "nodemon server.js",
@@ -27,7 +20,6 @@
     "android:build": "cd android && ./gradlew assembleRelease",
     "android:bundle": "cd android && ./gradlew bundleRelease",
     "ios:build": "cd ios/App && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release archive"
->>>>>>> main
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -64,9 +56,6 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
-<<<<<<< HEAD
-    "nodemon": "^3.1.11"
-=======
     "nodemon": "^3.1.11",
     "@capacitor/cli": "^5.5.1",
     "@capacitor/core": "^5.5.1",
@@ -78,6 +67,5 @@
     "@capacitor/status-bar": "^5.0.6",
     "@capacitor/app": "^5.0.6",
     "@capacitor/network": "^5.0.6"
->>>>>>> main
   }
 }
