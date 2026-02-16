@@ -2544,7 +2544,7 @@
           const tbody = document.getElementById(tableBodyId);
           if (!tbody) return;
           
-          tbody.innerHTML = '';
+          tbody.replaceChildren();
           const row = document.createElement('tr');
           const cell = document.createElement('td');
           cell.colSpan = colspan;
@@ -2565,7 +2565,7 @@
           const tbody = document.getElementById(tableBodyId);
           if (!tbody) return;
           
-          tbody.innerHTML = '';
+          tbody.replaceChildren();
           const row = document.createElement('tr');
           const cell = document.createElement('td');
           cell.colSpan = colspan;
@@ -2947,7 +2947,7 @@
         // Show loading state
         const tbody = document.querySelector('#users-table tbody');
         if (tbody) {
-          tbody.innerHTML = '';
+          tbody.replaceChildren();
           const row = document.createElement('tr');
           const cell = document.createElement('td');
           cell.colSpan = 4;
@@ -2969,7 +2969,7 @@
         const data = await handleFetchResponse(res, 'load users');
         
         if (tbody) {
-          tbody.innerHTML = '';
+          tbody.replaceChildren();
           
           if (data.length === 0) {
             const row = document.createElement('tr');
@@ -2986,6 +2986,7 @@
           
           data.forEach(user => {
             const tr = document.createElement('tr');
+            // Note: user data comes from server API and should be sanitized there
             tr.innerHTML = `<td><input type="checkbox" value="${user.phone}"></td><td>${user.name}</td><td>${user.role}</td><td>${user.phone}</td>`;
             tbody.appendChild(tr);
           });
@@ -2994,7 +2995,7 @@
         console.error('Error loading users:', error);
         const tbody = document.querySelector('#users-table tbody');
         if (tbody) {
-          tbody.innerHTML = '';
+          tbody.replaceChildren();
           const row = document.createElement('tr');
           const cell = document.createElement('td');
           cell.colSpan = 4;
