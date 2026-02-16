@@ -52,7 +52,7 @@
     "stripe": "^20.1.0",
     "twilio": "^5.4.0",
     "winston": "^3.19.0",
-    "xlsx": "^0.18.5",
+    "exceljs": "^4.4.0",
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
