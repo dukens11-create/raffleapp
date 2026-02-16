@@ -16,13 +16,14 @@ class TicketConstants {
       coverText: 'GRATE TOUTE',
       category: 'BAS',
       prizes: [
-        Prize(emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 1),
-        Prize(emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 3),
-        Prize(emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 10),
-        Prize(emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 25),
-        Prize(emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 60),
-        Prize(emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100),
-        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 201),
+        Prize(emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 10),
+        Prize(emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 30),
+        Prize(emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 100),
+        Prize(emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 250),
+        Prize(emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 600),
+        Prize(emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 1000),
+        Prize(emoji: '🏆', text: 'OU GENYEN\n500 HTG', value: 500, weight: 2),
+        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 2010),
       ],
       theme: TicketTheme(
         gradientColors: [
