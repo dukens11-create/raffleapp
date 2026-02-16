@@ -2427,19 +2427,100 @@
                         makeRowsClickable('sales-table', tds => `Seller: ${tds[0]}\nTickets Sold: ${tds[1]}`);
                         // Users clickable
                         makeRowsClickable('users-table', tds => `Name: ${tds[0]}\nRole: ${tds[1]}\nPhone: ${tds[2]}`);
-                    // Load audit logs
-                    async function loadAuditLogs() {
-                      const res = await fetch('/audit-logs');
-                      const data = await res.json();
-                      const tbody = document.querySelector('#audit-table tbody');
-                      tbody.innerHTML = '';
-                      data.forEach(log => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `<td>${log.created_at}</td><td>${log.user}</td><td>${log.action}</td><td>${log.details}</td>`;
-                        tbody.appendChild(tr);
-                      });
+                    // Load statistics from new unified endpoint
+                    async function loadStatistics() {
+                      try {
+                        const response = await fetch('/api/admin/statistics', {
+                          credentials: 'include',
+                          headers: { 'Accept': 'application/json' }
+                        });
+
+                        if (!response.ok) {
+                          throw new Error(`HTTP ${response.status}`);
+                        }
+
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType?.includes('application/json')) {
+                          throw new Error('Server returned non-JSON response');
+                        }
+
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                          displayCategoryStats(data.categories);
+                          displayAuditLogs(data.auditLogs);
+                          displayInventory(data.categories);
+                        } else {
+                          showError(data.error || 'Failed to load statistics');
+                        }
+
+                      } catch (error) {
+                        console.error('Failed to load statistics:', error);
+                        showError('Unable to load statistics. Please refresh the page.');
+                      }
                     }
-                    loadAuditLogs();
+
+                    function displayCategoryStats(categories) {
+                      // For now, this is handled by the existing chart code
+                      // The data format is compatible
+                    }
+
+                    function displayAuditLogs(logs) {
+                      const tbody = document.querySelector('#audit-table tbody');
+                      if (!tbody) return;
+                      
+                      if (!logs || logs.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b;">No recent activity</td></tr>';
+                        return;
+                      }
+                      
+                      tbody.innerHTML = logs.map(log => `
+                        <tr>
+                          <td>${log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}</td>
+                          <td>${log.user || 'System'}</td>
+                          <td>${log.action || 'N/A'}</td>
+                          <td>${log.details || ''}</td>
+                        </tr>
+                      `).join('');
+                    }
+
+                    function displayInventory(categories) {
+                      const tbody = document.querySelector('#inventory-table tbody');
+                      if (!tbody) return;
+                      
+                      if (!categories || categories.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px; color: #64748b;">No inventory data</td></tr>';
+                        return;
+                      }
+                      
+                      tbody.innerHTML = categories.map(cat => `
+                        <tr>
+                          <td>${cat.category || 'N/A'}</td>
+                          <td>${cat.total || 0}</td>
+                          <td>${cat.sold || 0}</td>
+                          <td>${cat.available || 0}</td>
+                        </tr>
+                      `).join('');
+                    }
+
+                    function showError(message) {
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'alert alert-warning statistics-error';
+                      errorDiv.style.cssText = 'padding: 15px; margin: 15px 0; background: #fef3c7; border-left: 4px solid #f59e0b; color: #92400e; border-radius: 4px;';
+                      errorDiv.textContent = message;
+                      const mainContent = document.querySelector('.main-content');
+                      if (mainContent && mainContent.firstChild) {
+                        mainContent.insertBefore(errorDiv, mainContent.firstChild);
+                      }
+                    }
+
+                    // Load audit logs (legacy function for backward compatibility)
+                    async function loadAuditLogs() {
+                      await loadStatistics();
+                    }
+                    
+                    // Call loadStatistics on page load
+                    loadStatistics();
             // Notification helper
             function showNotify(msg, color = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', timeout = 2500) {
               const notify = document.getElementById('notify');
@@ -2450,25 +2531,7 @@
             }
         // Load inventory
         async function loadInventory() {
-          const res = await fetch('/tickets');
-          const data = await res.json();
-          const categories = ['BAS', 'PRM', 'BRZ', 'SLV', 'GLD', 'DIA'];
-          const summary = {};
-          categories.forEach(cat => summary[cat] = { total: 0, sold: 0, available: 0 });
-          data.forEach(ticket => {
-            if (categories.includes(ticket.category)) {
-              summary[ticket.category].total++;
-              if (ticket.status === 'sold') summary[ticket.category].sold++;
-              else summary[ticket.category].available++;
-            }
-          });
-          const tbody = document.querySelector('#inventory-table tbody');
-          tbody.innerHTML = '';
-          categories.forEach(cat => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${cat}</td><td>${summary[cat].total}</td><td>${summary[cat].sold}</td><td>${summary[cat].available}</td>`;
-            tbody.appendChild(tr);
-          });
+          await loadStatistics();
         }
         loadInventory();
         
