@@ -1076,6 +1076,21 @@
     .clear-search-btn:hover {
       color: #1e293b;
     }
+
+    /* Loading Spinner */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(102, 126, 234, 0.3);
+      border-radius: 50%;
+      border-top-color: #667eea;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -2523,6 +2538,82 @@
               notify.style.display = 'block';
               setTimeout(() => { notify.style.display = 'none'; }, timeout);
             }
+
+        // Helper: Show loading state in a table
+        function showTableLoading(tableBodyId, colspan = 10) {
+          const tbody = document.getElementById(tableBodyId);
+          if (!tbody) return;
+          
+          tbody.replaceChildren();
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = colspan;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          
+          const spinner = document.createElement('div');
+          spinner.className = 'loading-spinner';
+          cell.appendChild(spinner);
+          cell.appendChild(document.createTextNode(' Loading...'));
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
+        }
+
+        // Helper: Show error state in a table with retry button
+        function showTableError(tableBodyId, errorMessage, retryFunction, colspan = 10) {
+          const tbody = document.getElementById(tableBodyId);
+          if (!tbody) return;
+          
+          tbody.replaceChildren();
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = colspan;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          cell.style.color = '#ef4444';
+          
+          const errorDiv = document.createElement('div');
+          errorDiv.style.marginBottom = '10px';
+          errorDiv.textContent = '❌ ' + errorMessage;
+          cell.appendChild(errorDiv);
+          
+          const retryBtn = document.createElement('button');
+          retryBtn.textContent = '🔄 Retry';
+          retryBtn.style.padding = '8px 16px';
+          retryBtn.style.background = '#667eea';
+          retryBtn.style.color = 'white';
+          retryBtn.style.border = 'none';
+          retryBtn.style.borderRadius = '5px';
+          retryBtn.style.cursor = 'pointer';
+          retryBtn.style.fontWeight = '600';
+          retryBtn.addEventListener('click', retryFunction);
+          cell.appendChild(retryBtn);
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
+        }
+
+        // Helper: Handle fetch errors uniformly
+        async function handleFetchResponse(response, context = 'operation') {
+          if (response.status === 401) {
+            showNotify('Session expired. Please log in again.', '#ef4444', 3000);
+            setTimeout(() => window.location.href = '/login', 2000);
+            throw new Error('Unauthorized');
+          }
+          
+          if (response.status === 403) {
+            throw new Error('You do not have permission to access this resource');
+          }
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Failed to ${context} (HTTP ${response.status})`);
+          }
+          
+          return response.json();
+        }
+
         // Load inventory
         async function loadInventory() {
           await loadStatistics();
@@ -2530,19 +2621,25 @@
         
         // Load buyer registrations
         async function loadBuyerRegistrations() {
+          const tbody = document.getElementById('buyerRegistrationsBody');
+          
           try {
+            // Show loading state
+            showTableLoading('buyerRegistrationsBody', 12);
+            
             const response = await fetch('/api/admin/buyer-registrations', {
               credentials: 'include'
             });
             
-            if (!response.ok) throw new Error('Failed to load registrations');
+            // Use helper to handle response
+            const data = await handleFetchResponse(response, 'load buyer registrations');
             
-            const data = await response.json();
             displayBuyerRegistrations(data.registrations);
           } catch (error) {
-            console.error('Error:', error);
-            const tbody = document.getElementById('buyerRegistrationsBody');
-            tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: #ef4444;">Failed to load buyer registrations</td></tr>';
+            console.error('Error loading buyer registrations:', error);
+            
+            // Show error with retry button
+            showTableError('buyerRegistrationsBody', error.message, loadBuyerRegistrations, 12);
           }
         }
 
@@ -2847,20 +2944,85 @@
     // Load users
     async function loadUsers() {
       try {
-        const res = await fetch('/users');
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        const data = await res.json();
+        // Show loading state
         const tbody = document.querySelector('#users-table tbody');
-        tbody.innerHTML = '';
-        data.forEach(user => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td><input type="checkbox" value="${user.phone}"></td><td>${user.name}</td><td>${user.role}</td><td>${user.phone}</td>`;
-          tbody.appendChild(tr);
-        });
+        if (tbody) {
+          tbody.replaceChildren();
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 4;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          
+          const spinner = document.createElement('div');
+          spinner.className = 'loading-spinner';
+          cell.appendChild(spinner);
+          cell.appendChild(document.createTextNode(' Loading...'));
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
+        }
+        
+        const res = await fetch('/users');
+        
+        // Use helper to handle response
+        const data = await handleFetchResponse(res, 'load users');
+        
+        if (tbody) {
+          tbody.replaceChildren();
+          
+          if (data.length === 0) {
+            const row = document.createElement('tr');
+            const cell = document.createElement('td');
+            cell.colSpan = 4;
+            cell.style.textAlign = 'center';
+            cell.style.color = '#64748b';
+            cell.style.padding = '20px';
+            cell.textContent = 'No users found';
+            row.appendChild(cell);
+            tbody.appendChild(row);
+            return;
+          }
+          
+          data.forEach(user => {
+            const tr = document.createElement('tr');
+            // Note: user data comes from server API and should be sanitized there
+            tr.innerHTML = `<td><input type="checkbox" value="${user.phone}"></td><td>${user.name}</td><td>${user.role}</td><td>${user.phone}</td>`;
+            tbody.appendChild(tr);
+          });
+        }
       } catch (error) {
         console.error('Error loading users:', error);
+        const tbody = document.querySelector('#users-table tbody');
+        if (tbody) {
+          tbody.replaceChildren();
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 4;
+          cell.style.textAlign = 'center';
+          cell.style.padding = '20px';
+          cell.style.color = '#ef4444';
+          
+          const errorDiv = document.createElement('div');
+          errorDiv.style.marginBottom = '10px';
+          errorDiv.textContent = '❌ ' + error.message;
+          cell.appendChild(errorDiv);
+          
+          const retryBtn = document.createElement('button');
+          retryBtn.textContent = '🔄 Retry';
+          retryBtn.style.padding = '8px 16px';
+          retryBtn.style.background = '#667eea';
+          retryBtn.style.color = 'white';
+          retryBtn.style.border = 'none';
+          retryBtn.style.borderRadius = '5px';
+          retryBtn.style.cursor = 'pointer';
+          retryBtn.style.fontWeight = '600';
+          retryBtn.addEventListener('click', loadUsers);
+          cell.appendChild(retryBtn);
+          
+          row.appendChild(cell);
+          tbody.appendChild(row);
+        }
       }
     }
     
@@ -3261,20 +3423,33 @@
     // Load seller requests
     async function loadSellerRequests(filter = 'pending') {
       try {
+        // Show loading state
+        showTableLoading('requestsTableBody', 8);
+        
         const response = await fetch('/api/seller-requests');
-        const requests = await response.json();
+        
+        // Use helper to handle response
+        const requests = await handleFetchResponse(response, 'load seller requests');
         
         // Store requests globally for filtering
         allSellerRequests = requests;
         currentStatusFilter = filter;
         
         const tbody = document.getElementById('requestsTableBody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         
         const filtered = filter === 'all' ? requests : requests.filter(r => r.status === filter);
         
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 20px;">No requests found</td></tr>';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 8;
+          cell.style.textAlign = 'center';
+          cell.style.color = '#64748b';
+          cell.style.padding = '20px';
+          cell.textContent = 'No requests found';
+          row.appendChild(cell);
+          tbody.appendChild(row);
           return;
         }
         
@@ -3316,8 +3491,11 @@
         document.getElementById('departmentFilter').value = '';
         
       } catch (error) {
-        console.error('Error loading requests:', error);
+        console.error('Error loading seller requests:', error);
         showNotify('❌ Error loading requests', '#ef4444');
+        
+        // Show error with retry button
+        showTableError('requestsTableBody', error.message, () => loadSellerRequests(currentStatusFilter), 8);
       }
     }
     
@@ -3449,16 +3627,29 @@
     // Load seller concerns
     async function loadSellerConcerns(filter = 'pending') {
       try {
+        // Show loading state
+        showTableLoading('concernsTableBody', 7);
+        
         const response = await fetch('/api/seller-concerns');
-        const concerns = await response.json();
+        
+        // Use helper to handle response
+        const concerns = await handleFetchResponse(response, 'load seller concerns');
         
         const tbody = document.getElementById('concernsTableBody');
-        tbody.innerHTML = '';
+        tbody.replaceChildren();
         
         const filtered = filter === 'all' ? concerns : concerns.filter(c => c.status === filter);
         
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">No concerns found</td></tr>';
+          const row = document.createElement('tr');
+          const cell = document.createElement('td');
+          cell.colSpan = 7;
+          cell.style.textAlign = 'center';
+          cell.style.color = '#64748b';
+          cell.style.padding = '20px';
+          cell.textContent = 'No concerns found';
+          row.appendChild(cell);
+          tbody.appendChild(row);
           return;
         }
         
@@ -3494,8 +3685,11 @@
         });
         
       } catch (error) {
-        console.error('Error loading concerns:', error);
+        console.error('Error loading seller concerns:', error);
         showNotify('❌ Error loading concerns', '#ef4444');
+        
+        // Show error with retry button (retry with current filter)
+        showTableError('concernsTableBody', error.message, () => loadSellerConcerns(filter), 7);
       }
     }
     
@@ -3573,11 +3767,13 @@
     // Load sellers
     async function loadSellers() {
       try {
+        // Show loading state
+        showTableLoading('sellersTableBody', 5);
+        
         const response = await fetch('/api/sellers');
-        if (!response.ok) {
-          throw new Error(`HTTP error: ${response.status}`);
-        }
-        const sellers = await response.json();
+        
+        // Use helper to handle response
+        const sellers = await handleFetchResponse(response, 'load sellers');
         
         const tbody = document.getElementById('sellersTableBody');
         tbody.replaceChildren();
@@ -3643,6 +3839,9 @@
       } catch (error) {
         console.error('Error loading sellers:', error);
         showNotify('❌ Error loading sellers: ' + error.message, '#ef4444');
+        
+        // Show error with retry button
+        showTableError('sellersTableBody', error.message, loadSellers, 5);
       }
       
       // Update result count after loading
