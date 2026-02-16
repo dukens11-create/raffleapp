@@ -1,9 +1,26 @@
 {
   "version": 2,
   "builds": [
-    { "src": "raffle-app/server.js", "use": "@vercel/node" }
+    { 
+      "src": "raffle-app/server.js", 
+      "use": "@vercel/node"
+    }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/raffle-app/server.js" }
-  ]
+    { 
+      "src": "/health", 
+      "dest": "/raffle-app/server.js" 
+    },
+    { 
+      "src": "/api/health", 
+      "dest": "/raffle-app/server.js" 
+    },
+    { 
+      "src": "/(.*)", 
+      "dest": "/raffle-app/server.js" 
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

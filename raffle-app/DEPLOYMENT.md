@@ -283,14 +283,52 @@ This creates admin account:
 
 **CRITICAL:** Login immediately and change these credentials!
 
-### 2. Health Check
+### 2. Health Check & Deployment Validation
 
-Verify deployment:
+#### Run Deployment Validation Script
+
+Before and after deployment, run the validation script to check configuration:
+
 ```bash
-curl https://your-domain.com/health
+# Local validation (before deployment)
+cd raffle-app
+npm run check-deployment
+
+# Validate deployed application
+npm run check-deployment -- --url=https://your-domain.com
 ```
 
-Should return:
+The script checks:
+- ✓ All required environment variables
+- ✓ Database connectivity
+- ✓ File permissions
+- ✓ API endpoints accessibility
+
+#### Manual Health Check
+
+Verify deployment endpoints:
+```bash
+# Simple health check
+curl https://your-domain.com/api/health
+
+# Detailed health check
+curl https://your-domain.com/health
+
+# Database status
+curl https://your-domain.com/api/database-status
+```
+
+Expected response from `/api/health`:
+```json
+{
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "uptime": 123.456,
+  "environment": "production"
+}
+```
+
+Expected response from `/health`:
 ```json
 {
   "status": "ok",
@@ -339,6 +377,131 @@ psql -h host -U user -d database < backup.sql
 ```
 
 ## Troubleshooting
+
+### Issue: Website returns ERR_FAILED or is unreachable
+
+**Possible Causes:**
+1. Server failed to start
+2. Wrong port configuration
+3. Domain not properly configured
+4. Build/deployment failed
+5. Missing environment variables
+
+**Diagnostic Steps:**
+
+1. **Check Server Logs:**
+   - **Render:** Dashboard → Your Service → Logs tab
+   - **Vercel:** Dashboard → Your Project → Deployments → Click deployment → View Function Logs
+   - Look for startup errors or missing environment variables
+
+2. **Verify Health Endpoint:**
+   ```bash
+   # Test the deployment URL
+   curl https://your-domain.com/health
+   curl https://your-domain.com/api/health
+   ```
+   
+   Expected response:
+   ```json
+   {
+     "status": "ok",
+     "timestamp": "2024-01-01T00:00:00.000Z"
+   }
+   ```
+
+3. **Run Deployment Validation Script:**
+   ```bash
+   cd raffle-app
+   node check-deployment.js --url=https://your-domain.com
+   ```
+
+4. **Check Domain Configuration:**
+   - Verify DNS records point to deployment platform
+   - Check that domain is added in platform settings
+   - Allow 24-48 hours for DNS propagation
+   - Test with deployment platform's default URL first
+
+5. **Verify Environment Variables:**
+   - Ensure all required variables are set in platform dashboard
+   - Check for typos in variable names
+   - Verify DATABASE_URL is correct and accessible
+   - Test SESSION_SECRET is at least 32 characters
+
+6. **Check Build Logs:**
+   - Verify `npm install` completed successfully
+   - Check for build errors or missing dependencies
+   - Ensure Node.js version compatibility (18+)
+
+**Quick Fixes:**
+
+```bash
+# Test locally first
+cd raffle-app
+npm install
+npm start
+
+# Verify it works on http://localhost:3000
+curl http://localhost:3000/health
+```
+
+### Domain Configuration for Vercel
+
+1. **Add Domain in Vercel Dashboard:**
+   - Go to Project Settings → Domains
+   - Add your domain: `www.enejipamticket.com`
+   - Follow DNS configuration instructions
+
+2. **Configure DNS Records:**
+   
+   For Vercel, add these DNS records at your domain registrar:
+   
+   **For www subdomain:**
+   ```
+   Type: CNAME
+   Name: www
+   Value: cname.vercel-dns.com
+   ```
+   
+   **For root domain (@):**
+   
+   The recommended approach is to use Vercel's nameservers or configure through the Vercel Dashboard, as they handle the root domain configuration automatically. If you need to use your own DNS provider, Vercel will provide the specific A/AAAA records when you add the domain in the dashboard.
+   
+   **Best Practice:** Configure the domain directly in Vercel Dashboard:
+   - Project Settings → Domains → Add Domain
+   - Vercel will show you the exact DNS records needed for your setup
+   - This ensures you always have the current, correct configuration
+
+3. **Verify Domain:**
+   ```bash
+   # Check DNS propagation
+   nslookup www.enejipamticket.com
+   
+   # Test the domain
+   curl https://www.enejipamticket.com/health
+   ```
+
+4. **SSL Certificate:**
+   - Vercel automatically provisions SSL certificates
+   - Wait 5-10 minutes after DNS configuration
+   - Check certificate status in Vercel dashboard
+
+### Domain Configuration for Render
+
+1. **Add Custom Domain:**
+   - Go to Service Settings → Custom Domains
+   - Add: `www.enejipamticket.com`
+   - Note the Render DNS target provided
+
+2. **Configure DNS:**
+   ```
+   Type: CNAME
+   Name: www
+   Value: <your-app>.onrender.com
+   ```
+
+3. **SSL Certificate:**
+   - Automatically provisioned by Render
+   - Wait for "Certificate Active" status
 
 ### Issue: "Data will be lost on restart"
 

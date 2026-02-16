@@ -655,10 +655,12 @@
         if (data.tickets.length > 0) {
           const firstTicket = data.tickets[0];
           const categoryMap = {
-            'ABC': 'ABC - Regular',
-            'EFG': 'EFG - Silver',
-            'JKL': 'JKL - Gold',
-            'XYZ': 'XYZ - Platinum'
+            'BAS': 'BAS - Basic (50 HTG)',
+            'PRM': 'PRM - Premium (100 HTG)',
+            'BRZ': 'BRZ - Bronze (250 HTG)',
+            'SLV': 'SLV - Silver (500 HTG)',
+            'GLD': 'GLD - Gold (1,000 HTG)',
+            'DIA': 'DIA - Diamond (5,000 HTG)'
           };
           
           document.getElementById('preview-ticket-num-front').textContent = firstTicket.ticket_number;
