@@ -20,6 +20,32 @@ A Flutter-based mobile application for the Grate Genyen raffle ticket management
 - Android Studio / Xcode
 - Backend API running (from raffle-app directory)
 
+## CI/CD with Codemagic
+
+This project uses Codemagic for continuous integration and deployment.
+
+- **Build Status:** [![Codemagic build status](https://api.codemagic.io/apps/<app-id>/status_badge.svg)](https://codemagic.io/apps/<app-id>/latest_build)
+  - *Note: Replace `<app-id>` with your actual Codemagic application ID after setup*
+- **Configuration:** See `/codemagic.yaml` in repository root
+- **Setup Guide:** See [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md)
+
+### Workflows
+
+Three automated workflows are configured:
+
+1. **Android Build** - Builds APK and AAB for Google Play Store
+2. **iOS Build** - Builds IPA for Apple App Store  
+3. **Development Build** - Quick debug builds with automated tests
+
+### Quick Start
+
+1. Builds trigger automatically on push to `main` branch
+2. Download APK/AAB/IPA from build artifacts in Codemagic dashboard
+3. Google Play (internal track) and App Store publishing configured
+4. Email notifications sent to configured recipients
+
+For detailed setup instructions, see [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md).
+
 ### Installation
 
 1. Clone the repository and navigate to the flutter_app directory:
