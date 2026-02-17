@@ -20,9 +20,7 @@ class AvailableTicket {
       ticketNumber: json['ticket_number'] ?? '',
       barcode: json['barcode'] ?? '',
       category: json['category'] ?? '',
-      price: (json['price'] is int) 
-          ? (json['price'] as int).toDouble() 
-          : (json['price'] ?? 0.0),
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
       status: json['status'] ?? 'AVAILABLE',
       createdAt: json['created_at'] ?? '',
     );
@@ -43,9 +41,11 @@ class AvailableTicketsResponse {
     
     if (json['categories'] != null) {
       (json['categories'] as Map<String, dynamic>).forEach((key, value) {
-        cats[key] = (value as List)
-            .map((t) => AvailableTicket.fromJson(t))
-            .toList();
+        if (value is List) {
+          cats[key] = value
+              .map((t) => AvailableTicket.fromJson(t))
+              .toList();
+        }
       });
     }
 
