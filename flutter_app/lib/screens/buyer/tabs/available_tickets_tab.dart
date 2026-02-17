@@ -155,7 +155,7 @@ class _AvailableTicketsTabState extends State<AvailableTicketsTab> {
       return EmptyState(
         icon: Icons.error_outline,
         title: 'Error Loading Tickets',
-        message: 'Details: $_error\n\nTroubleshooting:\n1. Check backend is running\n2. Verify API_BASE_URL: ${ApiConfig.baseUrl}\n3. Check network connection\n4. Review backend logs for errors',
+        message: '$_error\n\nConnected to: ${ApiConfig.baseUrl}\n\nTroubleshooting:\n• Check your internet connection\n• Verify the server is accessible\n• Review backend logs for errors\n• Contact support if issue persists',
         onRetry: _loadTickets,
       );
     }
