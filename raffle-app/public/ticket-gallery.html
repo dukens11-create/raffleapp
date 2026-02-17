@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket Design Gallery - Grate Genyen</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .ticket-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+
+        .ticket-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .ticket-image-container {
+            position: relative;
+            padding-top: 100%; /* 1:1 Aspect Ratio */
+            background: #f0f0f0;
+            overflow: hidden;
+        }
+
+        .ticket-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+
+        .ticket-card:hover .ticket-image {
+            transform: scale(1.05);
+        }
+
+        .placeholder-ticket {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .placeholder-ticket .logo {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .placeholder-ticket .category {
+            font-size: 1.5rem;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        .placeholder-ticket .price {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .placeholder-ticket .prize {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .ticket-info {
+            padding: 20px;
+        }
+
+        .ticket-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .color-badge {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .ticket-specs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 15px 0;
+        }
+
+        .spec-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .spec-label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .spec-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            opacity: 0.9;
+        }
+
+        .comparison-table {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 40px;
+            overflow-x: auto;
+        }
+
+        .comparison-table h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .color-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎟️ Grate Genyen Ticket Design Gallery</h1>
+            <p>Complete 6-Tier Ticket Design System</p>
+        </div>
+
+        <div class="gallery" id="ticketGallery"></div>
+
+        <div class="comparison-table">
+            <h2>📊 Ticket Comparison</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Max Prize</th>
+                        <th>Code Format</th>
+                        <th>Color Theme</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>BASIC</strong></td>
+                        <td>50 HTG</td>
+                        <td>5,000 HTG</td>
+                        <td>XYZ-######</td>
+                        <td>
+                            <div class="color-cell">
+                                <span style="display:inline-block;width:20px;height:20px;background:#10b981;border-radius:50%;"></span>
+                                Emerald Green
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>PREMIUM</strong></td>
+                        <td>100 HTG</td>
+                        <td>10,000 HTG</td>
+                        <td>EFG-######</td>
+                        <td>
+                            <div class="color-cell">
+                                <span style="display:inline-block;width:20px;height:20px;background:#7c3aed;border-radius:50%;"></span>
+                                Purple
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>BRONZE</strong></td>
+                        <td>250 HTG</td>
+                        <td>25,000 HTG</td>
+                        <td>JKL-######</td>
+                        <td>
+                            <div class="color-cell">
+                                <span style="display:inline-block;width:20px;height:20px;background:#ea580c;border-radius:50%;"></span>
+                                Orange-Red
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>SILVER</strong></td>
+                        <td>500 HTG</td>
+                        <td>150,000 HTG</td>
+                        <td>ABC-######</td>
+                        <td>
+                            <div class="color-cell">
+                                <span style="display:inline-block;width:20px;height:20px;background:#94a3b8;border-radius:50%;"></span>
+                                Silver Gray
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>GOLD</strong></td>
+                        <td>1,000 HTG</td>
+                        <td>500,000 HTG</td>
+                        <td>GOLD-#####</td>
+                        <td>
+                            <div class="color-cell">
+                                <span style="display:inline-block;width:20px;height:20px;background:#fbbf24;border-radius:50%;"></span>
+                                Gold
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>DIAMOND</strong></td>
+                        <td>5,000 HTG</td>
+                        <td>2,000,000 HTG</td>
+                        <td>DMD-#####</td>
+                        <td>
+                            <div class="color-cell">
+                                <span style="display:inline-block;width:20px;height:20px;background:#22d3ee;border-radius:50%;"></span>
+                                Cyan
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>© 2026 Grate Genyen Raffle System</p>
+            <p>Design Version 1.0 | Last Updated: February 17, 2026</p>
+        </div>
+    </div>
+
+    <script>
+        const tickets = [
+            {
+                category: 'BASIC',
+                price: 50,
+                prize: '5,000',
+                code: 'XYZ-######',
+                color: '#10b981',
+                gradient: 'linear-gradient(135deg, #10b981, #059669)',
+                image: '/ticket-designs/BASIC-50-HTG.png'
+            },
+            {
+                category: 'PREMIUM',
+                price: 100,
+                prize: '10,000',
+                code: 'EFG-######',
+                color: '#7c3aed',
+                gradient: 'linear-gradient(135deg, #7c3aed, #6366f1)',
+                image: '/ticket-designs/PREMIUM-100-HTG.png'
+            },
+            {
+                category: 'BRONZE',
+                price: 250,
+                prize: '25,000',
+                code: 'JKL-######',
+                color: '#ea580c',
+                gradient: 'linear-gradient(135deg, #ea580c, #dc2626)',
+                image: '/ticket-designs/BRONZE-250-HTG.png'
+            },
+            {
+                category: 'SILVER',
+                price: 500,
+                prize: '150,000',
+                code: 'ABC-######',
+                color: '#94a3b8',
+                gradient: 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
+                image: '/ticket-designs/SILVER-500-HTG.png'
+            },
+            {
+                category: 'GOLD',
+                price: 1000,
+                prize: '500,000',
+                code: 'GOLD-#####',
+                color: '#fbbf24',
+                gradient: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+                image: '/ticket-designs/GOLD-1000-HTG.png'
+            },
+            {
+                category: 'DIAMOND',
+                price: 5000,
+                prize: '2,000,000',
+                code: 'DMD-#####',
+                color: '#22d3ee',
+                gradient: 'linear-gradient(135deg, #22d3ee, #06b6d4)',
+                image: '/ticket-designs/DIAMOND-5000-HTG.png'
+            }
+        ];
+
+        function renderTickets() {
+            const gallery = document.getElementById('ticketGallery');
+            
+            tickets.forEach(ticket => {
+                const card = document.createElement('div');
+                card.className = 'ticket-card';
+                
+                card.innerHTML = `
+                    <div class="ticket-image-container">
+                        <div class="placeholder-ticket" style="background: ${ticket.gradient};">
+                            <div class="logo">GRATE GENYEN</div>
+                            <div class="category">${ticket.category}</div>
+                            <div class="price">${ticket.price} GOURDES</div>
+                            <div class="prize">JISKA ${ticket.prize} GOURDES!</div>
+                        </div>
+                    </div>
+                    <div class="ticket-info">
+                        <div class="ticket-title">
+                            <span class="color-badge" style="background: ${ticket.color};"></span>
+                            ${ticket.category} Ticket
+                        </div>
+                        <div class="ticket-specs">
+                            <div class="spec-item">
+                                <span class="spec-label">Price</span>
+                                <span class="spec-value">${ticket.price} HTG</span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Max Prize</span>
+                                <span class="spec-value">${ticket.prize} HTG</span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Code Format</span>
+                                <span class="spec-value">${ticket.code}</span>
+                            </div>
+                            <div class="spec-item">
+                                <span class="spec-label">Color</span>
+                                <span class="spec-value">${ticket.color}</span>
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn btn-primary" onclick="viewDesign('${ticket.category}')">
+                                View Design
+                            </button>
+                            <button class="btn btn-secondary" onclick="downloadDesign('${ticket.category}')">
+                                Download
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                gallery.appendChild(card);
+            });
+        }
+
+        function viewDesign(category) {
+            const ticket = tickets.find(t => t.category === category);
+            if (ticket) {
+                // Open in new window/tab
+                window.open(ticket.image, '_blank');
+            }
+        }
+
+        function downloadDesign(category) {
+            const ticket = tickets.find(t => t.category === category);
+            if (ticket) {
+                // Create a temporary link and trigger download
+                const link = document.createElement('a');
+                link.href = ticket.image;
+                link.download = `${category}-${ticket.price}-HTG.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // Initialize gallery on page load
+        document.addEventListener('DOMContentLoaded', renderTickets);
+    </script>
+</body>
+</html>

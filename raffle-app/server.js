@@ -6230,6 +6230,115 @@ app.get('/api/public/ticket-availability', async (req, res) => {
   }
 });
 
+// GET /api/ticket-designs/:category - Serve ticket design images (public)
+// Returns the ticket design image for the specified category
+app.get('/api/ticket-designs/:category', (req, res) => {
+  try {
+    const category = req.params.category.toUpperCase();
+    const validCategories = ['BASIC', 'PREMIUM', 'BRONZE', 'SILVER', 'GOLD', 'DIAMOND'];
+    
+    if (!validCategories.includes(category)) {
+      return res.status(404).json({ 
+        error: 'Invalid category',
+        validCategories: validCategories 
+      });
+    }
+    
+    // Map category names to file names with prices
+    const categoryFileMap = {
+      'BASIC': 'BASIC-50-HTG.png',
+      'PREMIUM': 'PREMIUM-100-HTG.png',
+      'BRONZE': 'BRONZE-250-HTG.png',
+      'SILVER': 'SILVER-500-HTG.png',
+      'GOLD': 'GOLD-1000-HTG.png',
+      'DIAMOND': 'DIAMOND-5000-HTG.png'
+    };
+    
+    const fileName = categoryFileMap[category];
+    const filePath = path.join(__dirname, 'public', 'ticket-designs', fileName);
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ 
+        error: 'Ticket design not found',
+        message: `Design file for ${category} category does not exist yet.`,
+        expectedFile: fileName
+      });
+    }
+    
+    // Serve the image file
+    res.sendFile(filePath);
+  } catch (error) {
+    console.error('Error serving ticket design:', error);
+    res.status(500).json({ error: 'Failed to serve ticket design' });
+  }
+});
+
+// GET /api/ticket-designs - List all available ticket designs (public)
+app.get('/api/ticket-designs', (req, res) => {
+  try {
+    const designs = [
+      {
+        category: 'BASIC',
+        price: 50,
+        maxPrize: 5000,
+        codeFormat: 'XYZ-######',
+        color: '#10b981',
+        imageUrl: '/api/ticket-designs/BASIC'
+      },
+      {
+        category: 'PREMIUM',
+        price: 100,
+        maxPrize: 10000,
+        codeFormat: 'EFG-######',
+        color: '#7c3aed',
+        imageUrl: '/api/ticket-designs/PREMIUM'
+      },
+      {
+        category: 'BRONZE',
+        price: 250,
+        maxPrize: 25000,
+        codeFormat: 'JKL-######',
+        color: '#ea580c',
+        imageUrl: '/api/ticket-designs/BRONZE'
+      },
+      {
+        category: 'SILVER',
+        price: 500,
+        maxPrize: 150000,
+        codeFormat: 'ABC-######',
+        color: '#94a3b8',
+        imageUrl: '/api/ticket-designs/SILVER'
+      },
+      {
+        category: 'GOLD',
+        price: 1000,
+        maxPrize: 500000,
+        codeFormat: 'GOLD-#####',
+        color: '#fbbf24',
+        imageUrl: '/api/ticket-designs/GOLD'
+      },
+      {
+        category: 'DIAMOND',
+        price: 5000,
+        maxPrize: 2000000,
+        codeFormat: 'DMD-#####',
+        color: '#22d3ee',
+        imageUrl: '/api/ticket-designs/DIAMOND'
+      }
+    ];
+    
+    res.json({ 
+      success: true,
+      designs: designs,
+      count: designs.length
+    });
+  } catch (error) {
+    console.error('Error listing ticket designs:', error);
+    res.status(500).json({ error: 'Failed to list ticket designs' });
+  }
+});
+
 /**
  * POST /api/public/purchase/initiate - Initiate ticket purchase with atomic allocation
  * 
