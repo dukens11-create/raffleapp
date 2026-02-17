@@ -209,7 +209,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (isValid && ticket != null) ...[
-                _buildVerificationRow('Nimewo', ticket.ticket_number ?? ''),
+                _buildVerificationRow('Nimewo', ticket.ticketNumber ?? ''),
                 const SizedBox(height: 8),
                 _buildVerificationRow('Kategori', ticket.category ?? ''),
                 const SizedBox(height: 8),
