@@ -24,7 +24,7 @@
 #    - CERTIFICATE_PRIVATE_KEY: Certificate private key
 #    
 #    Common variables:
-#    - API_BASE_URL: Set to https://enejipamticket.com
+#    - API_BASE_URL: Set to https://grategenyen.com
 #    
 # 2. DOCUMENTATION
 #    - Setup Guide: See flutter_app/CODEMAGIC_SETUP.md
@@ -45,7 +45,7 @@ workflows:
       groups:
         - android_credentials
       vars:
-        API_BASE_URL: "https://enejipamticket.com"
+        API_BASE_URL: "https://grategenyen.com"
         FCI_KEYSTORE_PATH: /tmp/keystore.jks
     scripts:
       - name: Set up keystore
@@ -88,7 +88,7 @@ workflows:
       groups:
         - ios_credentials
       vars:
-        API_BASE_URL: "https://enejipamticket.com"
+        API_BASE_URL: "https://grategenyen.com"
     scripts:
       - name: Get Flutter packages
         script: |
@@ -126,7 +126,7 @@ workflows:
     environment:
       flutter: stable
       vars:
-        API_BASE_URL: "https://enejipamticket.com"
+        API_BASE_URL: "https://grategenyen.com"
     scripts:
       - name: Get Flutter packages
         script: |
