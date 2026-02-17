@@ -1,30 +1,33 @@
 # Codemagic CI/CD Configuration for Grate Genyen Raffle App
 # 
-# This configuration defines automated build workflows for both Android and iOS platforms.
+# This configuration defines automated build workflows for Android, iOS, and development testing.
 # 
 # ============================================================================
 # SETUP INSTRUCTIONS
 # ============================================================================
 # 
-# 1. ENVIRONMENT VARIABLES (Configure in Codemagic UI under Settings > Environment variables)
+# 1. ENVIRONMENT VARIABLES (Configure in Codemagic UI)
 #    
-#    For Android signing:
-#    - CM_KEYSTORE: Base64-encoded keystore file
-#    - CM_KEYSTORE_PASSWORD: Keystore password
-#    - CM_KEY_PASSWORD: Key password
-#    - CM_KEY_ALIAS: Key alias name
-#    - CM_KEYSTORE_PATH: Path where keystore will be saved (e.g., /tmp/keystore.jks)
+#    Create variable groups in Codemagic dashboard:
 #    
-#    For iOS signing:
-#    - CM_CERTIFICATE: Base64-encoded .p12 certificate
-#    - CM_CERTIFICATE_PASSWORD: Certificate password
-#    - CM_PROVISIONING_PROFILE: Base64-encoded provisioning profile
+#    android_credentials group:
+#    - GCLOUD_SERVICE_ACCOUNT_CREDENTIALS: For Google Play publishing
+#    - FCI_KEYSTORE: Base64-encoded keystore file
+#    - FCI_KEYSTORE_PASSWORD: Keystore password
+#    - FCI_KEY_ALIAS: Key alias name
+#    - FCI_KEY_PASSWORD: Key password
 #    
-#    For notifications (OPTIONAL):
-#    - NOTIFICATION_EMAIL: Email address for build notifications
-#      (Uncomment the 'publishing' sections in workflows to enable)
+#    ios_credentials group:
+#    - APP_STORE_CONNECT_KEY_IDENTIFIER: API key ID
+#    - APP_STORE_CONNECT_ISSUER_ID: Issuer ID
+#    - APP_STORE_CONNECT_PRIVATE_KEY: Private key
+#    - CERTIFICATE_PRIVATE_KEY: Certificate private key
+#    
+#    Common variables:
+#    - API_BASE_URL: Set to https://enejipamticket.com
 #    
 # 2. DOCUMENTATION
+#    - Setup Guide: See flutter_app/CODEMAGIC_SETUP.md
 #    - Codemagic YAML: https://docs.codemagic.io/yaml/yaml-getting-started/
 #    - Flutter builds: https://docs.codemagic.io/yaml-quick-start/building-a-flutter-app/
 #    - Android signing: https://docs.codemagic.io/yaml-code-signing/signing-android/
@@ -39,17 +42,15 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
-      cocoapods: default
+      groups:
+        - android_credentials
+      vars:
+        API_BASE_URL: "https://enejipamticket.com"
+        FCI_KEYSTORE_PATH: /tmp/keystore.jks
     scripts:
-      - name: Set up key properties
+      - name: Set up keystore
         script: |
-          echo $CM_KEYSTORE | base64 --decode > $CM_KEYSTORE_PATH
-          cat >> "$CM_BUILD_DIR/flutter_app/android/key.properties" <<EOF
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyPassword=$CM_KEY_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          storeFile=$CM_KEYSTORE_PATH
-          EOF
+          echo $FCI_KEYSTORE | base64 --decode > $FCI_KEYSTORE_PATH
       - name: Get Flutter packages
         script: |
           cd flutter_app
@@ -62,21 +63,21 @@ workflows:
       - name: Build APK
         script: |
           cd flutter_app
-          flutter build apk --release
+          flutter build apk --release --dart-define=API_BASE_URL=$API_BASE_URL
       - name: Build AAB
         script: |
           cd flutter_app
-          flutter build appbundle --release
+          flutter build appbundle --release --dart-define=API_BASE_URL=$API_BASE_URL
     artifacts:
-      - flutter_app/build/app/outputs/flutter-apk/*.apk
-      - flutter_app/build/app/outputs/bundle/release/*.aab
-    # Uncomment the below 'publishing' section and set NOTIFICATION_EMAIL
-    # environment variable in Codemagic UI (Settings > Environment variables)
-    # to enable build notifications
-    # publishing:
-    #   email:
-    #     recipients:
-    #       - $NOTIFICATION_EMAIL
+      - flutter_app/build/app/outputs/**/*.apk
+      - flutter_app/build/app/outputs/**/*.aab
+    publishing:
+      email:
+        recipients:
+          - dukens11@example.com
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
 
   ios-workflow:
     name: iOS Build
@@ -84,22 +85,11 @@ workflows:
     environment:
       flutter: stable
       xcode: latest
-      cocoapods: default
+      groups:
+        - ios_credentials
+      vars:
+        API_BASE_URL: "https://enejipamticket.com"
     scripts:
-      - name: Set up provisioning profiles
-        script: |
-          PROFILES_HOME="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILES_HOME"
-          echo $CM_PROVISIONING_PROFILE | base64 --decode > "$PROFILES_HOME/profile.mobileprovision"
-      - name: Set up signing certificate
-        script: |
-          echo $CM_CERTIFICATE | base64 --decode > /tmp/certificate.p12
-          security create-keychain -p "" build.keychain
-          security import /tmp/certificate.p12 -t agg -k ~/Library/Keychains/build.keychain -P $CM_CERTIFICATE_PASSWORD -A
-          security list-keychains -s ~/Library/Keychains/build.keychain
-          security default-keychain -s ~/Library/Keychains/build.keychain
-          security unlock-keychain -p "" ~/Library/Keychains/build.keychain
-          security set-key-partition-list -S apple-tool:,apple: -s -k "" ~/Library/Keychains/build.keychain
       - name: Get Flutter packages
         script: |
           cd flutter_app
@@ -116,36 +106,27 @@ workflows:
       - name: Build iOS
         script: |
           cd flutter_app
-          flutter build ios --release --no-codesign
+          flutter build ios --release --dart-define=API_BASE_URL=$API_BASE_URL --no-codesign
       - name: Build IPA
         script: |
           cd flutter_app
-          xcodebuild -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath build/ios/Runner.xcarchive \
-            archive
-          xcodebuild -exportArchive \
-            -archivePath build/ios/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/ExportOptions.plist
+          flutter build ipa --release --dart-define=API_BASE_URL=$API_BASE_URL
     artifacts:
-      - flutter_app/build/ios/ipa/*.ipa
-    # Uncomment the below 'publishing' section and set NOTIFICATION_EMAIL
-    # environment variable in Codemagic UI (Settings > Environment variables)
-    # to enable build notifications
-    # publishing:
-    #   email:
-    #     recipients:
-    #       - $NOTIFICATION_EMAIL
+      - flutter_app/build/ios/**/*.ipa
+    publishing:
+      email:
+        recipients:
+          - dukens11@example.com
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_KEY_IDENTIFIER
 
-  android-ios-workflow:
-    name: Build Android & iOS
-    max_build_duration: 90
+  development-workflow:
+    name: Development Build
+    max_build_duration: 30
     environment:
       flutter: stable
-      xcode: latest
-      cocoapods: default
+      vars:
+        API_BASE_URL: "https://enejipamticket.com"
     scripts:
       - name: Get Flutter packages
         script: |
@@ -156,35 +137,17 @@ workflows:
           cd flutter_app
           chmod +x scripts/patch_qr_code_scanner.sh
           ./scripts/patch_qr_code_scanner.sh
-      
-      # Android builds
-      - name: Build Android APK
+      - name: Run tests
         script: |
           cd flutter_app
-          flutter build apk --release
-      - name: Build Android AAB
+          flutter test
+      - name: Build APK (debug)
         script: |
           cd flutter_app
-          flutter build appbundle --release
-      
-      # iOS builds
-      - name: Install CocoaPods
-        script: |
-          cd flutter_app/ios
-          pod install
-      - name: Build iOS
-        script: |
-          cd flutter_app
-          flutter build ios --release --no-codesign
-    
+          flutter build apk --debug --dart-define=API_BASE_URL=$API_BASE_URL
     artifacts:
-      - flutter_app/build/app/outputs/flutter-apk/*.apk
-      - flutter_app/build/app/outputs/bundle/release/*.aab
-      - flutter_app/build/ios/iphoneos/*.app
-    # Uncomment the below 'publishing' section and set NOTIFICATION_EMAIL
-    # environment variable in Codemagic UI (Settings > Environment variables)
-    # to enable build notifications
-    # publishing:
-    #   email:
-    #     recipients:
-    #       - $NOTIFICATION_EMAIL
+      - flutter_app/build/app/outputs/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - dukens11@example.com

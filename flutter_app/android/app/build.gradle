@@ -48,12 +48,38 @@ android {
         versionName flutterVersionName
     }
 
-    // Check if key.properties exists and is valid
+    // Check if key.properties exists and is valid, or use Codemagic environment variables
     def keystorePropertiesFile = rootProject.file('key.properties')
     def hasValidKeystore = false
     def keystoreProperties = new Properties()
     
-    if (keystorePropertiesFile.exists()) {
+    // Check for Codemagic environment variables first
+    def usingCodemagic = System.getenv("FCI_KEYSTORE") != null
+    
+    if (usingCodemagic) {
+        // Use Codemagic environment variables
+        keystoreProperties['keyAlias'] = System.getenv("FCI_KEY_ALIAS")
+        keystoreProperties['keyPassword'] = System.getenv("FCI_KEY_PASSWORD")
+        keystoreProperties['storeFile'] = System.getenv("FCI_KEYSTORE_PATH") ?: "/tmp/keystore.jks"
+        keystoreProperties['storePassword'] = System.getenv("FCI_KEYSTORE_PASSWORD")
+        
+        // Validate that all required properties are present
+        def requiredProps = ['keyAlias', 'keyPassword', 'storeFile', 'storePassword']
+        hasValidKeystore = requiredProps.every { 
+            def value = keystoreProperties[it]
+            value != null && !value.toString().trim().isEmpty()
+        }
+        
+        if (hasValidKeystore) {
+            def storeFilePath = keystoreProperties['storeFile'].toString().trim()
+            def keystoreFile = file(storeFilePath)
+            if (!keystoreFile.exists()) {
+                println "WARNING: Keystore file does not exist at: ${storeFilePath}"
+                println "Using debug signing instead."
+                hasValidKeystore = false
+            }
+        }
+    } else if (keystorePropertiesFile.exists()) {
         keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
         
         // Validate that all required properties are present and not empty/whitespace
