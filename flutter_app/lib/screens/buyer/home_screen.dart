@@ -5,6 +5,7 @@ import '../../widgets/loading_indicator.dart';
 import 'tickets_list_screen.dart';
 import 'my_tickets_screen.dart';
 import 'payment_screen.dart';
+import 'qr_scanner_screen.dart';
 
 class BuyerHomeScreen extends StatefulWidget {
   const BuyerHomeScreen({super.key});
@@ -423,6 +424,22 @@ class _HomeTab extends StatelessWidget {
               context,
               MaterialPageRoute(
                 builder: (context) => const MyTicketsScreen(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          context,
+          'Skane Kòd QR',
+          'Verifye tikè ak kòd QR',
+          Icons.qr_code_scanner,
+          Colors.purple,
+          () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const QRScannerScreen(),
               ),
             );
           },
