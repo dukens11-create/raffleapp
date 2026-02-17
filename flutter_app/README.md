@@ -74,11 +74,47 @@ lib/
 
 ## Backend API
 
-This Flutter app connects to the existing Express.js backend API located in the `raffle-app` directory. Make sure the backend server is running before using the mobile app.
+This Flutter app connects to the backend API for the Grate Genyen raffle system.
 
-**Default backend URL:** `http://10.0.2.2:10000` (Android emulator)
+### API Configuration
 
-The backend server runs on port **10000**. For detailed API configuration and connection setup for different environments (iOS, physical devices, etc.), see [`BACKEND_CONNECTION_GUIDE.md`](BACKEND_CONNECTION_GUIDE.md).
+**Default Production URL:** `https://grategenyen.com`
+
+The app is configured to connect to the production backend by default. If no data appears or you see connection errors, please verify:
+
+1. Your device has internet connectivity
+2. The backend server at `https://grategenyen.com` is accessible
+3. Your network/firewall allows HTTPS connections
+
+### Custom API URL (Development)
+
+You can override the API URL for development or testing using the `--dart-define` flag:
+
+```bash
+# For Android Emulator (localhost development)
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:10000
+
+# For iOS Simulator
+flutter run --dart-define=API_BASE_URL=http://localhost:10000
+
+# For Physical Device (replace with your computer's IP)
+flutter run --dart-define=API_BASE_URL=http://192.168.1.100:10000
+
+# For Production Build
+flutter build apk --release --dart-define=API_BASE_URL=https://grategenyen.com
+```
+
+### Troubleshooting Connection Issues
+
+If the app shows "Cannot connect to server" or no data appears:
+
+1. **Check Internet Connection:** Ensure your device has active internet
+2. **Verify Backend Status:** Confirm the backend at `https://grategenyen.com` is running
+3. **Check Firewall:** Some corporate networks may block the connection
+4. **View Logs:** Use `flutter run` in a terminal to see detailed connection logs
+5. **Test Backend:** Open `https://grategenyen.com/health` in a browser to verify it's accessible
+
+For detailed API configuration and connection setup for different environments, see [`BACKEND_CONNECTION_GUIDE.md`](BACKEND_CONNECTION_GUIDE.md).
 
 ## Contributing
 
