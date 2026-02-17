@@ -4,7 +4,7 @@ import '../../../models/buyer/available_ticket.dart';
 import '../../../widgets/buyer/loading_spinner.dart';
 import '../../../widgets/buyer/empty_state.dart';
 import '../../../widgets/buyer/status_badge.dart';
-import '../../../config/api_config.dart';
+import '../../../utils/error_helper.dart';
 
 class AvailableTicketsTab extends StatefulWidget {
   const AvailableTicketsTab({super.key});
@@ -155,7 +155,7 @@ class _AvailableTicketsTabState extends State<AvailableTicketsTab> {
       return EmptyState(
         icon: Icons.error_outline,
         title: 'Error Loading Tickets',
-        message: '$_error\n\nConnected to: ${ApiConfig.baseUrl}\n\nTroubleshooting:\n• Check your internet connection\n• Verify the server is accessible\n• Review backend logs for errors\n• Contact support if issue persists',
+        message: ErrorHelper.formatErrorMessage(_error!),
         onRetry: _loadTickets,
       );
     }

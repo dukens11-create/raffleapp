@@ -15,10 +15,15 @@ class BuyerApiService {
 
   /// Helper method to provide user-friendly error messages
   String _handleError(dynamic error, String endpoint) {
+    // Network connectivity issues
+    if (error is SocketException) {
+      return 'Cannot connect to server at $baseUrl. Please check your internet connection and verify the server is accessible.';
+    }
+    
     final errorString = error.toString();
     
-    // Network connectivity issues
-    if (error is SocketException || errorString.contains('SocketException') || errorString.contains('Failed host lookup')) {
+    // Check for network errors in wrapped exceptions
+    if (errorString.contains('SocketException') || errorString.contains('Failed host lookup')) {
       return 'Cannot connect to server at $baseUrl. Please check your internet connection and verify the server is accessible.';
     }
     

@@ -4,7 +4,7 @@ import '../../../models/buyer/raffle_info.dart';
 import '../../../widgets/buyer/loading_spinner.dart';
 import '../../../widgets/buyer/empty_state.dart';
 import '../../../widgets/buyer/ticket_badge.dart';
-import '../../../config/api_config.dart';
+import '../../../utils/error_helper.dart';
 
 class RaffleInfoTab extends StatefulWidget {
   final Function(int) onTabChange;
@@ -60,7 +60,7 @@ class _RaffleInfoTabState extends State<RaffleInfoTab> {
       return EmptyState(
         icon: Icons.error_outline,
         title: 'Error Loading Raffle Info',
-        message: '$_error\n\nConnected to: ${ApiConfig.baseUrl}\n\nTroubleshooting:\n• Check your internet connection\n• Verify the server is accessible\n• Contact support if the issue persists',
+        message: ErrorHelper.formatErrorMessage(_error!),
         onRetry: _loadRaffleInfo,
       );
     }
