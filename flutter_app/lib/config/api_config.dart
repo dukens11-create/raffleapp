@@ -3,7 +3,7 @@ class ApiConfig {
   // NOTE: For production, always use HTTPS
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://localhost:3000', // Change to HTTPS for production
+    defaultValue: 'http://10.0.2.2:10000', // Android emulator localhost (backend on port 10000)
   );
   
   static const String apiVersion = '/api';

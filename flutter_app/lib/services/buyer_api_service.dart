@@ -50,9 +50,12 @@ class BuyerApiService {
         final data = json.decode(response.body);
         return AvailableTicketsResponse.fromJson(data);
       } else {
+        print('❌ Available Tickets HTTP Error: ${response.statusCode}');
+        print('Response body: ${response.body}');
         throw Exception('Failed to load available tickets: ${response.statusCode}');
       }
     } catch (e) {
+      print('❌ Available Tickets Error: $e');
       throw Exception('Error fetching available tickets: $e');
     }
   }

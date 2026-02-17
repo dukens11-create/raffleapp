@@ -4,6 +4,7 @@ import '../../../models/buyer/available_ticket.dart';
 import '../../../widgets/buyer/loading_spinner.dart';
 import '../../../widgets/buyer/empty_state.dart';
 import '../../../widgets/buyer/status_badge.dart';
+import '../../../config/api_config.dart';
 
 class AvailableTicketsTab extends StatefulWidget {
   const AvailableTicketsTab({super.key});
@@ -154,7 +155,7 @@ class _AvailableTicketsTabState extends State<AvailableTicketsTab> {
       return EmptyState(
         icon: Icons.error_outline,
         title: 'Error Loading Tickets',
-        message: _error!,
+        message: 'Details: $_error\n\nTroubleshooting:\n1. Check backend is running\n2. Verify API_BASE_URL: ${ApiConfig.baseUrl}\n3. Check network connection\n4. Review backend logs for errors',
         onRetry: _loadTickets,
       );
     }

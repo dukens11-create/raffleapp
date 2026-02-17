@@ -31,12 +31,23 @@ class AvailableTicketsResponse {
   });
 
   factory AvailableTicketsResponse.fromJson(Map<String, dynamic> json) {
+    List<AvailableTicket> allTickets = [];
+    
+    // Parse categories object from backend
+    if (json['categories'] != null && json['categories'] is Map) {
+      final categories = json['categories'] as Map<String, dynamic>;
+      categories.forEach((category, tickets) {
+        if (tickets is List) {
+          allTickets.addAll(
+            tickets.map((t) => AvailableTicket.fromJson(t)).toList()
+          );
+        }
+      });
+    }
+    
     return AvailableTicketsResponse(
-      tickets: (json['tickets'] as List?)
-              ?.map((t) => AvailableTicket.fromJson(t))
-              .toList() ??
-          [],
-      total: json['total'] ?? 0,
+      tickets: allTickets,
+      total: allTickets.length,
     );
   }
 }
