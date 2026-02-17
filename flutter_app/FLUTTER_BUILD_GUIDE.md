@@ -51,19 +51,27 @@ flutter pub get
 
 ### 3. Configure Backend API
 
-Edit `lib/config/api_config.dart` and set your backend API URL:
+The app is pre-configured to connect to the backend API on port **10000**.
+
+Current configuration in `lib/config/api_config.dart`:
 
 ```dart
 static const String baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://YOUR_BACKEND_URL:3000',
+  defaultValue: 'http://10.0.2.2:10000', // Android emulator default
 );
 ```
 
-For local development:
-- Android Emulator: `http://10.0.2.2:3000`
-- iOS Simulator: `http://localhost:3000`
-- Physical device: Use your computer's local IP (e.g., `http://192.168.1.100:3000`)
+**Default:** Configured for Android Emulator (`http://10.0.2.2:10000`)
+
+**Override for different environments:**
+
+For local development on different platforms:
+- **Android Emulator:** `http://10.0.2.2:10000` (default, already configured)
+- **iOS Simulator:** Use `--dart-define=API_BASE_URL=http://localhost:10000`
+- **Physical device:** Use `--dart-define=API_BASE_URL=http://YOUR_COMPUTER_IP:10000` (e.g., `http://192.168.1.100:10000`)
+
+For detailed instructions on finding your computer's IP and troubleshooting connection issues, see [`BACKEND_CONNECTION_GUIDE.md`](BACKEND_CONNECTION_GUIDE.md).
 
 ### 4. Generate Platform Files (if needed)
 
@@ -94,7 +102,7 @@ flutter run
 flutter run --profile
 
 # Run with custom API URL
-flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3000
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:10000
 ```
 
 ### Hot Reload
@@ -400,7 +408,7 @@ flutter build apk --release --dart-define=API_BASE_URL=https://api.example.com
 
 Access in code:
 ```dart
-const apiUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:3000');
+const apiUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:10000');
 ```
 
 ## Backend Requirements
