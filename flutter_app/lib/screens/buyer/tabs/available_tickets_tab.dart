@@ -40,7 +40,7 @@ class _AvailableTicketsTabState extends State<AvailableTicketsTab> {
         category: _selectedCategory,
       );
       setState(() {
-        _tickets = response.tickets;
+        _tickets = response.getAllTickets();
         _currentPage = 0;
         _updateDisplayedTickets();
         _isLoading = false;

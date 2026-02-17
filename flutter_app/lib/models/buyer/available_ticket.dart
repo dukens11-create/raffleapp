@@ -1,53 +1,67 @@
 class AvailableTicket {
   final String ticketNumber;
+  final String barcode;
   final String category;
-  final int price;
+  final double price;
   final String status;
+  final String createdAt;
 
   AvailableTicket({
     required this.ticketNumber,
+    required this.barcode,
     required this.category,
     required this.price,
     required this.status,
+    required this.createdAt,
   });
 
   factory AvailableTicket.fromJson(Map<String, dynamic> json) {
     return AvailableTicket(
       ticketNumber: json['ticket_number'] ?? '',
+      barcode: json['barcode'] ?? '',
       category: json['category'] ?? '',
-      price: json['price'] ?? 0,
-      status: json['status'] ?? 'available',
+      price: (json['price'] is int) 
+          ? (json['price'] as int).toDouble() 
+          : (json['price'] ?? 0.0),
+      status: json['status'] ?? 'AVAILABLE',
+      createdAt: json['created_at'] ?? '',
     );
   }
 }
 
 class AvailableTicketsResponse {
-  final List<AvailableTicket> tickets;
-  final int total;
+  final Map<String, List<AvailableTicket>> categories;
+  final String timestamp;
 
   AvailableTicketsResponse({
-    required this.tickets,
-    required this.total,
+    required this.categories,
+    required this.timestamp,
   });
 
   factory AvailableTicketsResponse.fromJson(Map<String, dynamic> json) {
-    List<AvailableTicket> allTickets = [];
+    Map<String, List<AvailableTicket>> cats = {};
     
-    // Parse categories object from backend
-    if (json['categories'] != null && json['categories'] is Map) {
-      final categories = json['categories'] as Map<String, dynamic>;
-      categories.forEach((category, tickets) {
-        if (tickets is List) {
-          allTickets.addAll(
-            tickets.map((t) => AvailableTicket.fromJson(t)).toList()
-          );
-        }
+    if (json['categories'] != null) {
+      (json['categories'] as Map<String, dynamic>).forEach((key, value) {
+        cats[key] = (value as List)
+            .map((t) => AvailableTicket.fromJson(t))
+            .toList();
       });
     }
-    
+
     return AvailableTicketsResponse(
-      tickets: allTickets,
-      total: allTickets.length,
+      categories: cats,
+      timestamp: json['timestamp'] ?? '',
     );
+  }
+  
+  // Helper method to get all tickets as a flat list
+  List<AvailableTicket> getAllTickets() {
+    return categories.values.expand((list) => list).toList();
+  }
+  
+  // Helper method to get total ticket count
+  int getTotalCount() {
+    return categories.values.fold(0, (sum, list) => sum + list.length);
   }
 }
