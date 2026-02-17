@@ -183,7 +183,8 @@ Each workflow has different build durations:
 
 ### Via Email:
 
-- You'll receive email notifications at `dukens11@example.com`
+- You'll receive email notifications at the configured email address (e.g., `dukens11@example.com`)
+  - *Note: Update this email in `codemagic.yaml` to your actual email address*
 - Emails include:
   - Build status (success/failure)
   - Direct download links to artifacts

@@ -25,6 +25,7 @@ A Flutter-based mobile application for the Grate Genyen raffle ticket management
 This project uses Codemagic for continuous integration and deployment.
 
 - **Build Status:** [![Codemagic build status](https://api.codemagic.io/apps/<app-id>/status_badge.svg)](https://codemagic.io/apps/<app-id>/latest_build)
+  - *Note: Replace `<app-id>` with your actual Codemagic application ID after setup*
 - **Configuration:** See `/codemagic.yaml` in repository root
 - **Setup Guide:** See [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md)
 
