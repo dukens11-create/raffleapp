@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grate Genyen - Ticket Design Gallery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 20px;
+            opacity: 0.9;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .ticket-container {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .ticket-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .ticket {
+            aspect-ratio: 1.6;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .ticket-background {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--ticket-color) 0%, var(--ticket-dark) 100%);
+        }
+
+        .ticket-content {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
+        }
+
+        .ticket-logo {
+            padding: 12px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+
+        .ticket-price-banner {
+            padding: 8px 16px;
+            background: var(--ticket-dark);
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .ticket-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-evenly;
+            padding: 16px;
+        }
+
+        .ticket-category {
+            font-size: 22px;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+        }
+
+        .ticket-code {
+            padding: 6px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .ticket-scratch-area {
+            width: 80%;
+            padding: 24px 16px;
+            background: rgba(128, 128, 128, 0.3);
+            border: 3px solid var(--ticket-dark);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .scratch-icon {
+            font-size: 32px;
+            opacity: 0.5;
+            margin-bottom: 8px;
+        }
+
+        .scratch-text {
+            font-size: 12px;
+            font-weight: bold;
+            opacity: 0.6;
+            letter-spacing: 1px;
+        }
+
+        .ticket-prize-banner {
+            padding: 10px;
+            background: var(--ticket-dark);
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+
+        .ticket-specs {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .ticket-specs h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .spec-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .spec-row:last-child {
+            border-bottom: none;
+        }
+
+        .spec-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .spec-value {
+            color: #333;
+            font-family: 'Courier New', monospace;
+        }
+
+        .color-swatch {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 2px solid #ddd;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        .comparison-table {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            overflow-x: auto;
+        }
+
+        .comparison-table h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #333;
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 40px;
+            opacity: 0.8;
+        }
+
+        /* Category-specific colors */
+        .basic {
+            --ticket-color: #10b981;
+            --ticket-dark: #059669;
+            --text-color: white;
+        }
+
+        .premium {
+            --ticket-color: #7c3aed;
+            --ticket-dark: #6d28d9;
+            --text-color: white;
+        }
+
+        .bronze {
+            --ticket-color: #ea580c;
+            --ticket-dark: #c2410c;
+            --text-color: white;
+        }
+
+        .silver {
+            --ticket-color: #cbd5e1;
+            --ticket-dark: #94a3b8;
+            --text-color: #1f2937;
+        }
+
+        .gold {
+            --ticket-color: #fbbf24;
+            --ticket-dark: #f59e0b;
+            --text-color: white;
+        }
+
+        .diamond {
+            --ticket-color: #22d3ee;
+            --ticket-dark: #06b6d4;
+            --text-color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎫 Grate Genyen</h1>
+            <p>Galerie des Designs de Tickets de Loterie</p>
+        </div>
+
+        <div class="gallery">
+            <!-- BASIC Ticket -->
+            <div class="ticket-container">
+                <div class="ticket basic">
+                    <div class="ticket-background"></div>
+                    <div class="ticket-content">
+                        <div class="ticket-logo">GRATE GENYEN</div>
+                        <div class="ticket-price-banner">
+                            <span>GRATE TOUT</span>
+                            <span>50 HTG</span>
+                        </div>
+                        <div class="ticket-body">
+                            <div class="ticket-category">BASIC</div>
+                            <div class="ticket-code">XYZ-######</div>
+                            <div class="ticket-scratch-area">
+                                <div class="scratch-icon">👆</div>
+                                <div class="scratch-text">ZONE À GRATTER</div>
+                            </div>
+                        </div>
+                        <div class="ticket-prize-banner">GAGNER JUSQU'À 5,000 HTG</div>
+                    </div>
+                </div>
+                <div class="ticket-specs">
+                    <h3>Spécifications BASIC</h3>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix:</span>
+                        <span class="spec-value">50 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Format Code:</span>
+                        <span class="spec-value">XYZ-######</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix Maximum:</span>
+                        <span class="spec-value">5,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Couleur:</span>
+                        <span class="spec-value">
+                            <span class="color-swatch" style="background: #10b981;"></span>
+                            #10b981 (Green)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PREMIUM Ticket -->
+            <div class="ticket-container">
+                <div class="ticket premium">
+                    <div class="ticket-background"></div>
+                    <div class="ticket-content">
+                        <div class="ticket-logo">GRATE GENYEN</div>
+                        <div class="ticket-price-banner">
+                            <span>GRATE TOUT</span>
+                            <span>100 HTG</span>
+                        </div>
+                        <div class="ticket-body">
+                            <div class="ticket-category">PREMIUM</div>
+                            <div class="ticket-code">EFG-######</div>
+                            <div class="ticket-scratch-area">
+                                <div class="scratch-icon">👆</div>
+                                <div class="scratch-text">ZONE À GRATTER</div>
+                            </div>
+                        </div>
+                        <div class="ticket-prize-banner">GAGNER JUSQU'À 10,000 HTG</div>
+                    </div>
+                </div>
+                <div class="ticket-specs">
+                    <h3>Spécifications PREMIUM</h3>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix:</span>
+                        <span class="spec-value">100 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Format Code:</span>
+                        <span class="spec-value">EFG-######</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix Maximum:</span>
+                        <span class="spec-value">10,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Couleur:</span>
+                        <span class="spec-value">
+                            <span class="color-swatch" style="background: #7c3aed;"></span>
+                            #7c3aed (Purple)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BRONZE Ticket -->
+            <div class="ticket-container">
+                <div class="ticket bronze">
+                    <div class="ticket-background"></div>
+                    <div class="ticket-content">
+                        <div class="ticket-logo">GRATE GENYEN</div>
+                        <div class="ticket-price-banner">
+                            <span>GRATE TOUT</span>
+                            <span>250 HTG</span>
+                        </div>
+                        <div class="ticket-body">
+                            <div class="ticket-category">BRONZE</div>
+                            <div class="ticket-code">JKL-######</div>
+                            <div class="ticket-scratch-area">
+                                <div class="scratch-icon">👆</div>
+                                <div class="scratch-text">ZONE À GRATTER</div>
+                            </div>
+                        </div>
+                        <div class="ticket-prize-banner">GAGNER JUSQU'À 25,000 HTG</div>
+                    </div>
+                </div>
+                <div class="ticket-specs">
+                    <h3>Spécifications BRONZE</h3>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix:</span>
+                        <span class="spec-value">250 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Format Code:</span>
+                        <span class="spec-value">JKL-######</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix Maximum:</span>
+                        <span class="spec-value">25,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Couleur:</span>
+                        <span class="spec-value">
+                            <span class="color-swatch" style="background: #ea580c;"></span>
+                            #ea580c (Orange)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SILVER Ticket -->
+            <div class="ticket-container">
+                <div class="ticket silver">
+                    <div class="ticket-background"></div>
+                    <div class="ticket-content">
+                        <div class="ticket-logo">GRATE GENYEN</div>
+                        <div class="ticket-price-banner">
+                            <span>GRATE TOUT</span>
+                            <span>500 HTG</span>
+                        </div>
+                        <div class="ticket-body">
+                            <div class="ticket-category">SILVER</div>
+                            <div class="ticket-code">ABC-######</div>
+                            <div class="ticket-scratch-area">
+                                <div class="scratch-icon">👆</div>
+                                <div class="scratch-text">ZONE À GRATTER</div>
+                            </div>
+                        </div>
+                        <div class="ticket-prize-banner">GAGNER JUSQU'À 150,000 HTG</div>
+                    </div>
+                </div>
+                <div class="ticket-specs">
+                    <h3>Spécifications SILVER</h3>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix:</span>
+                        <span class="spec-value">500 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Format Code:</span>
+                        <span class="spec-value">ABC-######</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix Maximum:</span>
+                        <span class="spec-value">150,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Couleur:</span>
+                        <span class="spec-value">
+                            <span class="color-swatch" style="background: #cbd5e1;"></span>
+                            #cbd5e1 (Silver)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GOLD Ticket -->
+            <div class="ticket-container">
+                <div class="ticket gold">
+                    <div class="ticket-background"></div>
+                    <div class="ticket-content">
+                        <div class="ticket-logo">GRATE GENYEN</div>
+                        <div class="ticket-price-banner">
+                            <span>GRATE TOUT</span>
+                            <span>1,000 HTG</span>
+                        </div>
+                        <div class="ticket-body">
+                            <div class="ticket-category">GOLD</div>
+                            <div class="ticket-code">GOLD-#####</div>
+                            <div class="ticket-scratch-area">
+                                <div class="scratch-icon">👆</div>
+                                <div class="scratch-text">ZONE À GRATTER</div>
+                            </div>
+                        </div>
+                        <div class="ticket-prize-banner">GAGNER JUSQU'À 500,000 HTG</div>
+                    </div>
+                </div>
+                <div class="ticket-specs">
+                    <h3>Spécifications GOLD</h3>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix:</span>
+                        <span class="spec-value">1,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Format Code:</span>
+                        <span class="spec-value">GOLD-#####</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix Maximum:</span>
+                        <span class="spec-value">500,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Couleur:</span>
+                        <span class="spec-value">
+                            <span class="color-swatch" style="background: #fbbf24;"></span>
+                            #fbbf24 (Gold)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIAMOND Ticket -->
+            <div class="ticket-container">
+                <div class="ticket diamond">
+                    <div class="ticket-background"></div>
+                    <div class="ticket-content">
+                        <div class="ticket-logo">GRATE GENYEN</div>
+                        <div class="ticket-price-banner">
+                            <span>GRATE TOUT</span>
+                            <span>5,000 HTG</span>
+                        </div>
+                        <div class="ticket-body">
+                            <div class="ticket-category">DIAMOND</div>
+                            <div class="ticket-code">DMD-#####</div>
+                            <div class="ticket-scratch-area">
+                                <div class="scratch-icon">👆</div>
+                                <div class="scratch-text">ZONE À GRATTER</div>
+                            </div>
+                        </div>
+                        <div class="ticket-prize-banner">GAGNER JUSQU'À 2,000,000 HTG</div>
+                    </div>
+                </div>
+                <div class="ticket-specs">
+                    <h3>Spécifications DIAMOND</h3>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix:</span>
+                        <span class="spec-value">5,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Format Code:</span>
+                        <span class="spec-value">DMD-#####</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Prix Maximum:</span>
+                        <span class="spec-value">2,000,000 HTG</span>
+                    </div>
+                    <div class="spec-row">
+                        <span class="spec-label">Couleur:</span>
+                        <span class="spec-value">
+                            <span class="color-swatch" style="background: #22d3ee;"></span>
+                            #22d3ee (Cyan)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div class="comparison-table">
+            <h2>📊 Tableau Comparatif des Catégories</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Catégorie</th>
+                        <th>Prix (HTG)</th>
+                        <th>Format Code</th>
+                        <th>Prix Max (HTG)</th>
+                        <th>Couleur</th>
+                        <th>Code Hex</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>BASIC</strong></td>
+                        <td>50</td>
+                        <td>XYZ-######</td>
+                        <td>5,000</td>
+                        <td><span class="color-swatch" style="background: #10b981;"></span> Green</td>
+                        <td>#10b981</td>
+                    </tr>
+                    <tr>
+                        <td><strong>PREMIUM</strong></td>
+                        <td>100</td>
+                        <td>EFG-######</td>
+                        <td>10,000</td>
+                        <td><span class="color-swatch" style="background: #7c3aed;"></span> Purple</td>
+                        <td>#7c3aed</td>
+                    </tr>
+                    <tr>
+                        <td><strong>BRONZE</strong></td>
+                        <td>250</td>
+                        <td>JKL-######</td>
+                        <td>25,000</td>
+                        <td><span class="color-swatch" style="background: #ea580c;"></span> Orange</td>
+                        <td>#ea580c</td>
+                    </tr>
+                    <tr>
+                        <td><strong>SILVER</strong></td>
+                        <td>500</td>
+                        <td>ABC-######</td>
+                        <td>150,000</td>
+                        <td><span class="color-swatch" style="background: #cbd5e1;"></span> Silver</td>
+                        <td>#cbd5e1</td>
+                    </tr>
+                    <tr>
+                        <td><strong>GOLD</strong></td>
+                        <td>1,000</td>
+                        <td>GOLD-#####</td>
+                        <td>500,000</td>
+                        <td><span class="color-swatch" style="background: #fbbf24;"></span> Gold</td>
+                        <td>#fbbf24</td>
+                    </tr>
+                    <tr>
+                        <td><strong>DIAMOND</strong></td>
+                        <td>5,000</td>
+                        <td>DMD-#####</td>
+                        <td>2,000,000</td>
+                        <td><span class="color-swatch" style="background: #22d3ee;"></span> Cyan</td>
+                        <td>#22d3ee</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            <p>© 2026 Grate Genyen - Système de Design de Tickets de Loterie</p>
+            <p>Pour plus de détails, consultez TICKET_DESIGN_GUIDE.md</p>
+        </div>
+    </div>
+</body>
+</html>

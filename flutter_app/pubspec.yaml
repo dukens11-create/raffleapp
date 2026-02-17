@@ -69,6 +69,14 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/ticket-designs/
+    - assets/ticket-designs/basic/
+    - assets/ticket-designs/premium/
+    - assets/ticket-designs/bronze/
+    - assets/ticket-designs/silver/
+    - assets/ticket-designs/gold/
+    - assets/ticket-designs/diamond/
+    - assets/ticket-designs/shared/
   
   # fonts:
   #   - family: Schyler
