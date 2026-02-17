@@ -227,7 +227,8 @@ class BuyerApiService {
         try {
           final errorData = json.decode(response.body);
           throw Exception(errorData['message'] ?? 'Failed to initiate purchase: ${response.statusCode}');
-        } catch (e) {
+        } catch (parseError) {
+          debugPrint('⚠️ Could not parse error response: $parseError');
           throw Exception('Failed to initiate purchase: ${response.statusCode}');
         }
       }
@@ -260,7 +261,8 @@ class BuyerApiService {
         try {
           final errorData = json.decode(response.body);
           throw Exception(errorData['message'] ?? 'Failed to submit manual payment: ${response.statusCode}');
-        } catch (e) {
+        } catch (parseError) {
+          debugPrint('⚠️ Could not parse error response: $parseError');
           throw Exception('Failed to submit manual payment: ${response.statusCode}');
         }
       }
