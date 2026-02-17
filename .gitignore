@@ -8,6 +8,10 @@ raffle-app/test_streaming.js
 raffle-app/generate_test_tickets.js
 raffle-app/server.log
 
+# Ticket design placeholders (replace with actual PNGs)
+raffle-app/public/ticket-designs/*.txt
+flutter_app/assets/images/tickets/*.txt
+
 # Mobile build artifacts (Capacitor)
 raffle-app/www/
 raffle-app/android/
