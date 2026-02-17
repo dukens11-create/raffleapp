@@ -76,7 +76,9 @@ lib/
 
 This Flutter app connects to the existing Express.js backend API located in the `raffle-app` directory. Make sure the backend server is running before using the mobile app.
 
-Default backend URL: `http://localhost:3000`
+**Default backend URL:** `http://10.0.2.2:10000` (Android emulator)
+
+The backend server runs on port **10000**. For detailed API configuration and connection setup for different environments (iOS, physical devices, etc.), see [`BACKEND_CONNECTION_GUIDE.md`](BACKEND_CONNECTION_GUIDE.md).
 
 ## Contributing
 
