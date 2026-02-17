@@ -69,6 +69,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/ticket-designs/
   
   # fonts:
   #   - family: Schyler
