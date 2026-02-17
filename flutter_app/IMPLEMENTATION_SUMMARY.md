@@ -264,9 +264,9 @@ See [FLUTTER_BUILD_GUIDE.md](FLUTTER_BUILD_GUIDE.md) for complete instructions.
 The app uses environment variables for backend URL:
 
 **Development:**
-- Android Emulator: `http://10.0.2.2:3000`
-- iOS Simulator: `http://localhost:3000`
-- Physical Device: Use your computer's local IP
+- Android Emulator: `http://10.0.2.2:10000` (default)
+- iOS Simulator: `http://localhost:10000`
+- Physical Device: Use your computer's local IP with port 10000
 
 **Production:**
 - Set via build command: `--dart-define=API_BASE_URL=https://api.example.com`

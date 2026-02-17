@@ -407,7 +407,7 @@ flutter build ipa --release
 // In lib/config/api_config.dart
 static const String baseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://localhost:3000',
+  defaultValue: 'http://10.0.2.2:10000', // Android emulator, port 10000
 );
 ```
 
