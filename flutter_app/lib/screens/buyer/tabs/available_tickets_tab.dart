@@ -154,7 +154,7 @@ class _AvailableTicketsTabState extends State<AvailableTicketsTab> {
       return EmptyState(
         icon: Icons.error_outline,
         title: 'Error Loading Tickets',
-        message: _error!,
+        message: 'Details: $_error\n\nTroubleshooting:\n1. Check backend is running on port 10000\n2. Verify API_BASE_URL configuration\n3. Check network connection\n4. For Android emulator, backend should be accessible at 10.0.2.2:10000',
         onRetry: _loadTickets,
       );
     }
