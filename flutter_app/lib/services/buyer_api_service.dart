@@ -46,7 +46,7 @@ class BuyerApiService {
   Future<RaffleInfo> getRaffleInfo() async {
     try {
       final url = '$baseUrl${ApiConfig.publicRaffleInfoEndpoint}';
-      print('🔍 Fetching raffle info from: $url');
+      debugPrint('🔍 Fetching raffle info from: $url');
       
       final response = await http
           .get(
@@ -56,14 +56,14 @@ class BuyerApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Raffle info loaded successfully');
+        debugPrint('✅ Raffle info loaded successfully');
         return RaffleInfo.fromJson(data);
       } else {
-        print('❌ Failed to load raffle info: ${response.statusCode}');
+        debugPrint('❌ Failed to load raffle info: ${response.statusCode}');
         throw Exception('Failed to load raffle info: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error fetching raffle info: $e');
+      debugPrint('❌ Error fetching raffle info: $e');
       throw Exception(_handleError(e, ApiConfig.publicRaffleInfoEndpoint));
     }
   }
@@ -76,7 +76,7 @@ class BuyerApiService {
         url += '?category=$category';
       }
 
-      print('🔍 Fetching available tickets from: $url');
+      debugPrint('🔍 Fetching available tickets from: $url');
 
       final response = await http
           .get(
@@ -86,15 +86,15 @@ class BuyerApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Available tickets loaded successfully');
+        debugPrint('✅ Available tickets loaded successfully');
         return AvailableTicketsResponse.fromJson(data);
       } else {
-        print('❌ Available Tickets HTTP Error: ${response.statusCode}');
-        print('Response body: ${response.body}');
+        debugPrint('❌ Available Tickets HTTP Error: ${response.statusCode}');
+        debugPrint('Response body: ${response.body}');
         throw Exception('Failed to load available tickets: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Available Tickets Error: $e');
+      debugPrint('❌ Available Tickets Error: $e');
       throw Exception(_handleError(e, '/api/buyer/available-tickets'));
     }
   }
@@ -103,7 +103,7 @@ class BuyerApiService {
   Future<List<String>> getDepartments() async {
     try {
       final url = '$baseUrl/api/public/departments';
-      print('🔍 Fetching departments from: $url');
+      debugPrint('🔍 Fetching departments from: $url');
       
       final response = await http
           .get(
@@ -113,14 +113,14 @@ class BuyerApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Departments loaded successfully');
+        debugPrint('✅ Departments loaded successfully');
         return (data['departments'] as List).cast<String>();
       } else {
-        print('❌ Failed to load departments: ${response.statusCode}');
+        debugPrint('❌ Failed to load departments: ${response.statusCode}');
         throw Exception('Failed to load departments: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error fetching departments: $e');
+      debugPrint('❌ Error fetching departments: $e');
       throw Exception(_handleError(e, '/api/public/departments'));
     }
   }
@@ -129,7 +129,7 @@ class BuyerApiService {
   Future<Map<String, dynamic>> getTicketAvailability() async {
     try {
       final url = '$baseUrl/api/public/ticket-availability';
-      print('🔍 Fetching ticket availability from: $url');
+      debugPrint('🔍 Fetching ticket availability from: $url');
       
       final response = await http
           .get(
@@ -138,14 +138,14 @@ class BuyerApiService {
           .timeout(timeout);
 
       if (response.statusCode == 200) {
-        print('✅ Ticket availability loaded successfully');
+        debugPrint('✅ Ticket availability loaded successfully');
         return json.decode(response.body);
       } else {
-        print('❌ Failed to load ticket availability: ${response.statusCode}');
+        debugPrint('❌ Failed to load ticket availability: ${response.statusCode}');
         throw Exception('Failed to load ticket availability: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error fetching ticket availability: $e');
+      debugPrint('❌ Error fetching ticket availability: $e');
       throw Exception(_handleError(e, '/api/public/ticket-availability'));
     }
   }
@@ -154,7 +154,7 @@ class BuyerApiService {
   Future<List<PaymentMethod>> getPaymentMethods() async {
     try {
       final url = '$baseUrl/api/payments/methods';
-      print('🔍 Fetching payment methods from: $url');
+      debugPrint('🔍 Fetching payment methods from: $url');
       
       final response = await http
           .get(
@@ -164,16 +164,16 @@ class BuyerApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Payment methods loaded successfully');
+        debugPrint('✅ Payment methods loaded successfully');
         return (data['payment_methods'] as List)
             .map((m) => PaymentMethod.fromJson(m))
             .toList();
       } else {
-        print('❌ Failed to load payment methods: ${response.statusCode}');
+        debugPrint('❌ Failed to load payment methods: ${response.statusCode}');
         throw Exception('Failed to load payment methods: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error fetching payment methods: $e');
+      debugPrint('❌ Error fetching payment methods: $e');
       throw Exception(_handleError(e, '/api/payments/methods'));
     }
   }
@@ -182,7 +182,7 @@ class BuyerApiService {
   Future<ManualInstructions> getManualInstructions(String method) async {
     try {
       final url = '$baseUrl/api/payments/manual-instructions/$method';
-      print('🔍 Fetching manual instructions from: $url');
+      debugPrint('🔍 Fetching manual instructions from: $url');
       
       final response = await http
           .get(
@@ -192,14 +192,14 @@ class BuyerApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Manual instructions loaded successfully');
+        debugPrint('✅ Manual instructions loaded successfully');
         return ManualInstructions.fromJson(data);
       } else {
-        print('❌ Failed to load manual instructions: ${response.statusCode}');
+        debugPrint('❌ Failed to load manual instructions: ${response.statusCode}');
         throw Exception('Failed to load manual instructions: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error fetching manual instructions: $e');
+      debugPrint('❌ Error fetching manual instructions: $e');
       throw Exception(_handleError(e, '/api/payments/manual-instructions/$method'));
     }
   }
@@ -208,7 +208,7 @@ class BuyerApiService {
   Future<PurchaseResponse> initiatePurchase(PurchaseRequest request) async {
     try {
       final url = '$baseUrl${ApiConfig.publicPurchaseEndpoint}';
-      print('🔍 Initiating purchase at: $url');
+      debugPrint('🔍 Initiating purchase at: $url');
       
       final response = await http
           .post(
@@ -220,15 +220,19 @@ class BuyerApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
-        print('✅ Purchase initiated successfully');
+        debugPrint('✅ Purchase initiated successfully');
         return PurchaseResponse.fromJson(data);
       } else {
-        print('❌ Failed to initiate purchase: ${response.statusCode}');
-        final errorData = json.decode(response.body);
-        throw Exception(errorData['message'] ?? 'Failed to initiate purchase');
+        debugPrint('❌ Failed to initiate purchase: ${response.statusCode}');
+        try {
+          final errorData = json.decode(response.body);
+          throw Exception(errorData['message'] ?? 'Failed to initiate purchase: ${response.statusCode}');
+        } catch (e) {
+          throw Exception('Failed to initiate purchase: ${response.statusCode}');
+        }
       }
     } catch (e) {
-      print('❌ Error initiating purchase: $e');
+      debugPrint('❌ Error initiating purchase: $e');
       throw Exception(_handleError(e, ApiConfig.publicPurchaseEndpoint));
     }
   }
@@ -237,7 +241,7 @@ class BuyerApiService {
   Future<ManualPaymentResponse> submitManualPayment(ManualPaymentRequest request) async {
     try {
       final url = '$baseUrl${ApiConfig.manualPaymentEndpoint}';
-      print('🔍 Submitting manual payment at: $url');
+      debugPrint('🔍 Submitting manual payment at: $url');
       
       final response = await http
           .post(
@@ -249,15 +253,19 @@ class BuyerApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = json.decode(response.body);
-        print('✅ Manual payment submitted successfully');
+        debugPrint('✅ Manual payment submitted successfully');
         return ManualPaymentResponse.fromJson(data);
       } else {
-        print('❌ Failed to submit manual payment: ${response.statusCode}');
-        final errorData = json.decode(response.body);
-        throw Exception(errorData['message'] ?? 'Failed to submit manual payment');
+        debugPrint('❌ Failed to submit manual payment: ${response.statusCode}');
+        try {
+          final errorData = json.decode(response.body);
+          throw Exception(errorData['message'] ?? 'Failed to submit manual payment: ${response.statusCode}');
+        } catch (e) {
+          throw Exception('Failed to submit manual payment: ${response.statusCode}');
+        }
       }
     } catch (e) {
-      print('❌ Error submitting manual payment: $e');
+      debugPrint('❌ Error submitting manual payment: $e');
       throw Exception(_handleError(e, ApiConfig.manualPaymentEndpoint));
     }
   }
@@ -275,7 +283,7 @@ class BuyerApiService {
       if (buyerCode != null && buyerCode.isNotEmpty) body['buyer_code'] = buyerCode;
 
       final url = '$baseUrl/api/public/my-tickets';
-      print('🔍 Looking up tickets at: $url');
+      debugPrint('🔍 Looking up tickets at: $url');
 
       final response = await http
           .post(
@@ -287,14 +295,14 @@ class BuyerApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Tickets lookup successful');
+        debugPrint('✅ Tickets lookup successful');
         return MyTicketsResponse.fromJson(data);
       } else {
-        print('❌ Failed to lookup tickets: ${response.statusCode}');
+        debugPrint('❌ Failed to lookup tickets: ${response.statusCode}');
         throw Exception('Failed to lookup tickets: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error looking up tickets: $e');
+      debugPrint('❌ Error looking up tickets: $e');
       throw Exception(_handleError(e, '/api/public/my-tickets'));
     }
   }
@@ -303,7 +311,7 @@ class BuyerApiService {
   Future<VerifyTicketResponse> verifyTicket(String ticketNumber) async {
     try {
       final url = '$baseUrl/api/public/verify-ticket/$ticketNumber';
-      print('🔍 Verifying ticket at: $url');
+      debugPrint('🔍 Verifying ticket at: $url');
       
       final response = await http
           .get(
@@ -313,20 +321,20 @@ class BuyerApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('✅ Ticket verified successfully');
+        debugPrint('✅ Ticket verified successfully');
         return VerifyTicketResponse.fromJson(data);
       } else if (response.statusCode == 404) {
-        print('⚠️ Ticket not found');
+        debugPrint('⚠️ Ticket not found');
         return VerifyTicketResponse(
           valid: false,
           message: 'Ticket not found',
         );
       } else {
-        print('❌ Failed to verify ticket: ${response.statusCode}');
+        debugPrint('❌ Failed to verify ticket: ${response.statusCode}');
         throw Exception('Failed to verify ticket: ${response.statusCode}');
       }
     } catch (e) {
-      print('❌ Error verifying ticket: $e');
+      debugPrint('❌ Error verifying ticket: $e');
       throw Exception(_handleError(e, '/api/public/verify-ticket/$ticketNumber'));
     }
   }
