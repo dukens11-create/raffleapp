@@ -56,9 +56,6 @@ class BuyerApiService {
       }
     } catch (e) {
       print('❌ Available Tickets Error: $e');
-      if (e is! Exception) {
-        print('Error type: ${e.runtimeType}');
-      }
       throw Exception('Error fetching available tickets: $e');
     }
   }
