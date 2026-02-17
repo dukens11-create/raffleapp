@@ -74,7 +74,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - dukens11@example.com
+          - dukens11@example.com  # Update with your email address
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
@@ -116,7 +116,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - dukens11@example.com
+          - dukens11@example.com  # Update with your email address
       app_store_connect:
         api_key: $APP_STORE_CONNECT_KEY_IDENTIFIER
 
@@ -150,4 +150,4 @@ workflows:
     publishing:
       email:
         recipients:
-          - dukens11@example.com
+          - dukens11@example.com  # Update with your email address
