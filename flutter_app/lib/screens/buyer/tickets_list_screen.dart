@@ -192,7 +192,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                 final isSelected = ticketProvider.selectedCategory == category.categoryCode;
                 return _buildFilterChip(
                   context,
-                  '${category.categoryCode} (${category.onlineAvailable})',
+                  category.categoryCode,
                   isSelected,
                   () => ticketProvider.filterByCategory(category.categoryCode),
                 );
@@ -248,7 +248,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                       ...categories.map((category) {
                         return ListTile(
                           title: Text(category.categoryCode),
-                          subtitle: Text('${category.onlineAvailable} disponib'),
+                          subtitle: Text(category.onlineAvailable > 0 ? 'Disponib' : 'EPUIZE'),
                           onTap: () {
                             context.read<BuyerTicketProvider>()
                                 .filterByCategory(category.categoryCode);
