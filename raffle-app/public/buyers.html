@@ -842,6 +842,159 @@
       box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
     }
 
+    /* Sunlight Rays for Scratch Tickets - Base */
+    .scratch-ticket-card::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      animation: rotateSunRays 20s linear infinite;
+    }
+
+    /* Mare/Wave Animation for Scratch Tickets
+     * Z-index hierarchy:
+     * - z-index: 1 = Sunlight rays (ticket-bg-* ::before)
+     * - z-index: 10 = Mare wave effect (scratch-ticket-card ::after)
+     * This ensures the wave appears above the rays for maximum visibility
+     */
+    .scratch-ticket-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 10;
+      animation: mareWave 3s ease-in-out infinite;
+    }
+
+    /* Theme-specific sunlight ray colors for scratch tickets */
+    .scratch-ticket-card.ticket-bg-basic::before {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(16, 185, 129, 0.3) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.2) 90deg,
+        transparent 120deg,
+        rgba(16, 185, 129, 0.3) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.2) 210deg,
+        transparent 240deg,
+        rgba(16, 185, 129, 0.3) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.2) 330deg,
+        transparent 360deg
+      );
+    }
+
+    .scratch-ticket-card.ticket-bg-premium::before {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(139, 92, 246, 0.3) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.2) 90deg,
+        transparent 120deg,
+        rgba(139, 92, 246, 0.3) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.2) 210deg,
+        transparent 240deg,
+        rgba(139, 92, 246, 0.3) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.2) 330deg,
+        transparent 360deg
+      );
+    }
+
+    .scratch-ticket-card.ticket-bg-bronze::before {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(249, 115, 22, 0.3) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.2) 90deg,
+        transparent 120deg,
+        rgba(249, 115, 22, 0.3) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.2) 210deg,
+        transparent 240deg,
+        rgba(249, 115, 22, 0.3) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.2) 330deg,
+        transparent 360deg
+      );
+    }
+
+    .scratch-ticket-card.ticket-bg-silver::before {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(203, 213, 225, 0.4) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.3) 90deg,
+        transparent 120deg,
+        rgba(203, 213, 225, 0.4) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.3) 210deg,
+        transparent 240deg,
+        rgba(203, 213, 225, 0.4) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.3) 330deg,
+        transparent 360deg
+      );
+    }
+
+    .scratch-ticket-card.ticket-bg-gold::before {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(234, 179, 8, 0.4) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.3) 90deg,
+        transparent 120deg,
+        rgba(234, 179, 8, 0.4) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.3) 210deg,
+        transparent 240deg,
+        rgba(234, 179, 8, 0.4) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.3) 330deg,
+        transparent 360deg
+      );
+    }
+
+    .scratch-ticket-card.ticket-bg-diamond::before {
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(6, 182, 212, 0.4) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.3) 90deg,
+        transparent 120deg,
+        rgba(6, 182, 212, 0.4) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.3) 210deg,
+        transparent 240deg,
+        rgba(6, 182, 212, 0.4) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.3) 330deg,
+        transparent 360deg
+      );
+    }
+
     /* Price Badge */
     .ticket-price-badge {
       position: absolute;
@@ -1193,6 +1346,17 @@
       .scratch-ticket-details {
         grid-template-columns: 1fr;
       }
+    }
+
+    /* Animations for Mare Wave and Sunlight Rays */
+    @keyframes rotateSunRays {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    @keyframes mareWave {
+      0% { left: -100%; }
+      100% { left: 100%; }
     }
   </style>
 </head>
