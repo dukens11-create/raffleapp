@@ -5,7 +5,7 @@
 
 const db = require('../db');
 
-async function addAll6Categories() {
+async function addAllSixCategories() {
   console.log('🔄 Starting ticket categories migration...');
   
   try {
@@ -75,7 +75,7 @@ async function addAll6Categories() {
 
 // Run migration if executed directly
 if (require.main === module) {
-  addAll6Categories()
+  addAllSixCategories()
     .then(() => {
       db.close();
       process.exit(0);
@@ -87,4 +87,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = addAll6Categories;
+module.exports = addAllSixCategories;
