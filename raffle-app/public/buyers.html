@@ -816,7 +816,7 @@
     #scratch-tickets-grid {
       padding: 20px 0;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 24px;
       margin-top: 20px;
     }
@@ -2680,17 +2680,21 @@
       }
     ];
 
-    // Generate sparkles for ticket backgrounds
-    function generateSparkles(count) {
-      let sparklesHTML = '<div class="ticket-sparkles">';
+    // Generate sparkles for ticket backgrounds (using DOM manipulation for better security)
+    function createSparklesElement(count) {
+      const sparklesContainer = document.createElement('div');
+      sparklesContainer.className = 'ticket-sparkles';
+      
       for (let i = 0; i < count; i++) {
-        const top = Math.random() * 100;
-        const left = Math.random() * 100;
-        const delay = Math.random() * 3;
-        sparklesHTML += `<div class="sparkle" style="top: ${top}%; left: ${left}%; animation-delay: ${delay}s;"></div>`;
+        const sparkle = document.createElement('div');
+        sparkle.className = 'sparkle';
+        sparkle.style.top = `${Math.random() * 100}%`;
+        sparkle.style.left = `${Math.random() * 100}%`;
+        sparkle.style.animationDelay = `${Math.random() * 3}s`;
+        sparklesContainer.appendChild(sparkle);
       }
-      sparklesHTML += '</div>';
-      return sparklesHTML;
+      
+      return sparklesContainer;
     }
 
     // Load scratch tickets into grid
@@ -2699,10 +2703,20 @@
       
       if (!grid) return;
       
-      grid.innerHTML = scratchTickets.map(ticket => `
-        <div class="scratch-ticket-card ${ticket.bgClass}" onclick="openScratchTicket('${ticket.id}')">
-          ${generateSparkles(30)}
-          
+      // Clear existing content
+      grid.innerHTML = '';
+      
+      // Create ticket cards
+      scratchTickets.forEach(ticket => {
+        const ticketCard = document.createElement('div');
+        ticketCard.className = `scratch-ticket-card ${ticket.bgClass}`;
+        ticketCard.dataset.ticketId = ticket.id;
+        
+        // Add sparkles
+        ticketCard.appendChild(createSparklesElement(30));
+        
+        // Build ticket HTML structure
+        ticketCard.innerHTML += `
           <!-- Grate Toute Label -->
           <div class="grate-toute-label">GRATE TOUTE</div>
           
@@ -2734,8 +2748,15 @@
           <div class="ticket-prize-footer">
             ${ticket.maxPrize.toLocaleString()} GOURDES!
           </div>
-        </div>
-      `).join('');
+        `;
+        
+        // Add click event listener
+        ticketCard.addEventListener('click', () => {
+          openScratchTicket(ticket.id);
+        });
+        
+        grid.appendChild(ticketCard);
+      });
     }
 
     // Open scratch ticket (redirect to scratch-tickets.html with specific ticket)
@@ -2762,7 +2783,10 @@
       // Load if URL hash indicates scratch tickets tab
       if (window.location.hash === '#scratch-tickets') {
         loadScratchTickets();
-        document.querySelector('[data-tab="scratch-tickets"]').click();
+        const scratchTabBtn = document.querySelector('[data-tab="scratch-tickets"]');
+        if (scratchTabBtn) {
+          scratchTabBtn.click();
+        }
       }
     });
     
