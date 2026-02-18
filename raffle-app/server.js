@@ -7988,6 +7988,203 @@ app.use((err, req, res, next) => {
 // ============================================================================
 
 /**
+ * POST /api/scratch-tickets/purchase - Purchase a scratch ticket
+ * Handles both automated and manual payment methods for scratch tickets
+ * 
+ * Request body:
+ * - ticketId: string (basic|premium|bronze|silver|gold|diamond)
+ * - ticketType: string (ticket name)
+ * - buyerName: string
+ * - phone: string
+ * - email: string (optional)
+ * - department: string
+ * - paymentMethod: string (moncash_api|natcash_api|moncash_manual|natcash_manual)
+ * - amount: number
+ */
+app.post('/api/scratch-tickets/purchase', [
+  body('ticketId').isIn(['basic', 'premium', 'bronze', 'silver', 'gold', 'diamond']).withMessage('Valid ticket ID required'),
+  body('ticketType').trim().notEmpty().withMessage('Ticket type required'),
+  body('buyerName').trim().notEmpty().withMessage('Buyer name required'),
+  body('phone').trim().notEmpty().withMessage('Phone number required'),
+  body('email').optional().isEmail().withMessage('Valid email required'),
+  body('department').custom(isValidDepartment).withMessage('Valid Haiti department required'),
+  body('paymentMethod').isIn(['moncash_api', 'natcash_api', 'moncash_manual', 'natcash_manual']).withMessage('Valid payment method required'),
+  body('amount').isFloat({ min: 0 }).withMessage('Valid amount required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const {
+      ticketId,
+      ticketType,
+      buyerName,
+      phone,
+      email,
+      department,
+      paymentMethod,
+      amount
+    } = req.body;
+
+    console.log('[Scratch Ticket Purchase] Initiating purchase:', {
+      ticketId,
+      ticketType,
+      buyerName,
+      phone,
+      department,
+      paymentMethod,
+      amount
+    });
+
+    // Get active raffle
+    const raffle = await db.get('SELECT * FROM raffles WHERE status = ? ORDER BY id DESC LIMIT 1', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+
+    // Map ticket IDs to categories (using existing ticket categories as a proxy)
+    // For now, we'll use a special category prefix for scratch tickets
+    const scratchCategoryMap = {
+      'basic': 'SCRATCH-BASIC',
+      'premium': 'SCRATCH-PREMIUM',
+      'bronze': 'SCRATCH-BRONZE',
+      'silver': 'SCRATCH-SILVER',
+      'gold': 'SCRATCH-GOLD',
+      'diamond': 'SCRATCH-DIAMOND'
+    };
+
+    const categoryCode = scratchCategoryMap[ticketId];
+
+    // Generate unique payment reference
+    const paymentReference = `SCR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+    // Determine payment type and status
+    const isAutomated = paymentMethod.includes('_api');
+    const paymentType = isAutomated ? 'automated' : 'manual';
+    const paymentStatus = isAutomated ? 'pending' : 'pending_verification';
+
+    // Extract provider from payment method
+    const provider = paymentMethod.includes('moncash') ? 'moncash' : 'natcash';
+
+    // Create payment record
+    const paymentResult = await db.run(`
+      INSERT INTO payments (
+        raffle_id,
+        payment_reference,
+        payment_method,
+        payment_type,
+        payment_provider,
+        payment_mode,
+        amount,
+        buyer_name,
+        buyer_email,
+        buyer_phone,
+        ticket_category,
+        ticket_quantity,
+        payment_status,
+        department,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : 'CURRENT_TIMESTAMP'})
+    `, [
+      raffle.id,
+      paymentReference,
+      paymentMethod,
+      paymentType,
+      provider,
+      isAutomated ? 'api' : 'manual',
+      amount,
+      buyerName,
+      email || null,
+      phone,
+      categoryCode,
+      1, // Always 1 scratch ticket per purchase
+      paymentStatus,
+      department
+    ]);
+
+    console.log('[Scratch Ticket Purchase] Payment record created:', paymentReference);
+
+    // For automated payments, initiate payment with provider
+    if (isAutomated) {
+      try {
+        let paymentDetails;
+        
+        if (provider === 'moncash') {
+          // Initiate MonCash payment
+          paymentDetails = await paymentService.initiateMonCashPayment({
+            amount: amount,
+            orderId: paymentReference,
+            buyerPhone: phone,
+            buyerName: buyerName
+          });
+        } else if (provider === 'natcash') {
+          // Initiate NatCash payment
+          paymentDetails = await paymentService.initiateNatCashPayment({
+            amount: amount,
+            orderId: paymentReference,
+            phoneNumber: phone
+          });
+        }
+
+        // Update payment with transaction details
+        if (paymentDetails) {
+          await db.run(`
+            UPDATE payments 
+            SET transaction_id = ?,
+                payment_details = ?
+            WHERE payment_reference = ?
+          `, [
+            paymentDetails.paymentId || paymentDetails.transactionId,
+            JSON.stringify(paymentDetails),
+            paymentReference
+          ]);
+        }
+
+        return res.json({
+          success: true,
+          payment_reference: paymentReference,
+          payment_status: 'pending',
+          payment_details: paymentDetails,
+          message: `Payment initiated via ${provider === 'moncash' ? 'MonCash' : 'NatCash'}`
+        });
+      } catch (paymentError) {
+        console.error('[Scratch Ticket Purchase] Payment initiation error:', paymentError);
+        
+        // Update payment status to failed
+        await db.run(`
+          UPDATE payments 
+          SET payment_status = ?,
+              payment_error = ?
+          WHERE payment_reference = ?
+        `, ['failed', paymentError.message, paymentReference]);
+
+        return res.status(500).json({
+          error: 'Failed to initiate payment with provider',
+          details: paymentError.message
+        });
+      }
+    } else {
+      // Manual payment - just return success
+      return res.json({
+        success: true,
+        payment_reference: paymentReference,
+        payment_status: 'pending_verification',
+        message: 'Payment confirmation submitted. Please wait for admin verification.',
+        instructions: `Please send $${amount} to the official ${provider === 'moncash' ? 'MonCash' : 'NatCash'} number and wait for confirmation.`
+      });
+    }
+  } catch (error) {
+    console.error('[Scratch Ticket Purchase] Error:', error);
+    res.status(500).json({
+      error: 'Failed to process scratch ticket purchase',
+      details: error.message
+    });
+  }
+});
+
+/**
  * GET /api/scratch-tickets/available - Get available tickets for scratch ticket game
  * Returns a random available ticket from the specified category
  * 
