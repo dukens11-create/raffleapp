@@ -366,18 +366,6 @@ class _HomeTab extends StatelessWidget {
                   fontWeight: isAvailable ? FontWeight.w500 : FontWeight.bold,
                 ),
               ),
-              if (false)
-                const Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: Text(
-                    'EPUIZE',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
