@@ -8,23 +8,25 @@ const db = require('../db');
 async function addAllSixCategories() {
   console.log('🎫 Adding all 6 ticket categories...');
   
+  const RAFFLE_ID = 1;  // Default raffle ID
+  
   try {
     // Initialize schema first to ensure tables exist
     await db.initializeSchema();
     
     // Check if raffle exists, create if needed
-    const raffle = await db.get('SELECT id FROM raffles WHERE id = 1');
+    const raffle = await db.get('SELECT id FROM raffles WHERE id = ?', [RAFFLE_ID]);
     if (!raffle) {
-      console.log('❌ No raffle with id=1 found. Creating default raffle...');
+      console.log('ℹ️  No raffle with id=1 found. Creating default raffle...');
       await db.run(
         `INSERT INTO raffles (id, name, status, description, total_tickets) 
          VALUES (?, ?, ?, ?, ?)`,
-        [1, 'GRATE GENYEN', 'active', 'Official Grate Genyen raffle for ticket sales', 2000000]
+        [RAFFLE_ID, 'GRATE GENYEN', 'active', 'Official Grate Genyen raffle for ticket sales', 2000000]
       );
     }
     
     // Check current categories
-    const existingCategories = await db.all('SELECT id, category_code, category_name, price FROM ticket_categories WHERE raffle_id = 1');
+    const existingCategories = await db.all('SELECT id, category_code, category_name, price FROM ticket_categories WHERE raffle_id = ?', [RAFFLE_ID]);
     console.log('\n📋 Current categories before migration:');
     if (existingCategories.length === 0) {
       console.log('  - No categories found');
@@ -49,30 +51,25 @@ async function addAllSixCategories() {
     let updatedCount = 0;
     
     for (const cat of categories) {
-      // Check if category already exists
+      // Check if category exists and get its current values in one query
       const existing = await db.get(
-        'SELECT id FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
-        [1, cat.code]
+        'SELECT id, category_name, price, total_tickets, color FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [RAFFLE_ID, cat.code]
       );
       
       if (existing) {
         // Check if update is needed
-        const current = await db.get(
-          'SELECT category_name, price, total_tickets, color FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
-          [1, cat.code]
-        );
-        
-        const needsUpdate = current.category_name !== cat.name ||
-                            current.price !== cat.price ||
-                            current.total_tickets !== cat.total ||
-                            current.color !== cat.color;
+        const needsUpdate = existing.category_name !== cat.name ||
+                            existing.price !== cat.price ||
+                            existing.total_tickets !== cat.total ||
+                            existing.color !== cat.color;
         
         if (needsUpdate) {
           await db.run(
             `UPDATE ticket_categories 
              SET category_name = ?, price = ?, total_tickets = ?, color = ?
              WHERE raffle_id = ? AND category_code = ?`,
-            [cat.name, cat.price, cat.total, cat.color, 1, cat.code]
+            [cat.name, cat.price, cat.total, cat.color, RAFFLE_ID, cat.code]
           );
           console.log(`  ✅ Updated ${cat.code} (${cat.name}): ${cat.price} HTG`);
           updatedCount++;
@@ -85,7 +82,7 @@ async function addAllSixCategories() {
           `INSERT INTO ticket_categories 
            (raffle_id, category_code, category_name, price, total_tickets, color) 
            VALUES (?, ?, ?, ?, ?, ?)`,
-          [1, cat.code, cat.name, cat.price, cat.total, cat.color]
+          [RAFFLE_ID, cat.code, cat.name, cat.price, cat.total, cat.color]
         );
         console.log(`  ✅ Added ${cat.code} (${cat.name}): ${cat.price} HTG`);
         addedCount++;
@@ -93,7 +90,7 @@ async function addAllSixCategories() {
     }
     
     // Verify final state
-    const finalCategories = await db.all('SELECT category_code, category_name, price FROM ticket_categories WHERE raffle_id = 1 ORDER BY category_code');
+    const finalCategories = await db.all('SELECT category_code, category_name, price FROM ticket_categories WHERE raffle_id = ? ORDER BY category_code', [RAFFLE_ID]);
     console.log('\n📋 All categories in database:');
     finalCategories.forEach(cat => {
       console.log(`   ${cat.category_code} (${cat.category_name}) - ${cat.price} HTG`);
