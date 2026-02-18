@@ -54,7 +54,7 @@ These are set directly in the workflow file but can be overridden:
 
 | Variable Name | Default Value | Description |
 |--------------|---------------|-------------|
-| `API_BASE_URL` | `https://enejipamticket.com` | Backend API endpoint |
+| `API_BASE_URL` | `https://grategenyen.com` | Backend API endpoint |
 
 ## 3. Android Signing Setup
 
@@ -244,7 +244,7 @@ If App Store Connect is configured:
 
 ### API Connection Issues
 
-- Verify `API_BASE_URL` is set correctly: `https://enejipamticket.com`
+- Verify `API_BASE_URL` is set correctly: `https://grategenyen.com`
 - Check that the backend is accessible from the internet
 - Review app logs for connection errors
 
