@@ -2701,7 +2701,10 @@
     function loadScratchTickets() {
       const grid = document.getElementById('scratch-tickets-grid');
       
-      if (!grid) return;
+      if (!grid) {
+        console.warn('[Buyers] Scratch tickets grid element not found');
+        return;
+      }
       
       // Clear existing content
       grid.innerHTML = '';
@@ -2712,11 +2715,11 @@
         ticketCard.className = `scratch-ticket-card ${ticket.bgClass}`;
         ticketCard.dataset.ticketId = ticket.id;
         
-        // Add sparkles
+        // Add sparkles first
         ticketCard.appendChild(createSparklesElement(30));
         
-        // Build ticket HTML structure
-        ticketCard.innerHTML += `
+        // Build ticket HTML structure using insertAdjacentHTML to avoid replacing sparkles
+        ticketCard.insertAdjacentHTML('beforeend', `
           <!-- Grate Toute Label -->
           <div class="grate-toute-label">GRATE TOUTE</div>
           
@@ -2735,12 +2738,6 @@
             <div class="ticket-category-label">${ticket.name}</div>
           </div>
           
-          <!-- Scratch Area -->
-          <div class="ticket-scratch-area">
-            <div class="ticket-prize-emoji">${ticket.emoji}</div>
-            <div class="ticket-prize-text">${ticket.prizeText.replace(/\n/g, '<br>')}</div>
-          </div>
-          
           <!-- Category Footer -->
           <div class="ticket-category-footer">${ticket.name}</div>
           
@@ -2748,7 +2745,27 @@
           <div class="ticket-prize-footer">
             ${ticket.maxPrize.toLocaleString()} GOURDES!
           </div>
-        `;
+        `);
+        
+        // Build scratch area with safe text handling
+        const scratchArea = document.createElement('div');
+        scratchArea.className = 'ticket-scratch-area';
+        
+        const prizeEmoji = document.createElement('div');
+        prizeEmoji.className = 'ticket-prize-emoji';
+        prizeEmoji.textContent = ticket.emoji;
+        
+        const prizeText = document.createElement('div');
+        prizeText.className = 'ticket-prize-text';
+        prizeText.style.whiteSpace = 'pre-line';
+        prizeText.textContent = ticket.prizeText;
+        
+        scratchArea.appendChild(prizeEmoji);
+        scratchArea.appendChild(prizeText);
+        
+        // Insert scratch area before category footer
+        const categoryFooter = ticketCard.querySelector('.ticket-category-footer');
+        ticketCard.insertBefore(scratchArea, categoryFooter);
         
         // Add click event listener
         ticketCard.addEventListener('click', () => {
@@ -2761,8 +2778,8 @@
 
     // Open scratch ticket (redirect to scratch-tickets.html with specific ticket)
     function openScratchTicket(ticketId) {
-      // Validate ticketId to prevent potential misuse
-      const validTicketIds = ['basic', 'premium', 'bronze', 'silver', 'gold', 'diamond'];
+      // Validate ticketId to prevent potential misuse (derived from source of truth)
+      const validTicketIds = scratchTickets.map(t => t.id);
       if (!validTicketIds.includes(ticketId)) {
         console.error('[Buyers] Invalid ticket ID:', ticketId);
         return;
