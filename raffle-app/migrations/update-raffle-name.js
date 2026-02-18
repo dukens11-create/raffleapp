@@ -17,7 +17,7 @@ async function updateRaffleName() {
     });
     
     const toUpdate = rafflesBefore.filter(r => 
-      ['Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle'].includes(r.name)
+      ['Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle', 'Default Raffle 2024'].includes(r.name)
     );
     
     if (toUpdate.length === 0) {
@@ -32,7 +32,7 @@ async function updateRaffleName() {
       UPDATE raffles 
       SET name = 'GRATE GENYEN',
           description = 'Official Grate Genyen raffle for ticket sales'
-      WHERE name IN ('Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle')
+      WHERE name IN ('Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle', 'Default Raffle 2024')
     `);
     
     // Verify the update
@@ -47,17 +47,19 @@ async function updateRaffleName() {
   } catch (error) {
     console.error('❌ Migration failed:', error);
     throw error;
-  } finally {
-    db.close();
   }
 }
 
 // Run migration if executed directly
 if (require.main === module) {
   updateRaffleName()
-    .then(() => process.exit(0))
+    .then(() => {
+      db.close();
+      process.exit(0);
+    })
     .catch((error) => {
       console.error('Migration error:', error);
+      db.close();
       process.exit(1);
     });
 }
