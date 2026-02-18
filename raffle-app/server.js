@@ -6049,60 +6049,124 @@ app.post('/api/public/my-tickets', async (req, res) => {
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
-    // Build query based on provided identifier
-    let query = `
-      SELECT ticket_number, category, price, status, barcode, sold_at, buyer_name
+    // Build query for regular tickets based on provided identifier
+    let ticketQuery = `
+      SELECT ticket_number, category, price, status, barcode, sold_at, buyer_name, 'lottery' as ticket_type
       FROM tickets 
       WHERE raffle_id = ? AND status = 'SOLD'
     `;
-    const params = [raffle.id];
+    const ticketParams = [raffle.id];
     
     if (email) {
-      query += ' AND LOWER(buyer_email) = LOWER(?)';
-      params.push(email.trim());
+      ticketQuery += ' AND LOWER(buyer_email) = LOWER(?)';
+      ticketParams.push(email.trim());
     } else if (phone) {
       // Normalize phone number by removing all non-numeric characters for consistent matching
       const normalizedPhone = phone.replace(/\D/g, '');
       // Strip all non-numeric characters from stored phone numbers to match normalized input
       if (db.USE_POSTGRES) {
-        query += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
+        ticketQuery += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
       } else {
         // SQLite: use multiple REPLACE calls to remove common formatting characters
         // Handles: - ( ) . space and other common phone formatting
-        query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
+        ticketQuery += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
       }
-      params.push(normalizedPhone);
+      ticketParams.push(normalizedPhone);
     } else if (buyer_code) {
       // buyer_code parameter accepts the ticket's barcode value
       // The barcode is a unique identifier assigned to each ticket upon sale
       // It's printed on physical tickets and included in email receipts as a "buyer code"
       // Buyers use this code to look up their purchased tickets
-      query += ' AND barcode = ?';
-      params.push(buyer_code.trim());
+      ticketQuery += ' AND barcode = ?';
+      ticketParams.push(buyer_code.trim());
     }
     
-    query += ' ORDER BY sold_at DESC';
+    ticketQuery += ' ORDER BY sold_at DESC';
     
-    const tickets = await db.all(query, params);
+    // Build query for scratch tickets from payments table
+    let scratchQuery = `
+      SELECT 
+        payment_reference as ticket_number,
+        ticket_category as category,
+        amount as price,
+        payment_status as status,
+        payment_reference as barcode,
+        created_at as sold_at,
+        buyer_name,
+        'scratch' as ticket_type
+      FROM payments 
+      WHERE raffle_id = ? 
+        AND ticket_category LIKE 'SCRATCH-%'
+    `;
+    const scratchParams = [raffle.id];
     
-    if (tickets.length === 0) {
-      return res.json({ 
-        tickets: [], 
-        message: 'No tickets found with the provided information' 
-      });
+    if (email) {
+      scratchQuery += ' AND LOWER(buyer_email) = LOWER(?)';
+      scratchParams.push(email.trim());
+    } else if (phone) {
+      const normalizedPhone = phone.replace(/\D/g, '');
+      if (db.USE_POSTGRES) {
+        scratchQuery += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
+      } else {
+        scratchQuery += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
+      }
+      scratchParams.push(normalizedPhone);
+    } else if (buyer_code) {
+      scratchQuery += ' AND payment_reference = ?';
+      scratchParams.push(buyer_code.trim());
     }
     
-    res.json({
-      tickets: tickets.map(t => ({
+    scratchQuery += ' ORDER BY created_at DESC';
+    
+    // Execute both queries
+    const regularTickets = await db.all(ticketQuery, ticketParams);
+    const scratchTickets = await db.all(scratchQuery, scratchParams);
+    
+    // Combine results
+    const allTickets = [
+      ...regularTickets.map(t => ({
         ticket_number: t.ticket_number,
         category: t.category,
         price: t.price,
         status: t.status,
         barcode: t.barcode,
         sold_at: t.sold_at,
-        buyer_name: t.buyer_name
-      }))
-    });
+        buyer_name: t.buyer_name,
+        ticket_type: 'lottery'
+      })),
+      ...scratchTickets.map(t => {
+        // Map payment status to ticket status
+        let ticketStatus = 'PENDING';
+        if (t.status === 'approved') {
+          ticketStatus = 'ACTIVE';
+        } else if (t.status === 'failed' || t.status === 'cancelled') {
+          ticketStatus = 'CANCELLED';
+        }
+        
+        return {
+          ticket_number: t.ticket_number,
+          category: t.category,
+          price: t.price,
+          status: ticketStatus,
+          barcode: t.barcode,
+          sold_at: t.sold_at,
+          buyer_name: t.buyer_name,
+          ticket_type: 'scratch'
+        };
+      })
+    ];
+    
+    // Sort all tickets by date
+    allTickets.sort((a, b) => new Date(b.sold_at) - new Date(a.sold_at));
+    
+    if (allTickets.length === 0) {
+      return res.json({ 
+        tickets: [], 
+        message: 'No tickets found with the provided information' 
+      });
+    }
+    
+    res.json({ tickets: allTickets });
   } catch (error) {
     console.error('Error looking up tickets:', error);
     res.status(500).json({ error: 'Failed to lookup tickets' });
@@ -7986,6 +8050,203 @@ app.use((err, req, res, next) => {
 // ============================================================================
 // SCRATCH TICKETS API ENDPOINTS
 // ============================================================================
+
+/**
+ * POST /api/scratch-tickets/purchase - Purchase a scratch ticket
+ * Handles both automated and manual payment methods for scratch tickets
+ * 
+ * Request body:
+ * - ticketId: string (basic|premium|bronze|silver|gold|diamond)
+ * - ticketType: string (ticket name)
+ * - buyerName: string
+ * - phone: string
+ * - email: string (optional)
+ * - department: string
+ * - paymentMethod: string (moncash_api|natcash_api|moncash_manual|natcash_manual)
+ * - amount: number
+ */
+app.post('/api/scratch-tickets/purchase', [
+  body('ticketId').isIn(['basic', 'premium', 'bronze', 'silver', 'gold', 'diamond']).withMessage('Valid ticket ID required'),
+  body('ticketType').trim().notEmpty().withMessage('Ticket type required'),
+  body('buyerName').trim().notEmpty().withMessage('Buyer name required'),
+  body('phone').trim().notEmpty().withMessage('Phone number required'),
+  body('email').optional().isEmail().withMessage('Valid email required'),
+  body('department').custom(isValidDepartment).withMessage('Valid Haiti department required'),
+  body('paymentMethod').isIn(['moncash_api', 'natcash_api', 'moncash_manual', 'natcash_manual']).withMessage('Valid payment method required'),
+  body('amount').isFloat({ min: 0 }).withMessage('Valid amount required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const {
+      ticketId,
+      ticketType,
+      buyerName,
+      phone,
+      email,
+      department,
+      paymentMethod,
+      amount
+    } = req.body;
+
+    console.log('[Scratch Ticket Purchase] Initiating purchase:', {
+      ticketId,
+      ticketType,
+      buyerName,
+      phone,
+      department,
+      paymentMethod,
+      amount
+    });
+
+    // Get active raffle
+    const raffle = await db.get('SELECT * FROM raffles WHERE status = ? ORDER BY id DESC LIMIT 1', ['active']);
+    if (!raffle) {
+      return res.status(400).json({ error: 'No active raffle found' });
+    }
+
+    // Map ticket IDs to categories (using existing ticket categories as a proxy)
+    // For now, we'll use a special category prefix for scratch tickets
+    const scratchCategoryMap = {
+      'basic': 'SCRATCH-BASIC',
+      'premium': 'SCRATCH-PREMIUM',
+      'bronze': 'SCRATCH-BRONZE',
+      'silver': 'SCRATCH-SILVER',
+      'gold': 'SCRATCH-GOLD',
+      'diamond': 'SCRATCH-DIAMOND'
+    };
+
+    const categoryCode = scratchCategoryMap[ticketId];
+
+    // Generate unique payment reference using crypto for better security
+    const paymentReference = `SCR-${Date.now()}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+
+    // Determine payment type and status
+    const isAutomated = paymentMethod.includes('_api');
+    const paymentType = isAutomated ? 'automated' : 'manual';
+    const paymentStatus = isAutomated ? 'pending' : 'pending_verification';
+
+    // Extract provider from payment method
+    const provider = paymentMethod.includes('moncash') ? 'moncash' : 'natcash';
+
+    // Create payment record
+    const paymentResult = await db.run(`
+      INSERT INTO payments (
+        raffle_id,
+        payment_reference,
+        payment_method,
+        payment_type,
+        payment_provider,
+        payment_mode,
+        amount,
+        buyer_name,
+        buyer_email,
+        buyer_phone,
+        ticket_category,
+        ticket_quantity,
+        payment_status,
+        department,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : 'CURRENT_TIMESTAMP'})
+    `, [
+      raffle.id,
+      paymentReference,
+      paymentMethod,
+      paymentType,
+      provider,
+      isAutomated ? 'api' : 'manual',
+      amount,
+      buyerName,
+      email || null,
+      phone,
+      categoryCode,
+      1, // Always 1 scratch ticket per purchase
+      paymentStatus,
+      department
+    ]);
+
+    console.log('[Scratch Ticket Purchase] Payment record created:', paymentReference);
+
+    // For automated payments, initiate payment with provider
+    if (isAutomated) {
+      try {
+        let paymentDetails;
+        
+        if (provider === 'moncash') {
+          // Initiate MonCash payment
+          paymentDetails = await paymentService.initiateMonCashPayment({
+            amount: amount,
+            orderId: paymentReference,
+            buyerPhone: phone,
+            buyerName: buyerName
+          });
+        } else if (provider === 'natcash') {
+          // Initiate NatCash payment
+          paymentDetails = await paymentService.initiateNatCashPayment({
+            amount: amount,
+            orderId: paymentReference,
+            phoneNumber: phone
+          });
+        }
+
+        // Update payment with transaction details
+        if (paymentDetails) {
+          await db.run(`
+            UPDATE payments 
+            SET transaction_id = ?,
+                payment_details = ?
+            WHERE payment_reference = ?
+          `, [
+            paymentDetails.paymentId || paymentDetails.transactionId,
+            JSON.stringify(paymentDetails),
+            paymentReference
+          ]);
+        }
+
+        return res.json({
+          success: true,
+          payment_reference: paymentReference,
+          payment_status: 'pending',
+          payment_details: paymentDetails,
+          message: `Payment initiated via ${provider === 'moncash' ? 'MonCash' : 'NatCash'}`
+        });
+      } catch (paymentError) {
+        console.error('[Scratch Ticket Purchase] Payment initiation error:', paymentError);
+        
+        // Update payment status to failed
+        await db.run(`
+          UPDATE payments 
+          SET payment_status = ?,
+              payment_error = ?
+          WHERE payment_reference = ?
+        `, ['failed', paymentError.message, paymentReference]);
+
+        return res.status(500).json({
+          error: 'Failed to initiate payment with provider',
+          details: paymentError.message
+        });
+      }
+    } else {
+      // Manual payment - just return success
+      return res.json({
+        success: true,
+        payment_reference: paymentReference,
+        payment_status: 'pending_verification',
+        message: 'Payment confirmation submitted. Please wait for admin verification.',
+        instructions: `Please send $${amount} to the official ${provider === 'moncash' ? 'MonCash' : 'NatCash'} number and wait for confirmation.`
+      });
+    }
+  } catch (error) {
+    console.error('[Scratch Ticket Purchase] Error:', error);
+    res.status(500).json({
+      error: 'Failed to process scratch ticket purchase',
+      details: error.message
+    });
+  }
+});
 
 /**
  * GET /api/scratch-tickets/available - Get available tickets for scratch ticket game
