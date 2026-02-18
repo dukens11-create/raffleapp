@@ -23,7 +23,8 @@ async function updateRaffleName() {
       WHERE name IN ('Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle', 'Default Raffle 2024')
     `);
     
-    console.log(`✅ Updated ${result.changes || 0} raffle record(s)`);
+    const updatedCount = db.USE_POSTGRES ? result.rowCount : result.changes;
+    console.log(`✅ Updated ${updatedCount || 0} raffle record(s)`);
     
     // Verify the update
     const raffles = await db.all('SELECT id, name, description FROM raffles');
