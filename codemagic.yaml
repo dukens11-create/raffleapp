@@ -74,11 +74,13 @@ workflows:
     publishing:
       email:
         recipients:
-          - dukens11@example.com  # Update with your email address
-      # Temporarily disabled - configure GCLOUD_SERVICE_ACCOUNT_CREDENTIALS to re-enable
+          - dukens11@example.com
       # google_play:
       #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
       #   track: internal
+      # Note: Uncomment above and configure GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      # in Codemagic dashboard to enable Google Play publishing.
+      # See CODEMAGIC_SETUP.md for instructions.
 
   ios-workflow:
     name: iOS Build
