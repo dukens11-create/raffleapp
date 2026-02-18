@@ -2099,11 +2099,9 @@
         return;
       }
       
-      // Debug logging (only in debug mode)
-      if (DEBUG) {
-        console.log('[Buyers] raffleData.categories:', raffleData.categories);
-        console.log('[Buyers] Number of categories:', raffleData.categories.length);
-      }
+      // Log categories information for troubleshooting
+      console.log('[Buyers] Categories loaded:', raffleData.categories);
+      console.log(`[Buyers] Total categories: ${raffleData.categories.length}`);
       
       const categorySelect = document.getElementById('purchase-category');
       categorySelect.innerHTML = '<option value="">Loading availability...</option>';
