@@ -1,7 +1,7 @@
-# Scratch Functionality Implementation for BASIC Ticket
+# Scratch Functionality Implementation for All Ticket Types
 
 ## Overview
-This document describes the implementation of interactive scratch functionality for the BASIC ticket with custom background image support in the GRATE GENYEN scratch tickets system.
+This document describes the implementation of interactive scratch functionality with custom background images for all ticket types in the GRATE GENYEN scratch tickets system. All tickets now feature the same professional design layout while preserving their original distinctive color schemes.
 
 ## Implementation Summary
 
@@ -13,11 +13,25 @@ This document describes the implementation of interactive scratch functionality 
    - Enhanced `setupCanvas()` method for custom scratch area positioning
 
 ### Files Created
-1. **raffle-app/public/ticket-designs/basic-ticket.png**
-   - Custom background image for BASIC ticket (400x600px, 25KB)
-   - Features green sparkly background with all required design elements
+1. **raffle-app/public/ticket-designs/basic-ticket.png** (25KB)
+   - Custom background image for BASIC ticket - Green theme
+   
+2. **raffle-app/public/ticket-designs/premium-ticket.png** (23KB)
+   - Custom background image for PREMIUM ticket - Purple theme
+   
+3. **raffle-app/public/ticket-designs/bronze-ticket.png** (25KB)
+   - Custom background image for BRONZE ticket - Orange/Red theme
+   
+4. **raffle-app/public/ticket-designs/silver-ticket.png** (24KB)
+   - Custom background image for SILVER ticket - Gray/Silver theme
+   
+5. **raffle-app/public/ticket-designs/gold-ticket.png** (23KB)
+   - Custom background image for GOLD ticket - Gold/Yellow theme
+   
+6. **raffle-app/public/ticket-designs/diamond-ticket.png** (24KB)
+   - Custom background image for DIAMOND ticket - Cyan/Blue theme
 
-2. **raffle-app/public/ticket-designs/README.md**
+7. **raffle-app/public/ticket-designs/README.md**
    - Documentation for the ticket-designs directory
 
 ## Key Features Implemented
@@ -26,13 +40,22 @@ This document describes the implementation of interactive scratch functionality 
 - Added CSS class `.use-custom-image` for tickets with custom backgrounds
 - Background image displays behind all ticket elements
 - Image is non-interactive (pointer-events: none) to allow scratch functionality
+- All 6 ticket types now use custom images with their original color schemes
 
 ### 2. Positioned Scratch Area
 - Scratch overlay positioned at specific coordinates using percentage-based positioning
-- BASIC ticket scratch area: 42% from top, 50% horizontal (centered), 45% width, 20% height
+- All tickets: 42% from top, 50% horizontal (centered), 45% width, 20% height
 - Scratch canvas automatically sized based on container dimensions
+- Consistent positioning across all ticket types
 
-### 3. Updated BASIC Ticket Configuration
+### 3. Updated All Ticket Configurations
+
+All tickets now have the same design layout with these properties:
+- `useCustomImage: true`
+- `imageUrl: '/ticket-designs/[type]-ticket.png'`
+- `scratchAreaPosition: { top: '42%', left: '50%', width: '45%', height: '20%' }`
+
+#### BASIC Ticket Configuration
 ```javascript
 {
   id: 'basic',
@@ -126,15 +149,21 @@ This document describes the implementation of interactive scratch functionality 
 ## Verified Functionality
 
 ### ✅ Working Features
-1. **Custom Background Display**: BASIC ticket shows custom image with all design elements
-2. **Scratch Area Positioning**: Scratch overlay correctly positioned over white box (42% from top)
-3. **Canvas Sizing**: Canvas dimensions (170x124px) correctly calculated from percentage-based positioning
-4. **Interactive Scratching**: Users can scratch to reveal prizes
-5. **Prize Generation**: Random prize selection works with updated probability distribution
-6. **New Ticket Generation**: "🔄 New Ticket" button generates new prizes
-7. **Progress Tracking**: Scratch percentage updates correctly
-8. **Auto-reveal**: Auto-reveal at 55% threshold works
-9. **Backward Compatibility**: All other ticket types (Premium, Bronze, Silver, Gold, Diamond) continue to work with default styling
+1. **Custom Background Display**: All 6 tickets show custom images with design elements in their original colors
+2. **Scratch Area Positioning**: Scratch overlay correctly positioned over white box (42% from top) on all tickets
+3. **Canvas Sizing**: Canvas dimensions correctly calculated from percentage-based positioning
+4. **Interactive Scratching**: Users can scratch to reveal prizes on all ticket types
+5. **Prize Generation**: Random prize selection works with probability distribution for each ticket
+6. **New Ticket Generation**: "🔄 New Ticket" button generates new prizes for all tickets
+7. **Progress Tracking**: Scratch percentage updates correctly on all tickets
+8. **Auto-reveal**: Auto-reveal at 55% threshold works on all tickets
+9. **Color Preservation**: Each ticket maintains its original distinctive color scheme:
+   - BASIC: Green (#10b981)
+   - PREMIUM: Purple (#7c3aed)
+   - BRONZE: Orange/Red (#ea580c)
+   - SILVER: Gray/Silver (#cbd5e1)
+   - GOLD: Gold (#fbbf24)
+   - DIAMOND: Cyan (#22d3ee)
 
 ### 📊 Prize Distribution
 - Top prize (5,000 GOUD): 0.25% chance
@@ -148,26 +177,29 @@ This document describes the implementation of interactive scratch functionality 
 ## Testing Results
 
 ### Visual Testing
-- ✅ BASIC ticket displays with custom background image
-- ✅ All design elements visible (logo, banners, badges, text)
-- ✅ Scratch area positioned correctly over white box
-- ✅ Other tickets display normally without custom images
+- ✅ All 6 tickets display with custom background images
+- ✅ All design elements visible (logo, banners, badges, text) on each ticket
+- ✅ Scratch area positioned correctly over white box on all tickets
+- ✅ Each ticket maintains its original color scheme
+- ✅ Consistent design layout across all ticket types
+- ✅ Sparkle effects visible on all backgrounds
 
 ### Functional Testing
-- ✅ Scratch overlay has correct color and texture
-- ✅ Mouse/touch scratching works
-- ✅ Prize reveals correctly when scratching
-- ✅ Progress percentage updates
-- ✅ Auto-reveal triggers at threshold
-- ✅ New ticket generation works
-- ✅ Random prize selection follows probability distribution
+- ✅ Scratch overlay works on all ticket types
+- ✅ Mouse/touch scratching works on all tickets
+- ✅ Prize reveals correctly when scratching on all tickets
+- ✅ Progress percentage updates on all tickets
+- ✅ Auto-reveal triggers at threshold on all tickets
+- ✅ New ticket generation works on all tickets
+- ✅ Random prize selection follows probability distribution for each ticket type
 
-### Compatibility Testing
-- ✅ Premium ticket works with default styling
-- ✅ Bronze ticket works with default styling
-- ✅ Silver ticket works with default styling
-- ✅ Gold ticket works with default styling
-- ✅ Diamond ticket works with default styling
+### Color Scheme Testing
+- ✅ BASIC ticket: Green sparkly background preserved
+- ✅ PREMIUM ticket: Purple cosmic background preserved
+- ✅ BRONZE ticket: Orange/red gradient background preserved
+- ✅ SILVER ticket: Gray metallic background preserved
+- ✅ GOLD ticket: Gold sunburst background preserved
+- ✅ DIAMOND ticket: Cyan icy background preserved
 
 ## Usage
 
@@ -193,9 +225,28 @@ To add custom image support to other ticket types:
 
 ## Screenshots
 
-- Full page view: Shows all 6 ticket types with BASIC using custom image
-- BASIC ticket close-up: Shows custom background with positioned scratch overlay
-- After scratch: Shows prize revealed and scratch functionality working
+### All Tickets with Custom Designs
+![All Tickets](https://github.com/user-attachments/assets/539ebf82-a9db-4ad6-95b8-416c87a920b8)
+
+**Features Shown:**
+- ✅ All 6 ticket types with custom background images
+- ✅ Scratch area positioned consistently over white box on each ticket
+- ✅ Original color schemes preserved for each ticket type
+- ✅ Professional, consistent design layout across all tickets
+- ✅ Interactive scratch functionality working on all tickets
+
+## Color Schemes
+
+Each ticket maintains its original distinctive color scheme:
+
+| Ticket Type | Primary Color | Hex Code | Theme |
+|-------------|---------------|----------|-------|
+| BASIC | Green | #10b981 | Sparkle |
+| PREMIUM | Purple | #7c3aed | Cosmic |
+| BRONZE | Orange/Red | #ea580c | Fire |
+| SILVER | Silver/Gray | #cbd5e1 | Metallic |
+| GOLD | Gold/Yellow | #fbbf24 | Sunburst |
+| DIAMOND | Cyan/Blue | #22d3ee | Icy |
 
 ## Notes
 
