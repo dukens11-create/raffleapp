@@ -117,8 +117,21 @@ workflows:
       email:
         recipients:
           - dukens11@example.com  # Update with your email address
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        notify:
+          success: true
+          failure: true
+      # App Store Connect publishing disabled - configure credentials to enable
+      # To enable: add APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, 
+      # and APP_STORE_CONNECT_PRIVATE_KEY as encrypted environment variables in Codemagic UI
+      # Then uncomment the section below:
+      #
+      # app_store_connect:
+      #   auth: integration
+      #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+      #   key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+      #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+      #   submit_to_testflight: true
+      #   submit_to_app_store: false
 
   development-workflow:
     name: Development Build
