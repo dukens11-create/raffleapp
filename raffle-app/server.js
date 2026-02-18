@@ -315,42 +315,41 @@ async function validateDatabaseSetup() {
 async function runMigrations() {
   console.log('🔄 Running database migrations...');
   
-  // Only run migrations for PostgreSQL
-  if (!db.USE_POSTGRES) {
-    console.log('⚠️  Skipping migrations - SQLite database detected');
-    return;
-  }
-  
-  const migrations = [
-    'add_raffle_id_to_tickets.sql',
-    'add_print_count_column.sql'
-  ];
-  
   let successCount = 0;
   let failCount = 0;
   let skippedCount = 0;
   
-  for (const migrationFile of migrations) {
-    const filePath = path.join(__dirname, 'migrations', migrationFile);
+  // SQL migrations only for PostgreSQL
+  if (db.USE_POSTGRES) {
+    const migrations = [
+      'add_raffle_id_to_tickets.sql',
+      'add_print_count_column.sql'
+    ];
     
-    if (fs.existsSync(filePath)) {
-      const sql = fs.readFileSync(filePath, 'utf8');
-      try {
-        await db.run(sql);
-        console.log(`✅ Migration completed: ${migrationFile}`);
-        successCount++;
-      } catch (error) {
-        console.error(`❌ Migration failed (${migrationFile}):`, error.message);
-        failCount++;
-        // Don't crash - migrations are idempotent
+    for (const migrationFile of migrations) {
+      const filePath = path.join(__dirname, 'migrations', migrationFile);
+      
+      if (fs.existsSync(filePath)) {
+        const sql = fs.readFileSync(filePath, 'utf8');
+        try {
+          await db.run(sql);
+          console.log(`✅ Migration completed: ${migrationFile}`);
+          successCount++;
+        } catch (error) {
+          console.error(`❌ Migration failed (${migrationFile}):`, error.message);
+          failCount++;
+          // Don't crash - migrations are idempotent
+        }
+      } else {
+        console.warn(`⚠️  Migration file not found: ${filePath}`);
+        skippedCount++;
       }
-    } else {
-      console.warn(`⚠️  Migration file not found: ${filePath}`);
-      skippedCount++;
     }
+  } else {
+    console.log('⚠️  Skipping SQL migrations - SQLite database detected');
   }
   
-  // Run JavaScript migrations (e.g., update-raffle-name.js)
+  // Run JavaScript migrations (work for both SQLite and PostgreSQL)
   try {
     const updateRaffleName = require('./migrations/update-raffle-name');
     await updateRaffleName();
