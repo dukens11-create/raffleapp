@@ -1112,37 +1112,79 @@
     // TAB SWITCHING
     // ============================================================================
     
-    // Tab switching
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        const tabName = tab.dataset.tab;
-        
-        console.log('[Buyers] Tab switched to:', tabName);
-        
-        // Update active tab
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        
-        // Update active content
-        document.querySelectorAll('.tab-content').forEach(content => {
-          content.classList.remove('active');
-        });
-        document.getElementById(tabName).classList.add('active');
-        
-        // Load content for the tab if needed
-        if (tabName === 'raffle-info' && !window.raffleInfoLoaded) {
-          console.log('[Buyers] Loading raffle info for first time...');
-          loadRaffleInfo();
-        } else if (tabName === 'available-tickets' && !window.availableTicketsLoaded) {
-          console.log('[Buyers] Loading available tickets...');
-          loadAvailableTickets();
-        } else if (tabName === 'purchase') {
+    /**
+     * Switch to a specific tab programmatically
+     * @param {string} tabName - The data-tab value of the target tab
+     * @returns {boolean} - True if successful, false otherwise
+     */
+    function switchToTab(tabName) {
+      console.log('[Buyers] Programmatically switching to tab:', tabName);
+      
+      // Find the target tab button
+      const targetTab = document.querySelector(`[data-tab="${tabName}"]`);
+      
+      if (!targetTab) {
+        console.error('[Buyers] Tab not found:', tabName);
+        return false;
+      }
+      
+      // Update active tab button
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      targetTab.classList.add('active');
+      
+      // Update active content
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      
+      const targetContent = document.getElementById(tabName);
+      if (targetContent) {
+        targetContent.classList.add('active');
+      } else {
+        console.error('[Buyers] Tab content not found:', tabName);
+        return false;
+      }
+      
+      // Load content for the tab if needed
+      switch (tabName) {
+        case 'raffle-info':
+          if (!window.raffleInfoLoaded) {
+            console.log('[Buyers] Loading raffle info for first time...');
+            loadRaffleInfo();
+          }
+          break;
+        case 'available-tickets':
+          if (!window.availableTicketsLoaded) {
+            console.log('[Buyers] Loading available tickets...');
+            loadAvailableTickets();
+          }
+          break;
+        case 'purchase':
           console.log('[Buyers] Initializing purchase form...');
           if (!window.purchaseTabLoaded) {
             populatePurchaseCategories();
             window.purchaseTabLoaded = true;
           }
-        }
+          break;
+        case 'my-tickets':
+          // My Tickets tab is form-based, no auto-load needed
+          break;
+        case 'verify':
+          // Verify tab is form-based, no auto-load needed
+          break;
+      }
+      
+      // Scroll to top when switching tabs
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      return true;
+    }
+    
+    // Tab switching - attach click listeners
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        switchToTab(tabName);
       });
     });
     
@@ -1432,7 +1474,7 @@
                 <div style="font-size: 20px; font-weight: 600;">${(data.stats?.online_available_total || 0).toLocaleString()}</div>
               </div>
             </div>
-            <button onclick="document.querySelector('[data-tab=\"purchase\"]').click()" style="background: white; color: #10b981; width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 16px; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+            <button onclick="switchToTab('purchase')" style="background: white; color: #10b981; width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: 700; font-size: 16px; cursor: pointer; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 12px rgba(0, 0, 0, 0.15)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0, 0, 0, 0.1)';">
               🎫 Buy Tickets Now →
             </button>
           </div>
