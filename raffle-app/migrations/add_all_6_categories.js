@@ -6,11 +6,22 @@
 const db = require('../db');
 
 async function addAllSixCategories() {
-  console.log('🔄 Starting ticket categories migration...');
+  console.log('🎫 Adding all 6 ticket categories...');
   
   try {
     // Initialize schema first to ensure tables exist
     await db.initializeSchema();
+    
+    // Check if raffle exists, create if needed
+    const raffle = await db.get('SELECT id FROM raffles WHERE id = 1');
+    if (!raffle) {
+      console.log('❌ No raffle with id=1 found. Creating default raffle...');
+      await db.run(
+        `INSERT INTO raffles (id, name, status, description, total_tickets) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [1, 'GRATE GENYEN', 'active', 'Official Grate Genyen raffle for ticket sales', 2000000]
+      );
+    }
     
     // Check current categories
     const existingCategories = await db.all('SELECT id, category_code, category_name, price FROM ticket_categories WHERE raffle_id = 1');
@@ -33,8 +44,9 @@ async function addAllSixCategories() {
       { code: 'DIA', name: 'Diamond', price: 5000, total: 250000, color: '#22d3ee' }
     ];
     
-    console.log('\n🔄 Adding missing categories...');
+    console.log('\n🔄 Processing categories...');
     let addedCount = 0;
+    let updatedCount = 0;
     
     for (const cat of categories) {
       // Check if category already exists
@@ -44,7 +56,29 @@ async function addAllSixCategories() {
       );
       
       if (existing) {
-        console.log(`  ⏭️  ${cat.code} (${cat.name}) already exists - skipping`);
+        // Check if update is needed
+        const current = await db.get(
+          'SELECT category_name, price, total_tickets, color FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+          [1, cat.code]
+        );
+        
+        const needsUpdate = current.category_name !== cat.name ||
+                            current.price !== cat.price ||
+                            current.total_tickets !== cat.total ||
+                            current.color !== cat.color;
+        
+        if (needsUpdate) {
+          await db.run(
+            `UPDATE ticket_categories 
+             SET category_name = ?, price = ?, total_tickets = ?, color = ?
+             WHERE raffle_id = ? AND category_code = ?`,
+            [cat.name, cat.price, cat.total, cat.color, 1, cat.code]
+          );
+          console.log(`  ✅ Updated ${cat.code} (${cat.name}): ${cat.price} HTG`);
+          updatedCount++;
+        } else {
+          console.log(`  ⏭️  ${cat.code} (${cat.name}) already exists with correct values`);
+        }
       } else {
         // Add the category
         await db.run(
@@ -59,13 +93,19 @@ async function addAllSixCategories() {
     }
     
     // Verify final state
-    const finalCategories = await db.all('SELECT id, category_code, category_name, price FROM ticket_categories WHERE raffle_id = 1');
-    console.log('\n✅ Categories after migration:');
+    const finalCategories = await db.all('SELECT category_code, category_name, price FROM ticket_categories WHERE raffle_id = 1 ORDER BY category_code');
+    console.log('\n📋 All categories in database:');
     finalCategories.forEach(cat => {
-      console.log(`  - ${cat.category_code} (${cat.category_name}): ${cat.price} HTG`);
+      console.log(`   ${cat.category_code} (${cat.category_name}) - ${cat.price} HTG`);
     });
+    console.log(`\n✅ Total categories: ${finalCategories.length}`);
     
-    console.log(`\n✅ Migration completed successfully! Added ${addedCount} new categor${addedCount === 1 ? 'y' : 'ies'}.`);
+    if (finalCategories.length !== 6) {
+      console.log(`❌ WARNING: Expected 6 categories but found ${finalCategories.length}`);
+      console.log('   This may cause issues with the ticket purchase form.');
+    }
+    
+    console.log(`\n✅ Migration completed! Added ${addedCount}, updated ${updatedCount} categor${addedCount + updatedCount === 1 ? 'y' : 'ies'}.`);
     
   } catch (error) {
     console.error('❌ Migration failed:', error);
@@ -77,6 +117,7 @@ async function addAllSixCategories() {
 if (require.main === module) {
   addAllSixCategories()
     .then(() => {
+      console.log('\n✅ Migration complete');
       db.close();
       process.exit(0);
     })
@@ -85,6 +126,7 @@ if (require.main === module) {
       db.close();
       process.exit(1);
     });
+} else {
+  // When required as a module (e.g., from server.js), export without db.close()
+  module.exports = addAllSixCategories;
 }
-
-module.exports = addAllSixCategories;
