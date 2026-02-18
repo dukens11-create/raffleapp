@@ -597,6 +597,44 @@
       font-size: 16px;
       font-weight: 700;
     }
+    
+    /* Custom ticket background image support */
+    .ticket-card.use-custom-image {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .ticket-card.use-custom-image .ticket-header {
+      background: transparent;
+      position: relative;
+      overflow: visible;
+    }
+    
+    .ticket-background-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: auto;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .ticket-card.use-custom-image .scratch-container {
+      position: absolute;
+      z-index: 5;
+    }
+    
+    /* Ensure scratch canvas is above the image */
+    .ticket-card.use-custom-image canvas {
+      position: relative;
+      z-index: 10;
+    }
+    
+    .ticket-card.use-custom-image .prize-content {
+      position: relative;
+      z-index: 8;
+    }
   </style>
 </head>
 <body>
@@ -627,38 +665,29 @@
       // Basic Ticket - Green
       {
         id: 'basic',
-        name: 'GRATE GENYEN',
+        name: 'GRATE GENYEN Basic',
         typeName: 'Basic',
         className: 'ticket-basic',
         price: 50,
         prizeRange: '5,000 GOURDES!',
         coverText: 'GRATE TOUTE',
         category: 'BAS',
+        useCustomImage: true, // NEW: Enable custom background image
+        imageUrl: '/ticket-designs/basic-ticket.png', // NEW: Path to saved ticket image
+        scratchAreaPosition: { // NEW: Define scratch area coordinates
+          top: '42%',    // Position from top as percentage
+          left: '50%',   // Center horizontally
+          width: '45%',  // Width of white scratch box
+          height: '20%'  // Height of white scratch box
+        },
         prizes: [
-          { emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 39 },
-          { emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 117 },
-          { emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 391 },
-          { emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 978 },
-          { emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 2348 },
-          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 3914 },
-          { emoji: '🏆', text: 'OU GENYEN\n500 HTG', value: 500, weight: 39 },
-          // New HTG cash prizes (0.5% each)
-          { emoji: '💵', text: 'OU GENYEN\n450 HTG', value: 450, weight: 100 },
-          { emoji: '💵', text: 'OU GENYEN\n400 HTG', value: 400, weight: 100 },
-          { emoji: '💵', text: 'OU GENYEN\n350 HTG', value: 350, weight: 100 },
-          { emoji: '💵', text: 'OU GENYEN\n300 HTG', value: 300, weight: 100 },
-          { emoji: '💵', text: 'OU GENYEN\n250 HTG', value: 250, weight: 100 },
-          { emoji: '💵', text: 'OU GENYEN\n200 HTG', value: 200, weight: 100 },
-          { emoji: '💵', text: 'OU GENYEN\n150 HTG', value: 150, weight: 100 },
-          { emoji: '💵', text: 'OU GENYEN\n100 HTG', value: 100, weight: 100 },
-          { emoji: '💸', text: 'OU GENYEN\n1,000 HTG', value: 1000, weight: 1 },
-          // Ticket prizes
-          { emoji: '🥉', text: 'OU GENYEN\nYON TIKÈ BRONZE', value: 250, weight: 1600 },
-          { emoji: '⭐', text: 'OU GENYEN\nYON TIKÈ PREMIUM', value: 100, weight: 1600 },
-          { emoji: '🥈', text: 'OU GENYEN\nYON TIKÈ SILVER', value: 500, weight: 200 },
-          { emoji: '🥇', text: 'OU GENYEN\nYON TIKÈ GOLD', value: 1000, weight: 100 },
-          { emoji: '💎', text: 'OU GENYEN\nYON TIKÈ DIAMOND', value: 5000, weight: 1 },
-          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 7868 }
+          { emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 1 },      // Top prize
+          { emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 3 },      // High
+          { emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 10 },     // Mid-High
+          { emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 25 },        // Mid
+          { emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 60 },        // Low
+          { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100 },           // Very Low
+          { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 201 }                   // Loss (50.25%)
         ]
       },
       
@@ -869,7 +898,17 @@
         
         const card = document.createElement('div');
         card.className = `ticket-card ${this.config.className}`;
+        
+        // Add custom image class if configured
+        if (this.config.useCustomImage) {
+          card.classList.add('use-custom-image');
+        }
+        
         card.innerHTML = `
+          ${this.config.useCustomImage ? `
+            <img src="${this.config.imageUrl}" alt="${this.config.name}" class="ticket-background-image">
+          ` : ''}
+          
           <div class="scratch-label">${this.config.coverText}</div>
           <div class="ticket-price-badge">
             <div class="ticket-price-label">GOURDES</div>
@@ -932,10 +971,22 @@
       
       setupCanvas() {
         const container = this.canvas.parentElement;
-        const rect = container.getBoundingClientRect();
         
+        // If custom positioning is defined, apply it
+        if (this.config.scratchAreaPosition) {
+          const pos = this.config.scratchAreaPosition;
+          container.style.top = pos.top;
+          container.style.left = pos.left;
+          container.style.width = pos.width;
+          container.style.height = pos.height;
+          container.style.transform = 'translateX(-50%)'; // Center horizontally
+          container.style.position = 'absolute';
+        }
+        
+        // Set canvas size to match container
+        const rect = container.getBoundingClientRect();
         this.canvas.width = rect.width;
-        this.canvas.height = 200;
+        this.canvas.height = rect.height || 200;
         
         this.ctx = this.canvas.getContext('2d');
       }
