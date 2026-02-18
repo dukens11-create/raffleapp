@@ -602,6 +602,7 @@
     .ticket-card.use-custom-image {
       position: relative;
       overflow: hidden;
+      min-height: 600px; /* Ensure card has minimum height for positioning */
     }
     
     .ticket-card.use-custom-image .ticket-header {
@@ -618,6 +619,12 @@
       height: auto;
       z-index: 0;
       pointer-events: none;
+    }
+    
+    /* For custom images, position scratch-area relative to card */
+    .ticket-card.use-custom-image .scratch-area {
+      position: static; /* Remove relative positioning */
+      padding: 0;  /* Remove padding since we're positioning absolutely */
     }
     
     .ticket-card.use-custom-image .scratch-container {
@@ -981,12 +988,20 @@
           container.style.height = pos.height;
           container.style.transform = 'translateX(-50%)'; // Center horizontally
           container.style.position = 'absolute';
+          
+          // Force reflow to get correct dimensions
+          container.offsetHeight;
+          
+          // Set canvas size to match container after positioning
+          const rect = container.getBoundingClientRect();
+          this.canvas.width = rect.width;
+          this.canvas.height = rect.height;
+        } else {
+          // Default behavior for non-custom tickets
+          const rect = container.getBoundingClientRect();
+          this.canvas.width = rect.width;
+          this.canvas.height = 200;
         }
-        
-        // Set canvas size to match container
-        const rect = container.getBoundingClientRect();
-        this.canvas.width = rect.width;
-        this.canvas.height = rect.height || 200;
         
         this.ctx = this.canvas.getContext('2d');
       }
