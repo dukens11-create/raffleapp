@@ -5812,6 +5812,9 @@ app.get('/api/public/raffle-info', async (req, res) => {
       ORDER BY category_code
     `, [raffle.id, raffle.id, raffle.id]);
     
+    // Add logging
+    console.log(`[API] Loaded ${categories.length} categories for raffle ${raffle.id}`);
+    
     // Debug logging for categories (only in debug mode)
     if (DEBUG_MODE) {
       console.log('[API] Fetched categories:', categories);
