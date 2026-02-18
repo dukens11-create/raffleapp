@@ -75,7 +75,12 @@
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
     }
 
-    /* Mare/Wave Animation - Universal for all tickets */
+    /* Mare/Wave Animation - Universal for all tickets
+     * Z-index hierarchy:
+     * - z-index: 1 = Sunlight rays (ticket type ::before)
+     * - z-index: 10 = Mare wave effect (ticket-card ::after)
+     * This ensures the wave appears above the rays for maximum visibility
+     */
     .ticket-card::after {
       content: '';
       position: absolute;
@@ -526,7 +531,6 @@
 
     @keyframes mareWave {
       0% { left: -100%; }
-      50% { left: 100%; }
       100% { left: 100%; }
     }
     

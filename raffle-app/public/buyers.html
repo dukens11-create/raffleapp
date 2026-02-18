@@ -856,7 +856,12 @@
       animation: rotateSunRays 20s linear infinite;
     }
 
-    /* Mare/Wave Animation for Scratch Tickets */
+    /* Mare/Wave Animation for Scratch Tickets
+     * Z-index hierarchy:
+     * - z-index: 1 = Sunlight rays (ticket-bg-* ::before)
+     * - z-index: 10 = Mare wave effect (scratch-ticket-card ::after)
+     * This ensures the wave appears above the rays for maximum visibility
+     */
     .scratch-ticket-card::after {
       content: '';
       position: absolute;
@@ -871,7 +876,7 @@
         transparent 100%
       );
       pointer-events: none;
-      z-index: 2;
+      z-index: 10;
       animation: mareWave 3s ease-in-out infinite;
     }
 
@@ -1351,7 +1356,6 @@
 
     @keyframes mareWave {
       0% { left: -100%; }
-      50% { left: 100%; }
       100% { left: 100%; }
     }
   </style>
