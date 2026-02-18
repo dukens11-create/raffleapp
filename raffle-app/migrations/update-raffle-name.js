@@ -9,6 +9,24 @@ async function updateRaffleName() {
   console.log('🔄 Starting raffle name migration...');
   
   try {
+    // Check current state before migration
+    const rafflesBefore = await db.all('SELECT id, name, description FROM raffles');
+    console.log('\n📋 Current raffles before migration:');
+    rafflesBefore.forEach(raffle => {
+      console.log(`  - ID ${raffle.id}: ${raffle.name}`);
+    });
+    
+    const toUpdate = rafflesBefore.filter(r => 
+      ['Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle'].includes(r.name)
+    );
+    
+    if (toUpdate.length === 0) {
+      console.log('\n✅ No raffles need updating - all raffles already have the correct name');
+      return;
+    }
+    
+    console.log(`\n🔄 Updating ${toUpdate.length} raffle(s)...`);
+    
     // Update all raffles that have old names
     await db.run(`
       UPDATE raffles 
@@ -17,16 +35,14 @@ async function updateRaffleName() {
       WHERE name IN ('Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle')
     `);
     
-    console.log('✅ Raffle names updated');
-    
     // Verify the update
-    const raffles = await db.all('SELECT id, name, description FROM raffles');
-    console.log('Current raffles:');
-    raffles.forEach(raffle => {
+    const rafflesAfter = await db.all('SELECT id, name, description FROM raffles');
+    console.log('\n✅ Raffles after migration:');
+    rafflesAfter.forEach(raffle => {
       console.log(`  - ID ${raffle.id}: ${raffle.name}`);
     });
     
-    console.log('✅ Migration completed successfully');
+    console.log('\n✅ Migration completed successfully');
     
   } catch (error) {
     console.error('❌ Migration failed:', error);
