@@ -17,10 +17,10 @@
 #    - FCI_KEY_ALIAS: Key alias name
 #    - FCI_KEY_PASSWORD: Key password
 #    
-#    ios_credentials group:
+#    ios_credentials group (optional - only needed for App Store publishing):
 #    - APP_STORE_CONNECT_KEY_IDENTIFIER: API key ID
 #    - APP_STORE_CONNECT_ISSUER_ID: Issuer ID
-#    - APP_STORE_CONNECT_PRIVATE_KEY: Private key
+#    - APP_STORE_CONNECT_PRIVATE_KEY: Private key (.p8 file content)
 #    - CERTIFICATE_PRIVATE_KEY: Certificate private key
 #    
 #    Common variables:
@@ -120,11 +120,10 @@ workflows:
         notify:
           success: true
           failure: true
-      # App Store Connect publishing disabled - configure credentials to enable
+      # App Store Connect publishing disabled until credentials are configured
       # To enable: add APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, 
       # and APP_STORE_CONNECT_PRIVATE_KEY as encrypted environment variables in Codemagic UI
-      # Then uncomment the section below:
-      #
+      # Then uncomment and configure the section below:
       # app_store_connect:
       #   auth: integration
       #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
