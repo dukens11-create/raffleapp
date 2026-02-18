@@ -74,6 +74,25 @@
       transform: translateY(-4px);
       box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
     }
+
+    /* Mare/Wave Animation - Universal for all tickets */
+    .ticket-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 100%
+      );
+      pointer-events: none;
+      z-index: 10;
+      animation: mareWave 3s ease-in-out infinite;
+    }
     
     .ticket-header {
       padding: 20px;
@@ -102,6 +121,36 @@
       background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
       position: relative;
       overflow: hidden;
+    }
+
+    /* Sunlight Rays for Basic Ticket */
+    .ticket-basic::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(16, 185, 129, 0.3) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.2) 90deg,
+        transparent 120deg,
+        rgba(16, 185, 129, 0.3) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.2) 210deg,
+        transparent 240deg,
+        rgba(16, 185, 129, 0.3) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.2) 330deg,
+        transparent 360deg
+      );
+      animation: rotateSunRays 20s linear infinite;
     }
 
     .ticket-basic .ticket-header::before {
@@ -135,6 +184,36 @@
       overflow: hidden;
     }
 
+    /* Sunlight Rays for Premium Ticket */
+    .ticket-premium::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(139, 92, 246, 0.3) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.2) 90deg,
+        transparent 120deg,
+        rgba(139, 92, 246, 0.3) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.2) 210deg,
+        transparent 240deg,
+        rgba(139, 92, 246, 0.3) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.2) 330deg,
+        transparent 360deg
+      );
+      animation: rotateSunRays 20s linear infinite;
+    }
+
     .ticket-premium .ticket-header::before {
       content: '';
       position: absolute;
@@ -165,6 +244,36 @@
       overflow: hidden;
     }
 
+    /* Sunlight Rays for Bronze Ticket */
+    .ticket-bronze::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(249, 115, 22, 0.3) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.2) 90deg,
+        transparent 120deg,
+        rgba(249, 115, 22, 0.3) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.2) 210deg,
+        transparent 240deg,
+        rgba(249, 115, 22, 0.3) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.2) 330deg,
+        transparent 360deg
+      );
+      animation: rotateSunRays 20s linear infinite;
+    }
+
     .ticket-bronze .ticket-header::before {
       content: '';
       position: absolute;
@@ -193,6 +302,36 @@
       background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 50%, #64748b 100%);
       position: relative;
       overflow: hidden;
+    }
+
+    /* Sunlight Rays for Silver Ticket */
+    .ticket-silver::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(203, 213, 225, 0.4) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.3) 90deg,
+        transparent 120deg,
+        rgba(203, 213, 225, 0.4) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.3) 210deg,
+        transparent 240deg,
+        rgba(203, 213, 225, 0.4) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.3) 330deg,
+        transparent 360deg
+      );
+      animation: rotateSunRays 20s linear infinite;
     }
 
     .ticket-silver .ticket-header::before {
@@ -228,6 +367,36 @@
       overflow: hidden;
     }
 
+    /* Sunlight Rays for Gold Ticket */
+    .ticket-gold::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(234, 179, 8, 0.4) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.3) 90deg,
+        transparent 120deg,
+        rgba(234, 179, 8, 0.4) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.3) 210deg,
+        transparent 240deg,
+        rgba(234, 179, 8, 0.4) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.3) 330deg,
+        transparent 360deg
+      );
+      animation: rotateSunRays 20s linear infinite;
+    }
+
     .ticket-gold .ticket-header::before {
       content: '';
       position: absolute;
@@ -257,6 +426,36 @@
       background: linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #0891b2 100%);
       position: relative;
       overflow: hidden;
+    }
+
+    /* Sunlight Rays for Diamond Ticket */
+    .ticket-diamond::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 200%;
+      height: 200%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 1;
+      background: conic-gradient(
+        from 0deg at 50% 50%,
+        transparent 0deg,
+        rgba(6, 182, 212, 0.4) 30deg,
+        transparent 60deg,
+        rgba(255, 255, 255, 0.3) 90deg,
+        transparent 120deg,
+        rgba(6, 182, 212, 0.4) 150deg,
+        transparent 180deg,
+        rgba(255, 255, 255, 0.3) 210deg,
+        transparent 240deg,
+        rgba(6, 182, 212, 0.4) 270deg,
+        transparent 300deg,
+        rgba(255, 255, 255, 0.3) 330deg,
+        transparent 360deg
+      );
+      animation: rotateSunRays 20s linear infinite;
     }
 
     .ticket-diamond .ticket-header::before {
@@ -317,6 +516,18 @@
     @keyframes diamondSparkle {
       0%, 100% { opacity: 0.6; }
       50% { opacity: 1; }
+    }
+
+    /* New animations for Mare Wave and Sunlight Rays */
+    @keyframes rotateSunRays {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+
+    @keyframes mareWave {
+      0% { left: -100%; }
+      50% { left: 100%; }
+      100% { left: 100%; }
     }
     
     /* Scratch Area */
