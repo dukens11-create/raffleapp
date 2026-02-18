@@ -2099,6 +2099,10 @@
         return;
       }
       
+      // Log categories loading (always enabled for troubleshooting)
+      console.log('[Buyers] Loading categories:', raffleData.categories);
+      console.log('[Buyers] Number of categories:', raffleData.categories.length);
+      
       // Debug logging (only in debug mode)
       if (DEBUG) {
         console.log('[Buyers] raffleData.categories:', raffleData.categories);
