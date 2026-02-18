@@ -5801,6 +5801,12 @@ app.get('/api/public/raffle-info', async (req, res) => {
       ORDER BY category_code
     `, [raffle.id, raffle.id, raffle.id]);
     
+    // Debug logging for categories (only in debug mode)
+    if (DEBUG_MODE) {
+      console.log('[API] Fetched categories:', categories);
+      console.log('[API] Number of categories:', categories.length);
+    }
+    
     // Get overall statistics
     const stats = await db.get(`
       SELECT 

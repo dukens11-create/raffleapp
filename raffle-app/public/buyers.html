@@ -1532,6 +1532,9 @@
     // RAFFLE INFO FUNCTIONS
     // ============================================================================
     
+    // Debug mode flag - set to false in production
+    const DEBUG = false;
+    
     // Load raffle info
     let currentPage = 1;
     let raffleData = null; // Cache raffle data to avoid duplicate API calls
@@ -2094,6 +2097,12 @@
       if (!raffleData || !raffleData.categories) {
         console.warn('Raffle data not yet loaded, cannot populate purchase categories');
         return;
+      }
+      
+      // Debug logging (only in debug mode)
+      if (DEBUG) {
+        console.log('[Buyers] raffleData.categories:', raffleData.categories);
+        console.log('[Buyers] Number of categories:', raffleData.categories.length);
       }
       
       const categorySelect = document.getElementById('purchase-category');
