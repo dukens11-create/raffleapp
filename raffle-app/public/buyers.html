@@ -1532,6 +1532,9 @@
     // RAFFLE INFO FUNCTIONS
     // ============================================================================
     
+    // Debug mode flag - set to false in production
+    const DEBUG = false;
+    
     // Load raffle info
     let currentPage = 1;
     let raffleData = null; // Cache raffle data to avoid duplicate API calls
@@ -2096,9 +2099,11 @@
         return;
       }
       
-      // Debug logging
-      console.log('[Buyers] raffleData.categories:', raffleData.categories);
-      console.log('[Buyers] Number of categories:', raffleData.categories.length);
+      // Debug logging (only in debug mode)
+      if (DEBUG) {
+        console.log('[Buyers] raffleData.categories:', raffleData.categories);
+        console.log('[Buyers] Number of categories:', raffleData.categories.length);
+      }
       
       const categorySelect = document.getElementById('purchase-category');
       categorySelect.innerHTML = '<option value="">Loading availability...</option>';
