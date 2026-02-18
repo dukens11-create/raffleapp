@@ -1391,6 +1391,7 @@
             </table>
           </div>
           
+          <!-- HIDDEN: Ticket Categories & Prices section
           <h3 style="margin-top: 32px; margin-bottom: 16px; font-size: 20px;">Ticket Categories & Prices</h3>
           <div class="prize-list">
             ${(data.categories || []).map(cat => `
@@ -1406,7 +1407,9 @@
               </div>
             `).join('')}
           </div>
+          -->
           
+          <!-- HIDDEN: Overall Statistics section
           <h3 style="margin-top: 32px; margin-bottom: 16px; font-size: 20px;">Overall Statistics</h3>
           <div class="stats-grid">
             <div class="stat-card">
@@ -1418,6 +1421,7 @@
               <div class="value">${(data.stats?.sold_tickets || 0).toLocaleString()}</div>
             </div>
           </div>
+          -->
         `;
     }
     
