@@ -3,7 +3,7 @@ class ApiConfig {
   // NOTE: For production, always use HTTPS
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://grategenyen.com',
+    defaultValue: 'https://enejipamticket.com',
   );
   
   static const String apiVersion = '/api';
