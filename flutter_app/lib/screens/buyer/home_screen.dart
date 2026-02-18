@@ -359,14 +359,14 @@ class _HomeTab extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '${category.onlineAvailable} disponib',
+                isAvailable ? 'Disponib' : 'EPUIZE',
                 style: TextStyle(
                   fontSize: 12,
                   color: isAvailable ? Colors.green : Colors.red,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: isAvailable ? FontWeight.w500 : FontWeight.bold,
                 ),
               ),
-              if (!isAvailable)
+              if (false)
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
                   child: Text(

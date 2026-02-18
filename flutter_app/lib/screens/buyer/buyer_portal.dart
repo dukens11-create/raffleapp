@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'tabs/raffle_info_tab.dart';
-import 'tabs/available_tickets_tab.dart';
 import 'tabs/purchase_tab.dart';
 import 'tabs/my_tickets_tab.dart';
 import 'tabs/verify_ticket_tab.dart';
@@ -18,7 +17,7 @@ class _BuyerPortalState extends State<BuyerPortal> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -68,10 +67,6 @@ class _BuyerPortalState extends State<BuyerPortal> with SingleTickerProviderStat
               text: 'Raffle Info',
             ),
             Tab(
-              icon: Icon(Icons.confirmation_number_outlined),
-              text: 'Available Tickets',
-            ),
-            Tab(
               icon: Icon(Icons.shopping_cart_outlined),
               text: 'Purchase',
             ),
@@ -98,7 +93,6 @@ class _BuyerPortalState extends State<BuyerPortal> with SingleTickerProviderStat
           controller: _tabController,
           children: [
             RaffleInfoTab(onTabChange: _changeTab),
-            const AvailableTicketsTab(),
             const PurchaseTab(),
             const MyTicketsTab(),
             const VerifyTicketTab(),

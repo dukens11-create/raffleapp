@@ -302,7 +302,7 @@ class _RaffleInfoTabState extends State<RaffleInfoTab> {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            '${category.available} available',
+                            category.available > 0 ? 'Available' : 'Sold Out',
                             style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,

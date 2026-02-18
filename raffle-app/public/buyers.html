@@ -842,9 +842,6 @@
       <button class="tab active" data-tab="raffle-info">
         📋 Raffle Info
       </button>
-      <button class="tab" data-tab="available-tickets">
-        🎫 Available Tickets
-      </button>
       <button class="tab" data-tab="purchase">
         💳 Purchase Tickets
       </button>
@@ -864,29 +861,6 @@
           <div class="loading">
             <div class="spinner"></div>
             <p>Loading raffle information...</p>
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Tab Content: Available Tickets -->
-    <div id="available-tickets" class="tab-content">
-      <div class="card">
-        <h2>Available Tickets for Purchase</h2>
-        
-        <div class="filter-row">
-          <select id="category-filter">
-            <option value="">All Categories</option>
-          </select>
-          <button class="btn btn-primary" onclick="loadAvailableTickets()" style="width: auto;">
-            🔄 Refresh
-          </button>
-        </div>
-        
-        <div id="available-tickets-content">
-          <div class="loading">
-            <div class="spinner"></div>
-            <p>Loading available tickets...</p>
           </div>
         </div>
       </div>
@@ -1133,9 +1107,6 @@
         if (tabName === 'raffle-info' && !window.raffleInfoLoaded) {
           console.log('[Buyers] Loading raffle info for first time...');
           loadRaffleInfo();
-        } else if (tabName === 'available-tickets' && !window.availableTicketsLoaded) {
-          console.log('[Buyers] Loading available tickets...');
-          loadAvailableTickets();
         } else if (tabName === 'purchase') {
           console.log('[Buyers] Initializing purchase form...');
           if (!window.purchaseTabLoaded) {
@@ -1427,8 +1398,8 @@
                 <div style="flex: 1;">
                   <div class="prize-category">${cat.category_name || cat.category_code}</div>
                   ${cat.description ? `<div style="font-size: 14px; color: #64748b; margin-top: 4px;">${cat.description}</div>` : ''}
-                  <div style="font-size: 13px; color: #10b981; font-weight: 600; margin-top: 4px;">
-                    🌐 ${(cat.online_available || 0).toLocaleString()} available online
+                  <div style="font-size: 13px; color: ${(cat.online_available || 0) > 0 ? '#10b981' : '#ef4444'}; font-weight: 600; margin-top: 4px;">
+                    ${(cat.online_available || 0) > 0 ? '✅ Available' : '❌ Sold Out'}
                   </div>
                 </div>
                 <div class="prize-price">$${parseFloat(cat.price).toFixed(2)}</div>
@@ -1441,10 +1412,6 @@
             <div class="stat-card">
               <h3>Total Tickets</h3>
               <div class="value">${(data.stats?.total_tickets || 0).toLocaleString()}</div>
-            </div>
-            <div class="stat-card">
-              <h3>All Available</h3>
-              <div class="value">${(data.stats?.available_tickets || 0).toLocaleString()}</div>
             </div>
             <div class="stat-card">
               <h3>Sold</h3>
@@ -1790,27 +1757,7 @@
       try {
         await loadRaffleInfo();
         
-        // Populate category filter from cached raffle data
-        if (raffleData && raffleData.categories) {
-          const categoryFilter = document.getElementById('category-filter');
-          if (categoryFilter && !elementsWithListeners.has(categoryFilter)) {
-            raffleData.categories.forEach(cat => {
-              const option = document.createElement('option');
-              option.value = cat.category_code;
-              option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}`;
-              categoryFilter.appendChild(option);
-            });
-            
-            // Add change event listener to reload tickets when category changes
-            categoryFilter.addEventListener('change', () => {
-              console.log('[Buyers] Category filter changed');
-              if (window.availableTicketsLoaded) {
-                loadAvailableTickets(1); // Reset to page 1 when filter changes
-              }
-            });
-            elementsWithListeners.add(categoryFilter);
-          }
-        }
+        // Category filter removed - was part of Available Tickets tab which is now hidden
       } catch (error) {
         console.error('Initialization error:', error);
         // Page can still load even if raffle info fails
@@ -1915,29 +1862,24 @@
           const option = document.createElement('option');
           option.value = cat.category_code;
           
-          // Show category with price and availability
-          option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)} (${available.toLocaleString()} available)`;
+          // Show category with price and availability status
+          const availStatus = available > 0 ? ' ✅' : ' ❌ SOLD OUT';
+          option.textContent = `${cat.category_name || cat.category_code} - $${parseFloat(cat.price).toFixed(2)}${availStatus}`;
           option.dataset.price = cat.price;
           option.dataset.available = available;
           
           // Disable if no tickets available
           if (available === 0) {
             option.disabled = true;
-            option.textContent += ' - SOLD OUT';
           }
           
           categorySelect.appendChild(option);
         });
         
-        // Show total availability info below the dropdown
-        const totalAvailable = availData.total_available || 0;
+        // Remove total availability info banner
         const availInfoEl = document.getElementById('availability-info');
         if (availInfoEl) {
-          availInfoEl.innerHTML = `
-            <div style="font-size: 13px; color: #475569; margin-top: 8px;">
-              📊 <strong>${totalAvailable.toLocaleString()}</strong> tickets available online from the last 100,000 of each category
-            </div>
-          `;
+          availInfoEl.innerHTML = '';
         }
         
       } catch (error) {
