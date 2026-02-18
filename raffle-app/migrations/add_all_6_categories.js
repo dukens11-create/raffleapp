@@ -105,7 +105,12 @@ async function addAllSixCategories() {
       console.log('   This may cause issues with the ticket purchase form.');
     }
     
-    console.log(`\n✅ Migration completed! Added ${addedCount}, updated ${updatedCount} ${addedCount + updatedCount === 1 ? 'category' : 'categories'}.`);
+    const totalChanged = addedCount + updatedCount;
+    if (totalChanged > 0) {
+      console.log(`\n✅ Migration completed! Added ${addedCount} and updated ${updatedCount} ${totalChanged === 1 ? 'category' : 'categories'}.`);
+    } else {
+      console.log(`\n✅ Migration completed! All categories already up to date.`);
+    }
     
   } catch (error) {
     console.error('❌ Migration failed:', error);
