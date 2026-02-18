@@ -10,6 +10,10 @@ async function addAll6Categories() {
   console.log('🎟️  Starting 6 categories migration...');
   
   try {
+    // Step 0: Initialize database schema if needed
+    console.log('📋 Initializing database schema...');
+    await db.initializeSchema();
+    
     // Step 1: Check if default raffle exists
     const existingRaffle = await db.get('SELECT * FROM raffles WHERE id = 1');
     
