@@ -6134,16 +6134,26 @@ app.post('/api/public/my-tickets', async (req, res) => {
         buyer_name: t.buyer_name,
         ticket_type: 'lottery'
       })),
-      ...scratchTickets.map(t => ({
-        ticket_number: t.ticket_number,
-        category: t.category,
-        price: t.price,
-        status: t.status === 'approved' ? 'ACTIVE' : t.status === 'pending_verification' ? 'PENDING' : 'PENDING',
-        barcode: t.barcode,
-        sold_at: t.sold_at,
-        buyer_name: t.buyer_name,
-        ticket_type: 'scratch'
-      }))
+      ...scratchTickets.map(t => {
+        // Map payment status to ticket status
+        let ticketStatus = 'PENDING';
+        if (t.status === 'approved') {
+          ticketStatus = 'ACTIVE';
+        } else if (t.status === 'failed' || t.status === 'cancelled') {
+          ticketStatus = 'CANCELLED';
+        }
+        
+        return {
+          ticket_number: t.ticket_number,
+          category: t.category,
+          price: t.price,
+          status: ticketStatus,
+          barcode: t.barcode,
+          sold_at: t.sold_at,
+          buyer_name: t.buyer_name,
+          ticket_type: 'scratch'
+        };
+      })
     ];
     
     // Sort all tickets by date
@@ -8111,8 +8121,8 @@ app.post('/api/scratch-tickets/purchase', [
 
     const categoryCode = scratchCategoryMap[ticketId];
 
-    // Generate unique payment reference
-    const paymentReference = `SCR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    // Generate unique payment reference using crypto for better security
+    const paymentReference = `SCR-${Date.now()}-${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
 
     // Determine payment type and status
     const isAutomated = paymentMethod.includes('_api');
