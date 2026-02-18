@@ -34,6 +34,169 @@
       padding: 20px;
     }
     
+    /* Welcome Animation Overlay */
+    .welcome-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      background-size: 200% 200%;
+      animation: gradientShift 3s ease infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 1;
+      transition: opacity 0.8s ease;
+    }
+
+    .welcome-overlay.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .welcome-content {
+      text-align: center;
+      animation: welcomeEntry 1s ease-out;
+    }
+
+    @keyframes welcomeEntry {
+      from {
+        opacity: 0;
+        transform: scale(0.8) translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .welcome-logo img {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 30px;
+      animation: logoAnimation 1.5s ease-out;
+      filter: drop-shadow(0 10px 30px rgba(255, 255, 255, 0.3));
+    }
+
+    @keyframes logoAnimation {
+      0% {
+        opacity: 0;
+        transform: scale(0.5) rotate(-10deg);
+      }
+      60% {
+        transform: scale(1.1) rotate(5deg);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
+    }
+
+    .welcome-text {
+      font-size: 48px;
+      font-weight: 700;
+      color: white;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .welcome-line-1,
+    .welcome-line-2 {
+      display: block;
+      animation: textReveal 0.8s ease-out backwards;
+    }
+
+    .welcome-line-1 {
+      animation-delay: 0.3s;
+      font-size: 32px;
+      font-weight: 400;
+      opacity: 1;
+    }
+
+    .welcome-line-2 {
+      animation-delay: 0.6s;
+      font-size: 56px;
+      background: linear-gradient(135deg, #ffd700, #ffed4e, #ffd700);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
+      filter: drop-shadow(0 2px 10px rgba(255, 215, 0, 0.5));
+    }
+
+    @keyframes textReveal {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .welcome-sparkles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    @keyframes sparkleFloat {
+      0%, 100% {
+        opacity: 0;
+        transform: translateY(0) scale(0);
+      }
+      50% {
+        opacity: 1;
+        transform: translateY(-30px) scale(1);
+      }
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+
+    /* Responsive Adjustments for Welcome Animation */
+    @media (max-width: 768px) {
+      .welcome-text {
+        font-size: 32px;
+      }
+      
+      .welcome-line-1 {
+        font-size: 24px;
+      }
+      
+      .welcome-line-2 {
+        font-size: 40px;
+      }
+      
+      .welcome-logo img {
+        width: 80px;
+        height: 80px;
+      }
+    }
+    
     .container {
       max-width: 1400px;
       margin: 0 auto;
@@ -1361,6 +1524,22 @@
   </style>
 </head>
 <body>
+  <!-- Welcome Animation Overlay -->
+  <div id="welcome-overlay" class="welcome-overlay">
+    <div class="welcome-content">
+      <div class="welcome-logo">
+        <img src="logo.png" alt="Grate Genyen Logo">
+      </div>
+      <h1 class="welcome-text">
+        <span class="welcome-line-1">Byenvini nan</span>
+        <span class="welcome-line-2">Grate Genyen</span>
+      </h1>
+      <div class="welcome-sparkles">
+        <!-- Animated sparkle elements -->
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <!-- Header -->
     <div class="header">
@@ -1620,6 +1799,45 @@
   </div>
   
   <script>
+    // ============================================================================
+    // WELCOME ANIMATION CONTROLLER
+    // ============================================================================
+    
+    // Welcome Animation Controller
+    document.addEventListener('DOMContentLoaded', function() {
+      const welcomeOverlay = document.getElementById('welcome-overlay');
+      
+      // Create sparkle elements
+      createSparkles();
+      
+      // Auto-hide after 3.5 seconds
+      setTimeout(() => {
+        welcomeOverlay.classList.add('fade-out');
+        
+        // Remove from DOM after fade completes
+        setTimeout(() => {
+          welcomeOverlay.style.display = 'none';
+        }, 800);
+      }, 3500);
+      
+      function createSparkles() {
+        const sparklesContainer = document.querySelector('.welcome-sparkles');
+        if (!sparklesContainer) return;
+        
+        // Reduced from 20 to 12 sparkles for better performance
+        for (let i = 0; i < 12; i++) {
+          const sparkle = document.createElement('div');
+          sparkle.className = 'sparkle';
+          // Only set position and animation properties inline
+          sparkle.style.top = `${Math.random() * 100}%`;
+          sparkle.style.left = `${Math.random() * 100}%`;
+          sparkle.style.animation = `sparkleFloat ${2 + Math.random() * 3}s ease-in-out infinite`;
+          sparkle.style.animationDelay = `${Math.random() * 2}s`;
+          sparklesContainer.appendChild(sparkle);
+        }
+      }
+    });
+
     // ============================================================================
     // UTILITY FUNCTIONS
     // ============================================================================
