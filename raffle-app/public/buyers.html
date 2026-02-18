@@ -1897,25 +1897,36 @@
             <table>
               <thead>
                 <tr>
+                  <th>Type</th>
                   <th>Ticket Number</th>
                   <th>Category</th>
                   <th>Price</th>
-                  <th>Barcode</th>
                   <th>Purchase Date</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                ${data.tickets.map(ticket => `
-                  <tr>
-                    <td><strong>${ticket.ticket_number}</strong></td>
-                    <td>${ticket.category || 'N/A'}</td>
-                    <td><strong>$${parseFloat(ticket.price).toFixed(2)}</strong></td>
-                    <td>${ticket.barcode || 'N/A'}</td>
-                    <td>${ticket.sold_at ? new Date(ticket.sold_at).toLocaleString() : 'N/A'}</td>
-                    <td><span class="status-badge status-${ticket.status.toLowerCase()}">${ticket.status}</span></td>
-                  </tr>
-                `).join('')}
+                ${data.tickets.map(ticket => {
+                  const isScratch = ticket.ticket_type === 'scratch';
+                  const typeEmoji = isScratch ? '🎰' : '🎟️';
+                  const typeName = isScratch ? 'Scratch' : 'Lottery';
+                  const actionButton = isScratch && ticket.status === 'ACTIVE' 
+                    ? `<button class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="scratchPurchasedTicket('${ticket.barcode}', '${ticket.category}')">Scratch Now</button>` 
+                    : '-';
+                  
+                  return `
+                    <tr>
+                      <td>${typeEmoji} ${typeName}</td>
+                      <td><strong>${ticket.ticket_number}</strong></td>
+                      <td>${ticket.category ? ticket.category.replace('SCRATCH-', '') : 'N/A'}</td>
+                      <td><strong>$${parseFloat(ticket.price).toFixed(2)}</strong></td>
+                      <td>${ticket.sold_at ? new Date(ticket.sold_at).toLocaleString() : 'N/A'}</td>
+                      <td><span class="status-badge status-${ticket.status.toLowerCase()}">${ticket.status}</span></td>
+                      <td>${actionButton}</td>
+                    </tr>
+                  `;
+                }).join('')}
               </tbody>
             </table>
           </div>
@@ -3534,6 +3545,19 @@
         errorEl.textContent = error.message || 'Failed to confirm payment. Please try again.';
         errorEl.classList.add('show');
       }
+    }
+
+    // Scratch a purchased ticket - redirects to scratch page with ticket ID
+    function scratchPurchasedTicket(paymentReference, category) {
+      // Store the payment reference so the scratch page knows this is a purchased ticket
+      sessionStorage.setItem('purchasedScratchTicket', paymentReference);
+      sessionStorage.setItem('purchasedScratchCategory', category);
+      
+      // Extract ticket type from category (e.g., "SCRATCH-BASIC" -> "basic")
+      const ticketType = category.replace('SCRATCH-', '').toLowerCase();
+      
+      // Redirect to scratch page
+      window.location.href = `/scratch-tickets.html#${ticketType}`;
     }
 
 

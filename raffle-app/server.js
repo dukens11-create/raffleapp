@@ -6049,60 +6049,114 @@ app.post('/api/public/my-tickets', async (req, res) => {
       return res.status(404).json({ error: 'No active raffle found' });
     }
     
-    // Build query based on provided identifier
-    let query = `
-      SELECT ticket_number, category, price, status, barcode, sold_at, buyer_name
+    // Build query for regular tickets based on provided identifier
+    let ticketQuery = `
+      SELECT ticket_number, category, price, status, barcode, sold_at, buyer_name, 'lottery' as ticket_type
       FROM tickets 
       WHERE raffle_id = ? AND status = 'SOLD'
     `;
-    const params = [raffle.id];
+    const ticketParams = [raffle.id];
     
     if (email) {
-      query += ' AND LOWER(buyer_email) = LOWER(?)';
-      params.push(email.trim());
+      ticketQuery += ' AND LOWER(buyer_email) = LOWER(?)';
+      ticketParams.push(email.trim());
     } else if (phone) {
       // Normalize phone number by removing all non-numeric characters for consistent matching
       const normalizedPhone = phone.replace(/\D/g, '');
       // Strip all non-numeric characters from stored phone numbers to match normalized input
       if (db.USE_POSTGRES) {
-        query += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
+        ticketQuery += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
       } else {
         // SQLite: use multiple REPLACE calls to remove common formatting characters
         // Handles: - ( ) . space and other common phone formatting
-        query += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
+        ticketQuery += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
       }
-      params.push(normalizedPhone);
+      ticketParams.push(normalizedPhone);
     } else if (buyer_code) {
       // buyer_code parameter accepts the ticket's barcode value
       // The barcode is a unique identifier assigned to each ticket upon sale
       // It's printed on physical tickets and included in email receipts as a "buyer code"
       // Buyers use this code to look up their purchased tickets
-      query += ' AND barcode = ?';
-      params.push(buyer_code.trim());
+      ticketQuery += ' AND barcode = ?';
+      ticketParams.push(buyer_code.trim());
     }
     
-    query += ' ORDER BY sold_at DESC';
+    ticketQuery += ' ORDER BY sold_at DESC';
     
-    const tickets = await db.all(query, params);
+    // Build query for scratch tickets from payments table
+    let scratchQuery = `
+      SELECT 
+        payment_reference as ticket_number,
+        ticket_category as category,
+        amount as price,
+        payment_status as status,
+        payment_reference as barcode,
+        created_at as sold_at,
+        buyer_name,
+        'scratch' as ticket_type
+      FROM payments 
+      WHERE raffle_id = ? 
+        AND ticket_category LIKE 'SCRATCH-%'
+    `;
+    const scratchParams = [raffle.id];
     
-    if (tickets.length === 0) {
-      return res.json({ 
-        tickets: [], 
-        message: 'No tickets found with the provided information' 
-      });
+    if (email) {
+      scratchQuery += ' AND LOWER(buyer_email) = LOWER(?)';
+      scratchParams.push(email.trim());
+    } else if (phone) {
+      const normalizedPhone = phone.replace(/\D/g, '');
+      if (db.USE_POSTGRES) {
+        scratchQuery += ' AND REGEXP_REPLACE(buyer_phone, \'[^0-9]\', \'\', \'g\') = ?';
+      } else {
+        scratchQuery += ' AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, \'-\', \'\'), \' \', \'\'), \'(\', \'\'), \')\', \'\'), \'.\', \'\'), \'+\', \'\') = ?';
+      }
+      scratchParams.push(normalizedPhone);
+    } else if (buyer_code) {
+      scratchQuery += ' AND payment_reference = ?';
+      scratchParams.push(buyer_code.trim());
     }
     
-    res.json({
-      tickets: tickets.map(t => ({
+    scratchQuery += ' ORDER BY created_at DESC';
+    
+    // Execute both queries
+    const regularTickets = await db.all(ticketQuery, ticketParams);
+    const scratchTickets = await db.all(scratchQuery, scratchParams);
+    
+    // Combine results
+    const allTickets = [
+      ...regularTickets.map(t => ({
         ticket_number: t.ticket_number,
         category: t.category,
         price: t.price,
         status: t.status,
         barcode: t.barcode,
         sold_at: t.sold_at,
-        buyer_name: t.buyer_name
+        buyer_name: t.buyer_name,
+        ticket_type: 'lottery'
+      })),
+      ...scratchTickets.map(t => ({
+        ticket_number: t.ticket_number,
+        category: t.category,
+        price: t.price,
+        status: t.status === 'approved' ? 'ACTIVE' : t.status === 'pending_verification' ? 'PENDING' : 'PENDING',
+        barcode: t.barcode,
+        sold_at: t.sold_at,
+        buyer_name: t.buyer_name,
+        ticket_type: 'scratch'
       }))
-    });
+    ];
+    
+    // Sort all tickets by date
+    allTickets.sort((a, b) => new Date(b.sold_at) - new Date(a.sold_at));
+    
+    if (allTickets.length === 0) {
+      return res.json({ 
+        tickets: [], 
+        message: 'No tickets found with the provided information' 
+      });
+    }
+    
+    res.json({ tickets: allTickets });
   } catch (error) {
     console.error('Error looking up tickets:', error);
     res.status(500).json({ error: 'Failed to lookup tickets' });
