@@ -350,6 +350,17 @@ async function runMigrations() {
     }
   }
   
+  // Run JavaScript migrations (e.g., update-raffle-name.js)
+  try {
+    const updateRaffleName = require('./migrations/update-raffle-name');
+    await updateRaffleName();
+    successCount++;
+  } catch (error) {
+    console.error(`❌ Migration failed (update-raffle-name.js):`, error.message);
+    failCount++;
+    // Don't crash - migrations are idempotent
+  }
+  
   // Log summary with appropriate status
   const status = failCount > 0 ? '❌' : (skippedCount > 0 ? '⚠️' : '✅');
   console.log(`${status} Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);

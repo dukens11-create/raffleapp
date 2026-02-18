@@ -808,7 +808,7 @@ async function initializeSchema() {
       await run(
         `INSERT INTO raffles (name, status, description, total_tickets) 
          VALUES (?, ?, ?, ?)`,
-        ['Default Raffle 2024', 'active', 'Official raffle with 6 ticket categories', 2000000]
+        ['GRATE GENYEN', 'active', 'Official Grate Genyen raffle for ticket sales', 2000000]
       );
       
       // Create 6 ticket categories with correct names and prices (in HTG)
