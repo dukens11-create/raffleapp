@@ -75,9 +75,10 @@ workflows:
       email:
         recipients:
           - dukens11@example.com  # Update with your email address
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
+      # Temporarily disabled - configure GCLOUD_SERVICE_ACCOUNT_CREDENTIALS to re-enable
+      # google_play:
+      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      #   track: internal
 
   ios-workflow:
     name: iOS Build
