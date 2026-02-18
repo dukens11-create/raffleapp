@@ -361,6 +361,17 @@ async function runMigrations() {
     // Don't crash - migrations are idempotent
   }
   
+  // Run add_all_6_categories migration
+  try {
+    const addAll6Categories = require('./migrations/add_all_6_categories');
+    await addAll6Categories();
+    successCount++;
+  } catch (error) {
+    console.error(`❌ Migration failed (add_all_6_categories.js):`, error.message);
+    failCount++;
+    // Don't crash - migrations are idempotent
+  }
+  
   // Log summary with appropriate status
   const status = failCount > 0 ? '❌' : (skippedCount > 0 ? '⚠️' : '✅');
   console.log(`${status} Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);
@@ -5800,6 +5811,9 @@ app.get('/api/public/raffle-info', async (req, res) => {
       WHERE raffle_id = ?
       ORDER BY category_code
     `, [raffle.id, raffle.id, raffle.id]);
+    
+    // Log how many categories were loaded
+    console.log(`[API] Loaded ${categories.length} ticket categories for raffle id=${raffle.id}`);
     
     // Debug logging for categories (only in debug mode)
     if (DEBUG_MODE) {
