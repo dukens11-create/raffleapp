@@ -36,15 +36,28 @@ async function addAllCategories() {
     );
     
     if (existing) {
-      console.log(`✅ Category ${cat.code} (${cat.name}) already exists`);
-      // Update in case data changed
-      await db.run(
-        `UPDATE ticket_categories 
-         SET category_name = ?, price = ?, total_tickets = ?, color = ?
-         WHERE raffle_id = ? AND category_code = ?`,
-        [cat.name, cat.price, cat.total, cat.color, 1, cat.code]
+      // Check if update is needed
+      const current = await db.get(
+        'SELECT category_name, price, total_tickets, color FROM ticket_categories WHERE raffle_id = ? AND category_code = ?',
+        [1, cat.code]
       );
-      console.log(`   Updated ${cat.code} with latest values`);
+      
+      const needsUpdate = current.category_name !== cat.name ||
+                          current.price !== cat.price ||
+                          current.total_tickets !== cat.total ||
+                          current.color !== cat.color;
+      
+      if (needsUpdate) {
+        await db.run(
+          `UPDATE ticket_categories 
+           SET category_name = ?, price = ?, total_tickets = ?, color = ?
+           WHERE raffle_id = ? AND category_code = ?`,
+          [cat.name, cat.price, cat.total, cat.color, 1, cat.code]
+        );
+        console.log(`✅ Category ${cat.code} (${cat.name}) updated with latest values`);
+      } else {
+        console.log(`✅ Category ${cat.code} (${cat.name}) already exists with correct values`);
+      }
     } else {
       // Insert new category
       await db.run(
@@ -70,7 +83,10 @@ async function addAllCategories() {
   console.log(`\n✅ Total categories: ${allCategories.length}`);
   
   if (allCategories.length !== 6) {
-    console.log('❌ WARNING: Expected 6 categories but found', allCategories.length);
+    console.log(`❌ WARNING: Expected 6 categories but found ${allCategories.length}`);
+    console.log('   This may cause issues with the ticket purchase form.');
+    console.log('   Please review the migration output and ensure all categories were created successfully.');
+    console.log('   You may need to manually check the ticket_categories table.');
   }
 }
 
