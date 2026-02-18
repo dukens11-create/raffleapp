@@ -5801,6 +5801,12 @@ app.get('/api/public/raffle-info', async (req, res) => {
       ORDER BY category_code
     `, [raffle.id, raffle.id, raffle.id]);
     
+    // Log category count (always enabled for troubleshooting)
+    console.log(`[API /api/public/raffle-info] Loaded ${categories.length} categories`);
+    if (categories.length !== 6) {
+      console.warn(`[API] Expected 6 categories but got ${categories.length}`);
+    }
+    
     // Debug logging for categories (only in debug mode)
     if (DEBUG_MODE) {
       console.log('[API] Fetched categories:', categories);
