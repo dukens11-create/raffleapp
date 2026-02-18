@@ -43,7 +43,7 @@ class _ScratchScreenState extends State<ScratchScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         final isWinner = selectedPrize.value > 0;
-        final isFreeTicket = selectedPrize.emoji == '🎟️';
+        final isFreeTicket = selectedPrize.isFreeTicket;
         
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -59,7 +59,7 @@ class _ScratchScreenState extends State<ScratchScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                isFreeTicket ? 'Félicitasyon!' : isWinner ? 'Félicitasyon!' : 'Eseye Ankò!',
+                (isFreeTicket || isWinner) ? 'Félicitasyon!' : 'Eseye Ankò!',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
