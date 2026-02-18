@@ -10,14 +10,14 @@ async function updateRaffleName() {
   
   try {
     // Update all raffles that have old names
-    const result = await db.run(`
+    await db.run(`
       UPDATE raffles 
       SET name = 'GRATE GENYEN',
           description = 'Official Grate Genyen raffle for ticket sales'
       WHERE name IN ('Grand Raffle 2026', 'Default Raffle', 'Grate Genyen Raffle')
     `);
     
-    console.log(`✅ Updated ${result.changes || 0} raffle record(s)`);
+    console.log('✅ Raffle names updated');
     
     // Verify the update
     const raffles = await db.all('SELECT id, name, description FROM raffles');
@@ -31,6 +31,8 @@ async function updateRaffleName() {
   } catch (error) {
     console.error('❌ Migration failed:', error);
     throw error;
+  } finally {
+    db.close();
   }
 }
 
