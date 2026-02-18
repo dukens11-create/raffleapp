@@ -248,7 +248,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                       ...categories.map((category) {
                         return ListTile(
                           title: Text(category.categoryCode),
-                          subtitle: Text(category.onlineAvailable > 0 ? 'Disponib' : 'Epuize'),
+                          subtitle: Text(category.onlineAvailable > 0 ? 'Disponib' : 'EPUIZE'),
                           onTap: () {
                             context.read<BuyerTicketProvider>()
                                 .filterByCategory(category.categoryCode);
