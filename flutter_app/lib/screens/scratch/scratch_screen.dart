@@ -43,6 +43,8 @@ class _ScratchScreenState extends State<ScratchScreen> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         final isWinner = selectedPrize.value > 0;
+        final isFreeTicket = selectedPrize.isFreeTicket;
+        
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -57,7 +59,7 @@ class _ScratchScreenState extends State<ScratchScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                isWinner ? 'Félicitasyon!' : 'Eseye Ankò!',
+                (isFreeTicket || isWinner) ? 'Félicitasyon!' : 'Eseye Ankò!',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -92,6 +94,26 @@ class _ScratchScreenState extends State<ScratchScreen> {
                   ),
                 ),
               ],
+              if (isFreeTicket) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: widget.ticket.theme.gradientColors,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Ou genyen yon lòt tikè!',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -113,7 +135,6 @@ class _ScratchScreenState extends State<ScratchScreen> {
                   ElevatedButton.icon(
                     onPressed: () {
                       Navigator.of(context).pop();
-                      // Reload the screen with a new ticket
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
                           builder: (context) => ScratchScreen(ticket: widget.ticket),
@@ -121,7 +142,7 @@ class _ScratchScreenState extends State<ScratchScreen> {
                       );
                     },
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Play Again'),
+                    label: Text(isFreeTicket ? 'Use Free Ticket' : 'Play Again'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: widget.ticket.theme.gradientColors.first,
                       padding: const EdgeInsets.symmetric(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class Prize {
+  static const String freeTicketEmoji = '🎟️';
+  
   final String emoji;
   final String text;
   final int value;
@@ -12,6 +14,8 @@ class Prize {
     required this.value,
     required this.weight,
   });
+
+  bool get isFreeTicket => emoji == freeTicketEmoji;
 
   factory Prize.fromJson(Map<String, dynamic> json) {
     return Prize(
