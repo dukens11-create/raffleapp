@@ -17,10 +17,10 @@
 #    - FCI_KEY_ALIAS: Key alias name
 #    - FCI_KEY_PASSWORD: Key password
 #    
-#    ios_credentials group:
+#    ios_credentials group (optional - only needed for App Store publishing):
 #    - APP_STORE_CONNECT_KEY_IDENTIFIER: API key ID
 #    - APP_STORE_CONNECT_ISSUER_ID: Issuer ID
-#    - APP_STORE_CONNECT_PRIVATE_KEY: Private key
+#    - APP_STORE_CONNECT_PRIVATE_KEY: Private key (.p8 file content)
 #    - CERTIFICATE_PRIVATE_KEY: Certificate private key
 #    
 #    Common variables:
@@ -117,8 +117,18 @@ workflows:
       email:
         recipients:
           - dukens11@example.com  # Update with your email address
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        notify:
+          success: true
+          failure: true
+      # App Store Connect publishing disabled until credentials are configured
+      # Uncomment and configure when ready to publish to TestFlight/App Store:
+      # app_store_connect:
+      #   auth: integration
+      #   api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+      #   key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+      #   issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+      #   submit_to_testflight: true
+      #   submit_to_app_store: false
 
   development-workflow:
     name: Development Build
