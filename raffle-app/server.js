@@ -486,8 +486,8 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : [
       // ✅ HARDCODE custom domains as fallback
-      'https://www.enejipamticket.com',
-      'https://enejipamticket.com',
+      'https://www.grategenyen.com',
+      'https://grategenyen.com',
       'https://raffleapp-e4ev.onrender.com'
     ];
 

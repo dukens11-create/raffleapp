@@ -104,12 +104,12 @@ This Flutter app connects to the backend API for the Grate Genyen raffle system.
 
 ### API Configuration
 
-**Default Production URL:** `https://enejipamticket.com`
+**Default Production URL:** `https://grategenyen.com`
 
 The app is configured to connect to the production backend by default. If no data appears or you see connection errors, please verify:
 
 1. Your device has internet connectivity
-2. The backend server at `https://enejipamticket.com` is accessible
+2. The backend server at `https://grategenyen.com` is accessible
 3. Your network/firewall allows HTTPS connections
 
 ### Custom API URL (Development)
@@ -127,7 +127,7 @@ flutter run --dart-define=API_BASE_URL=http://localhost:10000
 flutter run --dart-define=API_BASE_URL=http://192.168.1.100:10000
 
 # For Production Build
-flutter build apk --release --dart-define=API_BASE_URL=https://enejipamticket.com
+flutter build apk --release --dart-define=API_BASE_URL=https://grategenyen.com
 ```
 
 ### Troubleshooting Connection Issues
@@ -135,10 +135,10 @@ flutter build apk --release --dart-define=API_BASE_URL=https://enejipamticket.co
 If the app shows "Cannot connect to server" or no data appears:
 
 1. **Check Internet Connection:** Ensure your device has active internet
-2. **Verify Backend Status:** Confirm the backend at `https://enejipamticket.com` is running
+2. **Verify Backend Status:** Confirm the backend at `https://grategenyen.com` is running
 3. **Check Firewall:** Some corporate networks may block the connection
 4. **View Logs:** Use `flutter run` in a terminal to see detailed connection logs
-5. **Test Backend:** Open `https://enejipamticket.com/health` in a browser to verify it's accessible
+5. **Test Backend:** Open `https://grategenyen.com/health` in a browser to verify it's accessible
 
 For detailed API configuration and connection setup for different environments, see [`BACKEND_CONNECTION_GUIDE.md`](BACKEND_CONNECTION_GUIDE.md).
 

@@ -448,7 +448,7 @@ curl http://localhost:3000/health
 
 1. **Add Domain in Vercel Dashboard:**
    - Go to Project Settings → Domains
-   - Add your domain: `www.enejipamticket.com`
+   - Add your domain: `www.grategenyen.com`
    - Follow DNS configuration instructions
 
 2. **Configure DNS Records:**
@@ -474,10 +474,10 @@ curl http://localhost:3000/health
 3. **Verify Domain:**
    ```bash
    # Check DNS propagation
-   nslookup www.enejipamticket.com
+   nslookup www.grategenyen.com
    
    # Test the domain
-   curl https://www.enejipamticket.com/health
+   curl https://www.grategenyen.com/health
    ```
 
 4. **SSL Certificate:**
@@ -489,7 +489,7 @@ curl http://localhost:3000/health
 
 1. **Add Custom Domain:**
    - Go to Service Settings → Custom Domains
-   - Add: `www.enejipamticket.com`
+   - Add: `www.grategenyen.com`
    - Note the Render DNS target provided
 
 2. **Configure DNS:**

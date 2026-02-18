@@ -235,7 +235,7 @@ flutter build ipa --release
 ### Environment Configuration
 ```bash
 # Custom API URL
-flutter run --dart-define=API_BASE_URL=https://enejipamticket.com
+flutter run --dart-define=API_BASE_URL=https://grategenyen.com
 ```
 
 ### CI/CD

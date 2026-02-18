@@ -98,7 +98,7 @@ SESSION_SECRET=<paste-generated-value>
 ```
 APP_URL=https://your-app.onrender.com
 # Or custom domain:
-APP_URL=https://www.enejipamticket.com
+APP_URL=https://www.grategenyen.com
 ```
 
 #### Email Configuration (Optional but Recommended)
@@ -134,7 +134,7 @@ TWILIO_PHONE_NUMBER=your-twilio-number
 
 #### CORS Configuration (if using separate frontend)
 ```
-ALLOWED_ORIGINS=https://your-frontend-domain.com,https://www.enejipamticket.com
+ALLOWED_ORIGINS=https://your-frontend-domain.com,https://www.grategenyen.com
 ```
 
 ## Custom Domain Setup
@@ -143,7 +143,7 @@ ALLOWED_ORIGINS=https://your-frontend-domain.com,https://www.enejipamticket.com
 1. Go to web service → "Settings"
 2. Scroll to "Custom Domain"
 3. Click "Add Custom Domain"
-4. Enter: `www.enejipamticket.com`
+4. Enter: `www.grategenyen.com`
 
 ### Step 2: Configure DNS
 Add these records in your domain registrar (e.g., GoDaddy, Namecheap):
@@ -153,7 +153,7 @@ Type    Name    Value                           TTL
 CNAME   www     your-app.onrender.com           3600
 ```
 
-For root domain (`enejipamticket.com`):
+For root domain (`grategenyen.com`):
 ```
 Type    Name    Value                           TTL
 A       @       <IP from Render instructions>   3600
@@ -164,7 +164,7 @@ Or use CNAME flattening if your DNS provider supports it.
 ### Step 3: Wait for SSL Certificate
 - Render automatically provisions SSL/TLS certificates
 - This takes 1-5 minutes after DNS propagates
-- Visit `https://www.enejipamticket.com/health` to verify
+- Visit `https://www.grategenyen.com/health` to verify
 
 ## Troubleshooting
 
