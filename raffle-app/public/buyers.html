@@ -47,7 +47,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 10000;
+      z-index: 1000;
       opacity: 1;
       transition: opacity 0.8s ease;
     }
@@ -121,7 +121,7 @@
       animation-delay: 0.3s;
       font-size: 32px;
       font-weight: 400;
-      opacity: 0.9;
+      opacity: 1;
     }
 
     .welcome-line-2 {
@@ -165,6 +165,16 @@
         opacity: 1;
         transform: translateY(-30px) scale(1);
       }
+    }
+
+    .sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
     }
 
     /* Responsive Adjustments for Welcome Animation */
@@ -1650,22 +1660,15 @@
         const sparklesContainer = document.querySelector('.welcome-sparkles');
         if (!sparklesContainer) return;
         
-        for (let i = 0; i < 20; i++) {
+        // Reduced from 20 to 12 sparkles for better performance
+        for (let i = 0; i < 12; i++) {
           const sparkle = document.createElement('div');
           sparkle.className = 'sparkle';
-          sparkle.style.cssText = `
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: white;
-            border-radius: 50%;
-            top: ${Math.random() * 100}%;
-            left: ${Math.random() * 100}%;
-            animation: sparkleFloat ${2 + Math.random() * 3}s ease-in-out infinite;
-            animation-delay: ${Math.random() * 2}s;
-            opacity: 0;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
-          `;
+          // Only set position and animation properties inline
+          sparkle.style.top = `${Math.random() * 100}%`;
+          sparkle.style.left = `${Math.random() * 100}%`;
+          sparkle.style.animation = `sparkleFloat ${2 + Math.random() * 3}s ease-in-out infinite`;
+          sparkle.style.animationDelay = `${Math.random() * 2}s`;
           sparklesContainer.appendChild(sparkle);
         }
       }
