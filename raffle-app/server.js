@@ -361,6 +361,17 @@ async function runMigrations() {
     // Don't crash - migrations are idempotent
   }
   
+  // Run ticket categories migration
+  try {
+    const addTicketCategories = require('./migrations/add-ticket-categories');
+    await addTicketCategories();
+    successCount++;
+  } catch (error) {
+    console.error(`❌ Migration failed (add-ticket-categories.js):`, error.message);
+    failCount++;
+    // Don't crash - migrations are idempotent
+  }
+  
   // Log summary with appropriate status
   const status = failCount > 0 ? '❌' : (skippedCount > 0 ? '⚠️' : '✅');
   console.log(`${status} Migrations completed: ${successCount} successful, ${failCount} failed, ${skippedCount} skipped`);
