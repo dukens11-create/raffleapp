@@ -437,13 +437,13 @@ async function ensureActiveRaffle() {
       if (db.USE_POSTGRES) {
         const result = await db.get(
           `INSERT INTO raffles (name, description, status, total_tickets) VALUES ($1, $2, $3, $4) RETURNING id`,
-          ['Default Raffle', 'Default raffle for ticket sales', 'active', 1500000]
+          ['GRATE GENYEN', 'Official Grate Genyen raffle for ticket sales', 'active', 1500000]
         );
         newRaffleId = result.id;
       } else {
         const result = await db.run(
           `INSERT INTO raffles (name, description, status, total_tickets) VALUES (?, ?, ?, ?)`,
-          ['Default Raffle', 'Default raffle for ticket sales', 'active', 1500000]
+          ['GRATE GENYEN', 'Official Grate Genyen raffle for ticket sales', 'active', 1500000]
         );
         newRaffleId = result.lastID;
       }
