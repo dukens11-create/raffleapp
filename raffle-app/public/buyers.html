@@ -1272,6 +1272,19 @@
       pointer-events: none;
     }
 
+    /* Scratch canvas overlay – covers prize content until scratched */
+    .scratch-canvas-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 8px;
+      z-index: 20;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
     .ticket-prize-emoji {
       font-size: 48px;
       margin-bottom: 8px;
@@ -3244,6 +3257,271 @@
       }
     ];
 
+    // ============================================================================
+    // BUYER SCRATCH OVERLAY (canvas-based, demo/preview only)
+    // ============================================================================
+
+    // Per-ticket color for the metallic overlay
+    const BUYER_SCRATCH_COLORS = {
+      'ticket-bg-basic':   '#10b981',
+      'ticket-bg-premium': '#7c3aed',
+      'ticket-bg-bronze':  '#ea580c',
+      'ticket-bg-silver':  '#94a3b8',
+      'ticket-bg-gold':    '#f59e0b',
+      'ticket-bg-diamond': '#06b6d4'
+    };
+
+    // Minimum pixel movement to classify a pointer interaction as a scratch drag
+    const BUYER_SCRATCH_DRAG_THRESHOLD = 6;
+    // Percentage of area that must be scratched to auto-reveal
+    const BUYER_SCRATCH_AUTO_REVEAL = 55;
+    // Brush radius in canvas pixels
+    const BUYER_SCRATCH_BRUSH = 28;
+
+    /**
+     * BuyerScratchOverlay
+     * Attaches a canvas on top of a `.ticket-scratch-area` so the buyer can
+     * preview-scratch the overlay.  Clicking/tapping without dragging still
+     * fires openScratchTicket() to show the purchase modal.
+     */
+    class BuyerScratchOverlay {
+      constructor(scratchArea, ticketId, bgClass) {
+        this.scratchArea = scratchArea;
+        this.ticketId = ticketId;
+        this.bgClass = bgClass;
+        this.isDrawing = false;
+        this.hasDragged = false;
+        this.startX = 0;
+        this.startY = 0;
+        this.scratchedPct = 0;
+        this.revealed = false;
+        this._checkThrottle = false;
+
+        this.canvas = document.createElement('canvas');
+        this.canvas.className = 'scratch-canvas-overlay';
+        scratchArea.appendChild(this.canvas);
+
+        // Size and paint after the card is in the DOM
+        requestAnimationFrame(() => this._init());
+      }
+
+      _init() {
+        const rect = this.scratchArea.getBoundingClientRect();
+        this.canvas.width  = rect.width  || this.scratchArea.offsetWidth;
+        this.canvas.height = rect.height || this.scratchArea.offsetHeight;
+        this.ctx = this.canvas.getContext('2d');
+        this._drawCover();
+        this._attachEvents();
+      }
+
+      _getColor() {
+        return BUYER_SCRATCH_COLORS[this.bgClass] || '#64748b';
+      }
+
+      _lighten(hex, amt) {
+        const clean = hex.replace('#', '');
+        if (!/^[0-9a-fA-F]{6}$/.test(clean)) return hex;
+        const n = parseInt(clean, 16);
+        const r = Math.min(255, (n >> 16) + amt);
+        const g = Math.min(255, ((n >> 8) & 0xFF) + amt);
+        const b = Math.min(255, (n & 0xFF) + amt);
+        return `rgb(${r},${g},${b})`;
+      }
+
+      _darken(hex, amt) {
+        const clean = hex.replace('#', '');
+        if (!/^[0-9a-fA-F]{6}$/.test(clean)) return hex;
+        const n = parseInt(clean, 16);
+        const r = Math.max(0, (n >> 16) - amt);
+        const g = Math.max(0, ((n >> 8) & 0xFF) - amt);
+        const b = Math.max(0, (n & 0xFF) - amt);
+        return `rgb(${r},${g},${b})`;
+      }
+
+      _drawCover() {
+        const { width, height } = this.canvas;
+        const base  = this._getColor();
+        const light = this._lighten(base, 40);
+        const dark  = this._darken(base, 20);
+
+        // Metallic gradient
+        const grad = this.ctx.createLinearGradient(0, 0, width, height);
+        grad.addColorStop(0,   dark);
+        grad.addColorStop(0.3, light);
+        grad.addColorStop(0.5, base);
+        grad.addColorStop(0.7, light);
+        grad.addColorStop(1,   dark);
+        this.ctx.fillStyle = grad;
+        this.ctx.fillRect(0, 0, width, height);
+
+        // Holographic shimmer band
+        const shimmer = this.ctx.createLinearGradient(0, 0, width, height);
+        shimmer.addColorStop(0,    'rgba(255,255,255,0)');
+        shimmer.addColorStop(0.45, 'rgba(255,255,255,0.4)');
+        shimmer.addColorStop(0.5,  'rgba(255,255,255,0.55)');
+        shimmer.addColorStop(0.55, 'rgba(255,255,255,0.4)');
+        shimmer.addColorStop(1,    'rgba(255,255,255,0)');
+        this.ctx.fillStyle = shimmer;
+        this.ctx.fillRect(0, 0, width, height);
+
+        // Sparkle dots
+        this.ctx.globalAlpha = 0.5;
+        for (let i = 0; i < 50; i++) {
+          const sx = Math.random() * width;
+          const sy = Math.random() * height;
+          const sr = Math.random() * 2 + 0.5;
+          this.ctx.fillStyle = 'rgba(255,255,255,0.75)';
+          this.ctx.beginPath();
+          this.ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+          this.ctx.fill();
+        }
+        this.ctx.globalAlpha = 1;
+
+        // Instruction text
+        this.ctx.save();
+        this.ctx.shadowColor = 'rgba(0,0,0,0.45)';
+        this.ctx.shadowBlur   = 5;
+        this.ctx.fillStyle   = 'rgba(255,255,255,0.95)';
+        this.ctx.font        = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        this.ctx.textAlign   = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('✦ GRATE ISIT LA ✦', width / 2, height / 2);
+        this.ctx.restore();
+      }
+
+      _getPos(e) {
+        const rect  = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width  / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+        const src = e.touches ? e.touches[0] : e;
+        return {
+          cx: ((src.clientX || src.pageX) - rect.left) * scaleX,
+          cy: ((src.clientY || src.pageY) - rect.top)  * scaleY,
+          rx: (src.clientX || src.pageX) - rect.left,
+          ry: (src.clientY || src.pageY) - rect.top
+        };
+      }
+
+      _scratchAt(cx, cy) {
+        this.ctx.globalCompositeOperation = 'destination-out';
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, BUYER_SCRATCH_BRUSH, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.globalCompositeOperation = 'source-over';
+
+        // Throttled percentage check
+        if (!this._checkThrottle) {
+          this._checkThrottle = true;
+          requestAnimationFrame(() => {
+            this._calcPct();
+            this._checkThrottle = false;
+          });
+        }
+      }
+
+      _calcPct() {
+        if (this.revealed) return;
+        const data = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height).data;
+        let transparent = 0;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] < 128) transparent++;
+        }
+        this.scratchedPct = Math.round((transparent / (data.length / 4)) * 100);
+        if (this.scratchedPct >= BUYER_SCRATCH_AUTO_REVEAL) {
+          this._revealAll();
+        }
+      }
+
+      _revealAll() {
+        if (this.revealed) return;
+        this.revealed = true;
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Canvas no longer needed for interaction; keep it visible but inert
+        this.canvas.style.pointerEvents = 'none';
+      }
+
+      _attachEvents() {
+        const cv = this.canvas;
+
+        // ── Mouse ──────────────────────────────────────────────────────────────
+        cv.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+          this.isDrawing  = true;
+          this.hasDragged = false;
+          this.startX = e.clientX;
+          this.startY = e.clientY;
+          const { cx, cy } = this._getPos(e);
+          this._scratchAt(cx, cy);
+        });
+
+        cv.addEventListener('mousemove', (e) => {
+          if (!this.isDrawing) return;
+          const dx = Math.abs(e.clientX - this.startX);
+          const dy = Math.abs(e.clientY - this.startY);
+          if (dx > BUYER_SCRATCH_DRAG_THRESHOLD || dy > BUYER_SCRATCH_DRAG_THRESHOLD) {
+            this.hasDragged = true;
+          }
+          const { cx, cy } = this._getPos(e);
+          this._scratchAt(cx, cy);
+        });
+
+        cv.addEventListener('mouseup', (e) => {
+          e.stopPropagation();
+          if (this.isDrawing && !this.hasDragged) {
+            // Pure click — open purchase modal
+            openScratchTicket(this.ticketId);
+          }
+          this.isDrawing = false;
+        });
+
+        cv.addEventListener('mouseleave', () => {
+          this.isDrawing = false;
+        });
+
+        // ── Touch ──────────────────────────────────────────────────────────────
+        cv.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.isDrawing  = true;
+          this.hasDragged = false;
+          const t = e.touches[0];
+          this.startX = t.clientX;
+          this.startY = t.clientY;
+          const { cx, cy } = this._getPos(e);
+          this._scratchAt(cx, cy);
+        }, { passive: false });
+
+        cv.addEventListener('touchmove', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const t = e.touches[0];
+          const dx = Math.abs(t.clientX - this.startX);
+          const dy = Math.abs(t.clientY - this.startY);
+          if (dx > BUYER_SCRATCH_DRAG_THRESHOLD || dy > BUYER_SCRATCH_DRAG_THRESHOLD) {
+            this.hasDragged = true;
+          }
+          Array.from(e.touches).forEach(touch => {
+            const rect  = this.canvas.getBoundingClientRect();
+            const scaleX = this.canvas.width  / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            this._scratchAt(
+              (touch.clientX - rect.left) * scaleX,
+              (touch.clientY - rect.top)  * scaleY
+            );
+          });
+        }, { passive: false });
+
+        cv.addEventListener('touchend', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (this.isDrawing && !this.hasDragged) {
+            openScratchTicket(this.ticketId);
+          }
+          this.isDrawing = false;
+        }, { passive: false });
+      }
+    }
+
     // Generate sparkles for ticket backgrounds (using DOM manipulation for better security)
     function createSparklesElement(count) {
       const sparklesContainer = document.createElement('div');
@@ -3331,8 +3609,12 @@
         const categoryFooter = ticketCard.querySelector('.ticket-category-footer');
         ticketCard.insertBefore(scratchArea, categoryFooter);
         
-        // Add click event listener
-        ticketCard.addEventListener('click', () => {
+        // Attach canvas scratch overlay (demo/preview – does not reveal real prizes)
+        new BuyerScratchOverlay(scratchArea, ticket.id, ticket.bgClass);
+        
+        // Add click event listener – skip if the canvas handled the interaction
+        ticketCard.addEventListener('click', (e) => {
+          if (e.target.classList.contains('scratch-canvas-overlay')) return;
           openScratchTicket(ticket.id);
         });
         
