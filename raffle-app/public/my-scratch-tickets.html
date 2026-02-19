@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GRATE GENYEN - My Scratch Tickets</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/css/scratch-card.css">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Header -->
+    <div class="page-header">
+      <a href="/buyers" aria-label="Back to Buyers Portal">&#8592;</a>
+      <h1>🎫 My Scratch Tickets</h1>
+    </div>
+
+    <!-- Lookup Form -->
+    <div class="lookup-form">
+      <h2>🔍 Find Your Tickets</h2>
+      <p style="font-size:14px;color:#64748b;margin-bottom:16px;">
+        Antre nimewo telefòn ou pou wè tikè grate ou yo.
+        Enter your phone number to see your scratch tickets.
+      </p>
+
+      <div id="alertMsg" class="alert"></div>
+
+      <div class="form-group">
+        <label for="phoneInput">Phone Number / Nimewo Telefòn</label>
+        <input
+          type="tel"
+          id="phoneInput"
+          placeholder="e.g. 50937000000"
+          autocomplete="tel"
+          maxlength="20"
+        >
+      </div>
+
+      <button class="btn-lookup" id="lookupBtn" type="button">
+        🔍 Find My Tickets
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsSection" style="display:none;">
+      <div id="ticketsList" class="tickets-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Helper: escape HTML to prevent XSS
+    // ============================================================
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ============================================================
+    // Get status badge info for a ticket
+    // ============================================================
+    function getStatusInfo(ticket) {
+      const isScratched = ticket.is_scratched === true || ticket.is_scratched === 1;
+      const hasPrize = ticket.has_prize === true || ticket.has_prize === 1;
+      const isClaimed = ticket.claimed === true || ticket.claimed === 1;
+
+      if (!isScratched) {
+        return { label: 'Scratch Me!', cls: 'status-unscratched', icon: '🎰' };
+      }
+      if (isClaimed) {
+        return { label: 'Claimed', cls: 'status-claimed', icon: '✅' };
+      }
+      if (hasPrize) {
+        return { label: '🏆 Won!', cls: 'status-scratched-prize', icon: '🎉' };
+      }
+      return { label: 'No Prize', cls: 'status-scratched-no-prize', icon: '😢' };
+    }
+
+    // ============================================================
+    // Render ticket list
+    // ============================================================
+    function renderTickets(tickets) {
+      const container = document.getElementById('ticketsList');
+      container.innerHTML = '';
+
+      if (!tickets || tickets.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        const icon = document.createElement('span');
+        icon.className = 'empty-state-icon';
+        icon.textContent = '🎫';
+        const h3 = document.createElement('h3');
+        h3.textContent = 'No Scratch Tickets Found';
+        const p = document.createElement('p');
+        p.textContent = 'Purchase scratch tickets from the Buyers Portal to see them here.';
+        empty.appendChild(icon);
+        empty.appendChild(h3);
+        empty.appendChild(p);
+        container.appendChild(empty);
+        return;
+      }
+
+      tickets.forEach(ticket => {
+        const status = getStatusInfo(ticket);
+        const categoryDisplay = (ticket.category || '').replace('SCRATCH-', '');
+        const dateStr = ticket.created_at
+          ? new Date(ticket.created_at).toLocaleDateString()
+          : '—';
+        const refDisplay = ticket.payment_reference
+          ? ticket.payment_reference.slice(-16)
+          : '—';
+
+        const item = document.createElement('div');
+        item.className = 'scratch-ticket-item';
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+
+        const icon = document.createElement('div');
+        icon.className = 'ticket-item-icon';
+        icon.textContent = status.icon;
+
+        const info = document.createElement('div');
+        info.className = 'ticket-item-info';
+
+        const ref = document.createElement('div');
+        ref.className = 'ticket-item-ref';
+        ref.textContent = refDisplay;
+
+        const cat = document.createElement('div');
+        cat.className = 'ticket-item-category';
+        cat.textContent = categoryDisplay + ' Ticket';
+
+        const date = document.createElement('div');
+        date.className = 'ticket-item-date';
+        date.textContent = dateStr;
+
+        info.appendChild(ref);
+        info.appendChild(cat);
+        info.appendChild(date);
+
+        const statusDiv = document.createElement('div');
+        statusDiv.className = 'ticket-item-status';
+        const badge = document.createElement('span');
+        badge.className = 'status-badge ' + status.cls;
+        badge.textContent = status.label;
+        statusDiv.appendChild(badge);
+
+        item.appendChild(icon);
+        item.appendChild(info);
+        item.appendChild(statusDiv);
+
+        // Navigate to scratch card on click
+        const ref_val = ticket.payment_reference;
+        const phone = document.getElementById('phoneInput').value.trim();
+        item.addEventListener('click', () => {
+          sessionStorage.setItem('scratchPhone', phone);
+          window.location.href = '/scratch-card.html?ref=' + encodeURIComponent(ref_val);
+        });
+        item.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            item.click();
+          }
+        });
+
+        container.appendChild(item);
+      });
+    }
+
+    // ============================================================
+    // Show alert
+    // ============================================================
+    function showAlert(msg, type) {
+      const el = document.getElementById('alertMsg');
+      el.textContent = msg;
+      el.className = 'alert alert-' + type + ' show';
+    }
+
+    function clearAlert() {
+      const el = document.getElementById('alertMsg');
+      el.className = 'alert';
+      el.textContent = '';
+    }
+
+    // ============================================================
+    // Lookup tickets
+    // ============================================================
+    async function lookupTickets() {
+      const phone = document.getElementById('phoneInput').value.trim();
+      if (!phone) {
+        showAlert('Please enter your phone number.', 'error');
+        return;
+      }
+      // Basic phone validation
+      const digits = phone.replace(/[\s\-\(\)\+]/g, '');
+      if (!/^[0-9]{8,15}$/.test(digits)) {
+        showAlert('Please enter a valid phone number (8-15 digits).', 'error');
+        return;
+      }
+
+      clearAlert();
+      const btn = document.getElementById('lookupBtn');
+      btn.textContent = 'Searching...';
+      btn.disabled = true;
+
+      try {
+        const response = await fetch('/api/buyer/scratch-tickets?phone=' + encodeURIComponent(digits));
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to load tickets');
+        }
+        const data = await response.json();
+        document.getElementById('resultsSection').style.display = 'block';
+        renderTickets(data.tickets || []);
+        // Store phone for later use
+        sessionStorage.setItem('scratchPhone', phone);
+      } catch (err) {
+        showAlert('Error: ' + escapeHtml(err.message), 'error');
+      } finally {
+        btn.textContent = '🔍 Find My Tickets';
+        btn.disabled = false;
+      }
+    }
+
+    // ============================================================
+    // Event listeners
+    // ============================================================
+    document.getElementById('lookupBtn').addEventListener('click', lookupTickets);
+    document.getElementById('phoneInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') lookupTickets();
+    });
+
+    // Pre-fill phone if stored and auto-lookup
+    document.addEventListener('DOMContentLoaded', () => {
+      const stored = sessionStorage.getItem('scratchPhone');
+      if (stored) {
+        document.getElementById('phoneInput').value = stored;
+        lookupTickets();
+      }
+    });
+  </script>
+</body>
+</html>

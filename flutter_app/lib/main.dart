@@ -11,6 +11,7 @@ import 'package:raffle_app/providers/statistics_provider.dart';
 import 'package:raffle_app/providers/seller_provider.dart';
 import 'package:raffle_app/providers/admin_ticket_provider.dart';
 import 'package:raffle_app/providers/seller_sales_provider.dart';
+import 'package:raffle_app/providers/scratch_provider.dart';
 import 'package:raffle_app/screens/auth/login_screen.dart';
 import 'package:raffle_app/screens/admin/admin_dashboard.dart';
 import 'package:raffle_app/screens/seller/seller_dashboard.dart';
@@ -19,6 +20,7 @@ import 'package:raffle_app/screens/buyer/home_screen.dart';
 import 'package:raffle_app/screens/buyer/ticket_selection_screen.dart';
 import 'package:raffle_app/screens/buyer/checkout_screen.dart';
 import 'package:raffle_app/screens/scratch/ticket_gallery_screen.dart';
+import 'package:raffle_app/screens/scratch/my_scratch_cards_screen.dart';
 import 'package:raffle_app/screens/shared/qr_scanner_screen.dart';
 import 'package:raffle_app/screens/payment/payment_method_screen.dart';
 import 'package:raffle_app/screens/admin/statistics_screen.dart';
@@ -51,6 +53,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SellerProvider()),
         ChangeNotifierProvider(create: (_) => AdminTicketProvider()),
         ChangeNotifierProvider(create: (_) => SellerSalesProvider()),
+        ChangeNotifierProvider(create: (_) => ScratchProvider()),
       ],
       child: MaterialApp(
         title: 'Grate Genyen',
@@ -65,6 +68,7 @@ class MyApp extends StatelessWidget {
           '/buyer': (context) => const BuyerPortal(),
           '/buyer-home': (context) => const BuyerHomeScreen(),
           '/scratch': (context) => const TicketGalleryScreen(),
+          '/my-scratch-cards': (context) => const MyScratchCardsScreen(),
           // Ticket purchasing flow
           '/tickets/browse': (context) => const TicketSelectionScreen(),
           '/checkout': (context) => const CheckoutScreen(),

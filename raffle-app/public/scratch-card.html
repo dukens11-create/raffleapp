@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GRATE GENYEN - Scratch Your Ticket</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/css/scratch-card.css">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Header -->
+    <div class="page-header">
+      <a href="/my-scratch-tickets.html" aria-label="Back to My Scratch Tickets">&#8592;</a>
+      <h1>🎰 Scratch Your Ticket</h1>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingState" class="loading-spinner">
+      Loading your ticket...
+    </div>
+
+    <!-- Error -->
+    <div id="errorAlert" class="alert alert-error"></div>
+
+    <!-- Scratch Card -->
+    <div id="scratchCardSection" style="display:none;">
+      <div class="scratch-card-wrapper">
+
+        <!-- Ticket info header -->
+        <div class="ticket-header">
+          <h2>Ticket #<span id="ticketRef"></span></h2>
+          <span class="category-badge" id="categoryBadge"></span>
+        </div>
+
+        <!-- Already-scratched warning (hidden by default) -->
+        <div id="alreadyScratchedBanner" class="already-scratched-banner" style="display:none;">
+          ⚠️ Tikè sa deja grate. This ticket was already scratched.
+        </div>
+
+        <!-- Scratch area -->
+        <div class="scratch-area" id="scratchArea">
+          <!-- Prize revealed underneath -->
+          <div class="prize-display" id="prizeDisplay">
+            <div class="prize-content">
+              <span class="prize-emoji" id="prizeEmoji">🎉</span>
+              <h3 class="prize-title" id="prizeTitle">FÉLICITASYON!</h3>
+              <p class="prize-amount" id="prizeAmount"></p>
+              <p class="prize-message" id="prizeMessage"></p>
+            </div>
+          </div>
+
+          <!-- Grey scratch canvas overlay -->
+          <canvas id="scratchCanvas"></canvas>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="scratch-progress">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <p id="progressText">0% Grate / Scratched</p>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="scratch-actions">
+          <button id="claimBtn" class="btn-claim" disabled>
+            🏆 Claim Prize / Reklame Pri
+          </button>
+          <a href="/my-scratch-tickets.html" class="btn-back">← Back</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/scratch-card.js"></script>
+  <script>
+    // ============================================================
+    // Helper to escape HTML (XSS protection)
+    // ============================================================
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // ============================================================
+    // State
+    // ============================================================
+    let ticketData = null;
+    let phone = null;
+    let scratcher = null;
+    let revealed = false;
+
+    // ============================================================
+    // Init
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Get payment reference from URL query param
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get('ref');
+      phone = sessionStorage.getItem('scratchPhone') || params.get('phone') || '';
+
+      if (!ref) {
+        showError('No ticket reference found. Please go back to My Scratch Tickets.');
+        hideLoading();
+        return;
+      }
+
+      await loadTicket(ref);
+    });
+
+    // ============================================================
+    // Load ticket data
+    // ============================================================
+    async function loadTicket(ref) {
+      try {
+        const response = await fetch(`/api/buyer/scratch-ticket/${encodeURIComponent(ref)}`);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || 'Ticket not found');
+        }
+        const data = await response.json();
+        ticketData = data.ticket;
+        renderTicket();
+      } catch (err) {
+        showError('Could not load ticket: ' + escapeHtml(err.message));
+      } finally {
+        hideLoading();
+      }
+    }
+
+    // ============================================================
+    // Render ticket
+    // ============================================================
+    function renderTicket() {
+      if (!ticketData) return;
+
+      const refDisplay = ticketData.payment_reference
+        ? ticketData.payment_reference.replace('SCR-', '').slice(-12)
+        : '—';
+      document.getElementById('ticketRef').textContent = refDisplay;
+
+      const categoryDisplay = (ticketData.category || '').replace('SCRATCH-', '');
+      document.getElementById('categoryBadge').textContent = categoryDisplay;
+
+      // Show section
+      document.getElementById('scratchCardSection').style.display = 'block';
+
+      const isScratched = ticketData.is_scratched === true || ticketData.is_scratched === 1;
+      const hasPrize = ticketData.has_prize === true || ticketData.has_prize === 1;
+      const isClaimed = ticketData.claimed === true || ticketData.claimed === 1;
+
+      if (isScratched) {
+        // Already scratched: show prize directly, no canvas
+        document.getElementById('alreadyScratchedBanner').style.display = 'flex';
+        revealPrizeUI(hasPrize, isClaimed);
+        // Remove canvas since already scratched
+        const canvas = document.getElementById('scratchCanvas');
+        if (canvas) canvas.style.display = 'none';
+        // Make prize visible immediately
+        document.getElementById('prizeDisplay').classList.add('revealed');
+        document.getElementById('prizeDisplay').style.opacity = '1';
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('progressText').textContent = '100% Scratched';
+      } else {
+        // New scratch: initialize canvas
+        setupScratchCanvas(hasPrize, isClaimed);
+      }
+    }
+
+    // ============================================================
+    // Set up canvas scratch interaction
+    // ============================================================
+    function setupScratchCanvas(hasPrize, isClaimed) {
+      // Set canvas height to match the prize display area
+      const scratchArea = document.getElementById('scratchArea');
+      const prizeDisplay = document.getElementById('prizeDisplay');
+
+      // Wait for layout then size the canvas
+      requestAnimationFrame(() => {
+        const canvas = document.getElementById('scratchCanvas');
+        if (!canvas) return;
+
+        // Size canvas to exactly overlay the prize display
+        const areaRect = scratchArea.getBoundingClientRect();
+        const prizeRect = prizeDisplay.getBoundingClientRect();
+        const offsetTop = prizeRect.top - areaRect.top;
+        const offsetLeft = prizeRect.left - areaRect.left;
+
+        canvas.style.top = offsetTop + 'px';
+        canvas.style.left = offsetLeft + 'px';
+        canvas.style.width = prizeRect.width + 'px';
+        canvas.style.height = prizeRect.height + 'px';
+
+        // Init prize content before scratch
+        setPrizeContent(hasPrize);
+
+        scratcher = new ScratchCard('scratchCanvas', {
+          brushSize: 50,
+          scratchThreshold: 70,
+          onProgress: (pct) => {
+            document.getElementById('progressFill').style.width = pct.toFixed(0) + '%';
+            document.getElementById('progressText').textContent = pct.toFixed(0) + '% Scratched';
+          },
+          onReveal: async () => {
+            revealed = true;
+            revealPrizeUI(hasPrize, isClaimed);
+            await markScratched();
+          }
+        });
+      });
+
+      // Show prize content but hidden under canvas
+      setPrizeContent(hasPrize);
+    }
+
+    // ============================================================
+    // Update prize display content
+    // ============================================================
+    function setPrizeContent(hasPrize) {
+      if (!ticketData) return;
+      if (hasPrize) {
+        document.getElementById('prizeEmoji').textContent = '🎉';
+        document.getElementById('prizeTitle').textContent = 'FÉLICITASYON! CONGRATULATIONS!';
+        const amount = parseFloat(ticketData.prize_amount || 0);
+        document.getElementById('prizeAmount').textContent =
+          amount > 0 ? amount.toLocaleString() + ' HTG' : '';
+        document.getElementById('prizeMessage').textContent =
+          escapeHtml(ticketData.prize_message || '');
+      } else {
+        document.getElementById('prizeEmoji').textContent = '😢';
+        document.getElementById('prizeTitle').textContent = 'ESEYE ANKÒ / TRY AGAIN!';
+        document.getElementById('prizeAmount').textContent = '';
+        document.getElementById('prizeMessage').textContent =
+          escapeHtml(ticketData.prize_message || 'Better luck next time!');
+      }
+    }
+
+    // ============================================================
+    // After reveal: show claim button if applicable
+    // ============================================================
+    function revealPrizeUI(hasPrize, isClaimed) {
+      setPrizeContent(hasPrize);
+
+      const claimBtn = document.getElementById('claimBtn');
+      if (hasPrize && !isClaimed) {
+        claimBtn.disabled = false;
+        claimBtn.addEventListener('click', claimPrize);
+      } else if (isClaimed) {
+        claimBtn.textContent = '✅ Prize Claimed';
+        claimBtn.disabled = true;
+      } else {
+        claimBtn.style.display = 'none';
+      }
+    }
+
+    // ============================================================
+    // Mark ticket as scratched (POST to API)
+    // ============================================================
+    async function markScratched() {
+      if (!ticketData || !phone) return;
+      try {
+        await fetch(`/api/buyer/scratch-ticket/${encodeURIComponent(ticketData.payment_reference)}/scratch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+      } catch (err) {
+        console.warn('Could not mark ticket as scratched:', err.message);
+      }
+    }
+
+    // ============================================================
+    // Claim prize
+    // ============================================================
+    async function claimPrize() {
+      const claimBtn = document.getElementById('claimBtn');
+      if (!ticketData || !phone) {
+        alert('Phone number required to claim. Please look up your tickets again.');
+        return;
+      }
+      claimBtn.disabled = true;
+      claimBtn.textContent = 'Processing...';
+
+      try {
+        const response = await fetch(`/api/buyer/scratch-ticket/${encodeURIComponent(ticketData.payment_reference)}/claim`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone })
+        });
+        const data = await response.json();
+        if (response.ok && data.success) {
+          claimBtn.textContent = '✅ Prize Claimed!';
+          alert('🎉 Prize claimed successfully!\n\n' + escapeHtml(data.message || ''));
+        } else {
+          throw new Error(data.error || 'Could not claim prize');
+        }
+      } catch (err) {
+        claimBtn.disabled = false;
+        claimBtn.textContent = '🏆 Claim Prize / Reklame Pri';
+        alert('Error: ' + escapeHtml(err.message));
+      }
+    }
+
+    // ============================================================
+    // UI helpers
+    // ============================================================
+    function showError(msg) {
+      const el = document.getElementById('errorAlert');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingState').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

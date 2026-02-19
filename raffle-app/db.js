@@ -784,7 +784,34 @@ async function initializeSchema() {
     }
 
     console.log('✅ Performance indexes created');
-    
+
+    // Scratch tickets table - for tracking purchased scratch ticket prizes
+    await run(`
+      CREATE TABLE IF NOT EXISTS scratch_tickets (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        payment_reference TEXT NOT NULL UNIQUE,
+        buyer_phone TEXT NOT NULL,
+        buyer_name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        prize_amount ${USE_POSTGRES ? 'NUMERIC(10,2)' : 'REAL'} DEFAULT 0,
+        has_prize ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        prize_message TEXT,
+        is_scratched ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        scratched_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        claimed ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        claimed_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_scratch_tickets_buyer_phone ON scratch_tickets(buyer_phone)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_scratch_tickets_payment_ref ON scratch_tickets(payment_reference)`);
+      console.log('✅ Created scratch_tickets table with indexes');
+    } catch (error) {
+      console.warn('⚠️  Could not create scratch_tickets indexes:', error.message);
+    }
+
     console.log('✅ Database schema initialized successfully');
     
     // Check if admin exists, create if not
