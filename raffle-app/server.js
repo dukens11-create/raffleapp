@@ -8261,13 +8261,21 @@ app.post('/api/buyer/scratch-ticket/:id/scratch', [
     }
 
     // Mark as scratched and return prize
-    const now = db.USE_POSTGRES ? 'NOW()' : "DATETIME('now')";
-    await db.run(
-      `UPDATE buyer_scratch_tickets
-          SET is_scratched = ${db.USE_POSTGRES ? 'TRUE' : '1'}, scratched_at = ${now}
-        WHERE id = ?`,
-      [id]
-    );
+    if (db.USE_POSTGRES) {
+      await db.run(
+        `UPDATE buyer_scratch_tickets
+            SET is_scratched = TRUE, scratched_at = NOW()
+          WHERE id = ?`,
+        [id]
+      );
+    } else {
+      await db.run(
+        `UPDATE buyer_scratch_tickets
+            SET is_scratched = 1, scratched_at = DATETIME('now')
+          WHERE id = ?`,
+        [id]
+      );
+    }
 
     console.log(`[buyer/scratch-ticket/${id}/scratch] Scratched by phone ${normalizedPhone}: prize=${ticket.prize_value}`);
 
