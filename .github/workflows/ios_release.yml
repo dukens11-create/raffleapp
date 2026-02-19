@@ -1,0 +1,90 @@
+name: iOS Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Release environment (testflight, appstore)'
+        required: true
+        default: 'testflight'
+        type: choice
+        options:
+          - testflight
+          - appstore
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy iOS
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        working-directory: flutter_app
+        run: flutter pub get
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+          working-directory: flutter_app/ios
+
+      - name: Install Fastlane
+        working-directory: flutter_app/ios
+        run: |
+          gem install bundler
+          bundle install
+
+      - name: Create App Store Connect API key file
+        env:
+          APPLE_KEY_CONTENT: ${{ secrets.APPLE_KEY_CONTENT }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$APPLE_KEY_CONTENT" > ~/private_keys/AuthKey_${{ secrets.APPLE_KEY_ID }}.p8
+
+      - name: Build iOS app
+        working-directory: flutter_app
+        run: flutter build ios --release --no-codesign
+
+      - name: Deploy to TestFlight
+        if: github.event.inputs.environment == 'testflight' || github.event_name == 'push'
+        working-directory: flutter_app/ios
+        env:
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: |
+          bundle exec fastlane beta
+
+      - name: Deploy to App Store
+        if: github.event.inputs.environment == 'appstore'
+        working-directory: flutter_app/ios
+        env:
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+        run: |
+          bundle exec fastlane release
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-build-logs
+          path: flutter_app/ios/fastlane/logs
+
+      - name: Clean up
+        if: always()
+        run: rm -rf ~/private_keys

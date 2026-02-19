@@ -1,0 +1,18 @@
+# Fastlane Match Configuration
+# Used for iOS code signing
+
+git_url("https://github.com/YOUR_ORG/certificates")
+
+storage_mode("git")
+
+type("appstore") # Can be: appstore, adhoc, development, enterprise
+
+app_identifier(["com.grategenyen.raffleapp"])
+
+username("YOUR_APPLE_ID@example.com")
+
+# Uncomment the line below if you are using a team ID
+# team_id("YOUR_TEAM_ID")
+
+# If you want to use a different git branch
+# git_branch("main")

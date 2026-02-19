@@ -1,0 +1,20 @@
+Grate Genyen is a comprehensive raffle ticket management system designed for the Haitian community. Buy, sell, and manage raffle tickets with ease.
+
+Features:
+• Browse available raffle tickets by category
+• Secure mobile payment integration (MonCash & NatCash)
+• QR code scanning for ticket verification
+• Real-time ticket availability tracking
+• Scratch-off digital tickets
+• Multi-language support (English & Haitian Creole)
+• Buyer, Seller, and Admin portals
+• Photo upload for ticket verification
+• Offline mode support
+• Push notifications for ticket updates
+
+Perfect for:
+- Buyers looking for raffle tickets
+- Sellers managing ticket sales
+- Administrators overseeing raffle operations
+
+Download now and start your winning journey!
