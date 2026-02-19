@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tikè Grate Mwen - GRATE GENYEN</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/css/buyer-scratch.css">
+</head>
+<body>
+  <div class="container">
+    <a href="/buyers" class="back-link">← Retounen nan Pòtal</a>
+
+    <div class="header">
+      <h1>🎰 Tikè Grate Mwen</h1>
+      <p>Antre nimewo telefòn ou pou wè tikè grate ou yo</p>
+    </div>
+
+    <!-- Phone Lookup -->
+    <div class="card" id="lookupCard">
+      <h2 style="font-size:18px; font-weight:700; margin-bottom:16px;">🔍 Chèche Tikè Ou</h2>
+      <div id="lookupAlert" class="alert"></div>
+      <div class="phone-lookup">
+        <input type="tel" id="phoneInput" placeholder="Nimewo telefòn (ex: 50912345678)"
+               autocomplete="tel" inputmode="tel">
+        <button class="btn btn-primary" onclick="loadTickets()">🔍 Chèche</button>
+      </div>
+      <p style="font-size:13px; color:#94a3b8; margin-top:6px;">
+        Antre menm nimewo ou te itilize lè ou achte tikè a.
+      </p>
+    </div>
+
+    <!-- Results -->
+    <div id="resultsSection" style="display:none;">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+          <h2 style="font-size:18px; font-weight:700;">Tikè Ou Yo (<span id="ticketCount">0</span>)</h2>
+          <button class="btn btn-secondary" onclick="resetLookup()" style="font-size:13px; padding:8px 16px;">
+            🔄 Chanje Nimewo
+          </button>
+        </div>
+        <div id="ticketsGrid" class="tickets-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/buyer-scratch.js"></script>
+  <script>
+    // Pre-fill phone from localStorage if available
+    const savedPhone = getStoredPhone();
+    if (savedPhone) {
+      document.getElementById('phoneInput').value = savedPhone;
+    }
+
+    function showAlert(msg, type) {
+      const el = document.getElementById('lookupAlert');
+      el.className = `alert alert-${type} show`;
+      el.textContent = msg;
+    }
+
+    function hideAlert() {
+      const el = document.getElementById('lookupAlert');
+      el.className = 'alert';
+      el.textContent = '';
+    }
+
+    async function loadTickets() {
+      hideAlert();
+      const phone = normalizePhone(document.getElementById('phoneInput').value.trim());
+      if (!phone || phone.length < 7) {
+        showAlert('Tanpri antre yon nimewo telefòn valid.', 'error');
+        return;
+      }
+
+      storePhone(document.getElementById('phoneInput').value.trim());
+
+      showAlert('Chajman...', 'info');
+
+      try {
+        const res = await fetch(`/api/buyer/scratch-tickets?phone=${encodeURIComponent(phone)}`);
+        const data = await res.json();
+
+        hideAlert();
+
+        if (!res.ok || !data.success) {
+          showAlert(data.error || 'Erè pandan chèche tikè.', 'error');
+          return;
+        }
+
+        document.getElementById('ticketCount').textContent = data.count;
+        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('lookupCard').style.display = 'none';
+
+        renderTickets(data.tickets, phone);
+      } catch (err) {
+        hideAlert();
+        showAlert('Erè koneksyon. Tanpri eseye ankò.', 'error');
+      }
+    }
+
+    function resetLookup() {
+      document.getElementById('resultsSection').style.display = 'none';
+      document.getElementById('lookupCard').style.display = 'block';
+      document.getElementById('ticketsGrid').innerHTML = '';
+    }
+
+    function renderTickets(tickets, phone) {
+      const grid = document.getElementById('ticketsGrid');
+      grid.innerHTML = '';
+
+      if (!tickets || tickets.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state" style="grid-column:1/-1;">
+            <span class="icon">🎰</span>
+            <h3>Pa gen tikè grate</h3>
+            <p>Ou poko achte okenn tikè grate. Ale nan Scratch & Win pou achte youn!</p>
+            <a href="/buyers" class="btn btn-primary" style="margin-top:20px; display:inline-flex;">
+              🛒 Achte Tikè
+            </a>
+          </div>`;
+        return;
+      }
+
+      tickets.forEach(ticket => {
+        const type = ticket.ticket_type || 'basic';
+        const label = TICKET_LABELS[type] || type;
+        const emoji = TICKET_EMOJIS[type] || '🎰';
+        const isScratched = ticket.is_scratched;
+        const statusLabel = isScratched ? 'Grате' : 'Pa Grate';
+        const statusClass = isScratched ? 'status-scratched' : 'status-unscratched';
+        const cardClass = isScratched ? 'ticket-list-card scratched' : 'ticket-list-card';
+        const actionLabel = isScratched ? '👁 Wè Rezilta' : '✨ Grate Kounye a!';
+        const actionClass = isScratched ? 'ticket-card-action action-view' : 'ticket-card-action action-scratch';
+
+        const card = document.createElement('div');
+        card.className = cardClass;
+        card.innerHTML = `
+          <div class="ticket-card-header type-${type}">
+            <span class="ticket-card-status ${statusClass}">${statusLabel}</span>
+            <div class="ticket-card-type">${emoji} ${label}</div>
+            <div class="ticket-card-name">GRATE GENYEN</div>
+          </div>
+          <div class="ticket-card-body">
+            <div class="ticket-card-date">📅 ${formatDate(ticket.created_at)}</div>
+            <button class="${actionClass}" onclick="openScratchCard(${ticket.id}, '${encodeURIComponent(phone)}', '${type}')">
+              ${actionLabel}
+            </button>
+          </div>`;
+
+        grid.appendChild(card);
+      });
+    }
+
+    function openScratchCard(ticketId, encodedPhone, type) {
+      const phone = decodeURIComponent(encodedPhone);
+      const url = `/buyer-scratch-card.html?id=${ticketId}&phone=${encodeURIComponent(phone)}&type=${type}`;
+      window.location.href = url;
+    }
+
+    // Allow Enter key on phone input
+    document.getElementById('phoneInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadTickets();
+    });
+
+    // Auto-load if phone already in URL query
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const qPhone = params.get('phone');
+      if (qPhone) {
+        document.getElementById('phoneInput').value = qPhone;
+        loadTickets();
+      } else if (savedPhone) {
+        loadTickets();
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -630,7 +630,8 @@ function validateRequest(req, res, next) {
   }
   
   // Skip validation for public HTML pages (buyers portal, etc.)
-  const publicPages = ['/buyers.html', '/buyers', '/login.html', '/register-seller.html'];
+  const publicPages = ['/buyers.html', '/buyers', '/login.html', '/register-seller.html',
+    '/buyer-scratch-list.html', '/buyer-scratch-card.html'];
   if (publicPages.includes(req.path)) {
     return next();
   }
@@ -648,7 +649,8 @@ function validateRequest(req, res, next) {
     '/api/payments/status',            // Also matches /api/payments/status/:reference
     '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
     '/api/departments',
-    '/api/buyer/available-tickets'    // New: Get last 100K available tickets per category
+    '/api/buyer/available-tickets',   // New: Get last 100K available tickets per category
+    '/api/buyer/scratch-tickets'      // Buyer scratch tickets lookup
   ];
   
   // Check if request path matches any public API endpoint (exact or with parameters)
@@ -8067,6 +8069,222 @@ app.use((err, req, res, next) => {
 });
 
 // ============================================================================
+// BUYER SCRATCH CARDS - PRIZE GENERATION & API ENDPOINTS
+// ============================================================================
+
+/**
+ * Generate a prize for a buyer scratch ticket using weighted random selection.
+ * Prize configurations match the exact specifications in scratch-tickets.html.
+ */
+function generateBuyerScratchPrize(ticketType) {
+  const prizeConfigs = {
+    'basic': [
+      { emoji: '🎉', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 1 },
+      { emoji: '💎', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 3 },
+      { emoji: '🔥', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 10 },
+      { emoji: '💰', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 25 },
+      { emoji: '🎁', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 60 },
+      { emoji: '✨', text: 'OU GENYEN\n5 GOUD', value: 5, weight: 100 },
+      { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 201 }
+    ],
+    'premium': [
+      { emoji: '🎰', text: 'MEGA PRIZE!\n15,000 GOUD', value: 15000, weight: 2 },
+      { emoji: '💎', text: 'OU GENYEN\n7,500 GOUD', value: 7500, weight: 5 },
+      { emoji: '🔥', text: 'OU GENYEN\n3,000 GOUD', value: 3000, weight: 15 },
+      { emoji: '💰', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 35 },
+      { emoji: '🎁', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 70 },
+      { emoji: '✨', text: 'OU GENYEN\n50 GOUD', value: 50, weight: 120 },
+      { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 253 }
+    ],
+    'bronze': [
+      { emoji: '🏆', text: 'JACKPOT!\n50,000 GOUD', value: 50000, weight: 1 },
+      { emoji: '🎰', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 3 },
+      { emoji: '💎', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 10 },
+      { emoji: '🔥', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 25 },
+      { emoji: '💰', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 60 },
+      { emoji: '🎁', text: 'OU GENYEN\n250 GOUD', value: 250, weight: 100 },
+      { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 301 }
+    ],
+    'silver': [
+      { emoji: '💫', text: 'MEGA WIN!\n150,000 GOUD', value: 150000, weight: 1 },
+      { emoji: '🏆', text: 'OU GENYEN\n75,000 GOUD', value: 75000, weight: 2 },
+      { emoji: '🎰', text: 'OU GENYEN\n30,000 GOUD', value: 30000, weight: 8 },
+      { emoji: '💎', text: 'OU GENYEN\n15,000 GOUD', value: 15000, weight: 20 },
+      { emoji: '🔥', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 50 },
+      { emoji: '💰', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 100 },
+      { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 319 }
+    ],
+    'gold': [
+      { emoji: '👑', text: 'SUPER JACKPOT!\n250,000 GOUD', value: 250000, weight: 1 },
+      { emoji: '💫', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 3 },
+      { emoji: '🏆', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 8 },
+      { emoji: '🎰', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 18 },
+      { emoji: '💎', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 40 },
+      { emoji: '🔥', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 80 },
+      { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 350 }
+    ],
+    'diamond': [
+      { emoji: '💎', text: 'MEGA DYAMAN!\n1,000,000 GOUD', value: 1000000, weight: 1 },
+      { emoji: '🎰', text: 'SUPER PRIZE!\n500,000 GOUD', value: 500000, weight: 2 },
+      { emoji: '🔥', text: 'OU GENYEN\n250,000 GOUD', value: 250000, weight: 3 },
+      { emoji: '⭐', text: 'OU GENYEN\n100,000 GOUD', value: 100000, weight: 8 },
+      { emoji: '💰', text: 'OU GENYEN\n50,000 GOUD', value: 50000, weight: 15 },
+      { emoji: '🎁', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 40 },
+      { emoji: '💵', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 80 },
+      { emoji: '✨', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 150 },
+      { emoji: '🎲', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 200 },
+      { emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 501 }
+    ]
+  };
+
+  const prizes = prizeConfigs[ticketType];
+  if (!prizes) return null;
+
+  const totalWeight = prizes.reduce((sum, p) => sum + p.weight, 0);
+  let random = Math.random() * totalWeight;
+
+  for (const prize of prizes) {
+    random -= prize.weight;
+    if (random <= 0) {
+      return {
+        prize_emoji: prize.emoji,
+        prize_text: prize.text,
+        prize_value: prize.value,
+        has_prize: prize.value > 0
+      };
+    }
+  }
+
+  // Fallback to last prize
+  const last = prizes[prizes.length - 1];
+  return { prize_emoji: last.emoji, prize_text: last.text, prize_value: last.value, has_prize: last.value > 0 };
+}
+
+const SCRATCH_CATEGORY_MAP = {
+  'basic': 'BAS',
+  'premium': 'PRM',
+  'bronze': 'BRZ',
+  'silver': 'SLV',
+  'gold': 'GLD',
+  'diamond': 'DIA'
+};
+
+/**
+ * GET /api/buyer/scratch-tickets - Get buyer's scratch tickets by phone
+ * Public endpoint; buyers look up their tickets by phone number.
+ */
+app.get('/api/buyer/scratch-tickets', async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone || phone.trim().length < 7) {
+      return res.status(400).json({ error: 'Valid phone number required' });
+    }
+    // Normalize phone: digits only
+    const normalizedPhone = phone.replace(/\D/g, '');
+
+    const tickets = await db.all(
+      `SELECT id, payment_reference, buyer_name, ticket_type, category, has_prize, is_scratched, scratched_at, claimed, created_at
+         FROM buyer_scratch_tickets
+        WHERE REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, '-', ''), ' ', ''), '(', ''), ')', ''), '.', ''), '+', '') = ?
+        ORDER BY created_at DESC`,
+      [normalizedPhone]
+    );
+
+    // Return prize data only for scratched tickets (prevent client-side peeking)
+    const result = tickets.map(t => {
+      const base = {
+        id: t.id,
+        payment_reference: t.payment_reference,
+        buyer_name: t.buyer_name,
+        ticket_type: t.ticket_type,
+        category: t.category,
+        is_scratched: !!t.is_scratched,
+        scratched_at: t.scratched_at,
+        claimed: !!t.claimed,
+        created_at: t.created_at
+      };
+      if (t.is_scratched) {
+        // Prize already revealed - fetch full data
+        return { ...base, has_prize: !!t.has_prize };
+      }
+      return base;
+    });
+
+    res.json({ success: true, tickets: result, count: result.length });
+  } catch (error) {
+    console.error('[buyer/scratch-tickets GET] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch scratch tickets' });
+  }
+});
+
+/**
+ * POST /api/buyer/scratch-ticket/:id/scratch - Reveal prize & mark as scratched
+ * Requires phone for ownership verification. Returns prize data on success.
+ * One-time operation: cannot scratch the same ticket twice.
+ */
+app.post('/api/buyer/scratch-ticket/:id/scratch', [
+  body('phone').trim().notEmpty().withMessage('Phone number required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { id } = req.params;
+    const { phone } = req.body;
+    const normalizedPhone = phone.replace(/\D/g, '');
+
+    // Fetch ticket, verifying ownership by phone
+    const ticket = await db.get(
+      `SELECT * FROM buyer_scratch_tickets
+        WHERE id = ?
+          AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(buyer_phone, '-', ''), ' ', ''), '(', ''), ')', ''), '.', ''), '+', '') = ?`,
+      [id, normalizedPhone]
+    );
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Scratch ticket not found or phone mismatch' });
+    }
+
+    if (ticket.is_scratched) {
+      // Already scratched - return existing prize
+      return res.json({
+        success: true,
+        already_scratched: true,
+        prize_emoji: ticket.prize_emoji,
+        prize_text: ticket.prize_text,
+        prize_value: ticket.prize_value,
+        has_prize: !!ticket.has_prize,
+        scratched_at: ticket.scratched_at
+      });
+    }
+
+    // Mark as scratched and return prize
+    const now = db.USE_POSTGRES ? 'NOW()' : "DATETIME('now')";
+    await db.run(
+      `UPDATE buyer_scratch_tickets
+          SET is_scratched = ${db.USE_POSTGRES ? 'TRUE' : '1'}, scratched_at = ${now}
+        WHERE id = ?`,
+      [id]
+    );
+
+    console.log(`[buyer/scratch-ticket/${id}/scratch] Scratched by phone ${normalizedPhone}: prize=${ticket.prize_value}`);
+
+    res.json({
+      success: true,
+      prize_emoji: ticket.prize_emoji,
+      prize_text: ticket.prize_text,
+      prize_value: ticket.prize_value,
+      has_prize: !!ticket.has_prize
+    });
+  } catch (error) {
+    console.error('[buyer/scratch-ticket/:id/scratch POST] Error:', error);
+    res.status(500).json({ error: 'Failed to process scratch' });
+  }
+});
+
+// ============================================================================
 // SCRATCH TICKETS API ENDPOINTS
 // ============================================================================
 
@@ -8188,6 +8406,25 @@ app.post('/api/scratch-tickets/purchase', [
     ]);
 
     console.log('[Scratch Ticket Purchase] Payment record created:', paymentReference);
+
+    // Generate prize and create buyer scratch ticket entry
+    try {
+      const prize = generateBuyerScratchPrize(ticketId);
+      if (prize) {
+        const category = SCRATCH_CATEGORY_MAP[ticketId] || ticketId.toUpperCase();
+        await db.run(
+          `INSERT INTO buyer_scratch_tickets (payment_reference, buyer_phone, buyer_name, ticket_type, category, prize_value, prize_text, prize_emoji, has_prize)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [paymentReference, phone, buyerName, ticketId, category,
+           prize.prize_value, prize.prize_text, prize.prize_emoji,
+           prize.has_prize ? 1 : 0]
+        );
+        console.log('[Scratch Ticket Purchase] Buyer scratch ticket created for', paymentReference);
+      }
+    } catch (scratchErr) {
+      // Non-fatal: log but don't block purchase
+      console.error('[Scratch Ticket Purchase] Could not create buyer scratch ticket:', scratchErr.message);
+    }
 
     // For automated payments, initiate payment with provider
     if (isAutomated) {
