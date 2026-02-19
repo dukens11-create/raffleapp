@@ -62,9 +62,13 @@
     } catch (_) { return dt; }
   }
 
-  function showMsg(html, type) {
+  function showMsg(text, type) {
     const area = document.getElementById('msg-area');
-    area.innerHTML = `<div class="msg msg-${esc(type)}">${html}</div>`;
+    const div = document.createElement('div');
+    div.className = 'msg msg-' + esc(type);
+    div.textContent = text;
+    area.innerHTML = '';
+    area.appendChild(div);
   }
 
   function clearMsg() {

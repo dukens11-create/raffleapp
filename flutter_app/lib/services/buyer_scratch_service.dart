@@ -139,7 +139,8 @@ class BuyerScratchService {
     if (s.contains('TimeoutException') || s.contains('timed out')) {
       return 'Connection timeout. Please try again.';
     }
-    return 'Error connecting to $baseUrl$endpoint: $s';
+    debugPrint('BuyerScratchService error at $endpoint: $s');
+    return 'An unexpected error occurred. Please try again.';
   }
 
   /// Fetch all scratch tickets belonging to [phone].

@@ -8484,14 +8484,23 @@ app.post('/api/public/buyer-scratch-ticket/:id/scratch', async (req, res) => {
     }
 
     // Mark as scratched and reveal prize
-    const now = db.USE_POSTGRES ? 'CURRENT_TIMESTAMP' : "datetime('now')";
-    await db.run(
-      `UPDATE buyer_scratch_tickets
-       SET is_scratched = ${db.USE_POSTGRES ? 'TRUE' : '1'},
-           scratched_at = ${now}
-       WHERE id = ${db.USE_POSTGRES ? '$1' : '?'}`,
-      [id]
-    );
+    if (db.USE_POSTGRES) {
+      await db.run(
+        `UPDATE buyer_scratch_tickets
+         SET is_scratched = TRUE,
+             scratched_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [id]
+      );
+    } else {
+      await db.run(
+        `UPDATE buyer_scratch_tickets
+         SET is_scratched = 1,
+             scratched_at = datetime('now')
+         WHERE id = ?`,
+        [id]
+      );
+    }
 
     res.json({
       success: true,
