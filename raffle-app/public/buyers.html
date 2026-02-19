@@ -1584,6 +1584,9 @@
       <button class="tab" data-tab="scratch-tickets">
         🎰 Scratch & Win
       </button>
+      <a href="/my-scratch-tickets.html" class="tab" style="text-decoration:none;">
+        🎫 My Scratch Cards
+      </a>
     </div>
     
     <!-- Tab Content: Raffle Info -->
@@ -3938,15 +3941,13 @@
 
     // Scratch a purchased ticket - redirects to scratch page with ticket ID
     function scratchPurchasedTicket(paymentReference, category) {
-      // Store the payment reference so the scratch page knows this is a purchased ticket
-      sessionStorage.setItem('purchasedScratchTicket', paymentReference);
-      sessionStorage.setItem('purchasedScratchCategory', category);
+      // Store the phone for the scratch card page to use
+      const phoneEl = document.getElementById('lookup-phone');
+      const phone = phoneEl ? phoneEl.value.trim() : '';
+      if (phone) sessionStorage.setItem('scratchPhone', phone);
       
-      // Extract ticket type from category (e.g., "SCRATCH-BASIC" -> "basic")
-      const ticketType = category.replace('SCRATCH-', '').toLowerCase();
-      
-      // Redirect to scratch page
-      window.location.href = `/scratch-tickets.html#${ticketType}`;
+      // Redirect to the interactive scratch card page
+      window.location.href = '/scratch-card.html?ref=' + encodeURIComponent(paymentReference);
     }
 
 

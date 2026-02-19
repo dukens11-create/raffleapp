@@ -630,7 +630,8 @@ function validateRequest(req, res, next) {
   }
   
   // Skip validation for public HTML pages (buyers portal, etc.)
-  const publicPages = ['/buyers.html', '/buyers', '/login.html', '/register-seller.html'];
+  const publicPages = ['/buyers.html', '/buyers', '/login.html', '/register-seller.html',
+    '/scratch-card.html', '/my-scratch-tickets.html'];
   if (publicPages.includes(req.path)) {
     return next();
   }
@@ -648,7 +649,9 @@ function validateRequest(req, res, next) {
     '/api/payments/status',            // Also matches /api/payments/status/:reference
     '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
     '/api/departments',
-    '/api/buyer/available-tickets'    // New: Get last 100K available tickets per category
+    '/api/buyer/available-tickets',   // New: Get last 100K available tickets per category
+    '/api/buyer/scratch-tickets',     // Buyer scratch ticket list
+    '/api/buyer/scratch-ticket'       // Buyer single scratch ticket + scratch/claim actions
   ];
   
   // Check if request path matches any public API endpoint (exact or with parameters)
@@ -1753,6 +1756,14 @@ app.get('/buyers', publicPageLimiter, serveBuyersPortal);
 
 // Buyers Dashboard - Alternative route with .html extension
 app.get('/buyers.html', publicPageLimiter, serveBuyersPortal);
+
+// Scratch card pages - Public pages for buyers
+app.get('/scratch-card.html', publicPageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'scratch-card.html'));
+});
+app.get('/my-scratch-tickets.html', publicPageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'my-scratch-tickets.html'));
+});
 
 // API: Get all sellers
 app.get('/api/sellers', requireAuth, requireAdmin, async (req, res) => {
@@ -8189,6 +8200,28 @@ app.post('/api/scratch-tickets/purchase', [
 
     console.log('[Scratch Ticket Purchase] Payment record created:', paymentReference);
 
+    // Generate and store the scratch prize upfront (prize sealed until scratched)
+    const prizeData = generateScratchPrize(categoryCode);
+    try {
+      await db.run(
+        `INSERT INTO scratch_tickets (payment_reference, buyer_phone, buyer_name, category, prize_amount, has_prize, prize_message)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          paymentReference,
+          phone,
+          buyerName,
+          categoryCode,
+          prizeData.prize_amount,
+          prizeData.has_prize ? (db.USE_POSTGRES ? true : 1) : (db.USE_POSTGRES ? false : 0),
+          prizeData.prize_message
+        ]
+      );
+      console.log('[Scratch Ticket Purchase] Prize generated and stored for:', paymentReference);
+    } catch (prizeError) {
+      console.error('[Scratch Ticket Purchase] Warning - could not store prize record:', prizeError.message);
+      // Non-fatal: continue with payment
+    }
+
     // For automated payments, initiate payment with provider
     if (isAutomated) {
       try {
@@ -8320,6 +8353,172 @@ app.get('/api/scratch-tickets/available', async (req, res) => {
   } catch (error) {
     console.error('Error fetching scratch tickets:', error);
     res.status(500).json({ error: 'Failed to fetch tickets' });
+  }
+});
+
+// ============================================================================
+// BUYER SCRATCH TICKET API ENDPOINTS
+// ============================================================================
+
+/**
+ * Generate a prize for a purchased scratch ticket based on category.
+ * Uses secure random to determine winners.
+ */
+function generateScratchPrize(category) {
+  const configs = {
+    'SCRATCH-BASIC':   { winRate: 0.10, minPrize: 50,   maxPrize: 500 },
+    'SCRATCH-PREMIUM': { winRate: 0.15, minPrize: 100,  maxPrize: 1500 },
+    'SCRATCH-BRONZE':  { winRate: 0.20, minPrize: 250,  maxPrize: 5000 },
+    'SCRATCH-SILVER':  { winRate: 0.25, minPrize: 500,  maxPrize: 15000 },
+    'SCRATCH-GOLD':    { winRate: 0.20, minPrize: 1000, maxPrize: 50000 },
+    'SCRATCH-DIAMOND': { winRate: 0.15, minPrize: 5000, maxPrize: 250000 }
+  };
+
+  const config = configs[category] || { winRate: 0.10, minPrize: 50, maxPrize: 500 };
+  // Use crypto.getRandomValues equivalent: crypto.randomBytes gives secure random
+  const randBytes = crypto.randomBytes(4);
+  const randFloat = randBytes.readUInt32BE(0) / 0xFFFFFFFF;
+  const hasWon = randFloat < config.winRate;
+
+  if (hasWon) {
+    const rangBytes = crypto.randomBytes(4);
+    const rangFloat = rangBytes.readUInt32BE(0) / 0xFFFFFFFF;
+    const prize = Math.floor(rangFloat * (config.maxPrize - config.minPrize + 1)) + config.minPrize;
+    return {
+      has_prize: true,
+      prize_amount: prize,
+      prize_message: `Ou genyen ${prize.toLocaleString()} GOUD! You won ${prize.toLocaleString()} HTG!`
+    };
+  }
+
+  return {
+    has_prize: false,
+    prize_amount: 0,
+    prize_message: 'Eseye ankò! Better luck next time!'
+  };
+}
+
+/**
+ * GET /api/buyer/scratch-tickets - List user's scratch tickets (lookup by phone)
+ */
+app.get('/api/buyer/scratch-tickets', async (req, res) => {
+  try {
+    const { phone } = req.query;
+    if (!phone || !/^[0-9]{8,15}$/.test(phone.replace(/[\s\-\(\)\+]/g, ''))) {
+      return res.status(400).json({ error: 'Valid phone number required' });
+    }
+    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+    const tickets = await db.all(
+      `SELECT * FROM scratch_tickets WHERE REPLACE(REPLACE(buyer_phone, '-', ''), ' ', '') = ? ORDER BY created_at DESC`,
+      [normalizedPhone]
+    );
+    res.json({ success: true, tickets });
+  } catch (error) {
+    console.error('[Buyer Scratch] Error listing tickets:', error);
+    res.status(500).json({ error: 'Failed to fetch scratch tickets' });
+  }
+});
+
+/**
+ * GET /api/buyer/scratch-ticket/:id - Get single scratch ticket (by payment reference)
+ */
+app.get('/api/buyer/scratch-ticket/:id', async (req, res) => {
+  try {
+    const ticket = await db.get(
+      'SELECT * FROM scratch_tickets WHERE payment_reference = ?',
+      [req.params.id]
+    );
+    if (!ticket) {
+      return res.status(404).json({ error: 'Scratch ticket not found' });
+    }
+    res.json({ success: true, ticket });
+  } catch (error) {
+    console.error('[Buyer Scratch] Error fetching ticket:', error);
+    res.status(500).json({ error: 'Failed to fetch scratch ticket' });
+  }
+});
+
+/**
+ * POST /api/buyer/scratch-ticket/:id/scratch - Mark ticket as scratched and reveal prize
+ */
+app.post('/api/buyer/scratch-ticket/:id/scratch', [
+  body('phone').trim().notEmpty().withMessage('Phone required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { phone } = req.body;
+    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+    const ticket = await db.get(
+      `SELECT * FROM scratch_tickets WHERE payment_reference = ? AND REPLACE(REPLACE(buyer_phone, '-', ''), ' ', '') = ?`,
+      [req.params.id, normalizedPhone]
+    );
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Scratch ticket not found' });
+    }
+    if (ticket.is_scratched || ticket.is_scratched === 1) {
+      return res.json({ success: true, already_scratched: true, ticket });
+    }
+
+    const now = db.USE_POSTGRES ? 'NOW()' : "datetime('now')";
+    await db.run(
+      `UPDATE scratch_tickets SET is_scratched = ${db.USE_POSTGRES ? 'TRUE' : '1'}, scratched_at = ${now} WHERE payment_reference = ?`,
+      [req.params.id]
+    );
+
+    const updated = await db.get('SELECT * FROM scratch_tickets WHERE payment_reference = ?', [req.params.id]);
+    res.json({ success: true, ticket: updated });
+  } catch (error) {
+    console.error('[Buyer Scratch] Error scratching ticket:', error);
+    res.status(500).json({ error: 'Failed to mark ticket as scratched' });
+  }
+});
+
+/**
+ * POST /api/buyer/scratch-ticket/:id/claim - Claim prize
+ */
+app.post('/api/buyer/scratch-ticket/:id/claim', [
+  body('phone').trim().notEmpty().withMessage('Phone required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { phone } = req.body;
+    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+    const ticket = await db.get(
+      `SELECT * FROM scratch_tickets WHERE payment_reference = ? AND REPLACE(REPLACE(buyer_phone, '-', ''), ' ', '') = ?`,
+      [req.params.id, normalizedPhone]
+    );
+
+    if (!ticket) {
+      return res.status(404).json({ error: 'Scratch ticket not found' });
+    }
+    const hasPrize = ticket.has_prize === true || ticket.has_prize === 1;
+    const isClaimed = ticket.claimed === true || ticket.claimed === 1;
+    if (!hasPrize) {
+      return res.status(400).json({ error: 'This ticket has no prize to claim' });
+    }
+    if (isClaimed) {
+      return res.status(400).json({ error: 'Prize already claimed' });
+    }
+
+    const now = db.USE_POSTGRES ? 'NOW()' : "datetime('now')";
+    await db.run(
+      `UPDATE scratch_tickets SET claimed = ${db.USE_POSTGRES ? 'TRUE' : '1'}, claimed_at = ${now} WHERE payment_reference = ?`,
+      [req.params.id]
+    );
+
+    res.json({ success: true, amount: ticket.prize_amount, message: ticket.prize_message });
+  } catch (error) {
+    console.error('[Buyer Scratch] Error claiming prize:', error);
+    res.status(500).json({ error: 'Failed to claim prize' });
   }
 });
 
