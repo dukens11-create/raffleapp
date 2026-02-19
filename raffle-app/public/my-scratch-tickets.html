@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Scratch Tickets - GRATE GENYEN</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      color: #1e293b;
+      padding: 20px;
+    }
+
+    .container { max-width: 800px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .header p { color: #64748b; font-size: 15px; }
+
+    /* Lookup Form */
+    .lookup-card {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    .lookup-card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 16px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus { border-color: #667eea; }
+
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,.4); }
+
+    .btn-secondary {
+      background: #f1f5f9;
+      color: #64748b;
+    }
+
+    .btn-secondary:hover { background: #e2e8f0; }
+
+    /* Tickets list */
+    .tickets-list { display: flex; flex-direction: column; gap: 16px; }
+
+    .ticket-item {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 20px 24px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .ticket-item-info { flex: 1; min-width: 0; }
+
+    .ticket-ref {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ticket-meta {
+      font-size: 12px;
+      color: #64748b;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-badge.unscratched { background: #dbeafe; color: #1d4ed8; }
+    .status-badge.scratched   { background: #d1fae5; color: #065f46; }
+    .status-badge.claimed     { background: #f3e8ff; color: #6b21a8; }
+    .status-badge.not-ready   { background: #fef3c7; color: #92400e; }
+
+    .ticket-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Empty / Error states */
+    .empty-state {
+      background: rgba(255,255,255,.95);
+      border-radius: 16px;
+      padding: 48px 24px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+
+    .empty-state .icon { font-size: 64px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 20px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
+    .empty-state p { color: #64748b; margin-bottom: 24px; }
+
+    /* Loading spinner */
+    .spinner {
+      display: inline-block;
+      width: 28px; height: 28px;
+      border: 3px solid rgba(102,126,234,.3);
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading {
+      background: rgba(255,255,255,.95);
+      border-radius: 16px;
+      padding: 48px 24px;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    }
+
+    .loading p { margin-top: 16px; color: #64748b; }
+
+    /* Navigation */
+    .nav-back {
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+
+    @media (max-width: 600px) {
+      .header { padding: 20px; }
+      .header h1 { font-size: 22px; }
+      .ticket-item { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>🎟️ My Scratch Tickets</h1>
+      <p>View and scratch your purchased scratch-off tickets</p>
+    </div>
+
+    <!-- Back link -->
+    <a href="/buyers.html#scratch-tickets" class="btn btn-secondary nav-back">← Back to Buyers Portal</a>
+
+    <!-- Lookup Form -->
+    <div class="lookup-card">
+      <h3>🔍 Find Your Tickets</h3>
+      <form id="lookup-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="input-email">Email Address</label>
+            <input type="email" id="input-email" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label for="input-phone">Phone Number</label>
+            <input type="tel" id="input-phone" placeholder="e.g. 50912345678">
+          </div>
+          <div class="form-group">
+            <label for="input-ref">Payment Reference</label>
+            <input type="text" id="input-ref" placeholder="SCR-...">
+          </div>
+        </div>
+        <div style="margin-top:16px;">
+          <button type="submit" class="btn btn-primary">🔍 Find Tickets</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Results -->
+    <div id="results"></div>
+  </div>
+
+  <script>
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return String(unsafe)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function getScratchStatus(ticket) {
+      if (ticket.is_claimed) return { label: '✅ Claimed', cls: 'claimed' };
+      if (ticket.is_scratched) return { label: '👁️ Scratched', cls: 'scratched' };
+      if (!ticket.scratch_id) return { label: '⏳ Pending', cls: 'not-ready' };
+      return { label: '🎰 Unscratched', cls: 'unscratched' };
+    }
+
+    function renderTickets(tickets) {
+      const container = document.getElementById('results');
+
+      if (!tickets || tickets.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎟️</div>
+            <h3>No Scratch Tickets Found</h3>
+            <p>We couldn't find any scratch tickets with the information provided.</p>
+            <a href="/buyers.html#scratch-tickets" class="btn btn-primary">🎰 Buy Scratch Tickets</a>
+          </div>`;
+        return;
+      }
+
+      const items = tickets.map(t => {
+        const status = getScratchStatus(t);
+        const canScratch = t.scratch_id && !t.is_scratched;
+        const canClaim = t.is_scratched && t.has_prize && !t.is_claimed;
+        const actions = [];
+
+        if (canScratch) {
+          actions.push(`<a href="/scratch-card.html?id=${encodeURIComponent(t.scratch_id)}" class="btn btn-primary">🎰 Scratch Now</a>`);
+        }
+        if (t.is_scratched && !t.is_claimed) {
+          actions.push(`<a href="/scratch-card.html?id=${encodeURIComponent(t.scratch_id)}" class="btn btn-secondary">👁️ View</a>`);
+        }
+
+        return `
+          <div class="ticket-item">
+            <div class="ticket-item-info">
+              <div class="ticket-ref">${escapeHtml(t.payment_reference)}</div>
+              <div class="ticket-meta">
+                <span>🎟️ ${escapeHtml(t.ticket_category)}</span>
+                <span>💰 ${escapeHtml(t.amount)} HTG</span>
+                <span>📅 ${t.created_at ? new Date(t.created_at).toLocaleDateString() : '-'}</span>
+                ${t.is_scratched && t.has_prize ? `<span>🏆 ${Number(t.prize_amount).toLocaleString()} GOUD</span>` : ''}
+              </div>
+            </div>
+            <span class="status-badge ${status.cls}">${status.label}</span>
+            <div class="ticket-actions">${actions.join('')}</div>
+          </div>`;
+      }).join('');
+
+      container.innerHTML = `<div class="tickets-list">${items}</div>`;
+    }
+
+    async function lookupTickets(email, phone, reference) {
+      const container = document.getElementById('results');
+      container.innerHTML = `
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Looking up your scratch tickets...</p>
+        </div>`;
+
+      const params = new URLSearchParams();
+      if (email)     params.set('email', email);
+      if (phone)     params.set('phone', phone);
+      if (reference) params.set('reference', reference);
+
+      try {
+        const resp = await fetch(`/api/buyer/scratch-tickets?${params.toString()}`);
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">⚠️</div>
+              <h3>Error</h3>
+              <p>${escapeHtml(data.error || 'Failed to load scratch tickets.')}</p>
+            </div>`;
+          return;
+        }
+
+        renderTickets(data.tickets);
+      } catch (err) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">⚠️</div>
+            <h3>Network Error</h3>
+            <p>Could not connect to server. Please check your connection and try again.</p>
+          </div>`;
+      }
+    }
+
+    document.getElementById('lookup-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('input-email').value.trim();
+      const phone = document.getElementById('input-phone').value.trim();
+      const ref   = document.getElementById('input-ref').value.trim();
+
+      if (!email && !phone && !ref) {
+        alert('Please enter your email, phone number, or payment reference to find your tickets.');
+        return;
+      }
+
+      lookupTickets(email, phone, ref);
+    });
+
+    // Auto-lookup if query params are present (e.g. redirected from purchase)
+    (function() {
+      const p = new URLSearchParams(window.location.search);
+      const email = p.get('email');
+      const phone = p.get('phone');
+      const ref   = p.get('reference');
+      if (email || phone || ref) {
+        if (email) document.getElementById('input-email').value = email;
+        if (phone) document.getElementById('input-phone').value = phone;
+        if (ref)   document.getElementById('input-ref').value = ref;
+        lookupTickets(email, phone, ref);
+      }
+    })();
+  </script>
+</body>
+</html>

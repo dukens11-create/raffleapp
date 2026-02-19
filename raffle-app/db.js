@@ -484,6 +484,29 @@ async function initializeSchema() {
       console.warn('⚠️  Could not create txn verification log indexes:', error.message);
     }
     
+    // Scratch tickets table - stores prize info for scratch-off tickets
+    await run(`
+      CREATE TABLE IF NOT EXISTS scratch_tickets (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        payment_reference TEXT NOT NULL UNIQUE,
+        prize_amount ${USE_POSTGRES ? 'DECIMAL(10,2)' : 'REAL'} DEFAULT 0,
+        has_prize ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'false' : '0'},
+        prize_message TEXT,
+        is_scratched ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'false' : '0'},
+        scratched_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        is_claimed ${USE_POSTGRES ? 'BOOLEAN' : 'INTEGER'} DEFAULT ${USE_POSTGRES ? 'false' : '0'},
+        claimed_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'},
+        FOREIGN KEY (payment_reference) REFERENCES payments(payment_reference)
+      )
+    `);
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_scratch_tickets_payment_ref ON scratch_tickets(payment_reference)`);
+      console.log('✅ Created scratch_tickets table with indexes');
+    } catch (error) {
+      console.warn('⚠️  Could not create scratch_tickets indexes:', error.message);
+    }
+
     // Add payment_reference column to tickets table if it doesn't exist
     try {
       if (USE_POSTGRES) {

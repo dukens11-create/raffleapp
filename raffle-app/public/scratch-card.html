@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Scratch Card - GRATE GENYEN</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/css/scratch-card.css">
+</head>
+<body>
+  <div class="scratch-card-container">
+    <div class="scratch-card" id="scratch-card-wrapper">
+      <h2>🎰 GRATE GENYEN - Scratch & Win!</h2>
+
+      <!-- Ticket info bar (populated by JS) -->
+      <div class="ticket-info-bar" id="ticket-info-bar"></div>
+
+      <!-- Scratch Area -->
+      <div class="scratch-area" id="scratch-area">
+        <!-- Prize displayed underneath canvas -->
+        <div class="prize-display" id="prize-display">
+          <div class="prize-content" id="prize-content">
+            <span class="prize-emoji" id="prize-emoji">🎁</span>
+            <div class="prize-title" id="prize-title">Scratch to reveal your prize!</div>
+            <div class="prize-amount" id="prize-amount"></div>
+            <div class="prize-message" id="prize-message"></div>
+          </div>
+        </div>
+
+        <!-- Canvas overlay - grey scratch layer -->
+        <canvas id="scratchCanvas"></canvas>
+      </div>
+
+      <!-- Progress -->
+      <div class="scratch-progress">
+        <div class="progress-bar"><div class="progress-fill"></div></div>
+        <div class="progress-text">0% Scratched</div>
+      </div>
+
+      <!-- Message for already-scratched tickets -->
+      <div class="already-scratched-msg" id="already-scratched-msg" style="display:none">
+        ⚠️ This ticket has already been scratched.
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="btn-group" id="btn-group">
+        <button class="btn btn-success btn-claim" id="btn-claim" disabled>🏆 Claim Prize</button>
+        <a class="btn btn-secondary" href="/my-scratch-tickets.html">← My Scratch Tickets</a>
+      </div>
+
+      <div id="error-msg" style="display:none; text-align:center; padding:40px; color:#dc2626;">
+        <div style="font-size:48px; margin-bottom:16px;">⚠️</div>
+        <p id="error-text"></p>
+        <a href="/my-scratch-tickets.html" class="btn btn-primary" style="display:inline-block; margin-top:16px;">← My Scratch Tickets</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/scratch-card.js"></script>
+  <script>
+    // Helper: safe HTML escaping
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return String(unsafe)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showError(msg) {
+      document.getElementById('error-msg').style.display = 'block';
+      document.getElementById('error-text').textContent = msg;
+      document.getElementById('scratch-area').style.display = 'none';
+      document.querySelector('.scratch-progress').style.display = 'none';
+      document.getElementById('btn-group').style.display = 'none';
+      document.getElementById('ticket-info-bar').style.display = 'none';
+    }
+
+    async function init() {
+      // Get scratch ticket ID from URL ?id=<id>
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+
+      if (!id) {
+        showError('No scratch ticket ID provided. Please access this page from My Scratch Tickets.');
+        return;
+      }
+
+      // Fetch ticket data
+      let ticket;
+      try {
+        const resp = await fetch(`/api/buyer/scratch-ticket/${encodeURIComponent(id)}`);
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+          showError(data.error || 'Failed to load scratch ticket.');
+          return;
+        }
+        ticket = data.ticket;
+      } catch (err) {
+        showError('Network error. Please check your connection and try again.');
+        return;
+      }
+
+      // Populate ticket info bar
+      const infoBar = document.getElementById('ticket-info-bar');
+      infoBar.innerHTML = `
+        <span>📋 <strong>${escapeHtml(ticket.payment_reference)}</strong></span>
+        <span>🎟️ ${escapeHtml(ticket.ticket_category)}</span>
+        <span>💰 ${escapeHtml(ticket.amount)} HTG</span>
+      `;
+
+      // Show prize data in the reveal area
+      const prizeEmoji = document.getElementById('prize-emoji');
+      const prizeTitle = document.getElementById('prize-title');
+      const prizeAmount = document.getElementById('prize-amount');
+      const prizeMsg = document.getElementById('prize-message');
+
+      if (ticket.has_prize) {
+        prizeEmoji.textContent = '🏆';
+        prizeTitle.textContent = 'Ou Genyen! You Won!';
+        prizeAmount.textContent = Number(ticket.prize_amount).toLocaleString() + ' GOUD';
+        prizeMsg.textContent = escapeHtml(ticket.prize_message);
+      } else {
+        prizeEmoji.textContent = '😅';
+        prizeTitle.textContent = '';
+        prizeAmount.textContent = '';
+        prizeMsg.textContent = ticket.prize_message || 'Better luck next time!';
+      }
+
+      // Handle already-scratched ticket
+      if (ticket.is_scratched) {
+        document.getElementById('already-scratched-msg').style.display = 'block';
+        document.querySelector('.scratch-area').style.display = 'none';
+        document.querySelector('.scratch-progress').style.display = 'none';
+
+        // Show prize directly without canvas
+        const prizeDisplay = document.getElementById('prize-display');
+        prizeDisplay.style.position = 'relative';
+        prizeDisplay.style.height = '250px';
+        prizeDisplay.style.borderRadius = '12px';
+        prizeDisplay.classList.add('revealed');
+
+        if (ticket.has_prize && !ticket.is_claimed) {
+          document.getElementById('btn-claim').disabled = false;
+        }
+      } else {
+        // Initialize the scratch card canvas
+        // Canvas needs the container to be visible first
+        requestAnimationFrame(() => {
+          new ScratchCard('scratchCanvas', ticket);
+        });
+      }
+
+      // Claim prize button
+      document.getElementById('btn-claim').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-claim');
+        btn.disabled = true;
+        btn.textContent = '⏳ Claiming...';
+
+        try {
+          const resp = await fetch(`/api/buyer/scratch-ticket/${encodeURIComponent(id)}/claim-prize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await resp.json();
+
+          if (resp.ok && data.success) {
+            btn.textContent = '✅ Prize Claimed!';
+            btn.className = 'btn btn-secondary';
+            const prizeMsg2 = document.getElementById('prize-message');
+            prizeMsg2.textContent = '✅ Prize claimed successfully! Contact us to collect your winnings.';
+          } else {
+            btn.disabled = false;
+            btn.textContent = '🏆 Claim Prize';
+            alert(data.error || 'Failed to claim prize. Please try again.');
+          }
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = '🏆 Claim Prize';
+          alert('Network error. Please try again.');
+        }
+      });
+    }
+
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
