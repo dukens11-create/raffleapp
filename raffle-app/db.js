@@ -753,6 +753,33 @@ async function initializeSchema() {
       console.error('Error adding txn_number column:', error.message);
     }
     
+    // Buyer scratch tickets table - stores pre-generated prizes for purchased scratch tickets
+    await run(`
+      CREATE TABLE IF NOT EXISTS buyer_scratch_tickets (
+        id ${USE_POSTGRES ? 'SERIAL PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT'},
+        payment_reference TEXT,
+        buyer_phone TEXT NOT NULL,
+        buyer_name TEXT,
+        ticket_type TEXT NOT NULL,
+        category TEXT NOT NULL,
+        prize_value INTEGER DEFAULT 0,
+        prize_text TEXT,
+        prize_emoji TEXT,
+        has_prize ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        is_scratched ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        scratched_at ${USE_POSTGRES ? 'TIMESTAMP' : 'DATETIME'},
+        claimed ${USE_POSTGRES ? 'BOOLEAN DEFAULT FALSE' : 'INTEGER DEFAULT 0'},
+        created_at ${USE_POSTGRES ? 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP' : 'DATETIME DEFAULT CURRENT_TIMESTAMP'}
+      )
+    `);
+    try {
+      await run(`CREATE INDEX IF NOT EXISTS idx_bst_buyer_phone ON buyer_scratch_tickets(buyer_phone)`);
+      await run(`CREATE INDEX IF NOT EXISTS idx_bst_payment_ref ON buyer_scratch_tickets(payment_reference)`);
+      console.log('✅ Created buyer_scratch_tickets table with indexes');
+    } catch (error) {
+      console.warn('⚠️  Could not create buyer_scratch_tickets indexes:', error.message);
+    }
+
     // Add performance indexes
     console.log('📊 Creating performance indexes...');
 

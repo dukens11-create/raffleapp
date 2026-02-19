@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Grate Tikè - GRATE GENYEN</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/css/buyer-scratch.css">
+</head>
+<body>
+  <div class="container">
+    <a href="javascript:history.back()" class="back-link">← Retounen</a>
+
+    <div class="header">
+      <h1 id="pageTitle">🎰 Grate Tikè Ou</h1>
+      <p id="pageSubtitle">Grate pou wè si ou genyen!</p>
+    </div>
+
+    <div class="scratch-card-wrapper">
+      <!-- Ticket info header -->
+      <div class="scratch-ticket-info" id="ticketInfoCard">
+        <div class="scratch-ticket-header type-basic" id="ticketHeader">
+          <span class="ticket-emoji" id="ticketEmoji">🎰</span>
+          <h2 id="ticketTypeName">GRATE GENYEN</h2>
+          <p id="ticketTypeLabel">Tikè Grate</p>
+        </div>
+      </div>
+
+      <!-- Already-scratched banner (hidden by default) -->
+      <div class="already-scratched-banner" id="alreadyScratchedBanner" style="display:none;">
+        ✅ Ou deja grate tikè sa a.
+      </div>
+
+      <!-- Prize display (underneath the canvas) -->
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <div class="prize-display" id="prizeDisplay">
+          <span class="prize-emoji-large" id="prizeEmoji">🎁</span>
+          <span class="prize-text-main" id="prizeText">GRATE POU WÈ</span>
+        </div>
+        <canvas id="scratchCanvas"></canvas>
+      </div>
+
+      <!-- Scratch hint -->
+      <p class="scratch-hint" id="scratchHint">
+        ✋ Deplase dwèt ou (oswa sourit) sou kare gri a pou grate
+      </p>
+
+      <!-- Prize revealed panel (shown after scratch) -->
+      <div class="prize-revealed" id="prizeRevealedPanel">
+        <span class="prize-emoji" id="revealEmoji">🎉</span>
+        <h3 id="revealText">—</h3>
+        <p class="prize-sub" id="revealSub"></p>
+        <a href="javascript:history.back()" class="btn btn-secondary" style="margin-top:16px;">
+          ← Retounen nan lis tikè
+        </a>
+      </div>
+
+      <!-- Loading state -->
+      <div class="loading" id="loadingState">
+        <div class="spinner"></div>
+        <p>Chajman tikè...</p>
+      </div>
+
+      <!-- Error state -->
+      <div class="alert alert-error" id="errorState"></div>
+    </div>
+  </div>
+
+  <script src="/js/buyer-scratch.js"></script>
+  <script>
+    // ── Parse URL params ──────────────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const TICKET_ID = parseInt(params.get('id'), 10);
+    const PHONE = params.get('phone') || getStoredPhone();
+    const TYPE = params.get('type') || 'basic';
+
+    // ── Type-based UI setup ───────────────────────────────────────────────────
+    function applyTicketType(type) {
+      const header = document.getElementById('ticketHeader');
+      const emoji = TICKET_EMOJIS[type] || '🎰';
+      const label = TICKET_LABELS[type] || type;
+
+      if (header) {
+        header.className = `scratch-ticket-header type-${type}`;
+      }
+      document.getElementById('ticketEmoji').textContent = emoji;
+      document.getElementById('ticketTypeName').textContent = 'GRATE GENYEN';
+      document.getElementById('ticketTypeLabel').textContent = `Tikè ${label}`;
+      document.getElementById('pageTitle').textContent = `${emoji} Grate Tikè ${label}`;
+    }
+
+    applyTicketType(TYPE);
+
+    // ── Validation ────────────────────────────────────────────────────────────
+    function showError(msg) {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('canvasWrapper').style.display = 'none';
+      document.getElementById('scratchHint').style.display = 'none';
+      const err = document.getElementById('errorState');
+      err.textContent = msg;
+      err.classList.add('show');
+    }
+
+    if (!TICKET_ID || !PHONE) {
+      showError('Enfòmasyon tikè manke. Tanpri retounen nan lis tikè ou.');
+    } else {
+      storePhone(PHONE);
+      initPage();
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    async function initPage() {
+      // Check if already scratched by fetching ticket list
+      try {
+        const phone = normalizePhone(PHONE);
+        const res = await fetch(`/api/buyer/scratch-tickets?phone=${encodeURIComponent(phone)}`);
+        const data = await res.json();
+
+        document.getElementById('loadingState').style.display = 'none';
+
+        if (!res.ok || !data.success) {
+          showError(data.error || 'Erè pandan chèche tikè.');
+          return;
+        }
+
+        const ticket = data.tickets.find(t => t.id === TICKET_ID);
+        if (!ticket) {
+          showError('Tikè sa a pa jwenn oswa li pa pou ou.');
+          return;
+        }
+
+        if (ticket.is_scratched) {
+          // Already scratched - show prize via re-scratch endpoint (returns existing prize)
+          showAlreadyScratched(phone);
+        } else {
+          // Fresh scratch
+          startScratch();
+        }
+      } catch (err) {
+        showError('Erè koneksyon. Tanpri eseye ankò.');
+      }
+    }
+
+    async function showAlreadyScratched(phone) {
+      document.getElementById('alreadyScratchedBanner').style.display = 'block';
+      // Fetch prize via scratch endpoint (returns already_scratched=true with prize)
+      try {
+        const res = await fetch(`/api/buyer/scratch-ticket/${TICKET_ID}/scratch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone })
+        });
+        const prize = await res.json();
+        if (res.ok && prize.success) {
+          // Hide canvas wrapper, show prize directly
+          document.getElementById('canvasWrapper').style.display = 'none';
+          document.getElementById('scratchHint').style.display = 'none';
+          revealPrizePanel(prize);
+        }
+      } catch (err) {
+        console.error('Could not load existing prize:', err);
+      }
+    }
+
+    function startScratch() {
+      const wrapper = document.getElementById('canvasWrapper');
+      const canvas = document.getElementById('scratchCanvas');
+
+      // Size canvas to wrapper
+      const w = wrapper.clientWidth || 340;
+      const h = 220;
+      wrapper.style.height = h + 'px';
+
+      new BuyerScratchCard({
+        canvasId: 'scratchCanvas',
+        prizeDisplayId: 'prizeDisplay',
+        hintId: 'scratchHint',
+        ticketId: TICKET_ID,
+        phone: PHONE,
+        brushSize: 18,
+        threshold: 55,
+        onReveal: (prize) => {
+          // Show the prize revealed panel with animation
+          revealPrizePanel(prize);
+        }
+      });
+    }
+
+    function revealPrizePanel(prize) {
+      const panel = document.getElementById('prizeRevealedPanel');
+      const emoji = document.getElementById('revealEmoji');
+      const text = document.getElementById('revealText');
+      const sub = document.getElementById('revealSub');
+
+      emoji.textContent = prize.prize_emoji || '😅';
+      text.textContent = prize.prize_text || 'ESEYE ANKÒ';
+      text.className = prize.has_prize ? 'winner' : 'no-prize';
+
+      if (prize.has_prize) {
+        sub.textContent = '🎉 Ou genyen! Kontakte nou pou reklame prim ou a.';
+        sub.style.color = '#059669';
+      } else {
+        sub.textContent = 'Eseye ankò nan pwochen tikè ou a!';
+        sub.style.color = '#94a3b8';
+      }
+
+      panel.classList.add('show');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,524 @@
+/* buyer-scratch.css - Styles for buyer scratch card pages */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-attachment: fixed;
+  padding: 20px;
+  color: #1e293b;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 24px 32px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 6px;
+}
+
+.header p {
+  color: #64748b;
+  font-size: 15px;
+}
+
+/* Card */
+.card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* Phone lookup form */
+.phone-lookup {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.phone-lookup input {
+  flex: 1;
+  min-width: 180px;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.phone-lookup input:focus {
+  border-color: #667eea;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
+}
+
+/* Alerts */
+.alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin-bottom: 16px;
+  display: none;
+}
+
+.alert.show {
+  display: block;
+}
+
+.alert-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.alert-success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.alert-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+}
+
+/* Loading */
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #64748b;
+}
+
+.spinner {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e2e8f0;
+  border-top-color: #667eea;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Ticket list grid */
+.tickets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+/* Ticket list card */
+.ticket-list-card {
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+.ticket-list-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.18);
+}
+
+.ticket-list-card.scratched {
+  opacity: 0.75;
+}
+
+.ticket-card-header {
+  padding: 18px 20px 14px;
+  color: white;
+  position: relative;
+}
+
+.ticket-card-header.type-basic   { background: linear-gradient(135deg, #10b981, #059669); }
+.ticket-card-header.type-premium { background: linear-gradient(135deg, #7c3aed, #6366f1); }
+.ticket-card-header.type-bronze  { background: linear-gradient(135deg, #ea580c, #dc2626); }
+.ticket-card-header.type-silver  { background: linear-gradient(135deg, #94a3b8, #64748b); }
+.ticket-card-header.type-gold    { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.ticket-card-header.type-diamond { background: linear-gradient(135deg, #06b6d4, #0284c7); }
+
+.ticket-card-type {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+
+.ticket-card-name {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.ticket-card-status {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-unscratched {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
+.status-scratched {
+  background: rgba(255, 255, 255, 0.9);
+  color: #059669;
+}
+
+.ticket-card-body {
+  padding: 16px 20px;
+  background: white;
+}
+
+.ticket-card-date {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.ticket-card-action {
+  width: 100%;
+  text-align: center;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.action-scratch {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+}
+
+.action-view {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.ticket-card-action:hover {
+  opacity: 0.88;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #94a3b8;
+}
+
+.empty-state .icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.empty-state h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #64748b;
+}
+
+.empty-state p {
+  font-size: 14px;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+/* ===== Scratch Card Page ===== */
+
+.scratch-card-wrapper {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.scratch-ticket-info {
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+  margin-bottom: 20px;
+}
+
+.scratch-ticket-header {
+  padding: 22px 24px 18px;
+  color: white;
+  text-align: center;
+}
+
+.scratch-ticket-header.type-basic   { background: linear-gradient(135deg, #10b981, #059669); }
+.scratch-ticket-header.type-premium { background: linear-gradient(135deg, #7c3aed, #6366f1); }
+.scratch-ticket-header.type-bronze  { background: linear-gradient(135deg, #ea580c, #dc2626); }
+.scratch-ticket-header.type-silver  { background: linear-gradient(135deg, #94a3b8, #64748b); }
+.scratch-ticket-header.type-gold    { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.scratch-ticket-header.type-diamond { background: linear-gradient(135deg, #06b6d4, #0284c7); }
+
+.scratch-ticket-header .ticket-emoji {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.scratch-ticket-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.scratch-ticket-header p {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+/* Canvas wrapper */
+.canvas-wrapper {
+  position: relative;
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.15);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.prize-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  text-align: center;
+  min-height: 220px;
+  background: white;
+}
+
+.prize-emoji-large {
+  font-size: 64px;
+  margin-bottom: 12px;
+  line-height: 1;
+}
+
+.prize-text-main {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
+.prize-text-main.winner {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.prize-text-main.no-prize {
+  color: #94a3b8;
+}
+
+canvas#scratchCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  border-radius: 14px;
+  display: block;
+}
+
+/* Scratch progress hint */
+.scratch-hint {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 10px;
+  font-weight: 500;
+  transition: opacity 0.5s;
+}
+
+.scratch-hint.hidden {
+  opacity: 0;
+}
+
+/* Prize reveal state */
+.prize-revealed {
+  text-align: center;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  box-shadow: 0 6px 25px rgba(0, 0, 0, 0.12);
+  margin-bottom: 20px;
+  display: none;
+}
+
+.prize-revealed.show {
+  display: block;
+  animation: bounceIn 0.5s ease;
+}
+
+@keyframes bounceIn {
+  0%   { transform: scale(0.8); opacity: 0; }
+  60%  { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.prize-revealed .prize-emoji {
+  font-size: 56px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.prize-revealed h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  white-space: pre-line;
+  line-height: 1.4;
+}
+
+.prize-revealed h3.winner {
+  color: #d97706;
+}
+
+.prize-revealed h3.no-prize {
+  color: #94a3b8;
+}
+
+.prize-revealed .prize-sub {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+/* Already scratched banner */
+.already-scratched-banner {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 14px 20px;
+  text-align: center;
+  font-size: 14px;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+/* Back button */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: white;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  body {
+    padding: 12px;
+  }
+
+  .header {
+    padding: 18px 20px;
+  }
+
+  .header h1 {
+    font-size: 22px;
+  }
+
+  .card {
+    padding: 20px 16px;
+  }
+
+  .phone-lookup {
+    flex-direction: column;
+  }
+}

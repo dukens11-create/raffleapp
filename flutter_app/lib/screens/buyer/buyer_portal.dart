@@ -3,6 +3,7 @@ import 'tabs/raffle_info_tab.dart';
 import 'tabs/purchase_tab.dart';
 import 'tabs/my_tickets_tab.dart';
 import 'tabs/verify_ticket_tab.dart';
+import 'buyer_scratch_list_screen.dart';
 
 class BuyerPortal extends StatefulWidget {
   const BuyerPortal({super.key});
@@ -17,7 +18,7 @@ class _BuyerPortalState extends State<BuyerPortal> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -78,6 +79,10 @@ class _BuyerPortalState extends State<BuyerPortal> with SingleTickerProviderStat
               icon: Icon(Icons.verified_outlined),
               text: 'Verify',
             ),
+            Tab(
+              icon: Icon(Icons.casino_outlined),
+              text: 'My Scratch Cards',
+            ),
           ],
         ),
       ),
@@ -96,9 +101,71 @@ class _BuyerPortalState extends State<BuyerPortal> with SingleTickerProviderStat
             const PurchaseTab(),
             const MyTicketsTab(),
             const VerifyTicketTab(),
+            _ScratchCardsEntryTab(
+              onOpen: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const BuyerScratchListScreen()),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
+
+/// Simple tab widget that offers a button to navigate to the scratch list screen.
+class _ScratchCardsEntryTab extends StatelessWidget {
+  final VoidCallback onOpen;
+  const _ScratchCardsEntryTab({required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🎟️', style: TextStyle(fontSize: 64)),
+            const SizedBox(height: 20),
+            const Text(
+              'Tikè Grate Mwen',
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Wè tout tikè grate ou yo epi grate yo pou wè si ou genyen!',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 28),
+            ElevatedButton.icon(
+              onPressed: onOpen,
+              icon: const Text('🎰', style: TextStyle(fontSize: 18)),
+              label: const Text(
+                'Ouvri Tikè Grate Mwen',
+                style:
+                    TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF667eea),
+                padding: const EdgeInsets.symmetric(
+                    vertical: 14, horizontal: 24),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
