@@ -31,6 +31,7 @@ dependencies:
   # Camera & Image
   image_picker: ^1.0.5
   camera: ^0.10.5+7
+  image: ^4.0.0
   
   # QR/Barcode Scanning
   qr_code_scanner:
@@ -56,6 +57,9 @@ dependencies:
   
   # Navigation
   go_router: ^13.0.0
+  
+  # WebView (for payment gateways)
+  webview_flutter: ^4.4.2
 
 dev_dependencies:
   flutter_test:
