@@ -16,7 +16,7 @@ class TicketConstants {
       coverText: 'GRATE TOUTE',
       category: 'BSC',
       prizes: [
-        Prize(emoji: '🏆', text: 'GRATE SEZON!\n5,000 GOUD', value: 5000, weight: 5),
+        Prize(emoji: '🏆', text: 'GRATE SEZON!\n5,000 GOUD', value: 5000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n2,000 GOUD', value: 2000, weight: 50),
         Prize(emoji: '✨', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 200),
         Prize(emoji: '🌟', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 200),
@@ -48,7 +48,7 @@ class TicketConstants {
       coverText: 'GRATE TOUTE',
       category: 'PRM',
       prizes: [
-        Prize(emoji: '🏆', text: 'MEGA CHANS!\n15,000 GOUD', value: 15000, weight: 5),
+        Prize(emoji: '🏆', text: 'MEGA CHANS!\n15,000 GOUD', value: 15000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n4,000 GOUD', value: 4000, weight: 50),
         Prize(emoji: '✨', text: 'OU GENYEN\n2,000 GOUD', value: 2000, weight: 200),
         Prize(emoji: '🌟', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 200),
@@ -79,7 +79,7 @@ class TicketConstants {
       coverText: 'GRATE TOUTE',
       category: 'BRZ',
       prizes: [
-        Prize(emoji: '🏆', text: 'GRATE SEZON!\n50,000 GOUD', value: 50000, weight: 5),
+        Prize(emoji: '🏆', text: 'GRATE SEZON!\n50,000 GOUD', value: 50000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n6,000 GOUD', value: 6000, weight: 50),
         Prize(emoji: '✨', text: 'OU GENYEN\n3,000 GOUD', value: 3000, weight: 200),
         Prize(emoji: '🌟', text: 'OU GENYEN\n1,500 GOUD', value: 1500, weight: 200),
@@ -110,7 +110,7 @@ class TicketConstants {
       coverText: 'GRATE TOUTE',
       category: 'SLV',
       prizes: [
-        Prize(emoji: '🏆', text: 'MEGA AJAN!\n150,000 GOUD', value: 150000, weight: 5),
+        Prize(emoji: '🏆', text: 'MEGA AJAN!\n150,000 GOUD', value: 150000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n8,000 GOUD', value: 8000, weight: 50),
         Prize(emoji: '✨', text: 'OU GENYEN\n4,000 GOUD', value: 4000, weight: 200),
         Prize(emoji: '🌟', text: 'OU GENYEN\n2,000 GOUD', value: 2000, weight: 200),
@@ -142,7 +142,7 @@ class TicketConstants {
       coverText: 'GRATE TOUTE',
       category: 'GLD',
       prizes: [
-        Prize(emoji: '🏆', text: 'MEGA AJAN!\n250,000 GOUD', value: 250000, weight: 5),
+        Prize(emoji: '🏆', text: 'MEGA AJAN!\n250,000 GOUD', value: 250000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n10,000 GOUD', value: 10000, weight: 50),
         Prize(emoji: '✨', text: 'OU GENYEN\n5,000 GOUD', value: 5000, weight: 200),
         Prize(emoji: '🌟', text: 'OU GENYEN\n2,500 GOUD', value: 2500, weight: 200),
@@ -174,7 +174,7 @@ class TicketConstants {
       coverText: 'GRATE TOUTE',
       category: 'DMD',
       prizes: [
-        Prize(emoji: '🏆', text: 'MEGA AJAN!\n1,000,000 GOUD', value: 1000000, weight: 5),
+        Prize(emoji: '🏆', text: 'MEGA AJAN!\n1,000,000 GOUD', value: 1000000, weight: 1),
         Prize(emoji: '💎', text: 'OU GENYEN\n25,000 GOUD', value: 25000, weight: 50),
         Prize(emoji: '✨', text: 'OU GENYEN\n12,500 GOUD', value: 12500, weight: 200),
         Prize(emoji: '🌟', text: 'OU GENYEN\n6,000 GOUD', value: 6000, weight: 200),
