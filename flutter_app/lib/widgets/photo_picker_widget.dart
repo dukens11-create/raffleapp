@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/photo_service.dart';
 
 /// Reusable photo picker widget with camera and gallery options
@@ -212,6 +213,3 @@ class _PhotoPickerWidgetState extends State<PhotoPickerWidget> {
     );
   }
 }
-
-// Import for ImageSource
-import 'package:image_picker/image_picker.dart';

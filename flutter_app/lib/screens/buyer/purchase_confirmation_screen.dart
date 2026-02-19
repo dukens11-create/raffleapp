@@ -22,11 +22,13 @@ class PurchaseConfirmationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Prevent back button, force navigation to home
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (!didPop) {
+          // Prevent back button, force navigation to home
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        }
       },
       child: Scaffold(
         appBar: AppBar(

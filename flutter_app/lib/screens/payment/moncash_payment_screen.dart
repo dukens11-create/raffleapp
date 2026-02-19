@@ -130,11 +130,11 @@ class _MonCashPaymentScreenState extends State<MonCashPaymentScreen> {
         child: _isInitiating
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Initiating payment...'),
-                  Text(
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 16),
+                  const Text('Initiating payment...'),
+                  const Text(
                     'Please wait',
                     style: TextStyle(color: Colors.grey),
                   ),
