@@ -59,8 +59,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.dashboard),
-              title: const Text('Dashboard'),
+              leading: const Icon(Icons.analytics),
+              title: const Text('Statistics'),
               selected: _selectedIndex == 0,
               onTap: () {
                 setState(() => _selectedIndex = 0);
@@ -68,8 +68,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.confirmation_number),
-              title: const Text('Tickets'),
+              leading: const Icon(Icons.dashboard),
+              title: const Text('Dashboard'),
               selected: _selectedIndex == 1,
               onTap: () {
                 setState(() => _selectedIndex = 1);
@@ -77,8 +77,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.people),
-              title: const Text('Sellers'),
+              leading: const Icon(Icons.confirmation_number),
+              title: const Text('Tickets'),
               selected: _selectedIndex == 2,
               onTap: () {
                 setState(() => _selectedIndex = 2);
@@ -86,8 +86,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.casino),
-              title: const Text('Draws'),
+              leading: const Icon(Icons.people),
+              title: const Text('Sellers'),
               selected: _selectedIndex == 3,
               onTap: () {
                 setState(() => _selectedIndex = 3);
@@ -95,8 +95,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.payment),
-              title: const Text('Payments'),
+              leading: const Icon(Icons.approval),
+              title: const Text('Approvals'),
               selected: _selectedIndex == 4,
               onTap: () {
                 setState(() => _selectedIndex = 4);
@@ -104,11 +104,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.analytics),
-              title: const Text('Reports'),
+              leading: const Icon(Icons.casino),
+              title: const Text('Draws'),
               selected: _selectedIndex == 5,
               onTap: () {
                 setState(() => _selectedIndex = 5);
+                Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.payment),
+              title: const Text('Payments'),
+              selected: _selectedIndex == 6,
+              onTap: () {
+                setState(() => _selectedIndex = 6);
                 Navigator.pop(context);
               },
             ),
@@ -122,20 +131,43 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _buildBody() {
     switch (_selectedIndex) {
       case 0:
-        return _buildDashboardView();
+        return _buildStatisticsView();
       case 1:
-        return _buildTicketsView();
+        return _buildDashboardView();
       case 2:
-        return _buildSellersView();
+        return _buildTicketsView();
       case 3:
-        return _buildDrawsView();
+        return _buildSellersView();
       case 4:
-        return _buildPaymentsView();
+        return _buildApprovalsView();
       case 5:
-        return _buildReportsView();
+        return _buildDrawsView();
+      case 6:
+        return _buildPaymentsView();
       default:
         return _buildDashboardView();
     }
+  }
+
+  Widget _buildStatisticsView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.analytics, size: 64, color: Colors.blue),
+          const SizedBox(height: 16),
+          const Text('Statistics Dashboard', style: TextStyle(fontSize: 20)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(context, '/admin/statistics');
+            },
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('View Full Statistics'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDashboardView() {
@@ -215,7 +247,45 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _buildSellersView() {
-    return Center(child: Text('Sellers Management - Coming Soon'));
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.people, size: 64, color: Colors.orange),
+          const SizedBox(height: 16),
+          const Text('Seller Management', style: TextStyle(fontSize: 20)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(context, '/admin/sellers');
+            },
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('View All Sellers'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApprovalsView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.approval, size: 64, color: Colors.green),
+          const SizedBox(height: 16),
+          const Text('Seller Approvals', style: TextStyle(fontSize: 20)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(context, '/admin/sellers/approval');
+            },
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('Review Pending Requests'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildDrawsView() {
@@ -224,9 +294,5 @@ class _AdminDashboardState extends State<AdminDashboard> {
 
   Widget _buildPaymentsView() {
     return Center(child: Text('Payments Management - Coming Soon'));
-  }
-
-  Widget _buildReportsView() {
-    return Center(child: Text('Reports & Analytics - Coming Soon'));
   }
 }

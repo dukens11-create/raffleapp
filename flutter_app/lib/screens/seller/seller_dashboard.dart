@@ -42,12 +42,16 @@ class _SellerDashboardState extends State<SellerDashboard> {
             label: 'My Tickets',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.camera_alt),
-            label: 'Scan',
+            icon: Icon(Icons.receipt_long),
+            label: 'Sales',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.casino),
-            label: 'Draws',
+            icon: Icon(Icons.analytics),
+            label: 'Stats',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet),
+            label: 'Commission',
           ),
         ],
       ),
@@ -61,9 +65,11 @@ class _SellerDashboardState extends State<SellerDashboard> {
       case 1:
         return _buildTicketsView();
       case 2:
-        return _buildScanView();
+        return _buildSalesView();
       case 3:
-        return _buildDrawsView();
+        return _buildStatsView();
+      case 4:
+        return _buildCommissionView();
       default:
         return _buildDashboardView();
     }
@@ -164,45 +170,64 @@ class _SellerDashboardState extends State<SellerDashboard> {
     );
   }
 
-  Widget _buildScanView() {
+  Widget _buildSalesView() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.qr_code_scanner, size: 64, color: Colors.grey),
+          const Icon(Icons.receipt_long, size: 64, color: Colors.blue),
           const SizedBox(height: 16),
-          Text(
-            'QR/Barcode Scanner',
-            style: TextStyle(fontSize: 20, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 8),
-          const Text('Scanner coming soon'),
+          const Text('My Sales History', style: TextStyle(fontSize: 20)),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: () {
-              // Open scanner
+              Navigator.pushNamed(context, '/seller/sales');
             },
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Scan Ticket'),
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('View Sales'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDrawsView() {
+  Widget _buildStatsView() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.casino, size: 64, color: Colors.grey),
+          const Icon(Icons.analytics, size: 64, color: Colors.green),
           const SizedBox(height: 16),
-          Text(
-            'Draw History',
-            style: TextStyle(fontSize: 20, color: Colors.grey[600]),
+          const Text('My Statistics', style: TextStyle(fontSize: 20)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(context, '/seller/stats');
+            },
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('View Statistics'),
           ),
-          const SizedBox(height: 8),
-          const Text('No draws yet'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommissionView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.account_balance_wallet, size: 64, color: Colors.purple),
+          const SizedBox(height: 16),
+          const Text('Commission Details', style: TextStyle(fontSize: 20)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pushNamed(context, '/seller/commission');
+            },
+            icon: const Icon(Icons.arrow_forward),
+            label: const Text('View Commission'),
+          ),
         ],
       ),
     );
