@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Scratch Cards - Grate Genyen</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      padding: 20px;
+      color: #1e293b;
+    }
+
+    .container { max-width: 700px; margin: 0 auto; }
+
+    .page-header {
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .page-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      background: rgba(102,126,234,0.1);
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .back-link:hover { background: rgba(102,126,234,0.2); }
+
+    .card {
+      background: rgba(255,255,255,0.95);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+      margin-bottom: 24px;
+    }
+
+    .card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1e293b;
+    }
+
+    .card p { color: #64748b; font-size: 14px; margin-bottom: 20px; }
+
+    /* Lookup form */
+    .form-group { margin-bottom: 16px; }
+
+    .form-group label {
+      display: block;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 6px;
+      color: #374151;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 15px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    .form-group input:focus { border-color: #667eea; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .btn-primary:hover { opacity: 0.9; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Alert */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .alert.show { display: block; }
+    .alert-error { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .alert-info  { background: #e0f2fe; color: #0c4a6e; border: 1px solid #7dd3fc; }
+
+    /* Ticket list */
+    #ticketsList { margin-top: 24px; }
+
+    .ticket-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      background: white;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .ticket-row:hover { border-color: #667eea; box-shadow: 0 2px 12px rgba(102,126,234,0.15); }
+
+    .ticket-info { flex: 1; min-width: 0; }
+
+    .ticket-ref {
+      font-weight: 700;
+      font-size: 15px;
+      color: #1e293b;
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ticket-meta {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .ticket-badges { display: flex; gap: 8px; flex-shrink: 0; margin-left: 12px; align-items: center; }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-category { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    .badge-pending  { background: #fef9c3; color: #854d0e; }
+    .badge-approved { background: #dcfce7; color: #166534; }
+    .badge-scratched { background: #f3e8ff; color: #6b21a8; }
+    .badge-unscratched { background: #e0f2fe; color: #0c4a6e; }
+
+    .scratch-btn {
+      padding: 8px 18px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      text-decoration: none;
+      display: inline-block;
+      transition: opacity 0.2s;
+    }
+
+    .scratch-btn:hover { opacity: 0.9; }
+
+    .scratch-btn.disabled {
+      background: #e2e8f0;
+      color: #94a3b8;
+      cursor: default;
+    }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 4px solid rgba(102,126,234,0.2);
+      border-top-color: #667eea;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 24px auto;
+      display: block;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #64748b;
+    }
+
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+    @media (max-width: 480px) {
+      .ticket-row { flex-wrap: wrap; gap: 12px; }
+      .ticket-badges { margin-left: 0; flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="page-header">
+      <a href="/buyers.html#scratch-tickets" class="back-link">← Back</a>
+      <h1>🎰 My Scratch Cards</h1>
+    </div>
+
+    <!-- Lookup form -->
+    <div class="card">
+      <h2>Find My Scratch Cards</h2>
+      <p>Enter your buyer code (payment reference), email, or phone to view your purchased scratch cards.</p>
+
+      <div class="alert alert-error" id="lookupError"></div>
+
+      <div class="form-group">
+        <label for="lookupRef">Buyer Code (Payment Reference)</label>
+        <input type="text" id="lookupRef" placeholder="e.g. SCR-1234567890-ABCDEF" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label for="lookupEmail">Email Address</label>
+        <input type="email" id="lookupEmail" placeholder="your@email.com" autocomplete="email">
+      </div>
+
+      <div class="form-group">
+        <label for="lookupPhone">Phone Number</label>
+        <input type="tel" id="lookupPhone" placeholder="e.g. 1234567890" autocomplete="tel">
+      </div>
+
+      <button class="btn-primary" id="lookupBtn" onclick="lookupCards()">🔍 Find My Scratch Cards</button>
+
+      <!-- Results -->
+      <div id="ticketsList"></div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // Pre-fill from URL params if present
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('ref'))   document.getElementById('lookupRef').value   = urlParams.get('ref');
+    if (urlParams.get('email')) document.getElementById('lookupEmail').value = urlParams.get('email');
+    if (urlParams.get('phone')) document.getElementById('lookupPhone').value = urlParams.get('phone');
+
+    // Auto-lookup if ref is provided
+    if (urlParams.get('ref') || urlParams.get('email') || urlParams.get('phone')) {
+      lookupCards();
+    }
+
+    async function lookupCards() {
+      const ref   = document.getElementById('lookupRef').value.trim();
+      const email = document.getElementById('lookupEmail').value.trim();
+      const phone = document.getElementById('lookupPhone').value.trim();
+      const errorEl = document.getElementById('lookupError');
+      const listEl  = document.getElementById('ticketsList');
+
+      if (!ref && !email && !phone) {
+        errorEl.textContent = 'Please enter a buyer code, email, or phone number.';
+        errorEl.classList.add('show');
+        return;
+      }
+
+      errorEl.classList.remove('show');
+      listEl.innerHTML = '<div class="spinner"></div>';
+      document.getElementById('lookupBtn').disabled = true;
+
+      try {
+        const query = new URLSearchParams();
+        if (ref)   query.set('ref', ref);
+        if (email) query.set('email', email);
+        if (phone) query.set('phone', phone);
+
+        const res = await fetch('/api/scratch-tickets/my-cards?' + query.toString());
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to look up tickets');
+        }
+
+        const data = await res.json();
+        renderTickets(data.tickets || []);
+      } catch (err) {
+        listEl.innerHTML = '';
+        errorEl.textContent = err.message || 'Failed to look up scratch cards. Please try again.';
+        errorEl.classList.add('show');
+      } finally {
+        document.getElementById('lookupBtn').disabled = false;
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function renderTickets(tickets) {
+      const listEl = document.getElementById('ticketsList');
+
+      if (!tickets.length) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <div class="icon">🎰</div>
+            <p>No scratch cards found. Purchase a scratch ticket to get started!</p>
+          </div>`;
+        return;
+      }
+
+      let html = '<h3 style="margin-bottom:16px;font-size:17px;color:#1e293b;">' +
+                 tickets.length + ' Scratch Card' + (tickets.length !== 1 ? 's' : '') + ' Found</h3>';
+
+      tickets.forEach(ticket => {
+        const ref       = escapeHtml(ticket.payment_reference);
+        const shortRef  = ref.slice(-12);
+        const category  = escapeHtml(ticket.ticket_category || '');
+        const status    = ticket.payment_status || 'pending';
+        const isApproved = status === 'approved';
+        const isScratched = !!ticket.is_scratched;
+        const isClaimed  = !!ticket.claimed;
+
+        let statusBadge = `<span class="badge badge-${isApproved ? 'approved' : 'pending'}">${isApproved ? '✓ Approved' : '⏳ Pending'}</span>`;
+        let scratchBadge = isScratched
+          ? `<span class="badge badge-scratched">✦ Scratched</span>`
+          : `<span class="badge badge-unscratched">⬜ Unscratched</span>`;
+
+        let actionBtn = '';
+        if (!isApproved) {
+          actionBtn = `<span class="scratch-btn disabled">Awaiting Payment</span>`;
+        } else if (isClaimed) {
+          actionBtn = `<a class="scratch-btn disabled" title="Prize already claimed">✅ Claimed</a>`;
+        } else {
+          actionBtn = `<a class="scratch-btn" href="/scratch-card.html?ref=${encodeURIComponent(ticket.payment_reference)}">
+            ${isScratched ? '👁 View Result' : '✦ Scratch Now'}
+          </a>`;
+        }
+
+        const date = ticket.created_at
+          ? new Date(ticket.created_at).toLocaleDateString()
+          : '';
+
+        html += `
+          <div class="ticket-row">
+            <div class="ticket-info">
+              <div class="ticket-ref" title="${ref}">…${shortRef}</div>
+              <div class="ticket-meta">${category}${date ? ' &bull; ' + date : ''}</div>
+            </div>
+            <div class="ticket-badges">
+              ${statusBadge}
+              ${scratchBadge}
+              ${actionBtn}
+            </div>
+          </div>`;
+      });
+
+      listEl.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
