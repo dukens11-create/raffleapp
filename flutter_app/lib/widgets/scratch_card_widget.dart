@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:scratcher/scratcher.dart';
 import '../models/scratch/scratch_ticket.dart';
 import '../models/scratch/prize.dart';
@@ -19,12 +20,55 @@ class ScratchCardWidget extends StatefulWidget {
   State<ScratchCardWidget> createState() => _ScratchCardWidgetState();
 }
 
-class _ScratchCardWidgetState extends State<ScratchCardWidget> {
+class _ScratchCardWidgetState extends State<ScratchCardWidget>
+    with SingleTickerProviderStateMixin {
+  static const double _brushSizeRatio = 0.12;
+  static const double _minBrushSize = 30.0;
+  static const double _maxBrushSize = 70.0;
+  /// Minimum interval between haptic pulses during scratching.
+  static const Duration _hapticThrottle = Duration(milliseconds: 80);
+
   double scratchProgress = 0;
   final scratchKey = GlobalKey<ScratcherState>();
+  late AnimationController _shimmerController;
+  late Animation<double> _shimmerAnimation;
+  DateTime? _lastHapticTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _shimmerAnimation = Tween<double>(begin: -1.5, end: 1.5).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _shimmerController.dispose();
+    super.dispose();
+  }
+
+  /// Fires a light haptic impact at most once per [_hapticThrottle] interval.
+  void _throttledHaptic() {
+    final now = DateTime.now();
+    if (_lastHapticTime == null ||
+        now.difference(_lastHapticTime!) >= _hapticThrottle) {
+      HapticFeedback.lightImpact();
+      _lastHapticTime = now;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Adaptive brush size: larger on bigger screens
+    final adaptiveBrush =
+        (screenWidth * _brushSizeRatio).clamp(_minBrushSize, _maxBrushSize);
+
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -44,28 +88,102 @@ class _ScratchCardWidgetState extends State<ScratchCardWidget> {
             // Ticket Header
             _buildTicketHeader(),
             
-            // Scratch Area
+            // Scratch Area with shimmer overlay
             Expanded(
-              child: Scratcher(
-                key: scratchKey,
-                brushSize: 50,
-                threshold: 70,
-                color: _getScratchColor(),
-                onChange: (value) {
-                  setState(() {
-                    scratchProgress = value;
-                  });
-                },
-                onThreshold: () {
-                  widget.onComplete();
-                },
-                child: _buildPrizeContent(),
+              child: Stack(
+                children: [
+                  Scratcher(
+                    key: scratchKey,
+                    brushSize: adaptiveBrush,
+                    threshold: 55,
+                    color: _getScratchOverlayColor(),
+                    onChange: (value) {
+                      setState(() {
+                        scratchProgress = value;
+                      });
+                    },
+                    onScratchUpdate: () {
+                      // Throttled haptic feedback during scratching on mobile devices
+                      _throttledHaptic();
+                    },
+                    onThreshold: () {
+                      // Haptic feedback when scratch is complete
+                      HapticFeedback.mediumImpact();
+                      widget.onComplete();
+                    },
+                    child: _buildPrizeContent(),
+                  ),
+                  // Animated shimmer label on top of unscratched area
+                  if (scratchProgress < 5)
+                    _buildScratchHintOverlay(),
+                ],
               ),
             ),
             
             // Progress Indicator
             _buildProgressIndicator(),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Hint overlay shown before scratching starts
+  Widget _buildScratchHintOverlay() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: AnimatedBuilder(
+          animation: _shimmerAnimation,
+          builder: (context, child) {
+            return Container(
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment(_shimmerAnimation.value - 1, 0),
+                  end: Alignment(_shimmerAnimation.value + 1, 0),
+                  colors: [
+                    Colors.transparent,
+                    Colors.white.withOpacity(0.12),
+                    Colors.white.withOpacity(0.25),
+                    Colors.white.withOpacity(0.12),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.35, 0.5, 0.65, 1.0],
+                ),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    widget.ticket.typeName.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white.withOpacity(0.95),
+                      letterSpacing: 2,
+                      shadows: const [
+                        Shadow(
+                          color: Colors.black26,
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '✦ GRATE ISIT LA ✦',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withOpacity(0.85),
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -176,33 +294,63 @@ class _ScratchCardWidgetState extends State<ScratchCardWidget> {
   }
 
   Widget _buildProgressIndicator() {
+    final pct = scratchProgress / 100;
+    final color = widget.ticket.theme.gradientColors.first;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: Colors.white,
       child: Column(
         children: [
-          LinearProgressIndicator(
-            value: scratchProgress / 100,
-            backgroundColor: Colors.grey[300],
-            valueColor: AlwaysStoppedAnimation<Color>(
-              widget.ticket.theme.gradientColors.first,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 8,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Scratched: ${scratchProgress.toStringAsFixed(0)}%',
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Scratched: ${scratchProgress.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black54,
+                ),
+              ),
+              // Scratch All accessibility button
+              GestureDetector(
+                onTap: () {
+                  scratchKey.currentState?.reveal();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: color, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '✨ Scratch All',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Color _getScratchColor() {
-    // Return cover color based on ticket theme
+  Color _getScratchOverlayColor() {
     final colors = widget.ticket.theme.gradientColors;
     return colors.isNotEmpty ? colors.first : Colors.grey;
   }

@@ -725,6 +725,102 @@
       color: #64748b;
       font-weight: 600;
     }
+
+    /* Scratch progress bar */
+    .scratch-progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .scratch-progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #10b981, #06b6d4);
+      transition: width 0.2s ease;
+      width: 0%;
+    }
+
+    /* Scratch particle / sparkle on canvas overlay */
+    .scratch-particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 20;
+      overflow: hidden;
+    }
+
+    .scratch-particle {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      animation: particleFade 0.6s ease-out forwards;
+    }
+
+    @keyframes particleFade {
+      0%   { opacity: 1; transform: scale(1) translate(0, 0); }
+      100% { opacity: 0; transform: scale(0) translate(var(--dx), var(--dy)); }
+    }
+
+    /* Prize reveal animation */
+    .prize-content.revealed {
+      animation: prizeReveal 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes prizeReveal {
+      0%   { transform: scale(0.8); opacity: 0.5; }
+      60%  { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* Celebratory confetti overlay */
+    .confetti-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+      overflow: hidden;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      top: -10px;
+      border-radius: 2px;
+      animation: confettiFall linear forwards;
+    }
+
+    @keyframes confettiFall {
+      0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(350px) rotate(720deg); opacity: 0; }
+    }
+
+    /* Tap-to-reveal accessibility button */
+    .btn-tap-reveal {
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px dashed rgba(255, 255, 255, 0.6);
+      color: white;
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+
+    .btn-tap-reveal:hover {
+      background: rgba(255, 255, 255, 0.25);
+    }
     
     .button-group {
       display: flex;
@@ -1099,6 +1195,22 @@
       }
     ];
 
+    // Scratch effect constants
+    const MAX_PARTICLES = 12;
+    const CONFETTI_COUNT = 12;
+
+    /**
+     * Returns the number of confetti pieces for a given prize value.
+     * Scales from small (low wins) to large (jackpot).
+     * Tier thresholds match the Flutter _prizeTier() helper for consistency.
+     */
+    function confettiCountForPrize(value) {
+      if (value >= 10000) return 30; // Jackpot
+      if (value >= 1000)  return 20; // Big win
+      if (value > 0)      return CONFETTI_COUNT; // Small win
+      return 0;
+    }
+
     class ScratchTicket {
       constructor(config, containerId) {
         this.config = config;
@@ -1236,8 +1348,14 @@
             <div class="prize-footer-amount">${this.config.prizeRange}</div>
           </div>
           <div class="controls">
+            <div class="scratch-progress-bar">
+              <div class="scratch-progress-fill" id="progress-fill-${this.config.id}"></div>
+            </div>
             <div class="progress-text" id="progress-${this.config.id}">Scratched: 0%</div>
-            <button class="btn" id="reset-${this.config.id}">🔄 New Ticket</button>
+            <div class="button-group">
+              <button class="btn btn-reset" id="reset-${this.config.id}">🔄 New Ticket</button>
+              <button class="btn btn-reveal" id="reveal-all-${this.config.id}">✨ Scratch All</button>
+            </div>
           </div>
         `;
         
@@ -1301,34 +1419,87 @@
         const width = this.canvas.width;
         const height = this.canvas.height;
         
-        // Draw base color matching ticket theme
-        this.ctx.fillStyle = this.getTicketColor();
+        // Draw metallic gradient base matching ticket theme
+        const grad = this.ctx.createLinearGradient(0, 0, width, height);
+        const base = this.getTicketColor();
+        const light = this.lightenColor(base, 40);
+        const dark = this.darkenColor(base, 20);
+        grad.addColorStop(0, dark);
+        grad.addColorStop(0.3, light);
+        grad.addColorStop(0.5, base);
+        grad.addColorStop(0.7, light);
+        grad.addColorStop(1, dark);
+        this.ctx.fillStyle = grad;
         this.ctx.fillRect(0, 0, width, height);
         
-        // Add texture/pattern
-        this.ctx.globalAlpha = 0.3;
-        for (let i = 0; i < 100; i++) {
+        // Holographic shimmer overlay (diagonal bands)
+        const shimmerGrad = this.ctx.createLinearGradient(0, 0, width, height);
+        shimmerGrad.addColorStop(0,   'rgba(255,255,255,0)');
+        shimmerGrad.addColorStop(0.35, 'rgba(255,255,255,0.08)');
+        shimmerGrad.addColorStop(0.45, 'rgba(255,255,255,0.35)');
+        shimmerGrad.addColorStop(0.5,  'rgba(255,255,255,0.45)');
+        shimmerGrad.addColorStop(0.55, 'rgba(255,255,255,0.35)');
+        shimmerGrad.addColorStop(0.65, 'rgba(255,255,255,0.08)');
+        shimmerGrad.addColorStop(1,   'rgba(255,255,255,0)');
+        this.ctx.fillStyle = shimmerGrad;
+        this.ctx.fillRect(0, 0, width, height);
+        
+        // Subtle sparkle dots texture
+        this.ctx.globalAlpha = 0.5;
+        for (let i = 0; i < 60; i++) {
           const x = Math.random() * width;
           const y = Math.random() * height;
-          const size = Math.random() * 3;
-          this.ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+          const r = Math.random() * 2.5 + 0.5;
+          this.ctx.fillStyle = 'rgba(255,255,255,0.7)';
           this.ctx.beginPath();
-          this.ctx.arc(x, y, size, 0, Math.PI * 2);
+          this.ctx.arc(x, y, r, 0, Math.PI * 2);
           this.ctx.fill();
         }
         this.ctx.globalAlpha = 1;
         
-        // Draw cover text
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.font = 'bold 24px Arial';
+        // Cover text — ticket type, styled with shadow
+        this.ctx.save();
+        this.ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        this.ctx.shadowBlur = 6;
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        this.ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'middle';
-        this.ctx.fillText(this.config.typeName.toUpperCase(), width / 2, height / 2);
+        this.ctx.fillText(this.config.typeName.toUpperCase(), width / 2, height / 2 - 14);
+        this.ctx.restore();
         
-        // Add instruction
-        this.ctx.font = 'bold 14px Arial';
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        this.ctx.fillText('↓ GRATE ISIT LA ↓', width / 2, height - 30);
+        // Instruction text
+        this.ctx.save();
+        this.ctx.shadowColor = 'rgba(0,0,0,0.3)';
+        this.ctx.shadowBlur = 4;
+        this.ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText('✦ GRATE ISIT LA ✦', width / 2, height / 2 + 14);
+        this.ctx.restore();
+      }
+
+      lightenColor(hex, amount) {
+        // Only handle 6-digit hex colors (e.g. '#10b981')
+        const clean = hex.replace('#', '');
+        if (!/^[0-9a-fA-F]{6}$/.test(clean)) return hex;
+        const num = parseInt(clean, 16);
+        const r = Math.min(255, (num >> 16) + amount);
+        const g = Math.min(255, ((num >> 8) & 0xFF) + amount);
+        const b = Math.min(255, (num & 0xFF) + amount);
+        return `rgb(${r},${g},${b})`;
+      }
+
+      darkenColor(hex, amount) {
+        // Only handle 6-digit hex colors (e.g. '#10b981')
+        const clean = hex.replace('#', '');
+        if (!/^[0-9a-fA-F]{6}$/.test(clean)) return hex;
+        const num = parseInt(clean, 16);
+        const r = Math.max(0, (num >> 16) - amount);
+        const g = Math.max(0, ((num >> 8) & 0xFF) - amount);
+        const b = Math.max(0, (num & 0xFF) - amount);
+        return `rgb(${r},${g},${b})`;
       }
 
       getTicketColor() {
@@ -1350,15 +1521,16 @@
         this.canvas.addEventListener('mouseup', () => this.stopScratching());
         this.canvas.addEventListener('mouseleave', () => this.stopScratching());
         
-        // Touch events
+        // Touch events with multi-touch support
         this.canvas.addEventListener('touchstart', (e) => {
           e.preventDefault();
-          this.startScratching(e.touches[0]);
+          this.isDrawing = true;
+          Array.from(e.touches).forEach(t => this.scratch(t));
         }, { passive: false });
         
         this.canvas.addEventListener('touchmove', (e) => {
           e.preventDefault();
-          this.scratch(e.touches[0]);
+          Array.from(e.touches).forEach(t => this.scratch(t));
         }, { passive: false });
         
         this.canvas.addEventListener('touchend', (e) => {
@@ -1370,6 +1542,14 @@
         document.getElementById(`reset-${this.config.id}`).addEventListener('click', () => {
           this.reset();
         });
+
+        // Scratch All / quick-reveal button
+        const revealBtn = document.getElementById(`reveal-all-${this.config.id}`);
+        if (revealBtn) {
+          revealBtn.addEventListener('click', () => {
+            this.revealAll();
+          });
+        }
       }
       
       startScratching(e) {
@@ -1393,8 +1573,35 @@
         this.ctx.arc(x * scaleX, y * scaleY, this.brushSize, 0, Math.PI * 2);
         this.ctx.fill();
         
+        // Emit scratch sparkle particle
+        this.emitParticle(x, y);
+        
         // Calculate scratched percentage
         this.calculateScratchedPercentage();
+      }
+
+      emitParticle(x, y) {
+        const container = this.canvas.parentElement;
+        let particleLayer = container.querySelector('.scratch-particles');
+        if (!particleLayer) {
+          particleLayer = document.createElement('div');
+          particleLayer.className = 'scratch-particles';
+          container.appendChild(particleLayer);
+        }
+
+        // Limit live particles for performance
+        if (particleLayer.children.length >= MAX_PARTICLES) return;
+
+        const p = document.createElement('div');
+        p.className = 'scratch-particle';
+        const size = Math.random() * 6 + 3;
+        const colors = ['#fbbf24','#f472b6','#818cf8','#34d399','#38bdf8'];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const dx = (Math.random() - 0.5) * 40 + 'px';
+        const dy = (Math.random() - 0.5) * 40 + 'px';
+        p.style.cssText = `left:${x}px;top:${y}px;width:${size}px;height:${size}px;background:${color};--dx:${dx};--dy:${dy};`;
+        particleLayer.appendChild(p);
+        setTimeout(() => p.remove(), 600);
       }
       
       stopScratching() {
@@ -1414,6 +1621,10 @@
         
         this.scratchedPercentage = Math.round((transparent / (pixels.length / 4)) * 100);
         this.progressElement.textContent = `Scratched: ${this.scratchedPercentage}%`;
+
+        // Update visual progress bar
+        const fill = document.getElementById(`progress-fill-${this.config.id}`);
+        if (fill) fill.style.width = `${this.scratchedPercentage}%`;
         
         // Auto-reveal if threshold reached
         if (this.scratchedPercentage >= this.autoRevealThreshold) {
@@ -1425,12 +1636,59 @@
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.scratchedPercentage = 100;
         this.progressElement.textContent = `Revealed: 100%`;
+        const fill = document.getElementById(`progress-fill-${this.config.id}`);
+        if (fill) fill.style.width = '100%';
         this.isDrawing = false;
+
+        // Prize reveal animation
+        if (this.prizeElement) {
+          this.prizeElement.classList.add('revealed');
+        }
+
+        // Celebratory confetti for winning prizes, scaled by tier
+        if (this.prize && this.prize.value > 0) {
+          this.launchConfetti(confettiCountForPrize(this.prize.value));
+        }
+      }
+
+      launchConfetti(count = CONFETTI_COUNT) {
+        const card = this.canvas.closest('.ticket-card');
+        if (!card) return;
+        let overlay = card.querySelector('.confetti-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.className = 'confetti-overlay';
+          card.appendChild(overlay);
+        }
+        const colors = ['#fbbf24','#f472b6','#818cf8','#34d399','#38bdf8','#f87171'];
+        for (let i = 0; i < count; i++) {
+          const p = document.createElement('div');
+          p.className = 'confetti-piece';
+          p.style.left = `${Math.random() * 100}%`;
+          p.style.background = colors[i % colors.length];
+          p.style.animationDuration = `${0.8 + Math.random() * 0.8}s`;
+          p.style.animationDelay = `${Math.random() * 0.4}s`;
+          overlay.appendChild(p);
+        }
+        // Longer celebration duration for bigger wins
+        const clearDelay = count >= 20 ? 4000 : 2500;
+        setTimeout(() => { if (overlay) overlay.innerHTML = ''; }, clearDelay);
       }
       
       async reset() {
         this.scratchedPercentage = 0;
         this.isDrawing = false;
+        // Clear confetti overlay and reveal animation
+        const card = this.canvas.closest('.ticket-card');
+        if (card) {
+          const confetti = card.querySelector('.confetti-overlay');
+          if (confetti) confetti.innerHTML = '';
+        }
+        if (this.prizeElement) {
+          this.prizeElement.classList.remove('revealed');
+        }
+        const fill = document.getElementById(`progress-fill-${this.config.id}`);
+        if (fill) fill.style.width = '0%';
         await this.fetchTicketData();  // Fetch new ticket
         this.selectRandomPrize();
         this.setupCanvas();
