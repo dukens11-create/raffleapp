@@ -1,0 +1,19 @@
+# App identifiers for Fastlane
+
+# iOS App Identifier
+app_identifier("com.grategenyen.raffleapp")
+
+# Apple ID (for App Store Connect)
+apple_id("YOUR_APPLE_ID@example.com")
+
+# iTunes Connect Team ID (if you're part of multiple teams)
+itc_team_id("YOUR_ITC_TEAM_ID")
+
+# Developer Portal Team ID
+team_id("YOUR_TEAM_ID")
+
+# Android Package Name
+package_name("com.grategenyen.raffleapp")
+
+# Google Play JSON Key Path
+json_key_file("path/to/google-play-service-account.json")
