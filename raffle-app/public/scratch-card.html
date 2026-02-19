@@ -282,7 +282,7 @@
     async function claimPrize() {
       const claimBtn = document.getElementById('claimBtn');
       if (!ticketData || !phone) {
-        alert('Phone number required to claim. Please look up your tickets again.');
+        showError('Phone number required to claim. Please go back to My Scratch Tickets and look up your tickets.');
         return;
       }
       claimBtn.disabled = true;
@@ -297,14 +297,14 @@
         const data = await response.json();
         if (response.ok && data.success) {
           claimBtn.textContent = '✅ Prize Claimed!';
-          alert('🎉 Prize claimed successfully!\n\n' + escapeHtml(data.message || ''));
+          showSuccess('🎉 Prize claimed successfully! ' + escapeHtml(data.message || ''));
         } else {
           throw new Error(data.error || 'Could not claim prize');
         }
       } catch (err) {
         claimBtn.disabled = false;
         claimBtn.textContent = '🏆 Claim Prize / Reklame Pri';
-        alert('Error: ' + escapeHtml(err.message));
+        showError('Error: ' + escapeHtml(err.message));
       }
     }
 
@@ -314,7 +314,13 @@
     function showError(msg) {
       const el = document.getElementById('errorAlert');
       el.textContent = msg;
-      el.classList.add('show');
+      el.className = 'alert alert-error show';
+    }
+
+    function showSuccess(msg) {
+      const el = document.getElementById('errorAlert');
+      el.textContent = msg;
+      el.className = 'alert alert-success show';
     }
 
     function hideLoading() {

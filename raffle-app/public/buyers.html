@@ -3942,9 +3942,8 @@
     // Scratch a purchased ticket - redirects to scratch page with ticket ID
     function scratchPurchasedTicket(paymentReference, category) {
       // Store the phone for the scratch card page to use
-      const phone = document.getElementById('lookup-phone')
-        ? document.getElementById('lookup-phone').value.trim()
-        : '';
+      const phoneEl = document.getElementById('lookup-phone');
+      const phone = phoneEl ? phoneEl.value.trim() : '';
       if (phone) sessionStorage.setItem('scratchPhone', phone);
       
       // Redirect to the interactive scratch card page
