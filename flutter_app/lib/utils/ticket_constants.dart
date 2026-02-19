@@ -23,7 +23,7 @@ class TicketConstants {
         Prize(emoji: '🎲', text: 'OU GENYEN\n250 GOUD', value: 250, weight: 300),
         Prize(emoji: '💰', text: 'OU GENYEN\n100 GOUD', value: 100, weight: 500),
         Prize(emoji: '🎟️', text: 'TIKÈ GRATIS!\nJWE ANKÒ', value: 0, weight: 800),
-        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 8000),
+        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 11645),
       ],
       theme: TicketTheme(
         gradientColors: [
@@ -55,7 +55,7 @@ class TicketConstants {
         Prize(emoji: '🎲', text: 'OU GENYEN\n500 GOUD', value: 500, weight: 300),
         Prize(emoji: '💰', text: 'OU GENYEN\n200 GOUD', value: 200, weight: 500),
         Prize(emoji: '🎟️', text: 'TIKÈ GRATIS!\nJWE ANKÒ', value: 0, weight: 800),
-        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 8000),
+        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 11645),
       ],
       theme: TicketTheme(
         gradientColors: [
@@ -86,7 +86,7 @@ class TicketConstants {
         Prize(emoji: '🎲', text: 'OU GENYEN\n750 GOUD', value: 750, weight: 300),
         Prize(emoji: '💰', text: 'OU GENYEN\n300 GOUD', value: 300, weight: 500),
         Prize(emoji: '🎟️', text: 'TIKÈ GRATIS!\nJWE ANKÒ', value: 0, weight: 800),
-        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 8000),
+        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 11645),
       ],
       theme: TicketTheme(
         gradientColors: [
@@ -117,7 +117,7 @@ class TicketConstants {
         Prize(emoji: '🎲', text: 'OU GENYEN\n1,000 GOUD', value: 1000, weight: 300),
         Prize(emoji: '💰', text: 'OU GENYEN\n600 GOUD', value: 600, weight: 500),
         Prize(emoji: '🎟️', text: 'TIKÈ GRATIS!\nJWE ANKÒ', value: 0, weight: 800),
-        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 8000),
+        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 11645),
       ],
       theme: TicketTheme(
         gradientColors: [
@@ -149,7 +149,7 @@ class TicketConstants {
         Prize(emoji: '🎲', text: 'OU GENYEN\n1,500 GOUD', value: 1500, weight: 300),
         Prize(emoji: '💰', text: 'OU GENYEN\n800 GOUD', value: 800, weight: 500),
         Prize(emoji: '🎟️', text: 'TIKÈ GRATIS!\nJWE ANKÒ', value: 0, weight: 800),
-        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 8000),
+        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 11645),
       ],
       theme: TicketTheme(
         gradientColors: [
@@ -181,7 +181,7 @@ class TicketConstants {
         Prize(emoji: '🎲', text: 'OU GENYEN\n3,000 GOUD', value: 3000, weight: 300),
         Prize(emoji: '💰', text: 'OU GENYEN\n1,500 GOUD', value: 1500, weight: 500),
         Prize(emoji: '🎟️', text: 'TIKÈ GRATIS!\nJWE ANKÒ', value: 0, weight: 800),
-        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 8000),
+        Prize(emoji: '😅', text: 'ESEYE ANKÒ', value: 0, weight: 11645),
       ],
       theme: TicketTheme(
         gradientColors: [
