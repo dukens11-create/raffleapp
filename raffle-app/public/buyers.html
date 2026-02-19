@@ -3395,10 +3395,8 @@
         const scaleY = this.canvas.height / rect.height;
         const src = e.touches ? e.touches[0] : e;
         return {
-          cx: ((src.clientX || src.pageX) - rect.left) * scaleX,
-          cy: ((src.clientY || src.pageY) - rect.top)  * scaleY,
-          rx: (src.clientX || src.pageX) - rect.left,
-          ry: (src.clientY || src.pageY) - rect.top
+          cx: (src.clientX - rect.left) * scaleX,
+          cy: (src.clientY - rect.top)  * scaleY
         };
       }
 
@@ -3500,10 +3498,10 @@
           if (dx > BUYER_SCRATCH_DRAG_THRESHOLD || dy > BUYER_SCRATCH_DRAG_THRESHOLD) {
             this.hasDragged = true;
           }
+          const rect   = this.canvas.getBoundingClientRect();
+          const scaleX = this.canvas.width  / rect.width;
+          const scaleY = this.canvas.height / rect.height;
           Array.from(e.touches).forEach(touch => {
-            const rect  = this.canvas.getBoundingClientRect();
-            const scaleX = this.canvas.width  / rect.width;
-            const scaleY = this.canvas.height / rect.height;
             this._scratchAt(
               (touch.clientX - rect.left) * scaleX,
               (touch.clientY - rect.top)  * scaleY
@@ -3614,7 +3612,7 @@
         
         // Add click event listener – skip if the canvas handled the interaction
         ticketCard.addEventListener('click', (e) => {
-          if (e.target.classList.contains('scratch-canvas-overlay')) return;
+          if (e.target.tagName === 'CANVAS' && e.target.classList.contains('scratch-canvas-overlay')) return;
           openScratchTicket(ticket.id);
         });
         
