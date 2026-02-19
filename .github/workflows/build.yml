@@ -1,0 +1,108 @@
+name: Flutter Build
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'flutter_app/**'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: flutter_app
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Patch QR code scanner
+        run: |
+          if [ -f scripts/patch_qr_code_scanner.sh ]; then
+            chmod +x scripts/patch_qr_code_scanner.sh
+            ./scripts/patch_qr_code_scanner.sh
+          fi
+      
+      - name: Build APK
+        run: flutter build apk --release --dart-define=API_BASE_URL=https://grategenyen.com
+      
+      - name: Build App Bundle
+        run: flutter build appbundle --release --dart-define=API_BASE_URL=https://grategenyen.com
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-apk
+          path: flutter_app/build/app/outputs/flutter-apk/app-release.apk
+      
+      - name: Upload App Bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-aab
+          path: flutter_app/build/app/outputs/bundle/release/app-release.aab
+
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    
+    defaults:
+      run:
+        working-directory: flutter_app
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Patch QR code scanner
+        run: |
+          if [ -f scripts/patch_qr_code_scanner.sh ]; then
+            chmod +x scripts/patch_qr_code_scanner.sh
+            ./scripts/patch_qr_code_scanner.sh
+          fi
+      
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install
+      
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign --dart-define=API_BASE_URL=https://grategenyen.com
+      
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "# Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "Build completed for iOS" >> $GITHUB_STEP_SUMMARY

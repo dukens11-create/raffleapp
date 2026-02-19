@@ -1,0 +1,129 @@
+# Grate Genyen - Mobile Raffle Ticket App
+
+## Quick Description (80 characters max)
+Buy raffle tickets easily! Secure payments, instant confirmations, win prizes!
+
+## App Description
+
+Grate Genyen is Haiti's premier mobile raffle ticket application, making it easy and secure to participate in raffles from anywhere. Whether you're looking to try your luck or support community initiatives, our app provides a seamless experience for purchasing and managing raffle tickets.
+
+### Key Features:
+
+**🎫 Easy Ticket Purchase**
+- Browse available raffle tickets by category
+- View detailed ticket information
+- Add multiple tickets to your cart
+- Secure checkout process
+
+**💳 Multiple Payment Options**
+- MonCash integration (automated & manual)
+- NatCash support
+- Secure payment processing
+- Instant payment confirmation
+
+**📱 User-Friendly Interface**
+- Intuitive navigation in Haitian Creole
+- Clean, modern design
+- Quick access to all features
+- Responsive and fast
+
+**📊 Ticket Management**
+- View your purchased tickets
+- Track ticket status
+- Access purchase history
+- Get notifications for draws
+
+**🔒 Secure & Reliable**
+- Encrypted transactions
+- Secure data storage
+- Privacy-first approach
+- Regular security updates
+
+**📸 QR Code Integration**
+- Scan tickets for validation
+- Quick verification process
+- Digital ticket storage
+
+### Why Choose Grate Genyen?
+
+**Convenience**: Purchase tickets anytime, anywhere from your mobile device.
+
+**Security**: Your transactions and personal information are protected with industry-standard encryption.
+
+**Transparency**: Track your tickets, view draw dates, and get instant updates on results.
+
+**Support**: Dedicated customer support team ready to help you.
+
+**Community**: Support local initiatives and community raffles while having a chance to win exciting prizes.
+
+### How It Works:
+
+1. **Sign Up**: Create your account with your phone number
+2. **Browse**: Explore available raffle tickets
+3. **Select**: Choose your tickets and add them to your cart
+4. **Pay**: Complete payment using MonCash or NatCash
+5. **Confirm**: Receive instant confirmation and digital tickets
+6. **Track**: Monitor your tickets and await draw results
+
+### Ticket Categories:
+
+- **Basic (BAS)**: Entry-level tickets at 50 HTG
+- **Premium (PRM)**: Enhanced tickets at 100 HTG
+- **Bronze (BRZ)**: Mid-tier tickets at 250 HTG
+- **Silver (SLV)**: High-value tickets at 500 HTG
+- **Gold (GLD)**: Premium tier at 1,000 HTG
+- **Diamond (DIA)**: Highest tier at 5,000 HTG
+
+### Payment Methods:
+
+**MonCash**
+- Automated payments with instant confirmation
+- Manual USSD payment option
+- Secure integration
+
+**NatCash**
+- Automated payment processing
+- Manual payment option available
+- Fast transaction handling
+
+### Customer Support:
+
+Need help? Our support team is available to assist you:
+- In-app support contact
+- Email: support@grategenyen.com
+- Phone: [Contact Number]
+
+### Privacy & Security:
+
+We take your privacy seriously. All personal information is encrypted and securely stored. We never share your data with third parties without your consent. Read our full Privacy Policy at: https://grategenyen.com/privacy
+
+### Terms of Service:
+
+By using Grate Genyen, you agree to our Terms of Service. Please read them carefully at: https://grategenyen.com/terms
+
+### System Requirements:
+
+- iOS 12.0 or later
+- Android 6.0 or later
+- Internet connection required
+- Camera access for QR scanning (optional)
+
+### Language:
+
+- Primary: Haitian Creole
+- Secondary: English
+
+### About Us:
+
+Grate Genyen is dedicated to providing a modern, secure, and user-friendly platform for raffle participation in Haiti. We believe in transparency, security, and making raffle participation accessible to everyone with a mobile device.
+
+### Download Now:
+
+Join thousands of users who trust Grate Genyen for their raffle ticket purchases. Download now and start your journey to winning!
+
+---
+
+**Keywords**: raffle, lottery, tickets, Haiti, MonCash, NatCash, grate, genyen, mobile, app, secure, payment, prizes, community, fundraising
+
+**Support Email**: support@grategenyen.com
+**Website**: https://grategenyen.com
