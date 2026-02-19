@@ -1804,7 +1804,7 @@
           // Prefer Web Share API on mobile if available
           if (navigator.canShare) {
             try {
-              const blob = await new Promise(resolve => canvasEl.toBlob(resolve, 'image/png'));
+              const blob = await new Promise((resolve, reject) => canvasEl.toBlob(b => b ? resolve(b) : reject(new Error('toBlob returned null')), 'image/png'));
               const file = new File([blob], filename, { type: 'image/png' });
               if (navigator.canShare({ files: [file] })) {
                 await navigator.share({ files: [file], title: `${this.config.name} Ticket` });
