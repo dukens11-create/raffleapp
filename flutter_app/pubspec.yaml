@@ -60,6 +60,9 @@ dependencies:
   
   # WebView (for payment gateways)
   webview_flutter: ^4.4.2
+  
+  # Security & Encryption
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
