@@ -4152,6 +4152,12 @@
         }
         
         infoEl.classList.remove('show');
+        
+        // Persist purchase in sessionStorage for scratch page
+        const natcashScratchCategory = 'SCRATCH-' + scratchPurchaseData.ticketName;
+        sessionStorage.setItem('purchasedScratchTicket', data.payment_reference);
+        sessionStorage.setItem('purchasedScratchCategory', natcashScratchCategory);
+        
         successEl.innerHTML = `
           ✅ Payment request sent successfully!
           <br><br>
@@ -4160,6 +4166,10 @@
           <strong>Transaction ID:</strong> ${data.payment_details?.paymentId || 'N/A'}
           <br>
           <strong>Status:</strong> ${data.payment_details?.status || 'Pending'}
+          <br><br>
+          <a href="/scratch-tickets.html#${encodeURIComponent(scratchPurchaseData.ticketId)}" style="display: inline-block; margin-top: 8px; padding: 12px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px;">
+            🎰 Scratch Now →
+          </a>
         `;
         successEl.classList.add('show');
         
@@ -4212,24 +4222,29 @@
         }
         
         infoEl.classList.remove('show');
+        
+        // Persist purchase in sessionStorage for scratch page
+        const manualScratchCategory = 'SCRATCH-' + scratchPurchaseData.ticketName;
+        sessionStorage.setItem('purchasedScratchTicket', data.payment_reference);
+        sessionStorage.setItem('purchasedScratchCategory', manualScratchCategory);
+        
         successEl.innerHTML = `
           ✅ Payment confirmation submitted successfully!
           <br><br>
           Your purchase is pending verification. You will receive an SMS notification
           when your scratch ticket is ready (within 24 hours).
           <br><br>
-          <strong>Reference:</strong> ${data.payment_reference || 'N/A'}
+          <strong>Reference:</strong> ${escapeHtml(data.payment_reference) || 'N/A'}
+          <br><br>
+          <a href="/scratch-tickets.html#${encodeURIComponent(scratchPurchaseData.ticketId)}" style="display: inline-block; margin-top: 8px; padding: 12px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 16px;">
+            🎰 Scratch Now →
+          </a>
         `;
         successEl.classList.add('show');
         
         // Store payment reference
         sessionStorage.setItem('lastScratchPaymentReference', data.payment_reference);
         sessionStorage.setItem('lastScratchTicketId', scratchPurchaseData.ticketId);
-        
-        // Close modal after 5 seconds
-        setTimeout(() => {
-          closeScratchPurchaseModal();
-        }, 5000);
       } catch (error) {
         console.error('[Buyers] Error confirming manual payment:', error);
         infoEl.classList.remove('show');
