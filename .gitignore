@@ -28,3 +28,7 @@ flutter_app/windows/
 flutter_app/.metadata
 flutter_app/pubspec.lock
 
+# Firebase configuration files (use .example files as templates)
+flutter_app/android/app/google-services.json
+flutter_app/ios/Runner/GoogleService-Info.plist
+
