@@ -92,12 +92,12 @@ class PhotoService {
         }
       }
 
-      // Resize image
+      // Resize image with better quality interpolation
       final resized = img.copyResize(
         image,
         width: width,
         height: height,
-        interpolation: img.Interpolation.linear,
+        interpolation: img.Interpolation.average,
       );
 
       // Compress to JPEG with quality

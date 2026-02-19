@@ -156,7 +156,8 @@ class CartProvider with ChangeNotifier {
     if (_buyerPhone == null || _buyerPhone!.isEmpty) {
       return 'Buyer phone is required';
     }
-    // Validate phone format (Haiti format: 509-XXXX-XXXX or similar)
+    // Validate phone format (Haiti format: 509XXXXXXXX or 509-XXXX-XXXX)
+    // Accepts 8-12 digits with optional formatting
     if (!_isValidPhone(_buyerPhone!)) {
       return 'Please enter a valid phone number';
     }
@@ -164,10 +165,11 @@ class CartProvider with ChangeNotifier {
   }
 
   bool _isValidPhone(String phone) {
-    // Remove spaces, dashes, parentheses
-    final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    // Should be 8-11 digits (Haiti numbers)
-    return RegExp(r'^\d{8,11}$').hasMatch(cleaned);
+    // Remove spaces, dashes, parentheses, and plus signs
+    final cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)\+]'), '');
+    // Haiti: 8 digits (local) or 11 digits with country code (509XXXXXXXX)
+    // Also accept 10-12 digits for flexibility
+    return RegExp(r'^\d{8,12}$').hasMatch(cleaned);
   }
 
   /// Get cart summary for checkout

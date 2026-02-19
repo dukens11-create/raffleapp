@@ -51,11 +51,13 @@ class _ManualPaymentScreenState extends State<ManualPaymentScreen> {
   }
 
   String get _walletNumber {
-    // In production, this would come from backend config
+    // TODO: Fetch from backend configuration API
+    // In production, this should come from /api/config/payment-wallets
+    // For now, using hardcoded values for development
     if (widget.paymentMethod.contains('moncash')) {
-      return '509-1234-5678'; // MonCash wallet
+      return '509-1234-5678'; // MonCash wallet - should be from backend
     } else {
-      return '509-8765-4321'; // NatCash wallet
+      return '509-8765-4321'; // NatCash wallet - should be from backend
     }
   }
 
