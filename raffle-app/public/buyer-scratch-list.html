@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tikè Grate Mwen | Grate Genyen</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/css/buyer-scratch.css">
+</head>
+<body>
+<div class="container">
+
+  <div class="page-header">
+    <h1>🎰 Tikè Grate Mwen</h1>
+    <a href="/buyers.html#scratch-tickets" class="back-btn">← Tounen</a>
+  </div>
+
+  <!-- Phone lookup -->
+  <div class="lookup-card">
+    <h2>📱 Chèche tikè ou yo pa nimewo telefòn</h2>
+    <div class="lookup-row">
+      <input
+        type="tel"
+        id="phone-input"
+        placeholder="Nimewo telefòn (ex: 50912345678)"
+        autocomplete="tel"
+        maxlength="20"
+      >
+      <button class="btn-primary" id="lookup-btn" onclick="lookupTickets()">
+        🔍 Chèche
+      </button>
+    </div>
+  </div>
+
+  <!-- Status messages -->
+  <div id="msg-area"></div>
+
+  <!-- Tickets list -->
+  <div id="tickets-area" class="tickets-grid"></div>
+
+</div>
+
+<script>
+  // Escape HTML to prevent XSS
+  function esc(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  function formatDate(dt) {
+    if (!dt) return '';
+    try {
+      return new Date(dt).toLocaleString('fr-HT', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch (_) { return dt; }
+  }
+
+  function showMsg(html, type) {
+    const area = document.getElementById('msg-area');
+    area.innerHTML = `<div class="msg msg-${esc(type)}">${html}</div>`;
+  }
+
+  function clearMsg() {
+    document.getElementById('msg-area').innerHTML = '';
+  }
+
+  async function lookupTickets() {
+    const phone = document.getElementById('phone-input').value.trim();
+    if (!phone) { showMsg('Tanpri antre nimewo telefòn ou a.', 'error'); return; }
+
+    const btn = document.getElementById('lookup-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Chaje...';
+    clearMsg();
+    document.getElementById('tickets-area').innerHTML = '';
+
+    try {
+      const resp = await fetch('/api/public/buyer-scratch-tickets/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+
+      const data = await resp.json();
+
+      if (!resp.ok) {
+        showMsg('Erè: ' + esc(data.error || 'Pa kapab chèche'), 'error');
+        return;
+      }
+
+      const tickets = data.tickets || [];
+      if (tickets.length === 0) {
+        showMsg('Pa gen tikè grate jwenn pou nimewo sa a.', 'info');
+        return;
+      }
+
+      renderTickets(tickets, phone);
+    } catch (e) {
+      showMsg('Erè rezo: ' + esc(e.message), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Chèche';
+    }
+  }
+
+  const TYPE_LABELS = {
+    basic: 'Basic', premium: 'Premium', bronze: 'Bronze',
+    silver: 'Silver', gold: 'Gold', diamond: 'Diamond'
+  };
+
+  function renderTickets(tickets, phone) {
+    const area = document.getElementById('tickets-area');
+    area.innerHTML = '';
+
+    tickets.forEach(t => {
+      const isScratched = t.is_scratched == 1 || t.is_scratched === true;
+      const typeName = TYPE_LABELS[t.ticket_type] || esc(t.ticket_type || '');
+      const card = document.createElement('div');
+      card.className = `scratch-ticket-entry ticket-entry-${esc(t.ticket_type)}`;
+
+      const header = document.createElement('div');
+      header.className = 'ticket-entry-header';
+      header.innerHTML =
+        `<span class="ticket-entry-type">${esc(typeName)}</span>` +
+        `<span class="ticket-entry-badge ${isScratched ? 'scratched' : 'unscratched'}">` +
+          (isScratched ? '✅ Grate' : '🔔 Pa Grate') +
+        `</span>`;
+
+      const ref = document.createElement('div');
+      ref.className = 'ticket-entry-ref';
+      ref.textContent = 'Ref: ' + (t.payment_reference || '—');
+
+      const date = document.createElement('div');
+      date.className = 'ticket-entry-date';
+      date.textContent = formatDate(t.created_at);
+
+      const footer = document.createElement('div');
+      footer.className = 'ticket-entry-footer';
+
+      const btn = document.createElement('button');
+      btn.className = 'btn-scratch' + (isScratched ? ' done' : '');
+      if (isScratched) {
+        btn.textContent = '👁 Wè Rezilta';
+      } else {
+        btn.textContent = '✨ Grate Kounye a!';
+      }
+      btn.addEventListener('click', () => openScratchCard(t.id, t.ticket_type, isScratched, phone));
+
+      footer.appendChild(btn);
+      card.appendChild(header);
+      card.appendChild(ref);
+      card.appendChild(date);
+      card.appendChild(footer);
+      area.appendChild(card);
+    });
+  }
+
+  function openScratchCard(id, ticketType, isScratched, phone) {
+    const params = new URLSearchParams({
+      id,
+      type: ticketType || '',
+      phone,
+      scratched: isScratched ? '1' : '0'
+    });
+    window.location.href = `/buyer-scratch-card.html?${params.toString()}`;
+  }
+
+  // Allow pressing Enter in the phone input
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('phone-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') lookupTickets();
+    });
+  });
+</script>
+</body>
+</html>
