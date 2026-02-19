@@ -1,18 +1,8 @@
-# Secure Storage Service
-
-Enhanced secure storage service for sensitive data.
-
-## Overview
-
-This service extends flutter_secure_storage with additional security features.
-
-## Implementation
-
-```dart
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
+/// Enhanced secure storage service for sensitive data
 class SecureStorageService {
   static final SecureStorageService _instance = SecureStorageService._internal();
   factory SecureStorageService() => _instance;
@@ -79,52 +69,24 @@ class SecureStorageService {
     return await readEncrypted('refresh_token');
   }
 
-  /// Save user credentials
+  /// Save user credentials (password is hashed)
   Future<void> saveCredentials(String username, String password) async {
     final hashedPassword = sha256.convert(utf8.encode(password)).toString();
     await saveEncrypted('username', username);
     await saveEncrypted('password', hashedPassword);
   }
 
-  /// Check if biometric auth is available
-  Future<bool> canUseBiometric() async {
-    // Implementation would use local_auth package
-    return false;
+  /// Get saved username
+  Future<String?> getUsername() async {
+    return await readEncrypted('username');
+  }
+
+  /// Verify password against stored hash
+  Future<bool> verifyPassword(String password) async {
+    final storedHash = await readEncrypted('password');
+    if (storedHash == null) return false;
+    
+    final inputHash = sha256.convert(utf8.encode(password)).toString();
+    return inputHash == storedHash;
   }
 }
-```
-
-## Usage
-
-```dart
-final secureStorage = SecureStorageService();
-
-// Save token
-await secureStorage.saveAuthToken('your_token');
-
-// Retrieve token
-final token = await secureStorage.getAuthToken();
-
-// Clear all
-await secureStorage.clearAll();
-```
-
-## Security Features
-
-1. **Platform-specific encryption**
-   - Android: EncryptedSharedPreferences
-   - iOS: Keychain with first_unlock accessibility
-
-2. **Automatic encryption** of sensitive data
-
-3. **Secure deletion** of stored data
-
-4. **Biometric authentication** support (optional)
-
-## Best Practices
-
-- Never store plain passwords
-- Rotate tokens regularly
-- Clear storage on logout
-- Use biometric auth when available
-- Handle storage errors gracefully

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 
@@ -92,7 +93,7 @@ class AccessibilityUtils {
     if (value <= 0.03928) {
       return value / 12.92;
     } else {
-      return ((value + 0.055) / 1.055).pow(2.4);
+      return math.pow((value + 0.055) / 1.055, 2.4).toDouble();
     }
   }
 
@@ -160,8 +161,4 @@ class AccessibilityUtils {
   static String countLabel(int count, String singular, String plural) {
     return count == 1 ? '$count $singular' : '$count $plural';
   }
-}
-
-extension AccessibilityExtensions on num {
-  double get pow => this * this;
 }

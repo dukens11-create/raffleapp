@@ -1,23 +1,7 @@
-# App Configuration
+/// App Configuration
+/// 
+/// Central configuration file for app-wide settings and constants.
 
-## Overview
-
-Central configuration file for app-wide settings and constants.
-
-## Usage
-
-```dart
-import 'package:raffle_app/config/app_config.dart';
-
-// Access configuration values
-final appName = AppConfig.appName;
-final version = AppConfig.version;
-```
-
-## Configuration Values
-
-### App Information
-```dart
 class AppConfig {
   // App identity
   static const String appName = 'Grate Genyen';
@@ -37,7 +21,18 @@ class AppConfig {
   static const String supportEmail = 'support@grategenyen.com';
   static const String privacyPolicyUrl = 'https://grategenyen.com/privacy';
   static const String termsOfServiceUrl = 'https://grategenyen.com/terms';
+  
+  // Feature flags
+  static const bool enableAnalytics = true;
+  static const bool enableCrashReporting = true;
+  static const bool enableOfflineMode = true;
+  static const bool enablePushNotifications = true;
+  
+  // Timeouts
+  static const Duration connectionTimeout = Duration(seconds: 30);
+  static const Duration receiveTimeout = Duration(seconds: 30);
+  
+  // Cache settings
+  static const Duration cacheExpiry = Duration(hours: 24);
+  static const int maxCacheSize = 100 * 1024 * 1024; // 100MB
 }
-```
-
-This file should import EnvConfig and OptimizationConfig for complete app configuration.
