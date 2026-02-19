@@ -865,7 +865,47 @@
     .btn:active {
       transform: translateY(0);
     }
-    
+
+    .btn-download {
+      background: #f59e0b;
+      color: white;
+      display: none;
+    }
+
+    .btn-download:hover {
+      background: #d97706;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-download.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* Download toast notification */
+    .download-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e293b;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+
+    .download-toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+
     /* Jwe Ankò text under scratch area */
     .jwe-anko-text {
       text-align: center;
@@ -1001,6 +1041,7 @@
     <div class="ticket-gallery" id="ticketGallery"></div>
   </div>
 
+  <script src="/js/html2canvas.min.js"></script>
   <script>
     // Category mapping: Ticket Type -> Database Category
     const CATEGORY_MAP = {
@@ -1316,7 +1357,7 @@
         
         card.innerHTML = `
           ${this.config.useCustomImage ? `
-            <img src="${this.config.imageUrl}" alt="${this.config.name}" class="ticket-background-image">
+            <img src="${this.config.imageUrl}" alt="${this.config.name}" class="ticket-background-image" crossorigin="anonymous">
           ` : ''}
           
           <div class="scratch-label">${this.config.coverText}</div>
@@ -1355,6 +1396,7 @@
             <div class="button-group">
               <button class="btn btn-reset" id="reset-${this.config.id}">🔄 New Ticket</button>
               <button class="btn btn-reveal" id="reveal-all-${this.config.id}">✨ Scratch All</button>
+              <button class="btn btn-download" id="download-${this.config.id}" aria-label="Download ticket as PNG">⬇️ Download PNG</button>
             </div>
           </div>
         `;
@@ -1550,6 +1592,14 @@
             this.revealAll();
           });
         }
+
+        // Download PNG button
+        const downloadBtn = document.getElementById(`download-${this.config.id}`);
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            this.downloadTicket();
+          });
+        }
       }
       
       startScratching(e) {
@@ -1645,6 +1695,10 @@
           this.prizeElement.classList.add('revealed');
         }
 
+        // Show download button
+        const downloadBtn = document.getElementById(`download-${this.config.id}`);
+        if (downloadBtn) downloadBtn.classList.add('visible');
+
         // Celebratory confetti for winning prizes, scaled by tier
         if (this.prize && this.prize.value > 0) {
           this.launchConfetti(confettiCountForPrize(this.prize.value));
@@ -1689,15 +1743,109 @@
         }
         const fill = document.getElementById(`progress-fill-${this.config.id}`);
         if (fill) fill.style.width = '0%';
+        // Hide download button until next reveal
+        const downloadBtn = document.getElementById(`download-${this.config.id}`);
+        if (downloadBtn) downloadBtn.classList.remove('visible');
         await this.fetchTicketData();  // Fetch new ticket
         this.selectRandomPrize();
         this.setupCanvas();
         this.drawCoverLayer();
         this.progressElement.textContent = `Scratched: 0%`;
       }
+
+      async downloadTicket() {
+        const downloadBtn = document.getElementById(`download-${this.config.id}`);
+        const card = this.canvas.closest('.ticket-card');
+        if (!card || typeof html2canvas === 'undefined') {
+          showDownloadToast('❌ Download unavailable. Please try again.');
+          return;
+        }
+
+        // Show loading state
+        const originalText = downloadBtn ? downloadBtn.innerHTML : '';
+        if (downloadBtn) {
+          downloadBtn.innerHTML = '⏳ Generating...';
+          downloadBtn.disabled = true;
+        }
+
+        try {
+          // Temporarily hide decorative overlays and animations for clean capture
+          const confettiOverlay = card.querySelector('.confetti-overlay');
+          const particleLayer = card.querySelector('.scratch-particles');
+          if (confettiOverlay) confettiOverlay.style.visibility = 'hidden';
+          if (particleLayer) particleLayer.style.visibility = 'hidden';
+
+          const canvasEl = await html2canvas(card, {
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: null,
+            scale: 2,
+            logging: false,
+            imageTimeout: 5000
+          });
+
+          if (confettiOverlay) confettiOverlay.style.visibility = '';
+          if (particleLayer) particleLayer.style.visibility = '';
+
+          // Build filename
+          const ticketNum = (this.ticketData && this.ticketData.ticket_number)
+            ? this.ticketData.ticket_number.replace(/[^a-zA-Z0-9_-]/g, '_')
+            : this.config.id;
+          const now = new Date();
+          const ts = now.getFullYear().toString()
+            + String(now.getMonth() + 1).padStart(2, '0')
+            + String(now.getDate()).padStart(2, '0')
+            + '-'
+            + String(now.getHours()).padStart(2, '0')
+            + String(now.getMinutes()).padStart(2, '0')
+            + String(now.getSeconds()).padStart(2, '0');
+          const filename = `scratch-ticket-${ticketNum}-${ts}.png`;
+
+          // Prefer Web Share API on mobile if available
+          if (navigator.canShare) {
+            try {
+              const blob = await new Promise((resolve, reject) => canvasEl.toBlob(b => b ? resolve(b) : reject(new Error('toBlob returned null')), 'image/png'));
+              const file = new File([blob], filename, { type: 'image/png' });
+              if (navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: `${this.config.name} Ticket` });
+                showDownloadToast('✅ Ticket shared!');
+                return;
+              }
+            } catch (_) { /* fall through to download */ }
+          }
+
+          // Standard download
+          const link = document.createElement('a');
+          link.download = filename;
+          link.href = canvasEl.toDataURL('image/png');
+          link.click();
+          showDownloadToast('✅ Download started!');
+        } catch (err) {
+          console.error('Download failed:', err);
+          showDownloadToast('❌ Download failed. Please try again.');
+        } finally {
+          if (downloadBtn) {
+            downloadBtn.innerHTML = originalText;
+            downloadBtn.disabled = false;
+          }
+        }
+      }
     }
     
     // Initialize all tickets
+    function showDownloadToast(message) {
+      let toast = document.getElementById('download-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'download-toast';
+        toast.className = 'download-toast';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
     function initializeTickets() {
       // Check if user accessed with a purchased ticket
       const purchasedTicket = sessionStorage.getItem('purchasedScratchTicket');
