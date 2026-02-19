@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/ticket_provider.dart';
 import '../../widgets/ticket_card.dart';
 import 'scratch_screen.dart';
+import 'my_scratch_cards_screen.dart';
 
 class TicketGalleryScreen extends StatelessWidget {
   const TicketGalleryScreen({Key? key}) : super(key: key);
@@ -14,6 +15,18 @@ class TicketGalleryScreen extends StatelessWidget {
         title: const Text('🎰 GRATE GENYEN'),
         centerTitle: true,
         elevation: 0,
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyScratchCardsScreen()),
+              );
+            },
+            icon: const Icon(Icons.casino_outlined, color: Colors.white, size: 18),
+            label: const Text('My Cards', style: TextStyle(color: Colors.white, fontSize: 13)),
+          ),
+        ],
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
