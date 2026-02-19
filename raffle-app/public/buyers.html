@@ -3208,7 +3208,7 @@
         maxPrize: 5000,
         bgClass: 'ticket-bg-basic',
         emoji: '🎁',
-        prizeText: 'OU\nGENYEN\n?'
+        prizeText: 'ACHETE\nPOU\nREVELE'
       },
       {
         id: 'premium',
@@ -3217,7 +3217,7 @@
         maxPrize: 15000,
         bgClass: 'ticket-bg-premium',
         emoji: '🎁',
-        prizeText: 'OU\nGENYEN\n?'
+        prizeText: 'ACHETE\nPOU\nREVELE'
       },
       {
         id: 'bronze',
@@ -3225,8 +3225,8 @@
         price: 250,
         maxPrize: 50000,
         bgClass: 'ticket-bg-bronze',
-        emoji: '😊',
-        prizeText: 'ESEYE\nANKÒ'
+        emoji: '🎁',
+        prizeText: 'ACHETE\nPOU\nREVELE'
       },
       {
         id: 'silver',
@@ -3234,8 +3234,8 @@
         price: 500,
         maxPrize: 150000,
         bgClass: 'ticket-bg-silver',
-        emoji: '✨',
-        prizeText: 'OU\nGENYEN\n?'
+        emoji: '🎁',
+        prizeText: 'ACHETE\nPOU\nREVELE'
       },
       {
         id: 'gold',
@@ -3243,8 +3243,8 @@
         price: 1000,
         maxPrize: 250000,
         bgClass: 'ticket-bg-gold',
-        emoji: '😎',
-        prizeText: 'ESEYE\nANKÒ'
+        emoji: '🎁',
+        prizeText: 'ACHETE\nPOU\nREVELE'
       },
       {
         id: 'diamond',
@@ -3252,8 +3252,8 @@
         price: 5000,
         maxPrize: 1000000,
         bgClass: 'ticket-bg-diamond',
-        emoji: '😁',
-        prizeText: 'ESEYE\nANKÒ'
+        emoji: '🎁',
+        prizeText: 'ACHETE\nPOU\nREVELE'
       }
     ];
 
@@ -3436,6 +3436,8 @@
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         // Canvas no longer needed for interaction; keep it visible but inert
         this.canvas.style.pointerEvents = 'none';
+        // Prompt the buyer to purchase after scratching the demo overlay
+        openScratchTicket(this.ticketId);
       }
 
       _attachEvents() {
