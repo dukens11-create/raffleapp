@@ -1,0 +1,88 @@
+name: Flutter Tests
+
+on:
+  push:
+    branches: [ main, develop, 'copilot/**' ]
+    paths:
+      - 'flutter_app/**'
+      - '.github/workflows/test.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'flutter_app/**'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: flutter_app
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Verify formatting
+        run: flutter format --set-exit-if-changed .
+        continue-on-error: true
+      
+      - name: Analyze code
+        run: flutter analyze
+        continue-on-error: true
+      
+      - name: Run unit tests
+        run: flutter test --coverage
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: flutter_app/coverage/lcov.info
+          flags: flutter
+          name: flutter-coverage
+        continue-on-error: true
+      
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "# Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "Tests completed for Flutter app" >> $GITHUB_STEP_SUMMARY
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: flutter_app
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Run linter
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        continue-on-error: true
+      
+      - name: Check for outdated dependencies
+        run: flutter pub outdated
+        continue-on-error: true
