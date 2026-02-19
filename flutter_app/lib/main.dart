@@ -6,12 +6,17 @@ import 'package:raffle_app/providers/raffle_provider.dart';
 import 'package:raffle_app/providers/buyer_ticket_provider.dart';
 import 'package:raffle_app/providers/payment_provider.dart';
 import 'package:raffle_app/providers/my_tickets_provider.dart';
+import 'package:raffle_app/providers/cart_provider.dart';
 import 'package:raffle_app/screens/auth/login_screen.dart';
 import 'package:raffle_app/screens/admin/admin_dashboard.dart';
 import 'package:raffle_app/screens/seller/seller_dashboard.dart';
 import 'package:raffle_app/screens/buyer/buyer_portal.dart';
 import 'package:raffle_app/screens/buyer/home_screen.dart';
+import 'package:raffle_app/screens/buyer/ticket_selection_screen.dart';
+import 'package:raffle_app/screens/buyer/checkout_screen.dart';
 import 'package:raffle_app/screens/scratch/ticket_gallery_screen.dart';
+import 'package:raffle_app/screens/shared/qr_scanner_screen.dart';
+import 'package:raffle_app/screens/payment/payment_method_screen.dart';
 import 'package:raffle_app/config/app_theme.dart';
 
 void main() {
@@ -31,6 +36,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BuyerTicketProvider()),
         ChangeNotifierProvider(create: (_) => PaymentProvider()),
         ChangeNotifierProvider(create: (_) => MyTicketsProvider()),
+        ChangeNotifierProvider(create: (_) => CartProvider()),
       ],
       child: MaterialApp(
         title: 'Grate Genyen',
@@ -45,6 +51,10 @@ class MyApp extends StatelessWidget {
           '/buyer': (context) => const BuyerPortal(),
           '/buyer-home': (context) => const BuyerHomeScreen(),
           '/scratch': (context) => const TicketGalleryScreen(),
+          // New routes for ticket purchasing flow
+          '/tickets/browse': (context) => const TicketSelectionScreen(),
+          '/checkout': (context) => const CheckoutScreen(),
+          '/qr-scanner': (context) => const QRScannerScreen(),
         },
         debugShowCheckedModeBanner: false,
       ),
