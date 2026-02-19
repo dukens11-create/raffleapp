@@ -14,16 +14,33 @@ class ScratchScreen extends StatefulWidget {
   State<ScratchScreen> createState() => _ScratchScreenState();
 }
 
-class _ScratchScreenState extends State<ScratchScreen> {
+class _ScratchScreenState extends State<ScratchScreen>
+    with SingleTickerProviderStateMixin {
   late Prize selectedPrize;
   bool hasScratched = false;
+  late AnimationController _revealController;
+  late Animation<double> _revealScale;
 
   @override
   void initState() {
     super.initState();
-    // Select a prize when the screen is initialized
     final provider = Provider.of<TicketProvider>(context, listen: false);
     selectedPrize = provider.scratchTicket(widget.ticket.id);
+
+    _revealController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _revealScale = CurvedAnimation(
+      parent: _revealController,
+      curve: Curves.elasticOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _revealController.dispose();
+    super.dispose();
   }
 
   void _onScratchComplete() {
@@ -31,8 +48,8 @@ class _ScratchScreenState extends State<ScratchScreen> {
       hasScratched = true;
     });
 
-    // Show result dialog
     Future.delayed(const Duration(milliseconds: 500), () {
+      _revealController.forward();
       _showResultDialog();
     });
   }
@@ -45,115 +62,126 @@ class _ScratchScreenState extends State<ScratchScreen> {
         final isWinner = selectedPrize.value > 0;
         final isFreeTicket = selectedPrize.isFreeTicket;
         
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          contentPadding: const EdgeInsets.all(24),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                selectedPrize.emoji,
-                style: const TextStyle(fontSize: 80),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                (isFreeTicket || isWinner) ? 'Félicitasyon!' : 'Eseye Ankò!',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+        return ScaleTransition(
+          scale: _revealScale,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            contentPadding: const EdgeInsets.all(24),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  selectedPrize.emoji,
+                  style: const TextStyle(fontSize: 80),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                selectedPrize.text,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              if (isWinner) ...[
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: widget.ticket.theme.gradientColors,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    'Ou genyen: ${selectedPrize.value} HTG',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                Text(
+                  (isFreeTicket || isWinner) ? 'Félicitasyon!' : 'Eseye Ankò!',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-              if (isFreeTicket) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: widget.ticket.theme.gradientColors,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    'Ou genyen yon lòt tikè!',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                const SizedBox(height: 12),
+                Text(
+                  selectedPrize.text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-              ],
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pop();
-                    },
-                    icon: const Icon(Icons.arrow_back),
-                    label: const Text('Back'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                if (isWinner) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: widget.ticket.theme.gradientColors,
                       ),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(
-                          builder: (context) => ScratchScreen(ticket: widget.ticket),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: widget.ticket.theme.gradientColors.first
+                              .withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label: Text(isFreeTicket ? 'Use Free Ticket' : 'Play Again'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: widget.ticket.theme.gradientColors.first,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
+                      ],
+                    ),
+                    child: Text(
+                      'Ou genyen: ${selectedPrize.value} HTG',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ),
                 ],
-              ),
-            ],
+                if (isFreeTicket) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: widget.ticket.theme.gradientColors,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Ou genyen yon lòt tikè!',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pop();
+                      },
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Back'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => ScratchScreen(ticket: widget.ticket),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.refresh),
+                      label: Text(isFreeTicket ? 'Use Free Ticket' : 'Play Again'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.ticket.theme.gradientColors.first,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         );
       },
