@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/scratch/scratch_ticket.dart';
 import '../../models/scratch/prize.dart';
@@ -48,10 +49,28 @@ class _ScratchScreenState extends State<ScratchScreen>
       hasScratched = true;
     });
 
+    // Tier-based haptic feedback on prize reveal
+    if (selectedPrize.value >= 10000) {
+      HapticFeedback.heavyImpact();
+    } else if (selectedPrize.value > 0 || selectedPrize.isFreeTicket) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
+
     Future.delayed(const Duration(milliseconds: 500), () {
       _revealController.forward();
       _showResultDialog();
     });
+  }
+
+  /// Returns 0–3 tier index based on prize value (0=no win, 1=small, 2=medium, 3=big).
+  int _prizeTier() {
+    final v = selectedPrize.value;
+    if (v >= 10000) return 3;
+    if (v >= 1000) return 2;
+    if (v > 0) return 1;
+    return 0;
   }
 
   void _showResultDialog() {
@@ -105,8 +124,9 @@ class _ScratchScreenState extends State<ScratchScreen>
                       boxShadow: [
                         BoxShadow(
                           color: widget.ticket.theme.gradientColors.first
-                              .withOpacity(0.4),
-                          blurRadius: 12,
+                              .withOpacity(0.2 + _prizeTier() * 0.15),
+                          blurRadius: 8.0 + _prizeTier() * 8.0,
+                          spreadRadius: _prizeTier().toDouble(),
                           offset: const Offset(0, 4),
                         ),
                       ],

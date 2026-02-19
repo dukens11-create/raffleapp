@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:scratcher/scratcher.dart';
 import '../models/scratch/scratch_ticket.dart';
 import '../models/scratch/prize.dart';
@@ -24,11 +25,14 @@ class _ScratchCardWidgetState extends State<ScratchCardWidget>
   static const double _brushSizeRatio = 0.12;
   static const double _minBrushSize = 30.0;
   static const double _maxBrushSize = 70.0;
+  /// Minimum interval between haptic pulses during scratching.
+  static const Duration _hapticThrottle = Duration(milliseconds: 80);
 
   double scratchProgress = 0;
   final scratchKey = GlobalKey<ScratcherState>();
   late AnimationController _shimmerController;
   late Animation<double> _shimmerAnimation;
+  DateTime? _lastHapticTime;
 
   @override
   void initState() {
@@ -46,6 +50,16 @@ class _ScratchCardWidgetState extends State<ScratchCardWidget>
   void dispose() {
     _shimmerController.dispose();
     super.dispose();
+  }
+
+  /// Fires a light haptic impact at most once per [_hapticThrottle] interval.
+  void _throttledHaptic() {
+    final now = DateTime.now();
+    if (_lastHapticTime == null ||
+        now.difference(_lastHapticTime!) >= _hapticThrottle) {
+      HapticFeedback.lightImpact();
+      _lastHapticTime = now;
+    }
   }
 
   @override
@@ -88,7 +102,13 @@ class _ScratchCardWidgetState extends State<ScratchCardWidget>
                         scratchProgress = value;
                       });
                     },
+                    onScratchUpdate: () {
+                      // Throttled haptic feedback during scratching on mobile devices
+                      _throttledHaptic();
+                    },
                     onThreshold: () {
+                      // Haptic feedback when scratch is complete
+                      HapticFeedback.mediumImpact();
                       widget.onComplete();
                     },
                     child: _buildPrizeContent(),

@@ -1199,6 +1199,18 @@
     const MAX_PARTICLES = 12;
     const CONFETTI_COUNT = 12;
 
+    /**
+     * Returns the number of confetti pieces for a given prize value.
+     * Scales from small (low wins) to large (jackpot).
+     * Tier thresholds match the Flutter _prizeTier() helper for consistency.
+     */
+    function confettiCountForPrize(value) {
+      if (value >= 10000) return 30; // Jackpot
+      if (value >= 1000)  return 20; // Big win
+      if (value > 0)      return CONFETTI_COUNT; // Small win
+      return 0;
+    }
+
     class ScratchTicket {
       constructor(config, containerId) {
         this.config = config;
@@ -1633,13 +1645,13 @@
           this.prizeElement.classList.add('revealed');
         }
 
-        // Celebratory confetti for winning prizes
+        // Celebratory confetti for winning prizes, scaled by tier
         if (this.prize && this.prize.value > 0) {
-          this.launchConfetti();
+          this.launchConfetti(confettiCountForPrize(this.prize.value));
         }
       }
 
-      launchConfetti() {
+      launchConfetti(count = CONFETTI_COUNT) {
         const card = this.canvas.closest('.ticket-card');
         if (!card) return;
         let overlay = card.querySelector('.confetti-overlay');
@@ -1649,7 +1661,7 @@
           card.appendChild(overlay);
         }
         const colors = ['#fbbf24','#f472b6','#818cf8','#34d399','#38bdf8','#f87171'];
-        for (let i = 0; i < CONFETTI_COUNT; i++) {
+        for (let i = 0; i < count; i++) {
           const p = document.createElement('div');
           p.className = 'confetti-piece';
           p.style.left = `${Math.random() * 100}%`;
@@ -1658,7 +1670,9 @@
           p.style.animationDelay = `${Math.random() * 0.4}s`;
           overlay.appendChild(p);
         }
-        setTimeout(() => { if (overlay) overlay.innerHTML = ''; }, 2500);
+        // Longer celebration duration for bigger wins
+        const clearDelay = count >= 20 ? 4000 : 2500;
+        setTimeout(() => { if (overlay) overlay.innerHTML = ''; }, clearDelay);
       }
       
       async reset() {
