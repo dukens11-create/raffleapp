@@ -60,6 +60,17 @@ dependencies:
   
   # WebView (for payment gateways)
   webview_flutter: ^4.4.2
+  
+  # Offline & Sync
+  sqflite: ^2.3.0
+  path_provider: ^2.1.0
+  connectivity_plus: ^5.0.0
+  workmanager: ^0.5.0
+  
+  # Push Notifications
+  firebase_core: ^2.24.0
+  firebase_messaging: ^14.7.0
+  flutter_local_notifications: ^16.0.0
 
 dev_dependencies:
   flutter_test:
