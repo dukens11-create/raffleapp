@@ -86,9 +86,8 @@ class TicketGalleryScreen extends StatelessWidget {
                     builder: (context, constraints) {
                       final int crossAxisCount =
                           constraints.maxWidth >= 360 ? 3 : 2;
-                      final bool isCompact = crossAxisCount == 3;
                       final double aspectRatio =
-                          isCompact ? 0.65 : 0.75;
+                          crossAxisCount == 3 ? 0.65 : 0.75;
                       return GridView.builder(
                         padding: const EdgeInsets.all(12),
                         gridDelegate:
@@ -103,7 +102,6 @@ class TicketGalleryScreen extends StatelessWidget {
                           final ticket = ticketProvider.scratchTickets[index];
                           return TicketCard(
                             ticket: ticket,
-                            compact: isCompact,
                             onTap: () {
                               Navigator.push(
                                 context,

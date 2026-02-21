@@ -21,6 +21,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pump();
 
       final gridView = tester.widget<GridView>(find.byType(GridView));
@@ -43,6 +44,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pump();
 
       final gridView = tester.widget<GridView>(find.byType(GridView));
@@ -95,4 +97,3 @@ void main() {
     });
   });
 }
-
