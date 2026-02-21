@@ -449,6 +449,7 @@
         </div>
     </div>
 
+    <script src="/js/api-config.js"></script>
     <script>
         // Log page load
         console.log('=== LOGIN PAGE LOADED ===');
@@ -501,11 +502,11 @@
             submitButton.disabled = true;
             submitButton.textContent = 'Logging in...';
             
-            console.log('📤 Sending login request to /api/login');
+            console.log('📤 Sending login request to ' + (window.API_BASE_URL || '') + '/api/login');
             console.log('Request body:', { phone, password: '***' });
             
             try {
-                const response = await fetch('/api/login', {
+                const response = await fetch((window.API_BASE_URL || '') + '/api/login', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json'

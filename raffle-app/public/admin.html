@@ -4860,7 +4860,7 @@
         }
       } catch (error) {
         console.error('Error verifying photo:', error);
-        alert('❌ An error occurred');
+        alert('❌ An error occurred: ' + error.message);
       }
     }
 
@@ -4889,7 +4889,7 @@
         }
       } catch (error) {
         console.error('Error rejecting photo:', error);
-        alert('❌ An error occurred');
+        alert('❌ An error occurred: ' + error.message);
       }
     }
 
@@ -4913,7 +4913,7 @@
         }
       } catch (error) {
         console.error('Error deleting photo:', error);
-        alert('❌ An error occurred');
+        alert('❌ An error occurred: ' + error.message);
       }
     }
 
