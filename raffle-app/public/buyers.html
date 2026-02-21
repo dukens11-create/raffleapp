@@ -328,6 +328,17 @@
       from { opacity: 0; transform: translateY(14px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* Buyer access control: hide restricted tabs and sections */
+    .tab[data-tab="raffle-info"],
+    .tab[data-tab="purchase"] {
+      display: none;
+    }
+
+    #raffle-info,
+    #purchase {
+      display: none !important;
+    }
     
     /* Cards */
     .card {
@@ -1688,13 +1699,13 @@
     
     <!-- Tabs -->
     <div class="tabs">
-      <button class="tab active" data-tab="raffle-info">
+      <button class="tab" data-tab="raffle-info">
         📋 Raffle Info
       </button>
       <button class="tab" data-tab="purchase">
         💳 Purchase Tickets
       </button>
-      <button class="tab" data-tab="my-tickets">
+      <button class="tab active" data-tab="my-tickets">
         👤 My Tickets
       </button>
       <button class="tab" data-tab="verify">
@@ -1706,7 +1717,7 @@
     </div>
     
     <!-- Tab Content: Raffle Info -->
-    <div id="raffle-info" class="tab-content active">
+    <div id="raffle-info" class="tab-content">
       <div class="card">
         <h2>Current Raffle Information</h2>
         <div id="raffle-info-content">
@@ -1823,7 +1834,7 @@
     </div>
     
     <!-- Tab Content: My Tickets -->
-    <div id="my-tickets" class="tab-content">
+    <div id="my-tickets" class="tab-content active">
       <div class="card">
         <h2>Look Up My Tickets</h2>
         <p style="color: #64748b; margin-bottom: 24px;">
@@ -2009,7 +2020,14 @@
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {
         const tabName = tab.dataset.tab;
-        
+
+        // Navigation guard: buyers cannot access raffle info or purchase tabs
+        const restrictedTabs = ['raffle-info', 'purchase'];
+        if (restrictedTabs.includes(tabName)) {
+          console.warn('[Buyers] Access to tab "' + tabName + '" is restricted.');
+          return;
+        }
+
         console.log('[Buyers] Tab switched to:', tabName);
         
         // Update active tab
@@ -2528,8 +2546,7 @@
     
     async function init() {
       try {
-        await loadRaffleInfo();
-        
+        // Raffle info tab is hidden for buyers; skip loading on init
         // Category filter removed - was part of Available Tickets tab which is now hidden
       } catch (error) {
         console.error('Initialization error:', error);
