@@ -85,16 +85,18 @@ class TicketGalleryScreen extends StatelessWidget {
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final int crossAxisCount =
-                          constraints.maxWidth < 300 ? 2 : 3;
+                          constraints.maxWidth >= 360 ? 3 : 2;
                       final bool isCompact = crossAxisCount == 3;
+                      final double aspectRatio =
+                          isCompact ? 0.65 : 0.75;
                       return GridView.builder(
-                        padding: EdgeInsets.all(isCompact ? 12.0 : 16.0),
+                        padding: const EdgeInsets.all(12),
                         gridDelegate:
                             SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
-                          childAspectRatio: isCompact ? 0.7 : 0.75,
-                          crossAxisSpacing: isCompact ? 8.0 : 16.0,
-                          mainAxisSpacing: isCompact ? 8.0 : 16.0,
+                          childAspectRatio: aspectRatio,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
                         ),
                         itemCount: ticketProvider.scratchTickets.length,
                         itemBuilder: (context, index) {
