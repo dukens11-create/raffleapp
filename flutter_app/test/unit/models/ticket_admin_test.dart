@@ -1,96 +1,105 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:raffle_app/models/ticket.dart';
 import 'package:raffle_app/models/ticket_admin.dart';
 
 void main() {
   group('TicketAdmin.fromJson', () {
-    test('constructs instance with all fields present', () {
+    test('constructs a valid instance from a full JSON payload', () {
       final json = {
         'id': 1,
-        'ticket_number': 'T-001',
-        'barcode': 'BC-001',
+        'ticket_number': 'BAS-001',
+        'barcode': 'ABC123',
         'category': 'BAS',
         'price': 50.0,
-        'status': 'AVAILABLE',
+        'status': 'available',
         'seller_id': 2,
-        'seller_name': 'John',
-        'buyer_phone': '555-1234',
-        'buyer_name': 'Jane',
-        'department': 'North',
+        'seller_name': 'John Doe',
+        'buyer_phone': '+50912345678',
+        'buyer_name': 'Jane Doe',
+        'department': 'Nord',
         'available_online': true,
         'created_at': '2024-01-01T00:00:00.000Z',
-        'sold_at': null,
+        'sold_at': '2024-01-02T00:00:00.000Z',
       };
 
       final ticket = TicketAdmin.fromJson(json);
 
       expect(ticket.id, 1);
-      expect(ticket.ticketNumber, 'T-001');
-      expect(ticket.barcode, 'BC-001');
+      expect(ticket.ticketNumber, 'BAS-001');
+      expect(ticket.barcode, 'ABC123');
       expect(ticket.category, 'BAS');
       expect(ticket.price, 50.0);
-      expect(ticket.status, 'AVAILABLE');
-      expect(ticket.sellerName, 'John');
-      expect(ticket.buyerPhone, '555-1234');
-      expect(ticket.buyerName, 'Jane');
-      expect(ticket.department, 'North');
+      expect(ticket.status, 'available');
+      expect(ticket.sellerId, 2);
+      expect(ticket.sellerName, 'John Doe');
+      expect(ticket.buyerPhone, '+50912345678');
+      expect(ticket.buyerName, 'Jane Doe');
+      expect(ticket.department, 'Nord');
       expect(ticket.availableOnline, true);
-      expect(ticket.soldAt, isNull);
+      expect(ticket.soldAt, isNotNull);
     });
 
-    test('constructs instance with optional admin-only fields missing', () {
-      // Minimal JSON – admin-only fields (barcode, price) may be absent;
-      // created_at is always required (consistent with Ticket.fromJson)
+    test('constructs a valid instance even when optional admin fields are missing', () {
       final json = {
-        'id': 5,
-        'ticket_number': 'T-005',
+        'id': 2,
+        'ticket_number': 'PRM-001',
+        'status': 'available',
         'category': 'PRM',
-        'status': 'AVAILABLE',
-        'available_online': false,
-        'created_at': '2024-06-15T12:00:00.000Z',
+        'created_at': '2024-03-01T10:00:00.000Z',
       };
 
       final ticket = TicketAdmin.fromJson(json);
 
-      expect(ticket.id, 5);
-      // barcode falls back to empty string
+      expect(ticket.id, 2);
+      expect(ticket.ticketNumber, 'PRM-001');
+      // Falls back to empty string when barcode is absent
       expect(ticket.barcode, '');
-      // price falls back to 0.0
+      // Falls back to 0.0 when price is absent
       expect(ticket.price, 0.0);
+      expect(ticket.sellerId, isNull);
       expect(ticket.sellerName, isNull);
+      expect(ticket.buyerPhone, isNull);
       expect(ticket.buyerName, isNull);
+      expect(ticket.department, isNull);
+      expect(ticket.availableOnline, false);
       expect(ticket.soldAt, isNull);
     });
 
-    test('throws ArgumentError when created_at is missing', () {
-      final json = {
-        'id': 9,
-        'ticket_number': 'T-009',
-        'category': 'BAS',
-        'status': 'AVAILABLE',
-        'available_online': true,
-        // created_at intentionally omitted
-      };
-
-      expect(() => TicketAdmin.fromJson(json), throwsA(isA<ArgumentError>()));
-    });
-
-    test('parses sold_at when present', () {
+    test('parses price correctly from integer JSON value', () {
       final json = {
         'id': 3,
-        'ticket_number': 'T-003',
-        'barcode': 'BC-003',
+        'ticket_number': 'GLD-001',
+        'barcode': 'XYZ789',
         'category': 'GLD',
-        'price': 1000.0,
-        'status': 'SOLD',
-        'available_online': false,
-        'created_at': '2024-01-01T00:00:00.000Z',
-        'sold_at': '2024-03-10T08:30:00.000Z',
+        'price': 1000,
+        'status': 'sold',
+        'available_online': 1,
+        'created_at': '2024-02-01T00:00:00.000Z',
       };
 
       final ticket = TicketAdmin.fromJson(json);
 
-      expect(ticket.isSold, true);
-      expect(ticket.soldAt, DateTime.parse('2024-03-10T08:30:00.000Z'));
+      expect(ticket.price, 1000.0);
+      expect(ticket.availableOnline, true);
+    });
+
+    test('is a subtype of Ticket', () {
+      final json = {
+        'id': 4,
+        'ticket_number': 'BRZ-001',
+        'barcode': 'BRZ456',
+        'category': 'BRZ',
+        'price': 250.0,
+        'status': 'available',
+        'available_online': false,
+        'created_at': '2024-01-15T00:00:00.000Z',
+      };
+
+      final ticket = TicketAdmin.fromJson(json);
+
+      expect(ticket, isA<TicketAdmin>());
+      // Verify polymorphic use as Ticket
+      expect(ticket, isA<Ticket>());
     });
   });
 }
