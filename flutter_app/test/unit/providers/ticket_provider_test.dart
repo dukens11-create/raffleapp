@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:raffle_app/providers/ticket_provider.dart';
-import 'package:raffle_app/models/ticket.dart';
 import '../../fixtures/test_data.dart';
 
 void main() {
@@ -64,7 +63,7 @@ void main() {
         final filtered = ticketProvider.getTicketsByCategory(categoryId);
 
         expect(filtered, isNotNull);
-        expect(filtered.every((t) => t.categoryId == categoryId), isTrue);
+        expect(filtered.every((t) => t.category == categoryId), isTrue);
       });
 
       test('should filter tickets by status', () {

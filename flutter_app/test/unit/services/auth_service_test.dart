@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:raffle_app/services/auth_service.dart';
-import 'package:raffle_app/models/user.dart';
 import '../../fixtures/test_data.dart';
 
 void main() {

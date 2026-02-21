@@ -90,9 +90,9 @@ class TicketGalleryScreen extends StatelessWidget {
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
                     ),
-                    itemCount: ticketProvider.tickets.length,
+                    itemCount: ticketProvider.scratchTickets.length,
                     itemBuilder: (context, index) {
-                      final ticket = ticketProvider.tickets[index];
+                      final ticket = ticketProvider.scratchTickets[index];
                       return TicketCard(
                         ticket: ticket,
                         onTap: () {
