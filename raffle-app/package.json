@@ -4,6 +4,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "test": "node cors.test.js",
     "start:prod": "cross-env NODE_ENV=production node --max-old-space-size=4096 server.js",
     "dev": "nodemon server.js",
     "check-deployment": "node check-deployment.js",

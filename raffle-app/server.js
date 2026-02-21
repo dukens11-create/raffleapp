@@ -509,7 +509,9 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
       // ✅ HARDCODE custom domains as fallback
       'https://www.grategenyen.com',
       'https://grategenyen.com',
-      'https://raffleapp-e4ev.onrender.com'
+      'https://raffleapp-e4ev.onrender.com',
+      'https://www.enejipamticket.com',
+      'https://enejipamticket.com'
     ];
 
 // Also add environment URL if available
