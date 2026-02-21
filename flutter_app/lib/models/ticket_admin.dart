@@ -1,57 +1,48 @@
 import 'package:raffle_app/models/ticket.dart';
 
 class TicketAdmin extends Ticket {
-  final String? sellerName;
-  final String? buyerName;
-  final String? buyerPhone;
-  final String? department;
-  final DateTime? soldAt;
-  final double? price;
-
   TicketAdmin({
     required super.id,
     required super.ticketNumber,
+    // barcode is required by Ticket; use empty string as fallback when backend omits it
+    required super.barcode,
     required super.category,
+    // price is required by Ticket; use 0.0 as fallback when backend omits it
+    required super.price,
     required super.status,
-    super.qrCode,
-    super.barcode,
-    this.sellerName,
-    this.buyerName,
-    this.buyerPhone,
-    this.department,
-    this.soldAt,
-    this.price,
+    super.sellerId,
+    super.sellerName,
+    super.buyerPhone,
+    super.buyerName,
+    super.department,
+    required super.availableOnline,
+    required super.createdAt,
+    super.soldAt,
   });
 
   factory TicketAdmin.fromJson(Map<String, dynamic> json) {
+    final createdAtStr = json['created_at'] ?? json['createdAt'];
+    if (createdAtStr == null) {
+      throw ArgumentError('created_at or createdAt field is required');
+    }
     return TicketAdmin(
       id: json['id'] ?? 0,
-      ticketNumber: json['ticket_number'] ?? '',
+      ticketNumber: json['ticket_number'] ?? json['ticketNumber'] ?? '',
+      // barcode: fallback to empty string if backend omits it
+      barcode: json['barcode'] as String? ?? '',
       category: json['category'] ?? '',
-      status: json['status'] ?? 'available',
-      qrCode: json['qr_code'],
-      barcode: json['barcode'],
-      sellerName: json['seller_name'],
-      buyerName: json['buyer_name'],
-      buyerPhone: json['buyer_phone'],
-      department: json['department'],
-      soldAt: json['sold_at'] != null ? DateTime.parse(json['sold_at']) : null,
-      price: json['price'] != null ? (json['price'] as num).toDouble() : null,
+      // price: fallback to 0.0 if backend omits it
+      price: json['price'] != null ? (json['price'] as num).toDouble() : 0.0,
+      status: json['status'] ?? 'AVAILABLE',
+      sellerId: json['seller_id'] as int?,
+      sellerName: json['seller_name'] as String?,
+      buyerPhone: json['buyer_phone'] as String?,
+      buyerName: json['buyer_name'] as String?,
+      department: json['department'] as String?,
+      availableOnline: json['available_online'] == 1 || json['available_online'] == true,
+      createdAt: DateTime.parse(createdAtStr as String),
+      soldAt: json['sold_at'] != null ? DateTime.parse(json['sold_at'] as String) : null,
     );
-  }
-
-  @override
-  Map<String, dynamic> toJson() {
-    final data = super.toJson();
-    data.addAll({
-      'seller_name': sellerName,
-      'buyer_name': buyerName,
-      'buyer_phone': buyerPhone,
-      'department': department,
-      'sold_at': soldAt?.toIso8601String(),
-      'price': price,
-    });
-    return data;
   }
 }
 
