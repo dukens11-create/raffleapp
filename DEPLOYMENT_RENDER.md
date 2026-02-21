@@ -134,8 +134,18 @@ TWILIO_PHONE_NUMBER=your-twilio-number
 
 #### CORS Configuration (if using separate frontend)
 ```
-ALLOWED_ORIGINS=https://your-frontend-domain.com,https://www.grategenyen.com
+ALLOWED_ORIGINS=https://your-frontend-domain.com,https://www.grategenyen.com,https://www.enejipamticket.com,https://enejipamticket.com
 ```
+
+The following origins are allowed by default (hardcoded fallback when `ALLOWED_ORIGINS` is not set):
+- `https://www.grategenyen.com`
+- `https://grategenyen.com`
+- `https://raffleapp-e4ev.onrender.com`
+- `https://www.enejipamticket.com`
+- `https://enejipamticket.com`
+- Any `*.onrender.com` subdomain
+
+To add additional domains, set `ALLOWED_ORIGINS` as a comma-separated list in the Render environment variables panel.
 
 ## Custom Domain Setup
 
