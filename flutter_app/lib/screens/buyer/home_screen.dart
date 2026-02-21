@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/raffle_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../widgets/loading_indicator.dart';
+import '../../widgets/language_switcher.dart';
 import 'tickets_list_screen.dart';
 import 'my_tickets_screen.dart';
 import 'payment_screen.dart';
@@ -37,27 +39,31 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
           MyTicketsScreen(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
+      bottomNavigationBar: Consumer<LocaleProvider>(
+        builder: (context, locale, _) {
+          return BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: (index) {
+              setState(() {
+                _currentIndex = index;
+              });
+            },
+            items: [
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.home),
+                label: locale.translate('nav_home'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.confirmation_number),
+                label: locale.translate('nav_tickets'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.receipt_long),
+                label: locale.translate('nav_my_tickets'),
+              ),
+            ],
+          );
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Akèy',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.confirmation_number),
-            label: 'Tikè',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
-            label: 'Achte',
-          ),
-        ],
       ),
     );
   }
@@ -68,83 +74,81 @@ class _HomeTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Grate Genyen'),
-        backgroundColor: Colors.green,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              context.read<RaffleProvider>().refresh();
+    return Consumer<LocaleProvider>(
+      builder: (context, locale, _) {
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Grate Genyen'),
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            actions: [
+              const LanguageSwitcher(),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {
+                  context.read<RaffleProvider>().refresh();
+                },
+              ),
+            ],
+          ),
+          body: Consumer<RaffleProvider>(
+            builder: (context, raffleProvider, child) {
+              if (raffleProvider.isLoading && !raffleProvider.hasData) {
+                return LoadingIndicator(message: locale.translate('loading'));
+              }
+
+              if (raffleProvider.error != null && !raffleProvider.hasData) {
+                return ErrorDisplay(
+                  error: raffleProvider.error!,
+                  onRetry: () => raffleProvider.refresh(),
+                );
+              }
+
+              final raffleInfo = raffleProvider.raffleInfo;
+              if (raffleInfo == null) {
+                return EmptyState(
+                  icon: Icons.inbox,
+                  title: locale.translate('no_active_raffle'),
+                  subtitle: locale.translate('come_back_later'),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () => raffleProvider.refresh(),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildWelcomeBanner(context, raffleInfo, locale),
+                      const SizedBox(height: 24),
+                      _buildStatistics(raffleInfo, locale),
+                      const SizedBox(height: 24),
+                      Text(
+                        locale.translate('categories_title'),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildCategoriesGrid(context, raffleInfo, locale),
+                      const SizedBox(height: 24),
+                      _buildQuickActions(context, locale),
+                    ],
+                  ),
+                ),
+              );
             },
           ),
-        ],
-      ),
-      body: Consumer<RaffleProvider>(
-        builder: (context, raffleProvider, child) {
-          if (raffleProvider.isLoading && !raffleProvider.hasData) {
-            return const LoadingIndicator(message: 'Chajman enfòmasyon...');
-          }
-
-          if (raffleProvider.error != null && !raffleProvider.hasData) {
-            return ErrorDisplay(
-              error: raffleProvider.error!,
-              onRetry: () => raffleProvider.refresh(),
-            );
-          }
-
-          final raffleInfo = raffleProvider.raffleInfo;
-          if (raffleInfo == null) {
-            return const EmptyState(
-              icon: Icons.inbox,
-              title: 'Pa gen tiraj aktif',
-              subtitle: 'Tanpri, retounen pi ta',
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () => raffleProvider.refresh(),
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Welcome Banner with Raffle Info
-                  _buildWelcomeBanner(context, raffleInfo),
-                  const SizedBox(height: 24),
-
-                  // Statistics
-                  _buildStatistics(raffleInfo),
-                  const SizedBox(height: 24),
-
-                  // Ticket Categories
-                  const Text(
-                    'Kategori Tikè Disponib',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildCategoriesGrid(context, raffleInfo),
-                  const SizedBox(height: 24),
-
-                  // Quick Actions
-                  _buildQuickActions(context),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildWelcomeBanner(BuildContext context, raffleInfo) {
+  Widget _buildWelcomeBanner(BuildContext context, raffleInfo, LocaleProvider locale) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -165,9 +169,9 @@ class _HomeTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Byenvini nan Grate Genyen!',
-            style: TextStyle(
+          Text(
+            locale.translate('welcome_title'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -198,7 +202,7 @@ class _HomeTab extends StatelessWidget {
               const Icon(Icons.calendar_today, color: Colors.white, size: 16),
               const SizedBox(width: 8),
               Text(
-                'Tiraj: ${_formatDate(raffleInfo.raffle.drawDate)}',
+                '${locale.translate('draw_date')}: ${_formatDate(raffleInfo.raffle.drawDate)}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -211,13 +215,13 @@ class _HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildStatistics(raffleInfo) {
+  Widget _buildStatistics(raffleInfo, LocaleProvider locale) {
     final stats = raffleInfo.stats;
     return Row(
       children: [
         Expanded(
           child: _buildStatCard(
-            'Total Tikè',
+            locale.translate('stat_total'),
             stats.totalTickets.toString(),
             Icons.confirmation_number,
             Colors.blue,
@@ -226,7 +230,7 @@ class _HomeTab extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'Disponib',
+            locale.translate('stat_available'),
             stats.availableTickets.toString(),
             Icons.check_circle,
             Colors.green,
@@ -235,7 +239,7 @@ class _HomeTab extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'Vandi',
+            locale.translate('stat_sold'),
             stats.soldTickets.toString(),
             Icons.shopping_cart,
             Colors.orange,
@@ -279,7 +283,7 @@ class _HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoriesGrid(BuildContext context, raffleInfo) {
+  Widget _buildCategoriesGrid(BuildContext context, raffleInfo, LocaleProvider locale) {
     final categories = raffleInfo.categories;
     
     return GridView.builder(
@@ -294,12 +298,12 @@ class _HomeTab extends StatelessWidget {
       itemCount: categories.length,
       itemBuilder: (context, index) {
         final category = categories[index];
-        return _buildCategoryCard(context, category);
+        return _buildCategoryCard(context, category, locale);
       },
     );
   }
 
-  Widget _buildCategoryCard(BuildContext context, category) {
+  Widget _buildCategoryCard(BuildContext context, category, LocaleProvider locale) {
     final isAvailable = category.isAvailable;
     final color = _getCategoryColor(category.categoryCode);
 
@@ -359,7 +363,7 @@ class _HomeTab extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                isAvailable ? 'Disponib' : 'EPUIZE',
+                isAvailable ? locale.translate('category_available') : locale.translate('category_sold_out'),
                 style: TextStyle(
                   fontSize: 12,
                   color: isAvailable ? Colors.green : Colors.red,
@@ -373,13 +377,13 @@ class _HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(BuildContext context, LocaleProvider locale) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Aksyon Rapid',
-          style: TextStyle(
+        Text(
+          locale.translate('quick_actions'),
+          style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -387,8 +391,8 @@ class _HomeTab extends StatelessWidget {
         const SizedBox(height: 16),
         _buildActionButton(
           context,
-          'Achte Tikè',
-          'Chwazi epi peye tikè w',
+          locale.translate('buy_tickets'),
+          locale.translate('buy_tickets_sub'),
           Icons.shopping_cart,
           Colors.green,
           () {
@@ -403,8 +407,8 @@ class _HomeTab extends StatelessWidget {
         const SizedBox(height: 12),
         _buildActionButton(
           context,
-          'Wè Tikè Mwen',
-          'Tcheke tikè ou achte',
+          locale.translate('my_tickets'),
+          locale.translate('my_tickets_sub'),
           Icons.receipt_long,
           Colors.blue,
           () {
@@ -419,8 +423,8 @@ class _HomeTab extends StatelessWidget {
         const SizedBox(height: 12),
         _buildActionButton(
           context,
-          'Skane Kòd QR',
-          'Verifye tikè ak kòd QR',
+          locale.translate('scan_qr'),
+          locale.translate('scan_qr_sub'),
           Icons.qr_code_scanner,
           Colors.purple,
           () {

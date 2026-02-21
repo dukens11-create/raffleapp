@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/my_tickets_provider.dart';
+import '../../widgets/language_switcher.dart';
 import '../../widgets/raffle_ticket_card.dart';
 import '../../widgets/loading_indicator.dart';
 
@@ -22,12 +24,15 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tikè Mwen'),
+        title: Text(locale.translate('my_tickets_title')),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
+          const LanguageSwitcher(),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -40,12 +45,12 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
         builder: (context, ticketProvider, child) {
           // Show phone input if no phone is set
           if (ticketProvider.currentPhone == null) {
-            return _buildPhoneInput();
+            return _buildPhoneInput(locale);
           }
 
           // Show loading
           if (ticketProvider.isLoading) {
-            return const LoadingIndicator(message: 'Chajman tikè ou yo...');
+            return LoadingIndicator(message: locale.translate('loading_my_tickets'));
           }
 
           // Show error
@@ -60,14 +65,14 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
           if (!ticketProvider.hasTickets) {
             return EmptyState(
               icon: Icons.confirmation_number,
-              title: 'Pa gen tikè',
-              subtitle: 'Ou poko achte tikè ak nimewo sa a',
+              title: locale.translate('no_tickets_phone'),
+              subtitle: locale.translate('no_tickets_phone_sub'),
               action: ElevatedButton(
                 onPressed: () {
                   ticketProvider.clear();
                   _phoneController.clear();
                 },
-                child: const Text('Eseye yon lòt nimewo'),
+                child: Text(locale.translate('try_another_number')),
               ),
             );
           }
@@ -89,9 +94,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Nimewo Telefòn',
-                              style: TextStyle(
+                            Text(
+                              locale.translate('phone_label'),
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey,
                               ),
@@ -111,7 +116,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                           ticketProvider.clear();
                           _phoneController.clear();
                         },
-                        child: const Text('Chanje'),
+                        child: Text(locale.translate('change')),
                       ),
                     ],
                   ),
@@ -124,7 +129,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${ticketProvider.ticketCount} Tikè',
+                        '${ticketProvider.ticketCount} ${locale.translate('ticket_count_label')}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -133,14 +138,14 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                       // Filter options
                       DropdownButton<String>(
                         value: 'all',
-                        items: const [
+                        items: [
                           DropdownMenuItem(
                             value: 'all',
-                            child: Text('Tout Tikè'),
+                            child: Text(locale.translate('all_tickets_filter')),
                           ),
                           DropdownMenuItem(
                             value: 'sold',
-                            child: Text('Tikè Vandi'),
+                            child: Text(locale.translate('sold_tickets_filter')),
                           ),
                         ],
                         onChanged: (value) {
@@ -161,7 +166,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                         ticket: ticket,
                         showStatus: true,
                         showBuyer: true,
-                        onTap: () => _showTicketDetails(context, ticket),
+                        onTap: () => _showTicketDetails(context, ticket, locale),
                       );
                     },
                   ),
@@ -174,7 +179,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
     );
   }
 
-  Widget _buildPhoneInput() {
+  Widget _buildPhoneInput(LocaleProvider locale) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -186,18 +191,18 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
             color: Colors.orange,
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Antre Nimewo Telefòn Ou',
-            style: TextStyle(
+          Text(
+            locale.translate('enter_phone'),
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Antre nimewo telefòn ou te itilize pou achte tikè yo',
-            style: TextStyle(
+          Text(
+            locale.translate('phone_subtitle'),
+            style: const TextStyle(
               fontSize: 16,
               color: Colors.grey,
             ),
@@ -207,8 +212,8 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
           TextField(
             controller: _phoneController,
             decoration: InputDecoration(
-              labelText: 'Nimewo Telefòn',
-              hintText: '509-XXXX-XXXX',
+              labelText: locale.translate('phone_label'),
+              hintText: locale.translate('phone_hint'),
               prefixIcon: const Icon(Icons.phone),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -227,8 +232,8 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                 final phone = _phoneController.text.trim();
                 if (phone.isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Tanpri antre yon nimewo telefòn'),
+                    SnackBar(
+                      content: Text(locale.translate('phone_required')),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -244,9 +249,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text(
-                'Chèche Tikè Mwen',
-                style: TextStyle(
+              child: Text(
+                locale.translate('search_my_tickets'),
+                style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -258,7 +263,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
     );
   }
 
-  void _showTicketDetails(BuildContext context, ticket) {
+  void _showTicketDetails(BuildContext context, ticket, LocaleProvider locale) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -292,9 +297,9 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                   const SizedBox(height: 24),
 
                   // Title
-                  const Text(
-                    'Detay Tikè',
-                    style: TextStyle(
+                  Text(
+                    locale.translate('ticket_details'),
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -302,33 +307,33 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                   const SizedBox(height: 24),
 
                   // Ticket details
-                  _buildDetailCard('Nimewo Tikè', ticket.ticketNumber, Icons.confirmation_number),
+                  _buildDetailCard(locale.translate('ticket_number'), ticket.ticketNumber, Icons.confirmation_number),
                   const SizedBox(height: 12),
-                  _buildDetailCard('Kategori', ticket.category, Icons.category),
+                  _buildDetailCard(locale.translate('category'), ticket.category, Icons.category),
                   const SizedBox(height: 12),
-                  _buildDetailCard('Pri', '${ticket.price.toStringAsFixed(0)} HTG', Icons.attach_money),
+                  _buildDetailCard(locale.translate('price'), '${ticket.price.toStringAsFixed(0)} HTG', Icons.attach_money),
                   const SizedBox(height: 12),
-                  _buildDetailCard('Estati', ticket.status, Icons.info),
+                  _buildDetailCard(locale.translate('status'), ticket.status, Icons.info),
                   
                   if (ticket.buyerName != null) ...[
                     const SizedBox(height: 12),
-                    _buildDetailCard('Non', ticket.buyerName!, Icons.person),
+                    _buildDetailCard(locale.translate('buyer_name'), ticket.buyerName!, Icons.person),
                   ],
                   
                   if (ticket.buyerPhone != null) ...[
                     const SizedBox(height: 12),
-                    _buildDetailCard('Telefòn', ticket.buyerPhone!, Icons.phone),
+                    _buildDetailCard(locale.translate('buyer_phone'), ticket.buyerPhone!, Icons.phone),
                   ],
                   
                   if (ticket.department != null) ...[
                     const SizedBox(height: 12),
-                    _buildDetailCard('Depatman', ticket.department!, Icons.location_on),
+                    _buildDetailCard(locale.translate('department'), ticket.department!, Icons.location_on),
                   ],
 
                   if (ticket.soldAt != null) ...[
                     const SizedBox(height: 12),
                     _buildDetailCard(
-                      'Dat Acha',
+                      locale.translate('purchase_date'),
                       _formatDate(ticket.soldAt!),
                       Icons.calendar_today,
                     ),
@@ -342,15 +347,14 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () {
-                            // TODO: Implement QR code display
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Kòd QR ap vini byento'),
+                              SnackBar(
+                                content: Text(locale.translate('qr_coming_soon')),
                               ),
                             );
                           },
                           icon: const Icon(Icons.qr_code),
-                          label: const Text('Montre QR'),
+                          label: Text(locale.translate('show_qr')),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -360,7 +364,7 @@ class _MyTicketsScreenState extends State<MyTicketsScreen> {
                             Navigator.pop(context);
                           },
                           icon: const Icon(Icons.close),
-                          label: const Text('Fèmen'),
+                          label: Text(locale.translate('close')),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
                           ),

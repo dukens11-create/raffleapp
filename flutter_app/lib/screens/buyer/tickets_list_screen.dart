@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/buyer_ticket_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/raffle_provider.dart';
+import '../../widgets/language_switcher.dart';
 import '../../widgets/raffle_ticket_card.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/pagination_controls.dart';
@@ -55,12 +57,15 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tikè Disponib'),
+        title: Text(locale.translate('available_tickets')),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
         actions: [
+          const LanguageSwitcher(),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.filter_list),
             onPressed: _showFilterDialog,
@@ -77,7 +82,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
             child: Consumer<BuyerTicketProvider>(
               builder: (context, ticketProvider, child) {
                 if (ticketProvider.isLoading && !ticketProvider.hasTickets) {
-                  return const LoadingIndicator(message: 'Chajman tikè...');
+                  return LoadingIndicator(message: locale.translate('loading_tickets'));
                 }
 
                 if (ticketProvider.error != null && !ticketProvider.hasTickets) {
@@ -88,10 +93,10 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                 }
 
                 if (!ticketProvider.hasTickets) {
-                  return const EmptyState(
+                  return EmptyState(
                     icon: Icons.confirmation_number,
-                    title: 'Pa gen tikè disponib',
-                    subtitle: 'Tanpri eseye yon lòt kategori',
+                    title: locale.translate('no_tickets'),
+                    subtitle: locale.translate('try_another'),
                   );
                 }
 
@@ -102,7 +107,6 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                     itemCount: ticketProvider.tickets.length + 1,
                     itemBuilder: (context, index) {
                       if (index == ticketProvider.tickets.length) {
-                        // Show loading indicator at bottom when loading more
                         if (ticketProvider.isLoading) {
                           return const Padding(
                             padding: EdgeInsets.all(16),
@@ -111,13 +115,12 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                             ),
                           );
                         }
-                        // Show "end of list" message
                         if (!ticketProvider.hasMorePages) {
                           return Padding(
                             padding: const EdgeInsets.all(16),
                             child: Center(
                               child: Text(
-                                'Ou wè tout tikè yo',
+                                locale.translate('end_of_list'),
                                 style: TextStyle(
                                   color: Colors.grey[600],
                                   fontSize: 14,
@@ -171,6 +174,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
   }
 
   Widget _buildCategoryFilter() {
+    final locale = context.watch<LocaleProvider>();
     return Consumer2<BuyerTicketProvider, RaffleProvider>(
       builder: (context, ticketProvider, raffleProvider, child) {
         final categories = raffleProvider.raffleInfo?.categories ?? [];
@@ -184,7 +188,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
             children: [
               _buildFilterChip(
                 context,
-                'Tout',
+                locale.translate('all_categories'),
                 ticketProvider.selectedCategory == null,
                 () => ticketProvider.filterByCategory(null),
               ),
@@ -223,15 +227,16 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
   }
 
   void _showFilterDialog() {
+    final locale = context.read<LocaleProvider>();
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Filtre Tikè'),
+          title: Text(locale.translate('filter_tickets')),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Chwazi kategori:'),
+              Text(locale.translate('choose_category')),
               const SizedBox(height: 16),
               Consumer<RaffleProvider>(
                 builder: (context, raffleProvider, child) {
@@ -239,7 +244,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                   return Column(
                     children: [
                       ListTile(
-                        title: const Text('Tout Kategori'),
+                        title: Text(locale.translate('all_categories_option')),
                         onTap: () {
                           context.read<BuyerTicketProvider>().filterByCategory(null);
                           Navigator.pop(context);
@@ -248,7 +253,9 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                       ...categories.map((category) {
                         return ListTile(
                           title: Text(category.categoryCode),
-                          subtitle: Text(category.onlineAvailable > 0 ? 'Disponib' : 'EPUIZE'),
+                          subtitle: Text(category.onlineAvailable > 0
+                              ? locale.translate('category_available')
+                              : locale.translate('category_sold_out')),
                           onTap: () {
                             context.read<BuyerTicketProvider>()
                                 .filterByCategory(category.categoryCode);
@@ -265,7 +272,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Fèmen'),
+              child: Text(locale.translate('close')),
             ),
           ],
         );
@@ -274,6 +281,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
   }
 
   void _showTicketDetails(ticket) {
+    final locale = context.read<LocaleProvider>();
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -286,24 +294,24 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Detay Tikè',
-                style: TextStyle(
+              Text(
+                locale.translate('ticket_details'),
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 24),
-              _buildDetailRow('Nimewo Tikè', ticket.ticketNumber),
+              _buildDetailRow(locale.translate('ticket_number'), ticket.ticketNumber),
               const SizedBox(height: 12),
-              _buildDetailRow('Kategori', ticket.category),
+              _buildDetailRow(locale.translate('category'), ticket.category),
               const SizedBox(height: 12),
-              _buildDetailRow('Pri', '${ticket.price.toStringAsFixed(0)} HTG'),
+              _buildDetailRow(locale.translate('price'), '${ticket.price.toStringAsFixed(0)} HTG'),
               const SizedBox(height: 12),
-              _buildDetailRow('Estati', ticket.status),
+              _buildDetailRow(locale.translate('status'), ticket.status),
               if (ticket.department != null) ...[
                 const SizedBox(height: 12),
-                _buildDetailRow('Depatman', ticket.department!),
+                _buildDetailRow(locale.translate('department'), ticket.department!),
               ],
               const SizedBox(height: 24),
               SizedBox(
@@ -315,7 +323,7 @@ class _TicketsListScreenState extends State<TicketsListScreen> {
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.all(16),
                   ),
-                  child: const Text('Fèmen'),
+                  child: Text(locale.translate('close')),
                 ),
               ),
             ],

@@ -10,6 +10,7 @@ import 'package:raffle_app/providers/cart_provider.dart';
 import 'package:raffle_app/providers/statistics_provider.dart';
 import 'package:raffle_app/providers/seller_provider.dart';
 import 'package:raffle_app/providers/admin_ticket_provider.dart';
+import 'package:raffle_app/providers/locale_provider.dart';
 import 'package:raffle_app/providers/seller_sales_provider.dart';
 import 'package:raffle_app/screens/auth/login_screen.dart';
 import 'package:raffle_app/screens/admin/admin_dashboard.dart';
@@ -29,17 +30,22 @@ import 'package:raffle_app/screens/seller/seller_stats_screen.dart';
 import 'package:raffle_app/screens/seller/commission_screen.dart';
 import 'package:raffle_app/config/app_theme.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final localeProvider = LocaleProvider();
+  await localeProvider.init();
+  runApp(MyApp(localeProvider: localeProvider));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final LocaleProvider localeProvider;
+  const MyApp({super.key, required this.localeProvider});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider.value(value: localeProvider),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => TicketProvider()),
         ChangeNotifierProvider(create: (_) => RaffleProvider()),

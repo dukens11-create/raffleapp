@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/payment_provider.dart';
 import '../../providers/raffle_provider.dart';
+import '../../widgets/language_switcher.dart';
 import '../../widgets/payment_form.dart';
 import '../../widgets/loading_indicator.dart';
 
@@ -29,16 +31,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = context.watch<LocaleProvider>();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Achte Tikè'),
+        title: Text(locale.translate('buy_tickets_title')),
         backgroundColor: Colors.green,
         foregroundColor: Colors.white,
+        actions: const [
+          LanguageSwitcher(),
+          SizedBox(width: 4),
+        ],
       ),
       body: Consumer2<RaffleProvider, PaymentProvider>(
         builder: (context, raffleProvider, paymentProvider, child) {
           if (raffleProvider.isLoading && !raffleProvider.hasData) {
-            return const LoadingIndicator(message: 'Chajman...');
+            return LoadingIndicator(message: locale.translate('loading'));
           }
 
           if (raffleProvider.error != null) {
@@ -50,16 +57,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
           final raffleInfo = raffleProvider.raffleInfo;
           if (raffleInfo == null) {
-            return const EmptyState(
+            return EmptyState(
               icon: Icons.inbox,
-              title: 'Pa gen tiraj disponib',
-              subtitle: 'Tanpri retounen pi ta',
+              title: locale.translate('no_raffle_available'),
+              subtitle: locale.translate('come_back_later_raffle'),
             );
           }
 
           // Show payment confirmation if payment was initiated
           if (paymentProvider.paymentUrl != null) {
-            return _buildPaymentConfirmation(paymentProvider);
+            return _buildPaymentConfirmation(paymentProvider, locale);
           }
 
           return SingleChildScrollView(
@@ -70,16 +77,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 // Information card
                 Card(
                   color: Colors.blue[50],
-                  child: const Padding(
-                    padding: EdgeInsets.all(16),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Icon(Icons.info, color: Colors.blue),
-                        SizedBox(width: 12),
+                        const Icon(Icons.info, color: Colors.blue),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Ranpli fòmilè a pou achte tikè ou. Ou pral redirije nan MonCash pou peye.',
-                            style: TextStyle(fontSize: 14),
+                            locale.translate('payment_info'),
+                            style: const TextStyle(fontSize: 14),
                           ),
                         ),
                       ],
@@ -128,18 +135,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 // Show loading overlay
                 if (paymentProvider.isProcessing) ...[
                   const SizedBox(height: 16),
-                  const Card(
+                  Card(
                     child: Padding(
-                      padding: EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          SizedBox(
+                          const SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
-                          SizedBox(width: 12),
-                          Text('Trete peman...'),
+                          const SizedBox(width: 12),
+                          Text(locale.translate('processing')),
                         ],
                       ),
                     ),
@@ -181,15 +188,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     if (success && context.mounted) {
+      final locale = context.read<LocaleProvider>();
       if (paymentProvider.paymentUrl != null) {
-        // For MonCash, show confirmation with payment URL
-        // In a real app, we would open the browser or WebView
-        _showPaymentUrlDialog(context, paymentProvider.paymentUrl!);
+        _showPaymentUrlDialog(context, paymentProvider.paymentUrl!, locale);
       } else {
-        // For other methods, show success message
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Peman ou te inisye avèk siksè!'),
+          SnackBar(
+            content: Text(locale.translate('payment_success')),
             backgroundColor: Colors.green,
           ),
         );
@@ -197,7 +202,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
   }
 
-  Widget _buildPaymentConfirmation(PaymentProvider paymentProvider) {
+  Widget _buildPaymentConfirmation(PaymentProvider paymentProvider, LocaleProvider locale) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -209,9 +214,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
             color: Colors.green,
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Peman Inisye!',
-            style: TextStyle(
+          Text(
+            locale.translate('payment_initiated'),
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
@@ -219,7 +224,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
           const SizedBox(height: 16),
           if (paymentProvider.paymentReference != null) ...[
             Text(
-              'Referans: ${paymentProvider.paymentReference}',
+              '${locale.translate('reference')}: ${paymentProvider.paymentReference}',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -229,9 +234,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ],
           if (paymentProvider.ticketNumbers != null &&
               paymentProvider.ticketNumbers!.isNotEmpty) ...[
-            const Text(
-              'Tikè ou yo:',
-              style: TextStyle(
+            Text(
+              locale.translate('your_tickets'),
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -248,28 +253,22 @@ class _PaymentScreenState extends State<PaymentScreen> {
             }),
           ],
           const SizedBox(height: 24),
-          const Text(
-            'Klike sou bouton anba a pou kontinye ak peman.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14),
-          ),
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () {
-                // In a real app, open payment URL in browser/WebView
                 if (paymentProvider.paymentUrl != null) {
-                  _showPaymentUrlDialog(context, paymentProvider.paymentUrl!);
+                  _showPaymentUrlDialog(context, paymentProvider.paymentUrl!, locale);
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 padding: const EdgeInsets.all(16),
               ),
-              child: const Text(
-                'Kontinye ak Peman',
-                style: TextStyle(fontSize: 18),
+              child: Text(
+                locale.translate('continue_payment'),
+                style: const TextStyle(fontSize: 18),
               ),
             ),
           ),
@@ -279,14 +278,14 @@ class _PaymentScreenState extends State<PaymentScreen> {
               paymentProvider.clear();
               Navigator.pop(context);
             },
-            child: const Text('Retounen'),
+            child: Text(locale.translate('return_back')),
           ),
         ],
       ),
     );
   }
 
-  void _showPaymentUrlDialog(BuildContext context, String paymentUrl) {
+  void _showPaymentUrlDialog(BuildContext context, String paymentUrl, LocaleProvider locale) {
     showDialog(
       context: context,
       builder: (context) {
@@ -295,8 +294,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Nan yon aplikasyon reyèl, ou ta louvri lyen peman sa a nan yon navigatè oswa WebView:',
+              Text(
+                locale.translate('moncash_dialog_info'),
               ),
               const SizedBox(height: 16),
               SelectableText(
@@ -314,7 +313,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 Navigator.pop(context);
                 context.read<PaymentProvider>().clear();
               },
-              child: const Text('Fèmen'),
+              child: Text(locale.translate('close')),
             ),
           ],
         );

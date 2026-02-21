@@ -1652,6 +1652,36 @@
       }
     }
   </style>
+  <!-- i18n language support -->
+  <script src="/js/i18n.js"></script>
+  <!-- Language switcher styles -->
+  <style>
+    #lang-switcher {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .lang-btn {
+      padding: 4px 10px;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.85);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .lang-btn-active {
+      background: white;
+      color: #667eea;
+      font-weight: 700;
+      border-color: white;
+    }
+    .lang-btn:hover:not(.lang-btn-active) {
+      background: rgba(255,255,255,0.3);
+    }
+  </style>
 </head>
 <body>
   <!-- Welcome Animation Overlay -->
@@ -1661,7 +1691,7 @@
         <img src="logo.png" alt="Grate Genyen Logo">
       </div>
       <h1 class="welcome-text">
-        <span class="welcome-line-1">Byenvini nan</span>
+        <span class="welcome-line-1" data-i18n="welcome_line1">Byenvini nan</span>
         <span class="welcome-line-2">Grate Genyen</span>
       </h1>
       <div class="welcome-sparkles">
@@ -1675,10 +1705,12 @@
     <div class="header">
       <div class="header-left">
         <img src="logo.png" alt="Logo" class="logo">
-        <h1>🎟️ Buyers Portal</h1>
+        <h1 data-i18n="header_title">🎟️ Buyers Portal</h1>
       </div>
       <div class="header-actions">
-        <a href="/" class="back-link">
+        <!-- Language switcher -->
+        <div id="lang-switcher" style="margin-right: 12px;"></div>
+        <a href="/" class="back-link" data-i18n="back_home">
           ← Back to Home
         </a>
       </div>
@@ -1688,10 +1720,10 @@
     <div id="global-error-banner" class="alert alert-error" style="display: none; margin-bottom: 16px;">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
         <div style="flex: 1;">
-          <strong>⚠️ Critical Error</strong>
+          <strong data-i18n="critical_error">⚠️ Critical Error</strong>
           <p id="global-error-message" style="margin: 4px 0 0 0;"></p>
         </div>
-        <button class="btn btn-primary" onclick="retryInitialization()" style="white-space: nowrap;">
+        <button class="btn btn-primary" onclick="retryInitialization()" style="white-space: nowrap;" data-i18n="retry">
           🔄 Retry
         </button>
       </div>
@@ -1699,19 +1731,19 @@
     
     <!-- Tabs -->
     <div class="tabs">
-      <button class="tab" data-tab="raffle-info">
+      <button class="tab" data-tab="raffle-info" data-i18n="tab_raffle_info">
         📋 Raffle Info
       </button>
-      <button class="tab" data-tab="purchase">
+      <button class="tab" data-tab="purchase" data-i18n="tab_purchase">
         💳 Purchase Tickets
       </button>
-      <button class="tab active" data-tab="scratch-tickets">
-        🎰 Scratch & Win
+      <button class="tab active" data-tab="scratch-tickets" data-i18n="tab_scratch">
+        🎰 Scratch &amp; Win
       </button>
-      <button class="tab" data-tab="my-tickets">
+      <button class="tab" data-tab="my-tickets" data-i18n="tab_my_tickets">
         👤 My Tickets
       </button>
-      <button class="tab" data-tab="verify">
+      <button class="tab" data-tab="verify" data-i18n="tab_verify">
         ✅ Verify Ticket
       </button>
     </div>
@@ -1719,11 +1751,11 @@
     <!-- Tab Content: Raffle Info -->
     <div id="raffle-info" class="tab-content">
       <div class="card">
-        <h2>Current Raffle Information</h2>
+        <h2 data-i18n="raffle_info_title">Current Raffle Information</h2>
         <div id="raffle-info-content">
           <div class="loading">
             <div class="spinner"></div>
-            <p>Loading raffle information...</p>
+            <p data-i18n="loading_raffle">Loading raffle information...</p>
           </div>
         </div>
       </div>
@@ -1732,8 +1764,8 @@
     <!-- Tab Content: Purchase Tickets -->
     <div id="purchase" class="tab-content">
       <div class="card">
-        <h2>💳 Purchase Raffle Tickets</h2>
-        <p style="color: #64748b; margin-bottom: 24px;">
+        <h2 data-i18n="purchase_title">💳 Purchase Raffle Tickets</h2>
+        <p style="color: #64748b; margin-bottom: 24px;" data-i18n="purchase_subtitle">
           Select your preferred payment method below to purchase raffle tickets. We support multiple payment options for your convenience.
         </p>
         
@@ -1743,88 +1775,88 @@
         
         <!-- Step 1: Buyer Information -->
         <div id="step-buyer-info">
-          <h3 style="margin-bottom: 16px; font-size: 18px;">📝 Step 1: Your Information</h3>
+          <h3 style="margin-bottom: 16px; font-size: 18px;" data-i18n="step1_title">📝 Step 1: Your Information</h3>
           
           <div class="form-group">
-            <label for="purchase-name">Full Name *</label>
-            <input type="text" id="purchase-name" placeholder="Enter your full name" required>
+            <label for="purchase-name" data-i18n="label_full_name">Full Name *</label>
+            <input type="text" id="purchase-name" data-i18n-placeholder="placeholder_full_name" placeholder="Enter your full name" required>
           </div>
           
           <div class="form-group">
-            <label for="purchase-phone">Phone Number *</label>
+            <label for="purchase-phone" data-i18n="label_phone">Phone Number *</label>
             <input type="tel" id="purchase-phone" placeholder="509-1234-5678" required>
-            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="phone_sms_hint">
               You'll receive SMS updates about your purchase
             </p>
           </div>
           
           <div class="form-group">
-            <label for="purchase-department">
+            <label for="purchase-department" data-i18n="label_department">
               Department *
             </label>
             <select id="purchase-department" required>
-              <option value="">Select your department...</option>
+              <option value="" data-i18n="select_department">Select your department...</option>
             </select>
-            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="department_hint">
               Which department are you from?
             </p>
           </div>
           
           <div class="form-group">
-            <label for="purchase-email">Email Address</label>
+            <label for="purchase-email" data-i18n="label_email">Email Address</label>
             <input type="email" id="purchase-email" placeholder="your@email.com">
-            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="email_optional_hint">
               Optional: For email receipts
             </p>
           </div>
           
           <div class="form-group">
-            <label for="purchase-category">Ticket Category *</label>
+            <label for="purchase-category" data-i18n="label_category">Ticket Category *</label>
             <select id="purchase-category" required>
-              <option value="">Select a category...</option>
+              <option value="" data-i18n="select_category">Select a category...</option>
             </select>
             <div id="availability-info"></div>
           </div>
           
           <div class="form-group">
-            <label for="purchase-quantity">Number of Tickets *</label>
+            <label for="purchase-quantity" data-i18n="label_quantity">Number of Tickets *</label>
             <input type="number" id="purchase-quantity" min="1" max="10" value="1" required>
-            <p style="font-size: 12px; color: #64748b; margin-top: 4px;">
+            <p style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="max_tickets_hint">
               Maximum 10 tickets per transaction
             </p>
           </div>
           
           <div style="background: rgba(102, 126, 234, 0.1); padding: 16px; border-radius: 8px; margin: 20px 0;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 600;">Total Amount:</span>
+              <span style="font-weight: 600;" data-i18n="total_amount">Total Amount:</span>
               <span id="total-amount" style="font-size: 24px; font-weight: 700; color: #667eea;">$0.00</span>
             </div>
           </div>
           
-          <button class="btn btn-primary" onclick="proceedToPayment()">
+          <button class="btn btn-primary" onclick="proceedToPayment()" data-i18n="continue_payment">
             Continue to Payment →
           </button>
         </div>
         
         <!-- Step 2: Payment Method Selection -->
         <div id="step-payment-method" style="display: none;">
-          <button onclick="backToBuyerInfo()" style="background: none; border: none; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: 16px;">
+          <button onclick="backToBuyerInfo()" style="background: none; border: none; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: 16px;" data-i18n="back_to_info">
             ← Back to Information
           </button>
           
-          <h3 style="margin-bottom: 16px; font-size: 18px;">💳 Step 2: Choose Payment Method</h3>
+          <h3 style="margin-bottom: 16px; font-size: 18px;" data-i18n="step2_title">💳 Step 2: Choose Payment Method</h3>
           
           <div id="payment-methods-container">
             <div class="loading">
               <div class="spinner"></div>
-              <p>Loading payment methods...</p>
+              <p data-i18n="loading_payment">Loading payment methods...</p>
             </div>
           </div>
         </div>
         
         <!-- Step 3: Payment Details (shown based on method selected) -->
         <div id="step-payment-details" style="display: none;">
-          <button onclick="backToPaymentMethod()" style="background: none; border: none; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: 16px;">
+          <button onclick="backToPaymentMethod()" style="background: none; border: none; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: 16px;" data-i18n="back_to_payment">
             ← Back to Payment Methods
           </button>
           
@@ -1836,8 +1868,8 @@
     <!-- Tab Content: My Tickets -->
     <div id="my-tickets" class="tab-content">
       <div class="card">
-        <h2>Look Up My Tickets</h2>
-        <p style="color: #64748b; margin-bottom: 24px;">
+        <h2 data-i18n="my_tickets_title">Look Up My Tickets</h2>
+        <p style="color: #64748b; margin-bottom: 24px;" data-i18n="my_tickets_subtitle">
           Enter your email, phone number, or buyer code to view your purchased tickets.
         </p>
         
@@ -1845,33 +1877,33 @@
         <div class="alert alert-success" id="my-tickets-success"></div>
         
         <div class="form-group">
-          <label for="lookup-email">Email Address</label>
+          <label for="lookup-email" data-i18n="label_email_lookup">Email Address</label>
           <input type="email" id="lookup-email" placeholder="your@email.com" 
                  aria-describedby="email-help" autocomplete="email">
-          <p id="email-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+          <p id="email-help" style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="email_lookup_hint">
             Enter the email address used when purchasing tickets
           </p>
         </div>
         
         <div class="form-group">
-          <label for="lookup-phone">Phone Number</label>
+          <label for="lookup-phone" data-i18n="label_phone_lookup">Phone Number</label>
           <input type="tel" id="lookup-phone" placeholder="1234567890"
                  aria-describedby="phone-help" autocomplete="tel">
-          <p id="phone-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+          <p id="phone-help" style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="phone_lookup_hint">
             Enter phone number in any format (e.g., 123-456-7890 or 1234567890)
           </p>
         </div>
         
         <div class="form-group">
-          <label for="lookup-code">Buyer Code (from receipt)</label>
+          <label for="lookup-code" data-i18n="label_buyer_code">Buyer Code (from receipt)</label>
           <input type="text" id="lookup-code" placeholder="Enter your buyer code"
                  aria-describedby="code-help" autocomplete="off">
-          <p id="code-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+          <p id="code-help" style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="buyer_code_hint">
             Find your unique buyer code on your ticket receipt or confirmation email
           </p>
         </div>
         
-        <button class="btn btn-primary" onclick="lookupMyTickets()">
+        <button class="btn btn-primary" onclick="lookupMyTickets()" data-i18n="find_my_tickets">
           🔍 Find My Tickets
         </button>
         
@@ -1882,23 +1914,23 @@
     <!-- Tab Content: Verify Ticket -->
     <div id="verify" class="tab-content">
       <div class="card">
-        <h2>Verify Ticket Status</h2>
-        <p style="color: #64748b; margin-bottom: 24px;">
+        <h2 data-i18n="verify_title">Verify Ticket Status</h2>
+        <p style="color: #64748b; margin-bottom: 24px;" data-i18n="verify_subtitle">
           Check if a ticket number or barcode is valid and see its current status.
         </p>
         
         <div class="alert alert-error" id="verify-error"></div>
         
         <div class="form-group">
-          <label for="verify-ticket-number">Ticket Number or Barcode</label>
+          <label for="verify-ticket-number" data-i18n="label_ticket_number">Ticket Number or Barcode</label>
           <input type="text" id="verify-ticket-number" placeholder="Enter ticket number or barcode"
                  aria-describedby="verify-help" autocomplete="off">
-          <p id="verify-help" style="font-size: 12px; color: #64748b; margin-top: 4px;">
+          <p id="verify-help" style="font-size: 12px; color: #64748b; margin-top: 4px;" data-i18n="ticket_number_hint">
             Enter the ticket number or scan the barcode to verify its status
           </p>
         </div>
         
-        <button class="btn btn-primary" onclick="verifyTicket()">
+        <button class="btn btn-primary" onclick="verifyTicket()" data-i18n="verify_btn">
           ✅ Verify Ticket
         </button>
         
@@ -1913,7 +1945,7 @@
         <div class="scratch-tickets-header">
           <h1>
             <span>🏠</span>
-            <span>GRATE GENYEN - Scratch & Win!</span>
+            <span data-i18n="scratch_title">GRATE GENYEN - Scratch &amp; Win!</span>
           </h1>
           <p>
             Chwazi yon tike epi grate pou w si ou genyen! Choose a ticket and scratch to win!

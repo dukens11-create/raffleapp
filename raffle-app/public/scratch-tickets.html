@@ -1028,13 +1028,48 @@
       z-index: 8;
     }
   </style>
+  <!-- i18n language support -->
+  <script src="/js/i18n.js"></script>
+  <!-- Language switcher styles -->
+  <style>
+    #lang-switcher {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .lang-btn {
+      padding: 4px 10px;
+      border: 1.5px solid rgba(255,255,255,0.5);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.85);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .lang-btn-active {
+      background: white;
+      color: #667eea;
+      font-weight: 700;
+      border-color: white;
+    }
+    .lang-btn:hover:not(.lang-btn-active) {
+      background: rgba(255,255,255,0.3);
+    }
+  </style>
 </head>
 <body>
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <h1>🎰 GRATE GENYEN - Scratch & Win!</h1>
-      <p>Chwazi yon tikè epi grate pou wè si ou genyen! Choose a ticket and scratch to win!</p>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h1 data-i18n="scratch_title">🎰 GRATE GENYEN - Scratch &amp; Win!</h1>
+          <p>Chwazi yon tikè epi grate pou wè si ou genyen! Choose a ticket and scratch to win!</p>
+        </div>
+        <div id="lang-switcher"></div>
+      </div>
     </div>
     
     <!-- Ticket Gallery -->
