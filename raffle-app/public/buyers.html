@@ -3658,8 +3658,17 @@
         return;
       }
       
-      // Clear existing content
+      // Show loading indicator briefly while rendering
+      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;"><div style="font-size:32px;margin-bottom:12px;">⏳</div><p style="font-size:16px;">Chajman tikè...</p></div>';
+      
+      // Clear and render tickets (synchronous)
       grid.innerHTML = '';
+      
+      // Graceful empty state if no tickets configured
+      if (!scratchTickets || scratchTickets.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;"><div style="font-size:48px;margin-bottom:16px;">🎫</div><h3 style="color:#1e293b;margin-bottom:8px;">Pa gen tikè disponib</h3><p>No scratch tickets available at the moment.</p></div>';
+        return;
+      }
       
       // Create ticket cards
       scratchTickets.forEach((ticket, index) => {
@@ -4381,7 +4390,7 @@
     }
 
 
-    // Load scratch tickets when tab is opened
+    // Load scratch tickets when tab is opened or on initial page load
     document.addEventListener('DOMContentLoaded', () => {
       // Load scratch tickets if on that tab
       const scratchTab = document.querySelector('[data-tab="scratch-tickets"]');
@@ -4390,7 +4399,7 @@
           loadScratchTickets();
         });
       }
-      
+
       // Load if URL hash indicates scratch tickets tab
       if (window.location.hash === '#scratch-tickets') {
         loadScratchTickets();
@@ -4398,6 +4407,9 @@
         if (scratchTabBtn) {
           scratchTabBtn.click();
         }
+      } else if (!window.location.hash) {
+        // Default tab is scratch-tickets — load immediately on page open
+        loadScratchTickets();
       }
     });
     
