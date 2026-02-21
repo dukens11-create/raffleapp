@@ -82,25 +82,35 @@ class TicketGalleryScreen extends StatelessWidget {
 
                 // Ticket Grid
                 Expanded(
-                  child: GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.75,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: ticketProvider.scratchTickets.length,
-                    itemBuilder: (context, index) {
-                      final ticket = ticketProvider.scratchTickets[index];
-                      return TicketCard(
-                        ticket: ticket,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => ScratchScreen(ticket: ticket),
-                            ),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final int crossAxisCount =
+                          constraints.maxWidth >= 360 ? 3 : 2;
+                      final double aspectRatio =
+                          crossAxisCount == 3 ? 0.65 : 0.75;
+                      return GridView.builder(
+                        padding: const EdgeInsets.all(12),
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          childAspectRatio: aspectRatio,
+                          crossAxisSpacing: 12,
+                          mainAxisSpacing: 12,
+                        ),
+                        itemCount: ticketProvider.scratchTickets.length,
+                        itemBuilder: (context, index) {
+                          final ticket = ticketProvider.scratchTickets[index];
+                          return TicketCard(
+                            ticket: ticket,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      ScratchScreen(ticket: ticket),
+                                ),
+                              );
+                            },
                           );
                         },
                       );
