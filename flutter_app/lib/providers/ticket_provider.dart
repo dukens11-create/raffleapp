@@ -60,6 +60,7 @@ class TicketProvider with ChangeNotifier {
 
   void setTickets(List<TicketData> tickets) {
     _tickets = tickets;
+    _error = null;
     notifyListeners();
   }
 

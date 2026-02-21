@@ -3658,10 +3658,7 @@
         return;
       }
       
-      // Show loading indicator briefly while rendering
-      grid.innerHTML = '<div style="text-align:center;padding:40px;color:#64748b;"><div style="font-size:32px;margin-bottom:12px;">⏳</div><p style="font-size:16px;">Chajman tikè...</p></div>';
-      
-      // Clear and render tickets (synchronous)
+      // Clear existing content
       grid.innerHTML = '';
       
       // Graceful empty state if no tickets configured
