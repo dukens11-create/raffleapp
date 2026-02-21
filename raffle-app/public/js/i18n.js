@@ -15,6 +15,7 @@
 
   var STORAGE_KEY = 'grate_genyen_lang';
   var DEFAULT_LANG = 'ht';
+  var _supportedLocales = { ht: true, fr: true, en: true };
 
   var translations = {
     // Welcome overlay
@@ -102,7 +103,7 @@
    */
   function getLocale() {
     var saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && translations.header_title[saved]) return saved;
+    if (saved && _supportedLocales[saved]) return saved;
     return detectLocale();
   }
 
@@ -123,9 +124,7 @@
     document.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
       var value = t(key);
-      // Preserve inner child elements by setting only textContent of text nodes
-      // For simplicity, set innerHTML (keys only contain simple text + emoji)
-      el.innerHTML = value;
+      el.textContent = value;
     });
 
     document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
@@ -144,7 +143,7 @@
    * Set the active language and re-apply translations.
    */
   function setLocale(lang) {
-    if (!translations.header_title[lang]) return;
+    if (!_supportedLocales[lang]) return;
     localStorage.setItem(STORAGE_KEY, lang);
     applyTranslations();
   }
@@ -156,10 +155,20 @@
     var container = document.getElementById('lang-switcher');
     if (!container) return;
     var lang = getLocale();
-    container.innerHTML =
-      '<button class="lang-btn' + (lang === 'ht' ? ' lang-btn-active' : '') + '" data-lang="ht" onclick="i18n.setLocale(\'ht\')">Kreyòl</button>' +
-      '<button class="lang-btn' + (lang === 'fr' ? ' lang-btn-active' : '') + '" data-lang="fr" onclick="i18n.setLocale(\'fr\')">FR</button>' +
-      '<button class="lang-btn' + (lang === 'en' ? ' lang-btn-active' : '') + '" data-lang="en" onclick="i18n.setLocale(\'en\')">EN</button>';
+    container.innerHTML = '';
+
+    [
+      { code: 'ht', label: 'Kreyòl' },
+      { code: 'fr', label: 'FR' },
+      { code: 'en', label: 'EN' },
+    ].forEach(function (item) {
+      var btn = document.createElement('button');
+      btn.className = 'lang-btn' + (item.code === lang ? ' lang-btn-active' : '');
+      btn.dataset.lang = item.code;
+      btn.textContent = item.label;
+      btn.addEventListener('click', function () { setLocale(item.code); });
+      container.appendChild(btn);
+    });
   }
 
   // Public API

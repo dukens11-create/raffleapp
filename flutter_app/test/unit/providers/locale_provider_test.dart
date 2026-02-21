@@ -42,6 +42,7 @@ void main() {
       final provider = LocaleProvider();
       await provider.setLocale('de');
       expect(provider.currentLocale, equals('ht'));
+      expect(LocaleProvider.supportedLocales, containsAll(['ht', 'fr', 'en']));
     });
 
     test('translate returns French for fr locale', () async {
