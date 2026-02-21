@@ -1209,7 +1209,7 @@ function requireAuth(req, res, next) {
     next();
   } else {
     console.log(`Auth check failed - no session user. SessionID: ${req.sessionID}, Path: ${req.path}`);
-    res.redirect('/');
+    res.redirect('/?error=not_logged_in');
   }
 }
 
@@ -1219,7 +1219,7 @@ function requireAdmin(req, res, next) {
     next();
   } else {
     console.log(`Admin check failed. User: ${req.session.user?.phone || 'none'}, Role: ${req.session.user?.role || 'none'}`);
-    return sendErrorResponse(res, 403, 'Access denied - Admin privileges required');
+    return res.redirect('/?error=not_admin');
   }
 }
 
@@ -1262,6 +1262,19 @@ async function sendRejectionNotification(email, phone, name, reason) {
 }
 
 // Routes
+
+// Login page - friendly URL (no auth required)
+app.get('/login', publicPageLimiter, (req, res) => {
+  if (req.session.user) {
+    // Already logged in - redirect to appropriate dashboard
+    if (req.session.user.role === 'admin') {
+      return res.redirect('/admin');
+    } else {
+      return res.redirect('/seller?name=' + encodeURIComponent(req.session.user.name));
+    }
+  }
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
 
 // Home page - login
 app.get('/', (req, res) => {

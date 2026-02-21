@@ -374,11 +374,12 @@ The script automatically detects and works with:
 ## API Endpoints
 
 ### Authentication
+- `GET /login` - Login page (redirects to dashboard if already logged in)
 - `POST /login` - User login
 - `GET /logout` - User logout
 
 ### Admin Routes
-- `GET /admin` - Admin dashboard
+- `GET /admin` - Admin dashboard (requires admin login; unauthenticated users are redirected to `/?error=not_logged_in`, non-admin users to `/?error=not_admin`)
 - `GET /api/tickets` - Get all tickets
 - `GET /api/sellers` - Get all sellers
 - `POST /api/draw` - Conduct a raffle draw
