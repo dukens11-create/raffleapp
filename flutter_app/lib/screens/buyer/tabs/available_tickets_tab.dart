@@ -5,6 +5,7 @@ import '../../../widgets/buyer/loading_spinner.dart';
 import '../../../widgets/buyer/empty_state.dart';
 import '../../../widgets/buyer/status_badge.dart';
 import '../../../utils/error_helper.dart';
+import '../../../utils/ticket_categories.dart';
 
 class AvailableTicketsTab extends StatefulWidget {
   const AvailableTicketsTab({super.key});
@@ -119,7 +120,7 @@ class _AvailableTicketsTabState extends State<AvailableTicketsTab> {
               ),
               items: [
                 const DropdownMenuItem(value: null, child: Text('All Categories')),
-                ...['XYZ', 'EFG', 'ABC'].map(
+                ...TicketCategories.getCodes().map(
                   (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
                 ),
               ],
