@@ -89,6 +89,16 @@ void main() {
         expect(ApiConfig.baseUrl, isNotEmpty);
       });
 
+      test('production base URL points to enejipamticket.com', () {
+        // When no API_BASE_URL environment variable is set (production default),
+        // the app must call https://www.enejipamticket.com/api/login for login.
+        expect(ApiConfig.baseUrl, equals('https://www.enejipamticket.com'));
+      });
+
+      test('login endpoint path is /api/login', () {
+        expect(ApiConfig.loginEndpoint, equals('/api/login'));
+      });
+
       test('should have appropriate timeout values', () {
         expect(ApiConfig.connectTimeout, isA<Duration>());
         expect(ApiConfig.receiveTimeout, isA<Duration>());
