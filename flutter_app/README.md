@@ -44,6 +44,12 @@ Three automated workflows are configured:
 3. Google Play (internal track) and App Store publishing configured
 4. Email notifications sent to configured recipients
 
+**Note:** By default, Google Play publishing is disabled to prevent build failures. APK and AAB artifacts are still generated and available for download from Codemagic. To enable automatic publishing to Google Play:
+
+1. Set up Google Play service account credentials (see [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md))
+2. Add `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` to Codemagic environment variables
+3. Uncomment the `google_play` section in `codemagic.yaml`
+
 For detailed setup instructions, see [CODEMAGIC_SETUP.md](CODEMAGIC_SETUP.md).
 
 ### Installation

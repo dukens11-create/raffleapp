@@ -293,6 +293,47 @@ For issues or questions:
 3. Check [Codemagic Community](https://community.codemagic.io/)
 4. Contact your development team
 
+## Troubleshooting
+
+### Build fails with "Provided Google Play service account credentials could not be used"
+
+**Error:**
+```
+Provided Google Play service account credentials could not be used: Expecting value: line 1 column 1 (char 0)
+```
+
+**Cause:** The `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` environment variable is not properly configured.
+
+**Solutions:**
+
+1. **Quick fix (disable Play Store publishing):**
+   - Comment out the `google_play` section in `codemagic.yaml`
+   - Builds will succeed and produce APK/AAB artifacts you can download manually
+   - You can still distribute via other channels
+
+2. **Proper fix (enable Play Store publishing):**
+   - Follow Step 4 in the Android setup above to create service account
+   - Ensure the JSON is valid (test with `cat service-account.json | jq .`)
+   - Convert to base64: `cat service-account.json | base64 > gcloud_credentials.txt`
+   - Copy the ENTIRE base64 output (including all lines)
+   - Add to Codemagic as `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` in the `android_credentials` group
+   - Mark as secure
+   - Uncomment the `google_play` section in `codemagic.yaml`
+   - Trigger a new build
+
+**Verify credentials are set:**
+- Go to Codemagic dashboard → Your App → Environment variables
+- Check that `GCLOUD_SERVICE_ACCOUNT_CREDENTIALS` exists in `android_credentials` group
+- Verify it's marked as secure (shows as masked)
+- Ensure it's not empty
+
+### Build succeeds but Google Play publishing fails
+
+- Verify the service account has "Release Manager" role in Google Play Console
+- Check that the app exists in Google Play Console (create it first if needed)
+- Ensure the internal testing track is set up
+- Review Codemagic logs for specific Google Play API errors
+
 ---
 
 **Last Updated:** 2026-02-17
