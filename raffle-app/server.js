@@ -481,12 +481,96 @@ async function ensureActiveRaffle() {
   }
 }
 
+/**
+ * Ensure tickets are marked as available online
+ * Run once on first startup if no online tickets exist
+ */
+async function ensureOnlineTicketsAvailable() {
+  console.log('');
+  console.log('═══════════════════════════════════════');
+  console.log('🎫 CHECKING ONLINE TICKET AVAILABILITY');
+  console.log('═══════════════════════════════════════');
+  
+  try {
+    // Check if we have any tickets marked as available online
+    const onlineCount = await db.get(`
+      SELECT COUNT(*) as count 
+      FROM tickets 
+      WHERE available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+        AND status = 'AVAILABLE'
+    `);
+    
+    if (onlineCount && onlineCount.count > 0) {
+      console.log(`✅ Found ${onlineCount.count} tickets available online`);
+      console.log('═══════════════════════════════════════');
+      console.log('');
+      return;
+    }
+    
+    console.log('⚠️  No tickets marked as available online');
+    console.log('📦 Auto-marking tickets for online availability...');
+    console.log('');
+    
+    // Mark 50,000 tickets per category as available online
+    const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+    const LIMIT_PER_CATEGORY = 50000;
+    let totalMarked = 0;
+    
+    for (const category of categories) {
+      try {
+        // Get the IDs of the most recent available tickets
+        const tickets = await db.all(`
+          SELECT id 
+          FROM tickets 
+          WHERE category = ? 
+            AND status = 'AVAILABLE'
+          ORDER BY created_at DESC 
+          LIMIT ?
+        `, [category, LIMIT_PER_CATEGORY]);
+        
+        if (tickets && tickets.length > 0) {
+          // Ensure all IDs are valid integers for extra safety
+          const ids = tickets.map(t => t.id).filter(id => Number.isInteger(id) && id > 0);
+          
+          if (ids.length > 0) {
+            const placeholders = ids.map(() => '?').join(',');
+            
+            await db.run(`
+              UPDATE tickets 
+              SET available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+              WHERE id IN (${placeholders})
+            `, ids);
+            
+            console.log(`✅ ${category}: Marked ${ids.length} tickets as available online`);
+            totalMarked += ids.length;
+          }
+        } else {
+          console.log(`⚠️  ${category}: No available tickets found`);
+        }
+      } catch (error) {
+        console.error(`❌ Error marking ${category} tickets:`, error.message);
+      }
+    }
+    
+    console.log('');
+    console.log(`✅ Total tickets marked as available online: ${totalMarked.toLocaleString()}`);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+    
+  } catch (error) {
+    console.error('❌ Error checking online ticket availability:', error);
+    console.log('═══════════════════════════════════════');
+    console.log('');
+  }
+}
+
 // Initialize database schema, run migrations, validate setup, and check admin user
 db.initializeSchema()
   .then(() => runMigrations())
   .then(() => validateDatabaseSetup())
   .then(() => ensureAdminUser())
   .then(() => ensureActiveRaffle())
+  .then(() => ensureOnlineTicketsAvailable())
   .catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
@@ -8084,6 +8168,97 @@ app.use((err, req, res, next) => {
 // ============================================================================
 // SCRATCH TICKETS API ENDPOINTS
 // ============================================================================
+
+// GET /api/admin/online-tickets/stats - Get online ticket stats for scratch tickets
+app.get('/api/admin/online-tickets/stats', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const stats = {};
+    const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+    
+    for (const category of categories) {
+      const result = await db.get(`
+        SELECT COUNT(*) as count 
+        FROM tickets 
+        WHERE category = ? 
+          AND status = 'AVAILABLE'
+          AND available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+      `, [category]);
+      
+      stats[category] = result.count || 0;
+    }
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Error getting online ticket stats:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
+
+// POST /api/admin/online-tickets/mark - Mark tickets as available online
+app.post('/api/admin/online-tickets/mark', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { limit = 50000 } = req.body;
+    const categories = ['ABC', 'EFG', 'JKL', 'XYZ'];
+    let totalMarked = 0;
+    
+    for (const category of categories) {
+      const tickets = await db.all(`
+        SELECT id 
+        FROM tickets 
+        WHERE category = ? 
+          AND status = 'AVAILABLE'
+        ORDER BY created_at DESC 
+        LIMIT ?
+      `, [category, limit]);
+      
+      if (tickets && tickets.length > 0) {
+        // Ensure all IDs are valid integers for extra safety
+        const ids = tickets.map(t => t.id).filter(id => Number.isInteger(id) && id > 0);
+        
+        if (ids.length > 0) {
+          const placeholders = ids.map(() => '?').join(',');
+          
+          await db.run(`
+            UPDATE tickets 
+            SET available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+            WHERE id IN (${placeholders})
+          `, ids);
+          
+          totalMarked += ids.length;
+        }
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      totalMarked,
+      message: `Marked ${totalMarked} tickets as available online`
+    });
+  } catch (error) {
+    console.error('Error marking tickets online:', error);
+    res.status(500).json({ error: 'Failed to mark tickets' });
+  }
+});
+
+// POST /api/admin/online-tickets/reset - Reset online tickets
+app.post('/api/admin/online-tickets/reset', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await db.run(`
+      UPDATE tickets 
+      SET available_online = ${db.USE_POSTGRES ? 'FALSE' : '0'}
+      WHERE available_online = ${db.USE_POSTGRES ? 'TRUE' : '1'}
+    `);
+    
+    res.json({ 
+      success: true, 
+      totalReset: result.changes || 0,
+      message: 'All online tickets have been reset'
+    });
+  } catch (error) {
+    console.error('Error resetting online tickets:', error);
+    res.status(500).json({ error: 'Failed to reset tickets' });
+  }
+});
 
 /**
  * POST /api/scratch-tickets/purchase - Purchase a scratch ticket
