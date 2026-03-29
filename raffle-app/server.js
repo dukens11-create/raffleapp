@@ -646,6 +646,7 @@ function validateRequest(req, res, next) {
     '/api/public/my-tickets',
     '/api/public/verify-ticket',      // Also matches /api/public/verify-ticket/:ticketNumber
     '/api/public/purchase',           // New: Purchase initiation endpoints
+    '/api/public/departments',        // New: Get Haiti departments for buyer portal dropdown
     '/api/payments/methods',
     '/api/payments/status',            // Also matches /api/payments/status/:reference
     '/api/payments/manual-instructions', // Also matches /api/payments/manual-instructions/:method
@@ -2634,6 +2635,33 @@ app.get('/api/departments', async (req, res) => {
 
 app.get('/api/public/departments', async (req, res) => {
   res.json(getDepartmentsResponse());
+});
+
+/**
+ * GET /api/public/departments - Get all Haiti departments from database
+ * Public endpoint to return all departments for the buyer portal department dropdown
+ * Returns departments ordered alphabetically by name
+ */
+app.get('/api/public/departments', async (req, res) => {
+  try {
+    // Query all departments from the database, ordered alphabetically by name
+    const departments = await db.all(`
+      SELECT id, name, created_at
+      FROM departments
+      ORDER BY name ASC
+    `);
+    
+    // Return the departments as JSON
+    res.json(departments);
+  } catch (error) {
+    // Log error to console
+    console.error('Error fetching departments:', error);
+    
+    // Return 500 error with JSON error message
+    res.status(500).json({ 
+      error: 'Could not fetch departments' 
+    });
+  }
 });
 
 /**
