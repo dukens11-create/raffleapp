@@ -1692,6 +1692,18 @@ app.post('/api/seller-requests/:id/approve', requireAuth, requireAdmin, async (r
       WHERE id = ?
     `, [adminPhone, notes || '', requestId]);
     
+    // Delete ID picture file after approval
+    if (request.id_picture_path) {
+      fs.unlink(request.id_picture_path, (err) => {
+        if (err) {
+          console.error('Error deleting ID picture after approval:', err);
+          // Don't fail the approval if file deletion fails
+        } else {
+          console.log(`ID picture deleted after approval: ${request.id_picture_path}`);
+        }
+      });
+    }
+    
     // Send credentials
     await sendCredentials(request.email, request.phone, request.full_name, generatedPassword);
     
@@ -1738,6 +1750,18 @@ app.post('/api/seller-requests/:id/reject', requireAuth, requireAdmin, async (re
           approval_notes = ?
       WHERE id = ?
     `, [adminPhone, reason || '', requestId]);
+    
+    // Delete ID picture file after rejection
+    if (request.id_picture_path) {
+      fs.unlink(request.id_picture_path, (err) => {
+        if (err) {
+          console.error('Error deleting ID picture after rejection:', err);
+          // Don't fail the rejection if file deletion fails
+        } else {
+          console.log(`ID picture deleted after rejection: ${request.id_picture_path}`);
+        }
+      });
+    }
     
     // Send rejection notification
     await sendRejectionNotification(request.email, request.phone, request.full_name, reason);
