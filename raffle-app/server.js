@@ -2624,7 +2624,19 @@ app.get('/api/seller-stats', requireAuth, requireAdmin, async (req, res) => {
 function getDepartmentsResponse() {
   return {
     success: true,
-    departments: HAITI_DEPARTMENTS
+    departments: HAITI_DEPARTMENTS, // Backward compatible array of strings
+    departmentsDetailed: [
+      { code: 'AR', name: 'Artibonite', nameKreyol: 'Latibonit' },
+      { code: 'CE', name: 'Centre', nameKreyol: 'Sant' },
+      { code: 'GA', name: "Grand'Anse", nameKreyol: 'Grandans' },
+      { code: 'NI', name: 'Nippes', nameKreyol: 'Nip' },
+      { code: 'NO', name: 'Nord', nameKreyol: 'Nò' },
+      { code: 'NE', name: 'Nord-Est', nameKreyol: 'Nòdès' },
+      { code: 'NW', name: 'Nord-Ouest', nameKreyol: 'Nòdwès' },
+      { code: 'OU', name: 'Ouest', nameKreyol: 'Lwès' },
+      { code: 'SU', name: 'Sud', nameKreyol: 'Sid' },
+      { code: 'SE', name: 'Sud-Est', nameKreyol: 'Sidès' },
+    ]
   };
 }
 

@@ -29,19 +29,19 @@ class Department {
   String toString() => name;
 }
 
-// Haiti departments list
+// Haiti departments list (alphabetically ordered)
 class HaitiDepartments {
   static final List<Department> all = [
-    Department(code: 'OU', name: 'Ouest', nameKreyol: 'Lwès'),
     Department(code: 'AR', name: 'Artibonite', nameKreyol: 'Latibonit'),
+    Department(code: 'CE', name: 'Centre', nameKreyol: 'Sant'),
+    Department(code: 'GA', name: 'Grand\'Anse', nameKreyol: 'Grandans'),
+    Department(code: 'NI', name: 'Nippes', nameKreyol: 'Nip'),
     Department(code: 'NO', name: 'Nord', nameKreyol: 'Nò'),
     Department(code: 'NE', name: 'Nord-Est', nameKreyol: 'Nòdès'),
     Department(code: 'NW', name: 'Nord-Ouest', nameKreyol: 'Nòdwès'),
+    Department(code: 'OU', name: 'Ouest', nameKreyol: 'Lwès'),
     Department(code: 'SU', name: 'Sud', nameKreyol: 'Sid'),
     Department(code: 'SE', name: 'Sud-Est', nameKreyol: 'Sidès'),
-    Department(code: 'GA', name: 'Grand\'Anse', nameKreyol: 'Grandans'),
-    Department(code: 'NI', name: 'Nippes', nameKreyol: 'Nip'),
-    Department(code: 'CE', name: 'Centre', nameKreyol: 'Sant'),
   ];
 
   static Department? findByCode(String code) {
