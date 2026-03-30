@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ht">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grate Tikè | Grate Genyen</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="/css/buyer-scratch.css">
+</head>
+<body>
+<div class="container">
+
+  <div class="page-header">
+    <h1>🎰 Grate Tikè</h1>
+    <a href="/buyer-scratch-list.html" class="back-btn" id="back-btn">← Tikè Mwen</a>
+  </div>
+
+  <!-- Error message area -->
+  <div id="scratch-error-msg" class="msg msg-error" style="display:none;"></div>
+
+  <!-- Scratch card -->
+  <div class="scratch-card-wrapper" id="scratch-card-wrapper">
+    <div class="scratch-card-top" id="scratch-card-top">
+      <div class="ticket-name" id="ticket-name">—</div>
+      <div class="ticket-ref" id="ticket-ref"></div>
+    </div>
+
+    <!-- Prize hidden behind the scratch canvas -->
+    <div class="scratch-area-wrap">
+      <div class="prize-reveal">
+        <div class="prize-emoji" id="prize-reveal-emoji">❓</div>
+        <div class="prize-text"  id="prize-reveal-text">Grate pou wè pri ou a</div>
+      </div>
+      <canvas id="scratch-canvas"></canvas>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="scratch-progress-wrap">
+      <div class="scratch-progress-bar">
+        <div class="scratch-progress-fill" id="scratch-progress-fill" style="width:0%"></div>
+      </div>
+      <div class="scratch-progress-label" id="scratch-progress-label">0% grate</div>
+    </div>
+
+    <!-- Bottom section -->
+    <div class="scratch-card-bottom">
+      <p class="scratch-hint" id="scratch-hint">
+        👆 Grate kare a ak dwèt ou oswa sourit ou pou wè pri ou a!
+      </p>
+      <button class="btn-primary" id="btn-reveal-all" style="margin-bottom:16px; display:none;">
+        ⚡ Revele Touswit
+      </button>
+      <div class="prize-banner" id="prize-banner">
+        <h3></h3>
+        <p></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Read query-string params ────────────────────────────────────────
+  function getParam(name) {
+    return new URLSearchParams(window.location.search).get(name) || '';
+  }
+
+  const ticketId   = getParam('id');
+  const ticketType = getParam('type');
+  const phone      = getParam('phone');
+  const scratched  = getParam('scratched') === '1';
+
+  // ── Expose globals for buyer-scratch.js ────────────────────────────
+  window.SCRATCH_TICKET_ID    = parseInt(ticketId, 10);
+  window.SCRATCH_BUYER_PHONE  = phone;
+  window.SCRATCH_TICKET_TYPE  = ticketType;
+  window.SCRATCH_IS_SCRATCHED = false;  // will be set after fetching state
+  window.SCRATCH_PRIZE_EMOJI  = '';
+  window.SCRATCH_PRIZE_TEXT   = '';
+  window.SCRATCH_PRIZE_VALUE  = 0;
+  window.SCRATCH_HAS_PRIZE    = false;
+
+  // ── Escape helper (XSS prevention) ─────────────────────────────────
+  function esc(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
+  }
+
+  // ── Validate required params ────────────────────────────────────────
+  if (!ticketId || !phone) {
+    document.getElementById('scratch-error-msg').textContent =
+      'Paramèt enfòmasyon yo manke. Tounen nan lis tikè ou yo.';
+    document.getElementById('scratch-error-msg').style.display = 'block';
+    document.getElementById('scratch-card-wrapper').style.display = 'none';
+  } else {
+    // ── Populate static UI ────────────────────────────────────────────
+    const TYPE_LABELS = {
+      basic: 'Basic', premium: 'Premium', bronze: 'Bronze',
+      silver: 'Silver', gold: 'Gold', diamond: 'Diamond'
+    };
+    document.getElementById('ticket-name').textContent =
+      'GRATE GENYEN — ' + (TYPE_LABELS[ticketType] || ticketType.toUpperCase());
+
+    // Preserve phone in back-link
+    document.getElementById('back-btn').href =
+      '/buyer-scratch-list.html';
+
+    // Show "Reveal all" button after a short delay so user has a chance to scratch
+    setTimeout(() => {
+      const btn = document.getElementById('btn-reveal-all');
+      if (btn && !window.SCRATCH_IS_SCRATCHED) btn.style.display = 'inline-block';
+    }, 3000);
+
+    // ── If already scratched, fetch state from server before init ─────
+    if (scratched) {
+      // Ticket is already scratched — fetch prize from server
+      fetch(`/api/public/buyer-scratch-ticket/${encodeURIComponent(ticketId)}/scratch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.prize_emoji !== undefined) {
+          window.SCRATCH_IS_SCRATCHED = true;
+          window.SCRATCH_PRIZE_EMOJI  = data.prize_emoji;
+          window.SCRATCH_PRIZE_TEXT   = data.prize_text;
+          window.SCRATCH_PRIZE_VALUE  = data.prize_value;
+          window.SCRATCH_HAS_PRIZE    = data.has_prize;
+        }
+        // Now load the main script
+        loadScratchScript();
+      })
+      .catch(() => loadScratchScript());
+    } else {
+      loadScratchScript();
+    }
+  }
+
+  function loadScratchScript() {
+    const s = document.createElement('script');
+    s.src = '/js/buyer-scratch.js';
+    document.body.appendChild(s);
+  }
+</script>
+</body>
+</html>
